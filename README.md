@@ -100,4 +100,4 @@ contributing — human or agent — read it before your first commit.
 
 ## Licence
 
-Not yet chosen. See [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
+[MIT](LICENSE).

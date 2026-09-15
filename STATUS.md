@@ -51,7 +51,7 @@ Scheduling guidance — which may run in parallel, and the one wave that will co
 
 ## Decisions
 
-**22 accepted** · **8 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
+**22 accepted** · **7 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0.
@@ -78,8 +78,10 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
 
 ## Before the repository goes public
 
-- [ ] `gitleaks` over the **entire history**, not just the working tree
-- [ ] Privacy deny-list scan over the entire history
-- [ ] `docs/17-privacy.md` reviewed and agreed
-- [ ] GitHub settings enabled — see [`docs/17-privacy.md#github-settings-checklist`](docs/17-privacy.md#github-settings-checklist)
-- [ ] Licence chosen ([`OPEN.md`](docs/20-decisions/OPEN.md))
+Swept 2026-09-15; the repository is public as of that date.
+
+- [x] `gitleaks` over the **entire history**, not just the working tree
+- [x] Privacy deny-list scan over the entire history
+- [x] `docs/17-privacy.md` reviewed and agreed
+- [x] GitHub settings enabled — see [`docs/17-privacy.md#github-settings-checklist`](docs/17-privacy.md#github-settings-checklist)
+- [x] Licence chosen — MIT ([`LICENSE`](LICENSE))

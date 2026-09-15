@@ -276,13 +276,13 @@ client secret and no credential of any kind for this path.
 
 ### Verified, and still to verify
 
-Checked against the live cluster on 2026-09-15: Vault agent injection, Helm-chart
-PostgreSQL, and an identity provider already serving forward-auth.
+Checked against the live cluster on 2026-09-15: Vault agent injection, Helm-chart PostgreSQL, and an
+identity provider already serving forward-auth.
 
 Two corrections to an earlier reading of the cluster, both measured:
 
-- **Ingress is the proxy's own route CRD, not Gateway API.** Gateway API types are installed — the distribution
-  ships them — but nothing routes through them. Assume the proxy's route object.
+- **Ingress is the proxy's own route CRD, not Gateway API.** Gateway API types are installed — the
+  distribution ships them — but nothing routes through them. Assume the proxy's route object.
 - **The forward-auth middleware already forwards the provider's signed ID token** alongside the
   plaintext identity headers, and a companion header carrying the **URL** of the key set, not the
   keys. ADR-0021 depends on the first and deliberately ignores the second.

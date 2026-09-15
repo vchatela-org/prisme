@@ -81,11 +81,6 @@ alongside the declared estimate — information neither tool has today.
 It is a single opt-in property write, not a reason to take ownership. Revisit once Run-hour tracking
 has produced a few months of data.
 
-### OQ-8 · Licence
-
-The repository is public and currently has no licence, which means all rights reserved by default.
-Fine for now; decide before anyone else would plausibly want to use it.
-
 ---
 
 ## Recently closed
@@ -104,3 +99,4 @@ Fine for now; decide before anyone else would plausibly want to use it.
 | Public or private repository? | Public, with an impersonal content rule — [ADR-0017](0017-public-repository.md) |
 | **OQ-9** · Forward-auth or OIDC in the application? | Forward-auth, with the provider's signed assertion **verified** rather than its headers trusted — [ADR-0021](0021-verified-forward-auth-assertion.md). W14 is unblocked |
 | Who owns database backups, and does prisme need to build one? | The deployment repository, as a dump CronJob beside its other databases. prisme ships **none** — [ADR-0022](0022-backups-belong-to-the-deployment-repository.md). It was never a workstream dependency; it gates only [step 8](../13-migration.md#5-sequence), the first outward write |
+| **OQ-8** · Which licence? | **MIT**, chosen at publication. See [`LICENSE`](../../LICENSE) |
