@@ -72,7 +72,8 @@ Both security gates have been **watched fail** and are not taken on trust —
 surprised us while doing it.
 
 **W00 has landed; wave 1's other three — W01, W03, W07 — are cleared to start.** Nothing they depend
-on is open. W00's own follow-ups, and what is still owed before its images can be published:
+on is open. W00's remaining follow-ups — including the Docker build fix its first publish found, and
+the re-tag that has to follow it — are in
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
 wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](docs/30-roadmap.md#scheduling-the-agents).
