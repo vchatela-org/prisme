@@ -116,18 +116,37 @@ was relaxed to pass is worse than a red one: it is a failure that looks like a s
 person reads it as one. If a check is genuinely wrong, fix the check — in its own pull request, with
 the reasoning in the body.
 
+### Read the checks back
+
+Green is something you **observe on the pull request**, not something you infer. Opening the PR is
+the middle of the job, not the end of it.
+
+- **Read the results from the PR.** `gh pr checks <n> --watch` waits for every check to finish;
+  `gh pr view <n> --json statusCheckRollup` reads the set as it stands. `STATUS.md` lists the checks
+  that must be present — the set is not fixed, and a check missing from the rollup is not a check
+  that ran.
+- **Queued, in progress, or absent is not green.** It is unknown. Expect an empty rollup in the
+  seconds after you open the PR; read nothing into it until each check reaches a terminal state.
+- **Every push resets it.** Checks run against the head commit, so a green you read before your last
+  `git push` says nothing about what is on the branch now — including a push that only moved a doc.
+- **Name the check and the commit.** The body's table carries each check's result and the commit it
+  was read at. "CI passes" is not a result: it is a claim about a set the reviewer cannot see.
+- **Finished means the last read is green**, on the commit that is on the branch. Commenting the PR
+  URL while a check is still running is not finished.
+
 ### Where you stop
 
 | Situation | What you do |
 |---|---|
-| **Every check green** | Comment the PR URL, stop. The human merges. Do not merge it yourself |
+| **Every check green**, read back from the PR after your final push | Comment the PR URL, stop. The human merges. Do not merge it yourself |
 | **Your work would contradict an Accepted ADR** | Stop, write the superseding ADR, raise it. Do not implement against a decided ADR |
 | **Anything else is red** | Keep going. Fix it, push, watch the checks again |
 | **A check is red for a reason that is not yours** | Say so explicitly in the PR body and your journal, and raise it. Never disable the gate — but do not loop silently against a runner outage either |
 
 There is no "stopped, checks failing" ending. A failing test, a broken anchor, a deny-list hit, a
 missing dependency, a type error: each is yours, and the workstream is not finished until it is
-green.
+green — green [read back from the pull request](#read-the-checks-back), not assumed from a local run
+or from a check that has not reported yet.
 
 ## Brief format
 
