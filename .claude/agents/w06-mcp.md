@@ -30,4 +30,6 @@ malice.
 Review your tool descriptions by running a real agent against them and checking it picks the right
 tool unprompted.
 
-Finish by appending a journal entry and updating your row in `STATUS.md`.
+Finish on a branch (`ws/<id>`): the journal entry and `STATUS.md` row first, then a pull request
+filled in from `.github/pull_request_template.md` and **green on every check**. Fix what is red and
+push again; do not weaken a check to get past it. **Do not merge it yourself** — a human merges.

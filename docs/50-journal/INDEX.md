@@ -26,13 +26,14 @@ see [`../17-privacy.md`](../17-privacy.md).
 | 2026-09-15 | P0 | [P0-2026-09-15-backups-are-infrastructure.md](P0-2026-09-15-backups-are-infrastructure.md) | Backups owned by the deployment repository as a dump CronJob (ADR-0022); this repo ships none. Gates step 8 only |
 | 2026-09-15 | P0 | [P0-2026-09-15-publication-sweep.md](P0-2026-09-15-publication-sweep.md) | Sweep run, history redacted, **repository made public**. MIT chosen (OQ-8). CodeQL still owes `javascript-typescript` |
 | 2026-09-15 | P0 | [P0-2026-09-15-model-frozen.md](P0-2026-09-15-model-frozen.md) | **P0 frozen.** Dual-owner cell resolved to ADR-0008; cadence map written; 14 anchors and the OQ numbering fixed. Wave 1 cleared |
+| 2026-09-15 | P0 | [P0-2026-09-15-branch-and-pr-protocol.md](P0-2026-09-15-branch-and-pr-protocol.md) | Every workstream lands as a **PR on its own branch**, green before it stops, human merges. `enforce admins` closes the bypass that let agents push to `main` |
 
 ## Format
 
 ```markdown
 # <Workstream> · <date> · <short title>
 
-**Agent/author** · **Duration** · **Outcome:** complete | partial | blocked
+**Agent/author** · **Duration** · **PR** #n · **Outcome:** complete | partial | blocked
 
 ## What was done
 ## Decisions taken            and why. New ADRs raised, if any

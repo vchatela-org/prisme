@@ -25,26 +25,39 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 
 ## Workstreams
 
-| # | Workstream | Depends on | Wave | State |
-|---|---|---|---|---|
-| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | ⚪ |
-| [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | ⚪ |
-| [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ |
-| [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | ⚪ |
-| [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | ⚪ |
-| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | ⚪ |
-| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ |
-| [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | ⚪ |
-| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ |
-| [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ |
-| [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ |
-| [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ |
-| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ |
-| [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ |
-| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | ⚪ |
-| [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ |
+| # | Workstream | Depends on | Wave | State | PR |
+|---|---|---|---|---|---|
+| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | ⚪ | — |
+| [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | ⚪ | — |
+| [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ | — |
+| [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | ⚪ | — |
+| [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | ⚪ | — |
+| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | ⚪ | — |
+| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ | — |
+| [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | ⚪ | — |
+| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ | — |
+| [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
+| [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
+| [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
+| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ | — |
+| [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
+| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | ⚪ | — |
+| [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
 
-⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
+⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
+workstream, `—` until one is open.
+
+**Every workstream lands as a pull request on a `ws/<id>` branch, and stops only when it is green.**
+The agent fills in [the template](.github/pull_request_template.md) — features, specs, every check by
+name and result, privacy position, what it did not do. **A human merges**; no agent merges its own
+PR. `main` is protected: a pull request is required, the checks below are required, and `enforce
+admins` is on, so the bypass an agent used to have through the owner's token is gone.
+
+Required on every PR: `privacy deny-list` · `gitleaks` · `internal links` · `dependency review`.
+**Thin on purpose for now** — W00 and W14 add typecheck, lint, test, build, `npm audit`, Trivy and
+CodeQL over `javascript-typescript`, and each becomes required from the commit that adds it. Rules,
+and what to do at each ending:
+[`docs/40-workstreams/README.md#checks`](docs/40-workstreams/README.md#checks).
 
 **Wave 1 — W00, W01, W03, W07 — is cleared to start.** Nothing they depend on is open.
 Scheduling guidance, and the one wave that will conflict:
