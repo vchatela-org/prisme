@@ -22,10 +22,13 @@ updates:
     schedule:
       interval: weekly
 
+  # /apps/sync has no Dockerfile, and that is the design rather than an
+  # omission: prisme-api and prisme-sync are one build (docs/15-runtime.md §1),
+  # so apps/api/Dockerfile produces both and the CronJob overrides the command.
+  # Listing a directory with no manifest only produces a Dependabot error.
   - package-ecosystem: docker
     directories:
       - /apps/web
       - /apps/api
-      - /apps/sync
     schedule:
       interval: weekly
