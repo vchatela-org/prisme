@@ -41,9 +41,8 @@ describe('/healthz', () => {
    * far more expensive thing to discover.
    */
   it('never touches the database', async () => {
-    const readiness = vi.fn(
-      (): Promise<ReadinessReport> =>
-        Promise.reject(new Error('/healthz must not consult the database')),
+    const readiness = vi.fn((): Promise<ReadinessReport> =>
+      Promise.reject(new Error('/healthz must not consult the database')),
     );
     const { app } = build({ readiness });
 
@@ -54,16 +53,15 @@ describe('/healthz', () => {
   });
 
   it('answers while the database is down', async () => {
-    const readiness = vi.fn(
-      (): Promise<ReadinessReport> =>
-        Promise.resolve({
-          state: 'not-ready',
-          database: 'unreachable',
-          schemaVersion: null,
-          expectedSchemaVersion: '0001',
-          reason: 'database is not reachable',
-          checkedInMs: 1,
-        }),
+    const readiness = vi.fn((): Promise<ReadinessReport> =>
+      Promise.resolve({
+        state: 'not-ready',
+        database: 'unreachable',
+        schemaVersion: null,
+        expectedSchemaVersion: '0001',
+        reason: 'database is not reachable',
+        checkedInMs: 1,
+      }),
     );
     const { app } = build({ readiness });
     expect((await app.request('/healthz')).status).toBe(200);
