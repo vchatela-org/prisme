@@ -1,0 +1,91 @@
+name: publish
+
+# Push the images to Harbor.
+#
+# Tags only. A push to `main` builds and scans (`images.yml`) but publishes
+# nothing: what runs in the cluster should be a deliberate, named version rather
+# than whatever merged last. `workflow_dispatch` is there for a re-push after a
+# registry problem.
+#
+# ── Why this does not call the shared reusable workflow ──────────────────────
+# docs/15-runtime.md §1 named
+# `vchatela-org/shared-workflows/.github/workflows/docker-build-push-harbor.yml@v1`
+# as the build-and-push path. That workflow builds one image from `context: .`
+# and has no input for the Dockerfile path or the build target, so it cannot
+# build a monorepo that ships two Dockerfiles both needing the repository root
+# as their context. Rather than contort the images to fit it, this repository
+# publishes directly and the spec has been corrected to say so. The follow-up —
+# add a `dockerfile_path` input to the shared workflow and move back — is
+# recorded in the journal entry for this workstream.
+#
+# ── What must exist before the first tag ─────────────────────────────────────
+#   vars.HARBOR_REGISTRY   registry host
+#   vars.HARBOR_PROJECT    Harbor project
+#   vars.CI_RUNNER         runner label; Harbor is not reachable from a
+#                          GitHub-hosted runner. Defaults to the cluster's
+#                          self-hosted set
+#   secrets.HARBOR_USERNAME / HARBOR_PASSWORD   a Harbor robot account
+#
+# None of those values may be written here: a registry host is infrastructure
+# detail and belongs to the deployment repository (docs/17-privacy.md). Until
+# they are configured the job skips rather than fails — a red publish on an
+# unconfigured repository teaches people to ignore a red publish.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    if: vars.HARBOR_REGISTRY != ''
+    runs-on: ${{ vars.CI_RUNNER || 'arc-runner-set' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # prisme-api and prisme-sync are one build (docs/15-runtime.md §1).
+          # Only this image is published; the CronJob runs it with a different
+          # command, which is what makes the scheduled pass and the force-sync
+          # button provably one code path.
+          - image: prisme-api
+            dockerfile: apps/api/Dockerfile
+          - image: prisme-web
+            dockerfile: apps/web/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ vars.HARBOR_REGISTRY }}/${{ vars.HARBOR_PROJECT }}/${{ matrix.image }}:${{ github.ref_name }}
+          # docs/15-runtime.md §1: "SBOM and provenance attestation emitted at
+          # build." They can only be attached to an image that is pushed, which
+          # is why `images.yml` does not emit them.
+          sbom: true
+          provenance: mode=max
+
+      - name: Record the digest
+        run: |
+          echo "### ${{ matrix.image }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag: \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Digest: \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"

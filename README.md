@@ -6,8 +6,9 @@ committed to, then keeps your planning tools honest about that decision.
 A prism decomposes one beam of white light into an ordered spectrum — one fuzzy set of goals into
 a ranked, schedulable sequence of work.
 
-> **Status: design phase (P0).** The data model and the workstream specs are being written. No
-> application code yet. See [`STATUS.md`](STATUS.md) for exactly where things stand.
+> **Status: P0 frozen, implementation starting.** The model and the workstream specs are settled;
+> the monorepo, its CI and its images exist, and the feature workstreams are landing on top. See
+> [`STATUS.md`](STATUS.md) for exactly where things stand.
 
 ## The problem it solves
 
@@ -79,6 +80,45 @@ TypeScript monorepo. Next.js for the web UI, Hono for the REST API and MCP serve
 Drizzle, and a reconciler that runs both as a scheduled job and in-process behind the API's
 force-sync button. Everything ships as containers; see [`docs/15-runtime.md`](docs/15-runtime.md).
 
+```
+apps/web     Next.js server                 packages/config         one schema for every setting
+apps/api     Hono REST + MCP + reconciler   packages/db             Drizzle, transactions, migrations
+apps/sync    the reconciler entrypoint      packages/observability  logging, metrics, run IDs
+                                            packages/domain         the business rules, pure
+                                            packages/connectors     the outside world
+                                            packages/ui             the design system
+```
+
+## Running it
+
+Node 24 and pnpm 12 — `corepack enable pnpm` after installing the version in `.nvmrc`.
+
+```bash
+pnpm install
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
+
+cp .env.example .env      # fake values only; .env is gitignored
+pnpm dev:db               # PostgreSQL in docker compose, with both roles
+pnpm db:migrate           # a Job before rollout in the cluster, a command here
+pnpm db:status            # what the database is at, versus what this build expects
+
+pnpm start:api            # http://localhost:3000  — /healthz /readyz /metrics
+pnpm start:web            # http://localhost:3001
+```
+
+Migrations never run on application start: two replicas would race on DDL. `pnpm db:migrate` is a
+separate binary, and in the cluster it is a Job that runs before the rollout.
+
+`./scripts/install-hooks.sh` installs the pre-commit hooks — the privacy deny-list scan and
+`gitleaks`, both over staged content. Run it once after cloning.
+
+Images:
+
+```bash
+docker build -f apps/api/Dockerfile -t prisme-api .   # prisme-sync is the same build
+docker build -f apps/web/Dockerfile -t prisme-web .
+```
+
 ## Privacy
 
 This repository is **public and deliberately impersonal**. It documents a product; it never
@@ -91,8 +131,9 @@ contributing — human or agent — read it before your first commit.
 
 ## Related
 
-- `vchatela-org/shared-workflows` — reusable GitHub Actions (Docker build / push / scan to Harbor).
-  CI calls `.github/workflows/docker-build-push-harbor.yml@v1`.
+- `vchatela-org/shared-workflows` — reusable GitHub Actions. Not used for prisme's image build: it
+  builds one image from the repository root and has no input for a Dockerfile path, which a
+  two-image monorepo needs. See the note in [`docs/15-runtime.md`](docs/15-runtime.md#build-requirements).
 - Deployment manifests live in a separate, private GitOps repository. This repo produces images and
   the contract to run them; it holds no cluster configuration — and no database backup, which is a
   dump CronJob owned there
