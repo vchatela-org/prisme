@@ -22,6 +22,8 @@ see [`../17-privacy.md`](../17-privacy.md).
 | Date | Workstream | Entry | Summary |
 |---|---|---|---|
 | 2026-09-15 | P0 | [P0-2026-09-15-foundation-docs.md](P0-2026-09-15-foundation-docs.md) | Model, ADRs, workstream briefs and privacy machinery written |
+| 2026-09-15 | P0 | [P0-2026-09-15-oq9-identity.md](P0-2026-09-15-oq9-identity.md) | OQ-9 closed: forward-auth with a **verified** assertion (ADR-0021). W14 unblocked |
+| 2026-09-15 | P0 | [P0-2026-09-15-backups-are-infrastructure.md](P0-2026-09-15-backups-are-infrastructure.md) | Backups owned by the deployment repository as a dump CronJob (ADR-0022); this repo ships none. Gates step 8 only |
 
 ## Format
 

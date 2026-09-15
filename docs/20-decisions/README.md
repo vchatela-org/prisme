@@ -27,12 +27,14 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0012](0012-key-results-first-class.md) | Key results are first-class and anchored | Accepted |
 | [0013](0013-self-assessed-progress.md) | Objective progress is self-assessed | Accepted |
 | [0014](0014-lanes-outside-the-backlog.md) | Run, Signals and Rituals are lanes | Accepted |
-| [0015](0015-auth-split-by-caller.md) | OIDC for humans, scoped tokens for agents | Accepted |
+| [0015](0015-auth-split-by-caller.md) | Identity provider for humans, scoped tokens for agents | Accepted |
 | [0016](0016-document-tool-owns-processes.md) | The document tool owns process pages outright | Accepted |
 | [0017](0017-public-repository.md) | Public repository, impersonal content rule | Accepted |
 | [0018](0018-state-in-postgres.md) | All state lives in PostgreSQL | Accepted |
 | [0019](0019-project-as-optional-container.md) | Project is an optional container | Accepted |
 | [0020](0020-sync-cadence.md) | Sync every 15 minutes, daytime window, force button | Accepted |
+| [0021](0021-verified-forward-auth-assertion.md) | Trust a verified assertion, never an identity header | Accepted |
+| [0022](0022-backups-belong-to-the-deployment-repository.md) | Database backups belong to the deployment repository | Accepted |
 
 ## Format
 

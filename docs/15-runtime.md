@@ -57,11 +57,10 @@ Names are public; values never are.
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `PRISME_BASE_URL` | Public base URL, for OIDC redirects and backlinks |
-| `OIDC_ISSUER_URL` | Identity provider issuer |
-| `OIDC_CLIENT_ID` | |
-| `OIDC_CLIENT_SECRET` | *file-mountable — see below* |
-| `SESSION_SECRET` | Session cookie signing key |
+| `PRISME_BASE_URL` | Public base URL, for backlinks and origin checks |
+| `AUTH_ISSUER_URL` | Identity provider issuer, as it appears in the `iss` claim |
+| `AUTH_AUDIENCE` | Expected `aud` — the provider client the assertion was issued for |
+| `AUTH_ALLOWED_SUBJECTS` | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
 | `TOKEN_PEPPER` | Additional secret mixed into API-token hashing |
 | `DOCTOOL_API_TOKEN` | Document-tool integration token |
 | `TASKTOOL_API_TOKEN` | Task-tool API token |
@@ -72,6 +71,12 @@ Names are public; values never are.
 |---|---|---|
 | `PORT` | `3000` | |
 | `LOG_LEVEL` | `info` | |
+| `AUTH_JWKS_URL` | *discovered from the issuer* | Where signing keys are fetched. **Never taken from a request header**, whatever the proxy offers |
+| `AUTH_ASSERTION_HEADER` | `X-authentik-jwt` | Header carrying the signed assertion. The default is the target proxy's name for it; prisme assumes no particular provider |
+| `AUTH_ALLOWED_ALGS` | `RS256,ES256` | Asymmetric only. `none` and every HMAC variant are rejected regardless of this value |
+| `AUTH_CLOCK_SKEW_SECONDS` | `60` | Tolerance on `exp` and `nbf` |
+| `AUTH_ASSERTION_MAX_LIFETIME` | `24h` | Reject an assertion whose `exp - iat` exceeds this — catches a provider configured to issue long-lived tokens |
+| `AUTH_JWKS_CACHE_TTL` | `10m` | Refetched early on an unknown `kid`, so key rotation does not need a restart |
 | `SYNC_ENABLED` | `true` | Master switch for the reconciler |
 | `SYNC_WRITE_ENABLED` | `false` | **Write freeze. Ships off** — see [`13-migration.md`](13-migration.md) |
 | `SYNC_CREATE_THRESHOLD` | `0` | `apply` refuses a plan exceeding this many creates |
@@ -83,6 +88,13 @@ Names are public; values never are.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
+
+**The human authentication path holds no secret.** [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md)
+resolved it as forward-auth with a *verified* assertion: prisme validates a signature with public
+keys and issues no session of its own, so the earlier `OIDC_CLIENT_SECRET` and `SESSION_SECRET` are
+gone rather than renamed. Nothing above needs them; if either turns up in a deployment, it is a
+leftover. `AUTH_*` values are configuration, not credentials — which does not make them public, only
+harmless if the process leaks them.
 
 ### Secret delivery
 
@@ -119,9 +131,35 @@ database operator present. So prisme gets a connection string and nothing else �
 custom resource, no operator-managed failover, no automated backup hook. Two consequences worth
 stating rather than discovering:
 
-- **Backups are the deployment repository's responsibility**, and prisme is a system of record
-  (ADR-0001). Confirm a backup exists before the first `apply` writes anything outward.
+- **Backups happen outside this application entirely** — see below. Nothing here creates, schedules
+  or verifies one.
 - **Assume a single instance.** Do not design for read replicas or failover.
+
+### Backups — outside the application
+
+Settled by [ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md).
+**Backup and restore belong to the GitOps deployment repository. prisme ships no backup capability.**
+
+| Question | Answer |
+|---|---|
+| **Mechanism** | A scheduled dump **CronJob in the deployment repository**, one per stateful application — the pattern that repository already uses for its other databases. prisme is another row in it, not a special case |
+| **Owner** | The deployment repository, for the schedule, retention, off-cluster copy and monitoring |
+| **In this repository** | Nothing. No `pg_dump`, no dump-to-storage client, no backup entrypoint, no `/backup` route, no MCP tool, no button. A grep for `pg_dump` here returns nothing — if it ever does, that is the bug |
+| **prisme's obligation** | Stay restorable: all state in PostgreSQL (ADR-0018), no volume, no local files, forward-only migrations with a written reversal, a documented schema version per image tag |
+
+So there is no backup metric, no `/readyz` check and no UI warning about backup age. The application
+cannot know, deliberately — it holds no credential that could look.
+
+**The one gate.** Before the write freeze is lifted for the first time (`SYNC_WRITE_ENABLED=true`,
+[`13-migration.md`](13-migration.md#5-sequence) step 8), a restore must have been **rehearsed once**
+— not merely scheduled. That is a human checklist item owned by the deployment repository; prisme
+does not enforce it, cannot detect it, and refuses nothing on its account. It blocks no workstream
+here: P0 and P1 write nothing outward regardless, and the infrastructure work can land at any point
+before that step.
+
+A dump is the full private instance in one file. It is `seed/`-class data
+([`17-privacy.md`](17-privacy.md)) — it lives off-cluster, and it is never an input to a test, a
+fixture or a journal entry.
 
 ### Migrations
 
@@ -206,26 +244,48 @@ Redacting by deny-list at the serializer, so a token cannot be logged even by an
 What the GitOps repository must supply, and what it gets back:
 
 **Supplies:** the images and their tags · every required environment variable, with secrets rendered
-to a file by the Vault agent init container · a PostgreSQL instance, its credentials **and its
-backups** · the CronJob schedule and window · ingress via the proxy's route object · the identity
-integration (see below).
+to a file by the Vault agent init container · a PostgreSQL instance and its credentials · **its
+backups, as a dump CronJob owned there** (ADR-0022 — this repository supplies no part of it) · the
+`prisme-sync` CronJob schedule and window · ingress, through the proxy's own route object · the
+identity integration (see below).
 
 **Receives:** `/healthz`, `/readyz`, `/metrics` · exit codes (non-zero on failed reconcile) ·
-structured logs on stdout · a documented schema version per image tag.
+structured logs on stdout · a documented schema version per image tag · a database that is safe to
+dump and restore as a whole, because nothing lives outside it.
 
-### ⚠ Identity integration is not settled
+Two CronJobs, two owners, and they are unrelated: `prisme-sync` runs prisme's reconciler from an
+image this repository builds; the backup CronJob runs a stock PostgreSQL client against the same
+database and knows nothing about prisme. Do not merge them, and do not give prisme's image the
+backup's credential.
 
-The cluster's established pattern is **forward-auth via a proxy provider** — the gateway
-authenticates and passes identity headers upstream — rather than each application running its own
-OIDC flow. ADR-0015 assumes the latter.
+### Identity integration
 
-Both work; they are different trust models, and the choice affects W14 directly. Tracked as
-**OQ-9** in [`20-decisions/OPEN.md`](20-decisions/OPEN.md). **Resolve before W14 starts.**
+Settled by [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md): **forward-auth, with
+prisme verifying the provider's signed assertion** rather than trusting the identity headers beside
+it. That puts four obligations on the deployment, and three of them are silent if missed.
+
+| # | Obligation | What happens if it is missed |
+|---|---|---|
+| 1 | The proxy provider for prisme has an **asymmetric signing keypair** assigned | The provider falls back to signing with the client secret and publishes an **empty JWKS** — the default, and not an error anywhere. prisme cannot verify anything and fails closed at boot |
+| 2 | Its **token validity is short** — an hour is plenty, the outpost refreshes transparently | The replay window for a stolen assertion becomes the provider's default, which is a day |
+| 3 | The forward-auth middleware is attached to the **UI route only**. The API and MCP route must not carry it | The outpost intercepts inbound `Authorization` headers by default and consumes the bearer token agents send, so every machine caller breaks. Human traffic loses nothing: the assertion is verified, not trusted, so an unprotected route is just as safe |
+| 4 | A **default-deny network policy** on the namespace | Nothing immediately — this is defence in depth now rather than the control. Worth having; no longer load-bearing |
+
+prisme needs the issuer, the audience and the subject allow-list as configuration (§2). It needs no
+client secret and no credential of any kind for this path.
 
 ### Verified, and still to verify
 
 Checked against the live cluster on 2026-09-15: Vault agent injection, Helm-chart
 PostgreSQL, and an identity provider already serving forward-auth.
 
+Two corrections to an earlier reading of the cluster, both measured:
+
+- **Ingress is the proxy's own route CRD, not Gateway API.** Gateway API types are installed — the distribution
+  ships them — but nothing routes through them. Assume the proxy's route object.
+- **The forward-auth middleware already forwards the provider's signed ID token** alongside the
+  plaintext identity headers, and a companion header carrying the **URL** of the key set, not the
+  keys. ADR-0021 depends on the first and deliberately ignores the second.
+
 Still to confirm before W00 finalises the Dockerfiles: the exact rendered env-file path and format,
-whether the registry pull secret is namespace-scoped, and the outcome of OQ-9.
+and whether the registry pull secret is namespace-scoped.

@@ -44,6 +44,11 @@ All of it in PostgreSQL — sync token, watermark, `last_applied`, conflict ledg
 local files ([ADR-0018](../../docs/20-decisions/0018-state-in-postgres.md)). The sync token advancing
 and the changes it represents commit in one transaction, so they cannot diverge.
 
+**Backing that database up is not this application's job** — it is a dump CronJob in the deployment
+repository ([ADR-0022](../../docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md)).
+Write no `pg_dump`, no snapshot-before-apply, no "safety copy" step in `apply`. If an `apply` needs
+protecting, the protection is the plan gate and the event log, not a dump this process takes itself.
+
 ## Testing
 
 Planner unit tests against JSON fixtures carry the bulk of the coverage — no network, no clock. Plus

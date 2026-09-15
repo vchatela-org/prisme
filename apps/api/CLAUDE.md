@@ -39,7 +39,7 @@ can interrupt it. Assume confusion, not malice.
 api/
   routes/     REST, one module per resource
   mcp/        tool definitions — thin wrappers over services   (W06)
-  auth/       OIDC, token store, scope middleware              (W14)
+  auth/       assertion verifier, token store, scope middleware (W14)
   services/   shared by routes and MCP tools
 ```
 

@@ -41,7 +41,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ |
-| [W14](docs/40-workstreams/W14-security.md) | Security: OIDC, token store, CSP, CI gates | W00 | 2 | ⚪ |
+| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | ⚪ |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ |
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
@@ -51,14 +51,30 @@ Scheduling guidance — which may run in parallel, and the one wave that will co
 
 ## Decisions
 
-**20 accepted** · **9 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
+**22 accepted** · **8 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0.
 
-⚠ **OQ-9 (forward-auth or OIDC) blocks W14** and must be resolved before wave 2. Cluster
-verification found the homelab's established pattern differs from what ADR-0015 assumed.
-OQ-1 and OQ-2 block P2; the rest are deferred by choice.
+✅ **OQ-9 is closed** — [ADR-0021](docs/20-decisions/0021-verified-forward-auth-assertion.md):
+forward-auth, with the identity provider's signed assertion **verified** rather than its headers
+trusted. **W14 is unblocked**, and no open question now blocks a workstream. OQ-1 and OQ-2 block
+P2; the rest are deferred by choice.
+
+✅ **Database backups are not a prisme task** —
+[ADR-0022](docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md): a dump CronJob in
+the GitOps deployment repository, beside its other databases. **Nothing in this repository builds,
+schedules or checks a backup**, and no workstream is waiting on one. It gates a single moment, below.
+
+## Before the first outward write
+
+The one-time gate on [`docs/13-migration.md`](docs/13-migration.md#5-sequence) step 8 — lifting the
+write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns each line.
+
+- [ ] Backup CronJob deployed for prisme's database — **deployment repository**, ADR-0022
+- [ ] **A restore rehearsed at least once**, not merely scheduled
+- [ ] `plan` read by hand, `create: 0` confirmed (ADR-0010 guard 3)
+- [ ] Adoption queue worked; link coverage reported (W12)
 
 ## Before the repository goes public
 

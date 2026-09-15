@@ -94,7 +94,9 @@ contributing — human or agent — read it before your first commit.
 - `vchatela-org/shared-workflows` — reusable GitHub Actions (Docker build / push / scan to Harbor).
   CI calls `.github/workflows/docker-build-push-harbor.yml@v1`.
 - Deployment manifests live in a separate, private GitOps repository. This repo produces images and
-  the contract to run them; it holds no cluster configuration.
+  the contract to run them; it holds no cluster configuration — and no database backup, which is a
+  dump CronJob owned there
+  ([ADR-0022](docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md)).
 
 ## Licence
 

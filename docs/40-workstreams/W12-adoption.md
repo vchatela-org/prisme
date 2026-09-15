@@ -36,7 +36,10 @@ hard requirement:
 ## Out of scope
 
 The reconciler itself (W04) · capacity backfill (W13) · creation flows (W15 — the opposite
-direction).
+direction) · **database backups** — the restore rehearsal that gates the first outward write is
+infrastructure work in the deployment repository, not yours to build or to check
+([ADR-0022](../20-decisions/0022-backups-belong-to-the-deployment-repository.md)). It does not block
+this workstream: everything here is `plan`-only.
 
 ## Contract
 

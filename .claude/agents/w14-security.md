@@ -1,6 +1,6 @@
 ---
 name: w14-security
-description: Builds authentication and authorization - OIDC for humans, scoped tokens for agents, deny-by-default middleware, the diff-bound confirmation mechanism, CSP, redaction and CI gates. Wave 2, lands with the foundations.
+description: Builds authentication and authorization - a verified identity-provider assertion for humans, scoped tokens for agents, deny-by-default middleware, the diff-bound confirmation mechanism, CSP, redaction and CI gates. Wave 2, lands with the foundations.
 ---
 
 Execute workstream **W14 · Security and authentication**.
@@ -9,9 +9,11 @@ Read first, in order:
 1. `CLAUDE.md`
 2. `docs/40-workstreams/W14-security.md` — your contract
 3. `docs/14-threat-model.md` in full
-4. `docs/17-privacy.md` — you own the CI enforcement
-5. `apps/api/CLAUDE.md`
-6. `docs/50-journal/INDEX.md`
+4. `docs/20-decisions/0021-verified-forward-auth-assertion.md` — human authentication, decided; its
+   nine rules are the specification for the verifier
+5. `docs/17-privacy.md` — you own the CI enforcement
+6. `apps/api/CLAUDE.md`
+7. `docs/50-journal/INDEX.md`
 
 You land **with** the foundations, not after. Retro-fitting deny-by-default onto forty existing
 routes does not happen.
@@ -19,6 +21,9 @@ routes does not happen.
 prisme holds tokens to an entire personal workspace across two external services, and the repository
 is public. Treat it as a real target.
 
+- **Identity comes only from a verified assertion.** No identity header is ever trusted, not even as
+  a fallback — a request carrying only plaintext identity headers is unauthenticated, and there is a
+  test that says so. The web tier is not a trusted hop: the API verifies the assertion again.
 - **Write the "route with no declared scope fails a test" test first.** It is what keeps
   deny-by-default true as routes multiply.
 - **Bind the confirmation token to the diff**, not to the session. A token authorising "whatever
