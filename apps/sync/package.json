@@ -1,0 +1,16 @@
+{
+  "name": "@prisme/sync",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@prisme/config": "workspace:*",
+    "@prisme/db": "workspace:*",
+    "@prisme/observability": "workspace:*"
+  }
+}

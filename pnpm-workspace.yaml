@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Lifecycle scripts are off by default (see .npmrc). A postinstall script is
+# arbitrary code from a transitive dependency running with the developer's
+# credentials in scope — docs/14-threat-model.md §6 asks for `--ignore-scripts`
+# with an explicit allow-list, and this is that allow-list.
+#
+# esbuild: its install script links the platform binary that Vitest's
+# transform pipeline needs. Without it, `pnpm test` cannot start.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,33 @@
+# Local development only. This file configures nothing in any cluster — the
+# deployment manifests live in a separate, private GitOps repository
+# (docs/15-runtime.md).
+#
+#   pnpm dev:db          start PostgreSQL
+#   pnpm db:migrate      apply migrations (a Job in the cluster, a command here)
+#   pnpm dev:db:down     stop and delete the volume
+#
+# The credentials below are development throwaways and are the same on every
+# machine. Nothing here may ever be a real credential or a real host.
+
+services:
+  postgres:
+    # Stock image, no operator, no extension beyond pgcrypto — the same shape as
+    # the target cluster (docs/15-runtime.md §3), so local and deployed agree.
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: prisme
+      POSTGRES_PASSWORD: prisme
+      POSTGRES_DB: prisme
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./packages/db/sql/dev-roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U prisme -d prisme']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:
