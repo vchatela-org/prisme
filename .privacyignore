@@ -1,0 +1,20 @@
+# Paths excluded from the privacy deny-list scan.
+# Keep this list as short as possible — every entry is a hole in the control.
+
+# The deny-list itself contains the patterns by definition.
+.github/privacy-denylist.txt
+.privacyignore
+
+# Lock files contain content hashes that match the 32-hex ID pattern.
+pnpm-lock.yaml
+package-lock.json
+
+# Build output and dependencies.
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Git internals.
+.git/

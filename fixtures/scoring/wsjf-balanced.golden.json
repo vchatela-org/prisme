@@ -1,0 +1,80 @@
+{
+  "_comment": "Golden file. Synthetic inputs pinned to expected outputs for the wsjf-balanced scoring method. A diff here REQUIRES a version bump on the method (ADR-0006); CI enforces the pairing.",
+
+  "method": { "id": "wsjf-balanced", "version": 1 },
+  "params": { "deadlineOverrideDays": 14, "deadlineOverrideValue": 13, "balanceClamp": [0.5, 2.0] },
+  "now": "2026-09-15",
+  "areaContext": "fixtures/areas.json#areaContext2026W37",
+
+  "cases": [
+    {
+      "id": "init-001", "areaKey": "health",
+      "in":  { "value": 8, "timeCriticality": 2, "risk": 5, "size": 3, "deadline": null, "balanceFactor": 2.0 },
+      "out": { "effectiveTimeCriticality": 2, "cod": 15, "wsjf": 5.0, "score": 10.0 }
+    },
+    {
+      "id": "init-002", "areaKey": "relationships",
+      "in":  { "value": 8, "timeCriticality": 2, "risk": 5, "size": 3, "deadline": null, "balanceFactor": 1.8 },
+      "out": { "effectiveTimeCriticality": 2, "cod": 15, "wsjf": 5.0, "score": 9.0 }
+    },
+    {
+      "id": "init-003", "areaKey": "money",
+      "in":  { "value": 8, "timeCriticality": 3, "risk": 8, "size": 5, "deadline": "2026-10-31", "balanceFactor": 1.2 },
+      "out": { "effectiveTimeCriticality": 3, "cod": 19, "wsjf": 3.8, "score": 4.56 },
+      "_note": "Deadline is 46 days out — beyond the 14-day window, so no override."
+    },
+    {
+      "id": "init-004", "areaKey": "craft",
+      "in":  { "value": 8, "timeCriticality": 5, "risk": 3, "size": 5, "deadline": null, "balanceFactor": 1.0 },
+      "out": { "effectiveTimeCriticality": 5, "cod": 16, "wsjf": 3.2, "score": 3.2 }
+    },
+    {
+      "id": "init-005", "areaKey": "home",
+      "in":  { "value": 8, "timeCriticality": 5, "risk": 5, "size": 8, "deadline": null, "balanceFactor": 0.5 },
+      "out": { "effectiveTimeCriticality": 5, "cod": 18, "wsjf": 2.25, "score": 1.125 },
+      "_note": "Displays as 1.13. Full precision stored here."
+    },
+    {
+      "id": "init-006", "areaKey": "home",
+      "in":  { "value": 5, "timeCriticality": 8, "risk": 3, "size": 5, "deadline": "2026-11-15", "balanceFactor": 0.5 },
+      "out": { "effectiveTimeCriticality": 8, "cod": 16, "wsjf": 3.2, "score": 1.6 },
+      "_note": "Outranks init-005 on raw WSJF (3.2 vs 2.25) yet is not selected — selection is a separate step."
+    },
+    {
+      "id": "init-007", "areaKey": "community",
+      "in":  { "value": 8, "timeCriticality": 2, "risk": 3, "size": 8, "deadline": null, "balanceFactor": 1.2 },
+      "out": { "effectiveTimeCriticality": 2, "cod": 13, "wsjf": 1.625, "score": 1.95 },
+      "_note": "WSJF displays as 1.63."
+    },
+    {
+      "id": "init-008", "areaKey": "craft",
+      "in":  { "value": 3, "timeCriticality": 1, "risk": 3, "size": 8, "deadline": null, "balanceFactor": 1.0 },
+      "out": { "effectiveTimeCriticality": 1, "cod": 7, "wsjf": 0.875, "score": 0.875 },
+      "_note": "Scored honestly, enjoyable infrastructure work loses. Displays as 0.88."
+    },
+    {
+      "id": "init-009", "areaKey": "home",
+      "in":  { "value": 3, "timeCriticality": 2, "risk": 8, "size": 2, "deadline": "2026-09-25", "balanceFactor": 0.5 },
+      "out": { "effectiveTimeCriticality": 13, "cod": 24, "wsjf": 12.0, "score": 6.0 },
+      "_note": "THE OVERRIDE CASE. Deadline is 10 days out, so timeCriticality is forced to 13 regardless of the declared 2. Even halved by an over-served area it ranks third overall — a hard deadline dominating is correct."
+    },
+    {
+      "id": "edge-min",
+      "in":  { "value": 1, "timeCriticality": 1, "risk": 1, "size": 13, "deadline": null, "balanceFactor": 0.5 },
+      "out": { "effectiveTimeCriticality": 1, "cod": 3, "wsjf": 0.23076923076923078, "score": 0.11538461538461539 },
+      "_note": "Floor case: smallest cost of delay, largest size, maximum damping."
+    },
+    {
+      "id": "edge-max",
+      "in":  { "value": 13, "timeCriticality": 13, "risk": 13, "size": 1, "deadline": null, "balanceFactor": 2.0 },
+      "out": { "effectiveTimeCriticality": 13, "cod": 39, "wsjf": 39.0, "score": 78.0 },
+      "_note": "Ceiling case: the theoretical maximum."
+    },
+    {
+      "id": "edge-deadline-boundary",
+      "in":  { "value": 5, "timeCriticality": 1, "risk": 1, "size": 5, "deadline": "2026-09-29", "balanceFactor": 1.0 },
+      "out": { "effectiveTimeCriticality": 1, "cod": 7, "wsjf": 1.4, "score": 1.4 },
+      "_note": "Exactly 14 days out. The override is '< 14 days', so this must NOT trigger. Pin the boundary explicitly — off-by-one here silently changes every ranking."
+    }
+  ]
+}

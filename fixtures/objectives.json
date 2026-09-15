@@ -1,0 +1,117 @@
+{
+  "_comment": "Synthetic. Invented objectives and key results. See README.md.",
+
+  "objectives": [
+    {
+      "id": "obj-001",
+      "title": "Be measurably fitter by the end of the year",
+      "type": "annual",
+      "period": "2026",
+      "areaKey": "health",
+      "status": "in_progress",
+      "keyResults": [
+        {
+          "id": "kr-001",
+          "statement": "Complete a half-marathon",
+          "target": 1, "unit": "event",
+          "progressSelf": 60,
+          "servedBy": ["init-001"],
+          "measurements": [
+            { "at": "2026-06-30", "value": 0 },
+            { "at": "2026-08-31", "value": 0 }
+          ]
+        },
+        {
+          "id": "kr-002",
+          "statement": "Strength session three times a week",
+          "target": 3, "unit": "sessions/week",
+          "progressSelf": 35,
+          "servedBy": [],
+          "_note": "A habit, not an outcome. Should become a Ritual — exercises the habit/outcome distinction in ADR-0012."
+        }
+      ]
+    },
+    {
+      "id": "obj-002",
+      "title": "Put the household finances on a deliberate footing",
+      "type": "annual",
+      "period": "2026",
+      "areaKey": "money",
+      "status": "in_progress",
+      "keyResults": [
+        {
+          "id": "kr-003",
+          "statement": "Written investment policy in place",
+          "target": 1, "unit": "document",
+          "progressSelf": 40,
+          "servedBy": ["init-003"],
+          "measurements": [{ "at": "2026-08-31", "value": 0 }]
+        },
+        {
+          "id": "kr-004",
+          "statement": "Six months of expenses held in reserve",
+          "target": 6, "unit": "months",
+          "progressSelf": 100,
+          "servedBy": ["init-012"],
+          "measurements": [
+            { "at": "2026-06-30", "value": 4 },
+            { "at": "2026-08-31", "value": 6 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj-003",
+      "title": "Protect time with the people who matter",
+      "type": "annual",
+      "period": "2026",
+      "areaKey": "relationships",
+      "status": "at_risk",
+      "keyResults": [
+        {
+          "id": "kr-005",
+          "statement": "One uninterrupted evening together each week",
+          "target": 52, "unit": "evenings",
+          "progressSelf": 15,
+          "progressComputedHint": 70,
+          "servedBy": ["init-002"],
+          "_note": "Large divergence: most tasks closed, little felt progress. The exact pattern ADR-0013 exists to surface."
+        }
+      ]
+    },
+    {
+      "id": "obj-004",
+      "title": "Finish the workshop this month",
+      "type": "monthly",
+      "period": "2026-09",
+      "areaKey": "craft",
+      "status": "in_progress",
+      "keyResults": [
+        {
+          "id": "kr-006",
+          "statement": "Bench built and in use",
+          "target": 1, "unit": "bench",
+          "progressSelf": 50,
+          "servedBy": ["init-004"]
+        }
+      ]
+    },
+    {
+      "id": "obj-005",
+      "title": "Contribute regularly to the neighbourhood association",
+      "type": "annual",
+      "period": "2026",
+      "areaKey": "community",
+      "status": "not_started",
+      "keyResults": [],
+      "_note": "No key results and no initiatives — exercises orphan detection in W11."
+    }
+  ],
+
+  "_coverage": [
+    "kr-002 is a habit that should become a Ritual.",
+    "kr-005 has a large self-vs-computed divergence.",
+    "obj-005 is an orphan objective with nothing behind it.",
+    "kr-004 is complete, so a finished key result renders correctly."
+  ]
+}

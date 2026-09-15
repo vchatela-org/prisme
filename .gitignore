@@ -1,15 +1,58 @@
-# Stack-neutral. Language-specific entries get added once the stack is decided.
+# === Privacy: never commit instance data =====================================
+# See docs/17-privacy.md. This repository is public: it documents a product,
+# never its owner. Anything describing a real backlog, goal or workspace stays
+# out of git and lives in the database instead.
+#
+# NOTE: a '#' only starts a comment at the START of a line. A trailing comment
+# becomes part of the pattern and silently disables it, so keep comments above
+# the patterns they describe. Verify with: git check-ignore -v <path>
 
-# Secrets / environment
+# real areas, weights, tool mappings, external IDs
+seed/
+# local overrides of any committed config
+*.local.*
+# personal supplement to the privacy deny-list
+.github/privacy-denylist.local.txt
+# private siblings of journal entries
+*-private.md
+docs/50-journal/*-private.md
+# exports and screenshots of the live instance
+exports/
+screenshots/
+*.dump
+*.sqlite
+*.sqlite3
+
+# === Secrets =================================================================
 .env
 .env.*
 !.env.example
+*.pem
+*.key
 
-# OS
+# === Node / TypeScript =======================================================
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+.turbo/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# === OS ======================================================================
 .DS_Store
 Thumbs.db
 
-# Editors
+# === Editors =================================================================
 .vscode/
 .idea/
 *.swp
+
+# === Claude Code local state ==================================================
+.claude/settings.local.json
+.claude/plans/

@@ -1,0 +1,29 @@
+---
+name: w05-api
+description: Builds the REST API and OpenAPI description serving the web UI, MCP server and scripts. Wave 2, depends on W01 and W03.
+---
+
+Execute workstream **W05 · REST API**.
+
+Read first, in order:
+1. `CLAUDE.md`
+2. `docs/40-workstreams/W05-api.md` — your contract
+3. `docs/14-threat-model.md` — deny by default, parse at the boundary
+4. `docs/11-ownership.md` — read-only fields must be rejected, not ignored
+5. `apps/api/CLAUDE.md`
+6. `docs/50-journal/INDEX.md`
+
+Stay out of `apps/api/mcp/` (W06) and `apps/api/auth/` (W14). You declare the required scope on each
+route; W14 supplies the mechanism.
+
+- **Design endpoints around the screens**, not as generic CRUD. Generic CRUD forces the UI into N+1
+  patterns, and then the UI grows its own aggregation logic — which is how a second source of truth
+  appears.
+- **Return explicit DTOs, never database rows.** A row means a new column silently becomes public
+  API, which is how an internal field ends up in an agent's context.
+- **Write the "route with no declared scope fails a test" test first.** It is what keeps
+  deny-by-default true as routes multiply.
+
+Seed integration tests from `fixtures/` only.
+
+Finish by appending a journal entry and updating your row in `STATUS.md`.

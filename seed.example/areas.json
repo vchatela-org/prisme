@@ -1,0 +1,24 @@
+{
+  "_comment": "FORMAT EXAMPLE. Invented values. Copy to seed/ (gitignored) and replace with the real configuration. Never commit seed/.",
+
+  "areas": [
+    { "key": "alpha",   "name": "Alpha",   "kind": "area" },
+    { "key": "beta",    "name": "Beta",    "kind": "area" },
+    { "key": "gamma",   "name": "Gamma",   "kind": "area" },
+    { "key": "run",     "name": "Run",     "kind": "run",     "runBudgetHoursPerWeek": 3 },
+    { "key": "signals", "name": "Signals", "kind": "signals" }
+  ],
+
+  "areaWeights": [
+    { "areaKey": "alpha", "year": 2026, "weightPct": 50 },
+    { "areaKey": "beta",  "year": 2026, "weightPct": 30 },
+    { "areaKey": "gamma", "year": 2026, "weightPct": 20 }
+  ],
+
+  "_rules": [
+    "Weights for a year must sum to 100 across kind='area'. The loader rejects anything else.",
+    "Lanes (kind='run' and kind='signals') carry no percentage. Run is capped in hours per week.",
+    "Weights are fixed for a whole year and re-decided at the yearly review (ADR-0007). The loader will not overwrite an existing year without an explicit flag.",
+    "A year with no weights triggers the year gate: balance factors go stale and the Year Review unlocks."
+  ]
+}

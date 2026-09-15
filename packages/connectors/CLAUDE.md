@@ -1,0 +1,46 @@
+# packages/connectors
+
+**Everything prisme knows about the outside world arrives here.**
+
+Owned by [W03](../../docs/40-workstreams/W03-connectors.md) (read) and
+[W04](../../docs/40-workstreams/W04-reconciler.md) (write).
+Specs: [`16-sync.md`](../../docs/16-sync.md) · [`11-ownership.md`](../../docs/11-ownership.md).
+
+## Non-negotiables
+
+1. **Responses are untrusted input.** Parse every one with Zod before any other code sees it. Data
+   arriving from the user's own workspace still contains markup, arbitrary URLs and content pasted
+   from the open web — and it flows into rendering *and* into agent context.
+2. **External stores are addressed by role key**, never by name or ID: `objectives_db`,
+   `takeaways_db`, `media_db`, `areas_db`, `processes_db`, `reviews_db`. No real name or ID may
+   appear in this repository ([`17-privacy.md`](../../docs/17-privacy.md)).
+3. **Never guess a mapping.** An unexpected shape fails the run with a message naming the field.
+   Guessing produces silent corruption of real data.
+4. **No domain logic here.** This package maps wire formats to typed records and does nothing
+   clever. Decisions belong in `packages/domain`.
+5. **Write only what [`11-ownership.md`](../../docs/11-ownership.md) says prisme owns.** In
+   particular: prisme writes `deadline`, and **never** `due`.
+
+## Conventions
+
+- Every client is an interface with a recorded-fixture implementation for tests.
+- Idempotency keys on every write, so a retry after a timeout cannot apply the same change twice.
+- Backoff with jitter on `5xx`; honour `Retry-After` on `429`; **stop immediately** on an invalid
+  token — retrying a bad credential risks lockout.
+- Collect URLs found in third-party content; never fetch one without an allow-list.
+
+## The watermark trap
+
+Change timestamps in the document tool round **down** to the minute, so querying `>= last_run`
+misses edits made in the same minute as the previous run. Overlap the watermark by two minutes and
+compare a content hash to suppress no-ops.
+
+Without this, sync looks healthy and quietly loses edits — the worst possible failure mode.
+
+## Testing
+
+**No test may call a real API.** A suite depending on someone's real workspace fails for the wrong
+reasons and leaks instance data into fixtures.
+
+When recording a fixture from a real response: **redact every title, name, ID and URL before
+saving**. Keep the shape — that is the only part a contract test needs.

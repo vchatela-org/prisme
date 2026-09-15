@@ -1,0 +1,47 @@
+{
+  "_comment": "Synthetic. Invented areas and weights, deliberately unlike any real configuration. See README.md.",
+  "areas": [
+    { "key": "health",        "name": "Health",        "kind": "area" },
+    { "key": "relationships", "name": "Relationships", "kind": "area" },
+    { "key": "craft",         "name": "Craft",         "kind": "area" },
+    { "key": "money",         "name": "Money",         "kind": "area" },
+    { "key": "home",          "name": "Home",          "kind": "area" },
+    { "key": "community",     "name": "Community",     "kind": "area" },
+    { "key": "run",           "name": "Run",           "kind": "run",     "runBudgetHoursPerWeek": 3 },
+    { "key": "signals",       "name": "Signals",       "kind": "signals" }
+  ],
+
+  "areaWeights": [
+    { "areaKey": "health",        "year": 2026, "weightPct": 30 },
+    { "areaKey": "relationships", "year": 2026, "weightPct": 25 },
+    { "areaKey": "craft",         "year": 2026, "weightPct": 20 },
+    { "areaKey": "money",         "year": 2026, "weightPct": 15 },
+    { "areaKey": "home",          "year": 2026, "weightPct": 5 },
+    { "areaKey": "community",     "year": 2026, "weightPct": 5 },
+
+    { "areaKey": "health",        "year": 2027, "weightPct": 20 },
+    { "areaKey": "relationships", "year": 2027, "weightPct": 30 },
+    { "areaKey": "craft",         "year": 2027, "weightPct": 15 },
+    { "areaKey": "money",         "year": 2027, "weightPct": 20 },
+    { "areaKey": "home",          "year": 2027, "weightPct": 10 },
+    { "areaKey": "community",     "year": 2027, "weightPct": 5 }
+  ],
+
+  "_weightsNote": "Weights deliberately differ between 2026 and 2027 so year-boundary handling is testable: a 2026 chart must use 2026 weights even after 2027 weights exist.",
+
+  "areaContext2026W37": {
+    "_comment": "Area context for a 4-week window, as consumed by a scoring method. balanceFactor is the exact input; observedSharePct is the rounded value it was derived from, shown for readability only. Reproduces the worked example in docs/12-scoring.md.",
+    "_clamp": "balanceFactor = clamp(targetPct / observedSharePct, 0.5, 2)",
+    "areas": [
+      { "key": "health",        "targetPct": 30, "observedSharePct": 15.0, "balanceFactor": 2.0 },
+      { "key": "relationships", "targetPct": 25, "observedSharePct": 13.9, "balanceFactor": 1.8 },
+      { "key": "craft",         "targetPct": 20, "observedSharePct": 20.0, "balanceFactor": 1.0 },
+      { "key": "money",         "targetPct": 15, "observedSharePct": 12.5, "balanceFactor": 1.2 },
+      { "key": "home",          "targetPct": 5,  "observedSharePct": 25.0, "balanceFactor": 0.5, "_note": "Raw ratio 0.2, clamped to the 0.5 floor." },
+      { "key": "community",     "targetPct": 5,  "observedSharePct": 4.2,  "balanceFactor": 1.2 },
+      { "key": "run",           "observedSharePct": 9.4, "_note": "Counts toward capacity, never toward ranking (ADR-0014)." }
+    ]
+  },
+
+  "_displayNote": "Scores are displayed to 2 decimal places. Golden files store full precision: e.g. 1.625 displays as 1.63, and 1.125 as 1.13."
+}

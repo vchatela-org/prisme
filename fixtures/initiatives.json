@@ -1,0 +1,151 @@
+{
+  "_comment": "Synthetic. Every initiative, dependency and deadline here is invented. See README.md.",
+  "asOf": "2026-09-15",
+
+  "initiatives": [
+    {
+      "id": "init-001",
+      "title": "Half-marathon training plan running",
+      "areaKey": "health",
+      "status": "now",
+      "value": 8, "timeCriticality": 2, "risk": 5, "size": 3,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-002",
+      "title": "Weekly check-in evening restarted",
+      "areaKey": "relationships",
+      "status": "now",
+      "value": 8, "timeCriticality": 2, "risk": 5, "size": 3,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-003",
+      "title": "Index allocation rebalanced",
+      "areaKey": "money",
+      "status": "now",
+      "value": 8, "timeCriticality": 3, "risk": 8, "size": 5,
+      "deadline": "2026-10-31",
+      "dependsOn": [],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-004",
+      "title": "Workshop bench finished",
+      "areaKey": "craft",
+      "status": "now",
+      "value": 8, "timeCriticality": 5, "risk": 3, "size": 5,
+      "deadline": null,
+      "dependsOn": ["init-008"],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-005",
+      "title": "Garage shelving installed",
+      "areaKey": "home",
+      "status": "now",
+      "value": 8, "timeCriticality": 5, "risk": 5, "size": 8,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "adopted",
+      "_note": "In flight. Keeps its slot despite a low balanced score — exercises the in-flight rule."
+    },
+    {
+      "id": "init-006",
+      "title": "Draught-proofing done",
+      "areaKey": "home",
+      "status": "next",
+      "value": 5, "timeCriticality": 8, "risk": 3, "size": 5,
+      "deadline": "2026-11-15",
+      "dependsOn": ["init-005"],
+      "origin": "created_in_prisme",
+      "_note": "Outranks init-005 on raw WSJF but is not selected: its area already holds a now slot."
+    },
+    {
+      "id": "init-007",
+      "title": "Volunteer rota agreed",
+      "areaKey": "community",
+      "status": "next",
+      "value": 8, "timeCriticality": 2, "risk": 3, "size": 8,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-008",
+      "title": "Home server single sign-on",
+      "areaKey": "craft",
+      "status": "later",
+      "value": 3, "timeCriticality": 1, "risk": 3, "size": 8,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme",
+      "_note": "Scored honestly, enjoyable infrastructure work loses. That is the point."
+    },
+    {
+      "id": "init-009",
+      "title": "Passport renewed",
+      "areaKey": "home",
+      "status": "next",
+      "value": 3, "timeCriticality": 2, "risk": 8, "size": 2,
+      "deadline": "2026-09-25",
+      "dependsOn": [],
+      "origin": "created_in_prisme",
+      "_note": "Deadline within 14 days of asOf — exercises the timeCriticality := 13 override."
+    },
+    {
+      "id": "init-010",
+      "title": "Reading notes system tidied",
+      "areaKey": "craft",
+      "status": "inbox",
+      "value": 2, "timeCriticality": 1, "risk": 1, "size": 3,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "adopted"
+    },
+    {
+      "id": "init-011",
+      "title": "Dentist appointments booked for the year",
+      "areaKey": "health",
+      "status": "waiting",
+      "value": 5, "timeCriticality": 3, "risk": 3, "size": 1,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme"
+    },
+    {
+      "id": "init-012",
+      "title": "Emergency fund topped up",
+      "areaKey": "money",
+      "status": "done",
+      "value": 8, "timeCriticality": 5, "risk": 8, "size": 3,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme",
+      "doneAt": "2026-08-30"
+    },
+    {
+      "id": "init-013",
+      "title": "Pottery evening class joined",
+      "areaKey": "community",
+      "status": "dropped",
+      "value": 3, "timeCriticality": 1, "risk": 1, "size": 2,
+      "deadline": null,
+      "dependsOn": [],
+      "origin": "created_in_prisme",
+      "droppedReason": "Superseded by the volunteer rota"
+    }
+  ],
+
+  "_coverage": [
+    "All eight statuses appear.",
+    "init-004 depends on init-008, which is in later — a dependency on unstarted work.",
+    "init-006 depends on init-005 — a chain within one area, for schedule tests.",
+    "init-009 exercises the 14-day deadline override.",
+    "init-005 and init-010 are adopted: the planner must never emit a create for either."
+  ]
+}

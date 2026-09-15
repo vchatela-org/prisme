@@ -1,0 +1,40 @@
+{
+  "_comment": "FORMAT EXAMPLE. Invented identifiers. Copy to seed/ (gitignored) and replace with the real ones. Never commit seed/.",
+
+  "documentTool": {
+    "_comment": "Role key -> external database ID. prisme never refers to these databases by name; see docs/17-privacy.md. Access levels are enforced when sharing the integration, and are listed here so the intent is explicit.",
+    "objectives_db": { "id": "REPLACE-ME", "access": "read-write" },
+    "takeaways_db":  { "id": "REPLACE-ME", "access": "read-only" },
+    "media_db":      { "id": "REPLACE-ME", "access": "read-only" },
+    "areas_db":      { "id": "REPLACE-ME", "access": "read-only" },
+    "processes_db":  { "id": "REPLACE-ME", "access": "read-only", "_note": "Owned outright by the document tool. prisme reads duration and frequency and writes nothing (ADR-0016)." },
+    "reviews_db":    { "id": "REPLACE-ME", "access": "write" },
+    "projectTemplateId": "REPLACE-ME"
+  },
+
+  "taskTool": {
+    "anchorLabel": "initiative",
+    "intentLabels": {
+      "_comment": "Consumed then removed by the reconciler — the intent channel in docs/16-sync.md.",
+      "now": "now", "next": "next", "later": "later", "drop": "drop"
+    },
+    "signalsProjectId": "REPLACE-ME",
+    "runProjectId": "REPLACE-ME"
+  },
+
+  "areaMappings": [
+    {
+      "_comment": "Many-to-one: several projects and sections may map to one area key. This is how disagreeing area lists across two tools fold into one canonical list WITHOUT restructuring either tool.",
+      "areaKey": "alpha", "externalProjectId": "REPLACE-ME", "externalSectionId": "REPLACE-ME"
+    },
+    { "areaKey": "alpha", "externalProjectId": "REPLACE-ME" },
+    { "areaKey": "beta",  "externalProjectId": "REPLACE-ME", "externalSectionId": "REPLACE-ME" },
+    { "areaKey": "run",   "externalProjectId": "REPLACE-ME" }
+  ],
+
+  "_rules": [
+    "Every project and section that can receive work should map to exactly one area. Unmapped work is REPORTED, never silently dropped — an unmapped project is a configuration gap.",
+    "A dedicated project for a large effort maps to the area its Project entity belongs to.",
+    "Changing a mapping re-attributes future capacity only. Historical capacity keeps the attribution in force at the time, for the same reason weights are year-scoped."
+  ]
+}
