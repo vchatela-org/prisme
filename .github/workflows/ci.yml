@@ -9,6 +9,11 @@ name: ci
 #
 # Each of these becomes a required status check from the commit that adds it
 # (docs/40-workstreams/README.md#checks). Never relax one to get green.
+#
+# Third-party actions are pinned by commit SHA with the version in a comment, on
+# CodeQL's advice: a tag is mutable, so `@v6` is a promise from a repository
+# nobody here controls. GitHub-owned actions are exempt because their tags are
+# immutable. Dependabot updates a SHA pin like any other dependency.
 
 on:
   push:
@@ -33,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -46,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -66,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -82,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -99,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
