@@ -25,6 +25,9 @@ name: publish
 #                          GitHub-hosted runner. Defaults to the cluster's
 #                          self-hosted set
 #   secrets.HARBOR_USERNAME / HARBOR_PASSWORD   a Harbor robot account
+#   a BuildKit namespace the runner may create pods in — the runner is itself a
+#   pod, so there is no Docker daemon for the default buildx driver to reach.
+#   Provisioned in the deployment repository, not here.
 #
 # None of those values may be written here: a registry host is infrastructure
 # detail and belongs to the deployment repository (docs/17-privacy.md). Until
@@ -60,7 +63,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The runner is a pod in the cluster, not a VM with a Docker daemon: there
+      # is no /var/run/docker.sock, so the default `docker` driver has nothing to
+      # connect to and setup-buildx fails before the build starts. The
+      # `kubernetes` driver runs BuildKit as pods instead, which is what the
+      # organisation's shared Harbor workflow defaults to for the same reason —
+      # a sibling repository builds and pushes from this same runner set this
+      # way. `images.yml` keeps the default driver: it runs on a hosted runner,
+      # which does have a daemon.
       - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+        with:
+          driver: kubernetes
+          driver-opts: |
+            namespace=buildkit
+            replicas=1
+            rootless=true
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
