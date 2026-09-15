@@ -1,0 +1,162 @@
+name: images
+
+# Build the three images and scan them.
+#
+# This gate exists because "it compiles" and "it ships" are different claims. A
+# broken Dockerfile, a base image that has drifted, or a dependency with a fresh
+# CVE all fail here rather than during a rollout.
+#
+# Nothing is pushed. Publishing is `publish.yml`, on a tag, through the shared
+# Harbor workflow — which is also where the SBOM and provenance attestation are
+# emitted, because buildx cannot attach an attestation to an image it only loads
+# into the local daemon.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  images:
+    name: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+
+      # prisme-api and prisme-sync are one build (docs/15-runtime.md §1). It is
+      # built once and tagged twice, so the two cannot drift: they are the same
+      # digest, and the CronJob only overrides the command.
+      - name: Build prisme-api and prisme-sync
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: |
+            prisme-api:ci
+            prisme-sync:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build prisme-web
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: true
+          tags: prisme-web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The two are the same image, so proving it here keeps the claim honest
+      # rather than aspirational.
+      - name: prisme-api and prisme-sync must be the same image
+        run: |
+          api=$(docker image inspect prisme-api:ci --format '{{.Id}}')
+          sync=$(docker image inspect prisme-sync:ci --format '{{.Id}}')
+          echo "prisme-api  $api"
+          echo "prisme-sync $sync"
+          test "$api" = "$sync"
+
+      - name: Every image must be non-root
+        run: |
+          for image in prisme-api:ci prisme-web:ci; do
+            user=$(docker image inspect "$image" --format '{{.Config.User}}')
+            echo "$image runs as '${user}'"
+            test -n "$user"
+            test "$user" != "root"
+            test "$user" != "0"
+          done
+
+      # `/healthz` has no dependencies, so it must answer with no database and
+      # no API anywhere near it. That is the whole contract of a liveness probe
+      # (docs/15-runtime.md §1) and it is checkable here, on the real image.
+      - name: prisme-api answers /healthz with nothing else running
+        run: |
+          docker run -d --name api-probe --read-only --tmpfs /tmp -p 3000:3000 \
+            -e DATABASE_URL='postgres://prisme_app:example@no-such-host:5432/prisme' \
+            -e PRISME_BASE_URL='https://prisme.example.com' \
+            -e AUTH_ISSUER_URL='https://idp.example.com/application/o/prisme/' \
+            -e AUTH_AUDIENCE='prisme-client-id' \
+            -e AUTH_ALLOWED_SUBJECTS='subject-one' \
+            -e TOKEN_PEPPER='example-pepper' \
+            -e DOCTOOL_API_TOKEN='example-doctool-token' \
+            -e TASKTOOL_API_TOKEN='example-tasktool-token' \
+            prisme-api:ci
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/healthz && break || sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/healthz | tee /tmp/healthz
+          grep -q '"status":"ok"' /tmp/healthz
+          # ...and readiness must be honest about the database it cannot reach.
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/readyz)
+          echo "/readyz -> $code"
+          test "$code" = "503"
+          docker logs api-probe
+          docker rm -f api-probe
+
+      - name: prisme-web answers /healthz
+        run: |
+          docker run -d --name web-probe --read-only --tmpfs /tmp -p 3001:3000 \
+            -e PRISME_BASE_URL='https://prisme.example.com' \
+            -e PRISME_API_URL='http://no-such-host:3000' \
+            prisme-web:ci
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3001/healthz && break || sleep 1
+          done
+          curl -fsS http://127.0.0.1:3001/healthz | tee /tmp/healthz-web
+          grep -q '"status":"ok"' /tmp/healthz-web
+          docker rm -f web-probe
+
+      # A missing required variable must stop the process with the variable
+      # named, not start something half-configured.
+      - name: A missing required variable is a boot failure
+        run: |
+          set +e
+          output=$(docker run --rm prisme-api:ci 2>&1)
+          code=$?
+          set -e
+          echo "$output"
+          test "$code" -ne 0
+          echo "$output" | grep -q 'DATABASE_URL'
+
+      - name: Trivy — prisme-api
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: prisme-api:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          scanners: vuln,secret
+          exit-code: '1'
+
+      - name: Trivy — prisme-web
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: prisme-web:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          scanners: vuln,secret
+          exit-code: '1'
+
+      - name: Trivy — Dockerfile misconfiguration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'

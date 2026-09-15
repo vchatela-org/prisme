@@ -1,0 +1,117 @@
+name: ci
+
+# Typecheck, lint, test, build and the dependency audit.
+#
+# One job per check, deliberately. A single "ci" job would report one status,
+# and a reviewer reading the pull request would see "ci failed" rather than
+# "the tests failed" — the pull request template asks for every check by name
+# and result, and that is only honest if the checks have names.
+#
+# Each of these becomes a required status check from the commit that adds it
+# (docs/40-workstreams/README.md#checks). Never relax one to get green.
+#
+# Third-party actions are pinned by commit SHA with the version in a comment, on
+# CodeQL's advice: a tag is mutable, so `@v6` is a promise from a repository
+# nobody here controls. GitHub-owned actions are exempt because their tags are
+# immutable. Dependabot updates a SHA pin like any other dependency.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # `pnpm install` must not reach for anything the lockfile does not name.
+  CI: true
+
+jobs:
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Type-aware linting needs the workspace packages' declarations, which
+      # resolve through each package's `exports` entry the same way the apps
+      # resolve them at runtime. Without this, every cross-package type is
+      # `any` and the rules that matter most quietly stop applying.
+      - run: pnpm -r --filter "./packages/*" run build
+      # ESLint carries two rules that are contract rather than style:
+      # packages/domain is pure, and SQL is never built from strings.
+      - run: pnpm lint
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The packages are built first: several tests import a workspace package
+      # through its published entry point, which is what the apps do too.
+      - run: pnpm -r --filter "./packages/*" run build
+      - run: pnpm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # A build that rewrites a tracked file is a build nobody can reproduce —
+      # `next build` will happily edit tsconfig.json, for instance.
+      - name: The working tree must be unchanged by the build
+        run: git diff --exit-code
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `moderate` rather than `high`: this application holds API tokens to the
+      # owner's entire planning workspace (docs/14-threat-model.md §1), and the
+      # dependency surface is small enough that a moderate advisory is worth
+      # reading rather than batching.
+      - run: pnpm audit --audit-level=moderate

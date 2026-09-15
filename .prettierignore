@@ -1,0 +1,24 @@
+pnpm-lock.yaml
+node_modules/
+dist/
+build/
+.next/
+coverage/
+*.tsbuildinfo
+apps/web/next-env.d.ts
+
+# Markdown in docs/ is hand-formatted for readability and reflowing it would
+# produce an unreadable diff over the specification. Prose is reviewed, not
+# auto-formatted.
+*.md
+
+# The synthetic dataset is hand-maintained and read as data, not as code.
+# `fixtures/scoring/*.golden.json` in particular pins inputs to outputs, and
+# packages/domain/CLAUDE.md requires a `version` bump for any diff in it — a
+# reformat would be a diff nobody intended and CI would be right to object.
+fixtures/
+seed.example/
+
+# Workflow YAML is aligned by hand, and reformatting the three that predate this
+# workstream would bury a real change in cosmetic noise.
+.github/

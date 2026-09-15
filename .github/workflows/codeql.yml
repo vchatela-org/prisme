@@ -1,0 +1,68 @@
+name: codeql
+
+# CodeQL over everything this repository actually contains.
+#
+# ── Why this is an advanced setup rather than the default one ────────────────
+# docs/50-journal/P0-2026-09-15-publication-sweep.md left one item open: CodeQL
+# covered `actions` only, because there was no TypeScript to scan, and W00 owns
+# closing it. It turns out the default setup cannot be the thing that closes it:
+# it derives its language list from the *default branch*, so it refuses
+# `javascript-typescript` with "one or more languages you selected are not
+# present in the repository" until this pull request has already merged. A gate
+# that can only be enabled after the code lands is a gate nobody watches land.
+#
+# An advanced setup is also simply better here: the language list is reviewed in
+# a pull request like everything else, and the scan runs on the branch rather
+# than only on what has already been merged.
+#
+# Default setup and advanced setup are mutually exclusive, so default setup was
+# turned off when this file landed. `actions` and `python` move here unchanged;
+# `javascript-typescript` is new.
+#
+# `security-extended` rather than the default suite: this process holds API
+# tokens to the owner's entire planning workspace (docs/14-threat-model.md §1),
+# and the extra query time is minutes on a repository this size.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Advisories arrive after code does. Monday morning, so a new finding is
+    # seen at the start of a week rather than the end of one.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          # Nothing here needs compiling for CodeQL: TypeScript is analysed from
+          # source, and the other two are interpreted.
+          build-mode: none
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
