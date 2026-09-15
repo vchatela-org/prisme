@@ -20,8 +20,9 @@ drifts from the spec it was copied from.
 5. Append a journal entry and update `STATUS.md` when finished, on the branch.
 6. Open a pull request filled in from `.github/pull_request_template.md` — features, specs, every
    check by name and result, privacy position, what it did not do.
-7. Push until every check is green, fixing what is red. Not green is not finished, and **not
-   merging** — a human merges.
+7. **Read the PR's checks back and keep going until every one reports green**, fixing what is red.
+   Opening the PR is not the end: a push resets the read, and queued, in progress or absent is not
+   green. Not green is not finished, and **not merging** — a human merges.
 8. Never commit real personal data. This repository is public.
 
 The protocol in full: [`docs/40-workstreams/README.md#pull-requests`](../../docs/40-workstreams/README.md#pull-requests).

@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-15 · **Current phase:** P0 **frozen** — wave 1 in flight
+**Last updated:** 2026-09-15 · **Current phase:** P0 **frozen** — W00 landed; wave 1 continues
 
 ---
 
@@ -27,7 +27,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 
 | # | Workstream | Depends on | Wave | State | PR |
 |---|---|---|---|---|---|
-| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | 🟡 | [#5](https://github.com/vchatela-org/prisme/pull/5) |
+| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | 🟢 | [#5](https://github.com/vchatela-org/prisme/pull/5) merged |
 | [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | ⚪ | — |
 | [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ | — |
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | ⚪ | — |
@@ -45,9 +45,10 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
-workstream, `—` until one is open.
+workstream, `—` until one is open, and the one that landed it once the row is 🟢.
 
-**Every workstream lands as a pull request on a `ws/<id>` branch, and stops only when it is green.**
+**Every workstream lands as a pull request on a `ws/<id>` branch, and stops only when it is green** —
+green read back from the pull request after the last push, not assumed from a local run.
 The agent fills in [the template](.github/pull_request_template.md) — features, specs, every check by
 name and result, privacy position, what it did not do. **A human merges**; no agent merges its own
 PR. `main` is protected: a pull request is required, the checks below are required, and `enforce
@@ -71,8 +72,11 @@ Both security gates have been **watched fail** and are not taken on trust —
 [the W00 entry](docs/50-journal/W00-2026-09-15-foundations.md) records how, and the two things that
 surprised us while doing it.
 
-**Wave 1 — W00, W01, W03, W07 — is cleared to start.** Nothing they depend on is open.
-Scheduling guidance, and the one wave that will conflict:
+**W00 has landed; wave 1's other three — W01, W03, W07 — are cleared to start.** Nothing they depend
+on is open. W00's remaining follow-ups — including the Docker build fix its first publish found, and
+the re-tag that has to follow it — are in
+[the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
+wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](docs/30-roadmap.md#scheduling-the-agents).
 
 ## P0 is frozen

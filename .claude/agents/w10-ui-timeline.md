@@ -29,5 +29,9 @@ deadline that becomes impossible is flagged rather than quietly broken.
 Every drag interaction needs a keyboard equivalent.
 
 Finish on a branch (`ws/<id>`): the journal entry and `STATUS.md` row first, then a pull request
-filled in from `.github/pull_request_template.md` and **green on every check**. Fix what is red and
-push again; do not weaken a check to get past it. **Do not merge it yourself** — a human merges.
+filled in from `.github/pull_request_template.md`. **Opening it is not the end: read its checks back
+until every one reports green** — a push resets that, and a check that is queued, in progress or not
+yet reported is not green. Fix what is red and push again; never weaken a check to get past it.
+**Do not merge it yourself** — a human merges.
+
+Rules, and what to do at each ending: `docs/40-workstreams/README.md#read-the-checks-back`.
