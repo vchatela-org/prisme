@@ -1,0 +1,15 @@
+# Stack-neutral. Language-specific entries get added once the stack is decided.
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
