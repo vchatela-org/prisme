@@ -45,6 +45,19 @@ dashboard.
   one approval would have blocked every PR including the owner's. A PR is required; an approval is
   not. Worth revisiting if a second committer ever appears.
 
+## Verified
+
+PR #3 green on every check: `privacy deny-list`, `gitleaks`, `internal links`, `dependency review`,
+`Analyze (actions)`, `Analyze (python)`, the CodeQL summary, and GitGuardian. Locally before pushing:
+`./scripts/privacy-scan.sh` (worktree and staged) and `./scripts/check-doc-links.py`, clean.
+
+Branch protection was confirmed by reading the config back, **not** by attempting a bypass — a
+deliberate push to `main` was blocked by the agent's own tooling before it reached the network, so the
+rejection path itself is untested. The config is authoritative (`enforce_admins: true`,
+`required_pull_request_reviews` present with 0 approvals, four required contexts); the behaviour is
+inferred from it. Worth a human confirming once with `git push origin HEAD:main`, since the whole
+value of this change is that push failing.
+
 ## Surprises
 
 - **Branch protection already existed and was already ineffective.** Required checks were already set
