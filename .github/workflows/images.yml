@@ -6,10 +6,9 @@ name: images
 # broken Dockerfile, a base image that has drifted, or a dependency with a fresh
 # CVE all fail here rather than during a rollout.
 #
-# Nothing is pushed. Publishing is `publish.yml`, on a tag, through the shared
-# Harbor workflow — which is also where the SBOM and provenance attestation are
-# emitted, because buildx cannot attach an attestation to an image it only loads
-# into the local daemon.
+# Nothing is pushed. Publishing is `publish.yml`, on a tag — which is also where
+# the SBOM and provenance attestation are emitted, because buildx cannot attach
+# an attestation to an image it only loads into the local daemon.
 
 on:
   push:
