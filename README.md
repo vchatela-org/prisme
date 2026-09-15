@@ -91,7 +91,8 @@ apps/sync    the reconciler entrypoint      packages/observability  logging, met
 
 ## Running it
 
-Node 24 and pnpm 12 — `corepack enable pnpm` after installing the version in `.nvmrc`.
+Node 26 and pnpm 12. Install the version in `.nvmrc`, then `npm install -g pnpm@12` — Node no
+longer ships corepack ([ADR-0023](docs/20-decisions/0023-node-26-toolchain-baseline.md)).
 
 ```bash
 pnpm install

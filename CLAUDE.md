@@ -107,10 +107,13 @@ Zod for every boundary · Vitest.
 7. **You may not contradict an Accepted ADR.** If your work requires it, write a new ADR proposing
    the supersession and stop for review — implementing against a decided ADR silently is worse than
    being blocked.
-8. **You stop when every check on the PR is green, and not before.** Red is yours to fix: re-push
-   until it is green. Never weaken a check to get past it — a relaxed gate is worse than a red one,
-   because it looks like a pass. The two legal endings are *green* and *blocked by an ADR*.
-   **Do not merge your own pull request** — a human merges.
+8. **You stop when every check on the PR is green, and not before.** Opening the pull request is not
+   the end of the job: read its checks back and keep going until every one reports green. A push
+   resets that — a green you read before your last commit is not a green. Queued, in progress, or not
+   yet reported is **not** green. Red is yours to fix: re-push until it is green. Never weaken a check
+   to get past it — a relaxed gate is worse than a red one, because it looks like a pass. The two
+   legal endings are *green* and *blocked by an ADR*. **Do not merge your own pull request** — a
+   human merges.
 
 The full protocol, including what "all checks pass" means while the check set is still thin:
 [`docs/40-workstreams/README.md#pull-requests`](docs/40-workstreams/README.md#pull-requests).
