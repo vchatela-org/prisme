@@ -47,7 +47,8 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
 workstream, `—` until one is open.
 
-**Every workstream lands as a pull request on a `ws/<id>` branch, and stops only when it is green.**
+**Every workstream lands as a pull request on a `ws/<id>` branch, and stops only when it is green** —
+green read back from the pull request after the last push, not assumed from a local run.
 The agent fills in [the template](.github/pull_request_template.md) — features, specs, every check by
 name and result, privacy position, what it did not do. **A human merges**; no agent merges its own
 PR. `main` is protected: a pull request is required, the checks below are required, and `enforce

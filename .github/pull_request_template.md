@@ -30,7 +30,8 @@ not an activity. "cycle detection rejects a cycle with the path in the error" �
 ## Checks
 
 <!-- The point of this section. Name every check and give its result. Do not summarise as
-     "CI passes". If a check does not exist yet, say so rather than omitting it. -->
+     "CI passes". If a check does not exist yet, say so rather than omitting it. A check that is
+     queued, in progress, or missing from the rollup is written as such — not as green. -->
 
 | Check | Where it ran | Result |
 |---|---|---|
@@ -41,6 +42,8 @@ not an activity. "cycle detection rejects a cycle with the path in the error" �
 | <!-- typecheck / lint / test / build, once W00 lands them --> | | |
 
 **Locally, before pushing:** `./scripts/privacy-scan.sh` — <!-- result -->
+
+**Read at commit:** <!-- sha --> — the head of this branch after the last push.
 
 ## Privacy
 
@@ -65,7 +68,9 @@ what you did — it is how they know the brief is complete rather than partially
 ---
 
 <!--
-Before you stop: every check above must be green. Do not merge this yourself — a human merges.
+Before you stop: every check above must be green, read back from this pull request after your
+last push — not assumed from a local run. A push resets that read; a check that is queued,
+in progress, or absent from the rollup is not green. Do not merge this yourself — a human merges.
 If a check cannot be made green for a reason outside your tree, say so here and in your journal;
 do not disable the gate to get past it.
 -->

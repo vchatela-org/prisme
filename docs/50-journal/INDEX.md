@@ -27,6 +27,7 @@ see [`../17-privacy.md`](../17-privacy.md).
 | 2026-09-15 | P0 | [P0-2026-09-15-publication-sweep.md](P0-2026-09-15-publication-sweep.md) | Sweep run, history redacted, **repository made public**. MIT chosen (OQ-8). CodeQL still owes `javascript-typescript` |
 | 2026-09-15 | P0 | [P0-2026-09-15-model-frozen.md](P0-2026-09-15-model-frozen.md) | **P0 frozen.** Dual-owner cell resolved to ADR-0008; cadence map written; 14 anchors and the OQ numbering fixed. Wave 1 cleared |
 | 2026-09-15 | P0 | [P0-2026-09-15-branch-and-pr-protocol.md](P0-2026-09-15-branch-and-pr-protocol.md) | Every workstream lands as a **PR on its own branch**, green before it stops, human merges. `enforce admins` closes the bypass that let agents push to `main` |
+| 2026-09-15 | P0 | [P0-2026-09-15-ci-verification.md](P0-2026-09-15-ci-verification.md) | "Green" now means **read back from the pull request** after the last push — queued, in progress or absent is not green. Written into all five layers of the branch-and-PR protocol |
 | 2026-09-15 | W00 | [W00-2026-09-15-foundations.md](W00-2026-09-15-foundations.md) | Monorepo, per-service config loader, standalone migration runner, redacting logger, distroless images, and the CI gates — both security gates **watched fail** before being trusted. CodeQL now covers `javascript-typescript` |
 
 ## Format
