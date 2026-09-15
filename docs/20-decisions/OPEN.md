@@ -42,6 +42,31 @@ work that pays off only after the model is proven.
 **Decision: defer.** Revisit after a month of real use, when there is evidence about which mappings
 actually cause friction.
 
+### OQ-9 · Forward-auth or OIDC in the application?
+
+**Blocks:** W14, and therefore P1's security posture
+
+ADR-0015 settled *who* authenticates how: humans through the identity provider, agents through
+prisme-issued scoped tokens. It did not settle the mechanism for the human half, and verification
+against the target cluster found its established pattern is **forward-auth via a proxy provider**,
+not per-application OIDC.
+
+| | Forward-auth | OIDC in the app |
+|---|---|---|
+| prisme handles | Trusted identity headers | Authorization code + PKCE |
+| Sessions | The proxy's | prisme's |
+| Safe only if | prisme is unreachable except through the proxy | — |
+| Consistency | Matches everything else deployed | One-off |
+
+Forward-auth is simpler and consistent. Its weakness is that it fails open if prisme is ever
+reachable directly — a network-policy assumption rather than a cryptographic one, for an application
+holding tokens to an entire personal workspace.
+
+A reasonable middle path: forward-auth now, with prisme *also* verifying a signed assertion rather
+than a bare header, so direct reachability is not catastrophic.
+
+**Resolve before W14 starts.**
+
 ### OQ-4 · Should the homelab-style "learning by building" work be Run or an initiative?
 
 **Blocks:** nothing structural — but it changes what the balance factor reports

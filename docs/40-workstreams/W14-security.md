@@ -15,10 +15,21 @@ onto forty existing routes does not happen.
 - [ADR-0015](../20-decisions/0015-auth-split-by-caller.md) — why authorization stays in prisme
 - [`../17-privacy.md`](../17-privacy.md) — you own the CI enforcement
 
+## ⚠ Blocked until OQ-9 is resolved
+
+Cluster verification found the homelab's established pattern is **forward-auth via an
+identity-provider proxy**, not per-application OIDC as ADR-0015 assumed. The two have materially
+different trust models and lead to different code.
+
+**Do not start item 1 below until [OQ-9](../20-decisions/OPEN.md) is closed.** Items 2–10 are
+unaffected and can proceed.
+
 ## Scope
 
-1. **OIDC for humans**: authorization code + PKCE against the identity provider. Session cookie
-   `httpOnly`, `Secure`, `SameSite=Lax`. Refresh and logout, including provider-initiated logout.
+1. **Human authentication** — mechanism pending OQ-9. If OIDC: authorization code + PKCE, session
+   cookie `httpOnly`/`Secure`/`SameSite=Lax`, refresh and provider-initiated logout. If forward-auth:
+   verify a **signed assertion** rather than a bare header, so direct reachability is not
+   catastrophic.
 2. **Scoped API tokens for machines**: minted from the UI, **Argon2id-hashed at rest**, plaintext
    shown exactly once, scoped, expiring, revocable, `last_used_at` recorded, with a recognisable
    prefix so secret scanners can detect a leak.

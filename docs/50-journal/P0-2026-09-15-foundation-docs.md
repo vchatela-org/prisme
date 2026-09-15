@@ -46,15 +46,45 @@ ones:
   factors* as exact inputs, with observed shares shown as rounded derivations. This is also more
   faithful to the architecture: capacity computation and scoring are separate functions.
 
+## Verification against the live cluster
+
+Ran the runtime contract against the real deployment target rather than assuming it. Three
+assumptions in `15-runtime.md` were wrong, all cheap to fix now and expensive after images exist:
+
+- **Secret delivery.** Assumed per-key `<NAME>_FILE` mounts. Actual: a Vault agent init container
+  renders a template to a **single env file**. Added `PRISME_ENV_FILE` as the primary path, with a
+  documented precedence order.
+- **Identity.** ADR-0015 assumed per-application OIDC. The cluster's established pattern is
+  **forward-auth via a proxy provider** — a different trust model, since it makes safety depend on
+  prisme being unreachable except through the proxy. Raised as **OQ-9**; W14 is marked blocked on it.
+- **Database.** Assumed an operator might be available. Actual: a plain Helm-chart PostgreSQL, no
+  operator. So: single instance, no managed failover, and **backups are the deployment repository's
+  responsibility** — which matters because prisme is a system of record.
+
+Also confirmed: k3s, Gateway API `HTTPRoute` for ingress, and cluster access from this host.
+
+Two bugs found by verifying rather than trusting:
+
+- **`.gitignore` comments silently disabled every privacy pattern.** A `#` only starts a comment at
+  the *start* of a line; trailing comments become part of the pattern, so `seed/` was not ignored at
+  all. Found by testing `git check-ignore` on each protected path instead of reading the file.
+- **The privacy deny-list's hostname pattern over-matched**, flagging filename globs like
+  `*.local.*`. Narrowed to host position.
+
+Both were caught because the gates were *tested*, including the negative case — a planted violation
+must fail the build, and it does.
+
 ## Follow-ups
 
-- **Eight open questions** in [`../20-decisions/OPEN.md`](../20-decisions/OPEN.md). None blocks P0;
-  OQ-1 (can a project span areas) and OQ-2 (WIP limits) block P2.
-- **Before the repository goes public**: run gitleaks and the privacy deny-list over the *entire*
-  history, not just the working tree. Cheap now, while the history is two commits.
-- **Verify the runtime contract** in [`../15-runtime.md`](../15-runtime.md) against what the
-  deployment repository can actually supply — particularly file-mounted secrets and the OIDC client
-  registration — before W00 finalises the Dockerfiles.
+- **OQ-9 blocks W14** and must be closed before wave 2. It is the only open question with a
+  near-term blocker; OQ-1 and OQ-2 block P2, and the rest are deferred by choice.
+- **Before the repository goes public**: the history scan is wired into CI and passes today, but run
+  the full pre-publication sweep in [`../17-privacy.md`](../17-privacy.md#pre-publication-sweep) —
+  including reading commit messages, which are public too.
+- **Still to confirm for W00**: the exact rendered env-file path and format, and whether the registry
+  pull secret is namespace-scoped.
+- **Confirm database backups exist** before the first outward `apply`. prisme is a system of record
+  and the cluster has no database operator doing this automatically.
 - **Wave 4 will conflict**: W09, W10, W11 and W13 all touch `apps/web`. Serialize them, or give each
   a disjoint route group over an already-merged `packages/ui`.
 

@@ -51,10 +51,14 @@ Scheduling guidance — which may run in parallel, and the one wave that will co
 
 ## Decisions
 
-**20 accepted** · **8 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
+**20 accepted** · **9 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
-None blocks P0. OQ-1 and OQ-2 block P2; the rest are deferred by choice.
+None blocks P0.
+
+⚠ **OQ-9 (forward-auth or OIDC) blocks W14** and must be resolved before wave 2. Cluster
+verification found the homelab's established pattern differs from what ADR-0015 assumed.
+OQ-1 and OQ-2 block P2; the rest are deferred by choice.
 
 ## Before the repository goes public
 
