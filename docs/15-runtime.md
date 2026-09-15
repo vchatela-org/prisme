@@ -31,9 +31,11 @@ two implementations that drift.
 - Built and scanned in CI on every pull request, and pushed to Harbor on a `v*` tag —
   `.github/workflows/images.yml` and `.github/workflows/publish.yml`.
 
-Built as of W00: `node:24-trixie-slim` builder, `gcr.io/distroless/nodejs24-debian13:nonroot`
+Built as of W00: `node:26-trixie-slim` builder, `gcr.io/distroless/nodejs26-debian13:nonroot`
 runtime, both digest-pinned and watched by Dependabot. Distroless means there is no shell to exec
-into and nothing to run but `node`.
+into and nothing to run but `node`. Node 26 is the baseline for builder, runtime and `.nvmrc`
+alike — [ADR-0023](20-decisions/0023-node-26-toolchain-baseline.md), which also records why the
+builder installs pnpm from npm rather than through corepack.
 
 **Correction (W00).** An earlier version of this section named
 `vchatela-org/shared-workflows/.github/workflows/docker-build-push-harbor.yml@v1` as the build path.
