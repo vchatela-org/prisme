@@ -1,8 +1,18 @@
-# 1. gitleaks — an AWS-shaped key pair. Fabricated.
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+# 1. gitleaks — a fabricated private key. It has never existed and decrypts
+#    nothing. The branch carrying it is deleted as soon as the check has been
+#    seen red.
+#
+#    An earlier attempt used a Slack-shaped token; GitHub push protection
+#    refused the push outright, which is a good problem to have and is worth
+#    recording. A provider-shaped token cannot be used to test gitleaks here,
+#    because it never reaches the remote.
 
-# 2. privacy deny-list — an identifier of the shape the scan looks for,
-#    plus a workspace URL. Both invented.
+-----BEGIN RSA PRIVATE KEY-----
+MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu
+KUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQJAIJLixBy2qpFoS4DSmoEm
+-----END RSA PRIVATE KEY-----
+
+# 2. privacy deny-list — an identifier of the shape the scan looks for, plus a
+#    workspace URL. Both invented.
 page_id = 0f3a9c1d-7b52-4e86-9a01-2d64bf8e57c3
 https://www.notion.so/workspace/Example-Page
