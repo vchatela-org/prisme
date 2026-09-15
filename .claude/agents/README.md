@@ -14,10 +14,17 @@ drifts from the spec it was copied from.
 ## Every agent is told to
 
 1. Read `CLAUDE.md`, its `docs/40-workstreams/Wnn-*.md` brief, and `docs/50-journal/INDEX.md`.
-2. Stay inside the directories its brief lists.
-3. Not contradict an Accepted ADR — raise a new one and stop instead.
-4. Append a journal entry and update `STATUS.md` when finished.
-5. Never commit real personal data. This repository is public.
+2. Cut a branch (`ws/<id>`) from up-to-date `main` and work there. Never commit to `main`.
+3. Stay inside the directories its brief lists.
+4. Not contradict an Accepted ADR — raise a new one and stop instead.
+5. Append a journal entry and update `STATUS.md` when finished, on the branch.
+6. Open a pull request filled in from `.github/pull_request_template.md` — features, specs, every
+   check by name and result, privacy position, what it did not do.
+7. Push until every check is green, fixing what is red. Not green is not finished, and **not
+   merging** — a human merges.
+8. Never commit real personal data. This repository is public.
+
+The protocol in full: [`docs/40-workstreams/README.md#pull-requests`](../../docs/40-workstreams/README.md#pull-requests).
 
 ## Model guidance
 
@@ -33,5 +40,7 @@ drifts from the spec it was copied from.
 Waves, parallelism and the one wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](../../docs/30-roadmap.md#scheduling-the-agents).
 
-Run parallel agents in **separate git worktrees** (`isolation: "worktree"`) and merge per
-workstream.
+Run parallel agents in **separate git worktrees** (`isolation: "worktree"`), one **branch** per
+workstream (`ws/<id>`), and land each one as its **own green pull request** — not a merge to `main`.
+The worktree keeps two agents out of each other's files; the branch keeps their commits separable
+while the PRs go green at different times.

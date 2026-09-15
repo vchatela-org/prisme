@@ -28,4 +28,6 @@ Without this, prisme starts blind and stays blind for a month.
 Real completion history is real personal data. Nothing from it goes into a fixture or a journal
 entry.
 
-Finish by appending a journal entry and updating your row in `STATUS.md`.
+Finish on a branch (`ws/<id>`): the journal entry and `STATUS.md` row first, then a pull request
+filled in from `.github/pull_request_template.md` and **green on every check**. Fix what is red and
+push again; do not weaken a check to get past it. **Do not merge it yourself** — a human merges.

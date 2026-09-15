@@ -37,4 +37,6 @@ is public. Treat it as a real target.
 You are not a phase that completes: re-check whenever another workstream adds an endpoint, a tool or
 a connector.
 
-Finish by appending a journal entry and updating your row in `STATUS.md`.
+Finish on a branch (`ws/<id>`): the journal entry and `STATUS.md` row first, then a pull request
+filled in from `.github/pull_request_template.md` and **green on every check**. Fix what is red and
+push again; do not weaken a check to get past it. **Do not merge it yourself** — a human merges.
