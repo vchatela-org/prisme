@@ -13,7 +13,7 @@
     "dev": "node --watch dist/main.js"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@hono/node-server": "^2.1.1",
     "@prisme/config": "workspace:*",
     "@prisme/db": "workspace:*",
     "@prisme/observability": "workspace:*",
