@@ -28,7 +28,20 @@ two implementations that drift.
 - Base images pinned **by digest**, not tag.
 - No shell in the runtime layer where the stack allows it.
 - SBOM and provenance attestation emitted at build.
-- Built and scanned by `vchatela-org/shared-workflows/.github/workflows/docker-build-push-harbor.yml@v1`.
+- Built and scanned in CI on every pull request, and pushed to Harbor on a `v*` tag —
+  `.github/workflows/images.yml` and `.github/workflows/publish.yml`.
+
+Built as of W00: `node:24-trixie-slim` builder, `gcr.io/distroless/nodejs24-debian13:nonroot`
+runtime, both digest-pinned and watched by Dependabot. Distroless means there is no shell to exec
+into and nothing to run but `node`.
+
+**Correction (W00).** An earlier version of this section named
+`vchatela-org/shared-workflows/.github/workflows/docker-build-push-harbor.yml@v1` as the build path.
+That workflow builds one image from `context: .` and exposes no input for the Dockerfile path or the
+build target, so it cannot build a monorepo that ships two Dockerfiles which both need the
+repository root as their context. `publish.yml` therefore pushes directly, emitting the SBOM and
+provenance attestation itself. Moving back is a one-line change once the shared workflow grows a
+`dockerfile_path` input.
 
 ### Health endpoints
 
@@ -54,16 +67,31 @@ Names are public; values never are.
 
 ### Required
 
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `PRISME_BASE_URL` | Public base URL, for backlinks and origin checks |
-| `AUTH_ISSUER_URL` | Identity provider issuer, as it appears in the `iss` claim |
-| `AUTH_AUDIENCE` | Expected `aud` — the provider client the assertion was issued for |
-| `AUTH_ALLOWED_SUBJECTS` | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
-| `TOKEN_PEPPER` | Additional secret mixed into API-token hashing |
-| `DOCTOOL_API_TOKEN` | Document-tool integration token |
-| `TASKTOOL_API_TOKEN` | Task-tool API token |
+Required **by service**, not globally. Four things load configuration — `web`, `api`, `sync` and
+the migration job — and each is refused a value it has no business holding. `W` `A` `S` `M` below
+mark which of them require the variable; a blank means the variable is not part of that service's
+contract at all.
+
+| Variable | W | A | S | M | Purpose |
+|---|:--:|:--:|:--:|:--:|---|
+| `DATABASE_URL` | | ● | ● | | PostgreSQL connection string, **application role** — DML only |
+| `MIGRATION_DATABASE_URL` | | | | ● | PostgreSQL connection string, **migration role** — DDL. Used only by the pre-rollout Job |
+| `PRISME_BASE_URL` | ● | ● | ● | | Public base URL, for backlinks and origin checks |
+| `PRISME_API_URL` | ● | | | | Where the web tier reaches the API |
+| `AUTH_ISSUER_URL` | | ● | | | Identity provider issuer, as it appears in the `iss` claim |
+| `AUTH_AUDIENCE` | | ● | | | Expected `aud` — the provider client the assertion was issued for |
+| `AUTH_ALLOWED_SUBJECTS` | | ● | | | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
+| `TOKEN_PEPPER` | | ● | | | Additional secret mixed into API-token hashing |
+| `DOCTOOL_API_TOKEN` | | ● | ● | | Document-tool integration token |
+| `TASKTOOL_API_TOKEN` | | ● | ● | | Task-tool API token |
+
+**The web tier has no database credential.** [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries)
+puts the boundaries at browser → web → API → PostgreSQL, so `DATABASE_URL` is absent from its
+contract rather than merely unused. Its `/readyz` asks the API whether *it* is ready.
+
+Two variables here were not in the P0 draft and were added by W00 because the split above needs
+them: `PRISME_API_URL`, and `MIGRATION_DATABASE_URL` for the role split that was already specified
+in §3 but had no variable to carry it.
 
 ### Optional, with defaults
 
@@ -110,6 +138,20 @@ operator. prisme must therefore support **a rendered env file**, which is the pr
 
 Precedence: plain environment overrides the env file, so a single value can be overridden without
 re-rendering. Whichever path supplies it, the same schema validates it.
+
+**Path and format, as built.** prisme never assumes a path — it reads whatever `PRISME_ENV_FILE`
+names, which is why the cluster's actual mount point does not need to be written down here (and
+must not be: [`17-privacy.md`](17-privacy.md)). The parser accepts what a Vault agent template
+realistically renders: `KEY=value`, single or double quotes, `export ` prefixes, `#` comment lines
+and a trailing ` # comment` on an unquoted value; `\n` and `\t` are unescaped inside double quotes.
+A per-secret `<NAME>_FILE` has its trailing newline stripped, because almost every mounted secret
+has one and a token that fails to compare for an invisible reason is a bad afternoon.
+
+A line that is none of those **fails the boot** rather than being skipped. A silently ignored line
+is a required secret that goes missing at the worst moment.
+
+If `PRISME_ENV_FILE` names a file that cannot be read — the init container has not finished — the
+process exits rather than starting without its secrets.
 
 **prisme never reads a secret from a file it ships**, and never from a committed config file.
 
@@ -179,10 +221,19 @@ run exactly once, and benefits from the same ordering guarantees as schema chang
 
 ### Roles
 
-| Role | Grants |
-|---|---|
-| Application | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. **No DDL** |
-| Migration | DDL. Used only by the migration Job |
+| Role | Grants | Reaches it through |
+|---|---|---|
+| Application | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. **No DDL** | `DATABASE_URL` |
+| Migration | Owns `public`; `CREATE` on the database so it can install a *trusted* extension. Used only by the migration Job | `MIGRATION_DATABASE_URL` |
+
+Neither role is a superuser. `CREATE` on the database is what lets the migration role install
+`pgcrypto`, which PostgreSQL has marked trusted since 13 — without it, `CREATE EXTENSION` needs a
+superuser and the migration Job cannot be the thing that runs it.
+`packages/db/sql/roles.example.sql` is the reference the deployment repository adapts; the
+development equivalent runs automatically under `docker compose`.
+
+Neither role is the backup's role. That workload has its own credential in the deployment
+repository, and prisme holds no part of it ([ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md)).
 
 ### State
 
@@ -287,5 +338,26 @@ Two corrections to an earlier reading of the cluster, both measured:
   plaintext identity headers, and a companion header carrying the **URL** of the key set, not the
   keys. ADR-0021 depends on the first and deliberately ignores the second.
 
-Still to confirm before W00 finalises the Dockerfiles: the exact rendered env-file path and format,
-and whether the registry pull secret is namespace-scoped.
+**Closed by W00 — the rendered env-file path and format.** It turned out not to need confirming:
+prisme reads whatever path `PRISME_ENV_FILE` names and hardcodes none, so the cluster's mount point
+is the deployment's business and stays out of this public repository. The format is handled by
+accepting everything a Vault agent template plausibly emits and refusing anything else loudly (§2,
+*Secret delivery*).
+
+**Still open — the registry pull secret.** Whether it is namespace-scoped is a question for the
+deployment repository. It gates nothing here: this repository builds and pushes images, and pulling
+them is the cluster's side of the contract.
+
+### How the runner and the migration Job are invoked
+
+The commands, so the deployment repository does not have to read a Dockerfile:
+
+| What | Command |
+|---|---|
+| API (the image default) | `node /app/dist/main.js` |
+| Reconciler, one pass | `node /app/sync/main.js` |
+| Migration Job, before rollout | `node /app/node_modules/@prisme/db/dist/bin/migrate.js` |
+| Migration status, no changes | `… /migrate.js --status` — exit 0 when the schema matches the image |
+
+`prisme-sync` is the same image as `prisme-api` with the command overridden. Running the migration
+command is the *only* way migrations are applied; no application start-up path calls it.

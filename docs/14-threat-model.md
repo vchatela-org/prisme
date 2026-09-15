@@ -171,7 +171,7 @@ while leaving reads working.
 
 | Control | Notes |
 |---|---|
-| CodeQL | Default setup, enabled at repository level |
+| CodeQL | `actions`, `javascript-typescript` and `python`, `security-extended`, on every pull request. An advanced setup in `.github/workflows/codeql.yml` rather than the repository-level default, because the default derives its language list from the default branch and so could not cover TypeScript until TypeScript had already merged |
 | Secret scanning + **push protection** | Blocks credentials *before* they reach public history |
 | Dependabot | Alerts, security updates, version updates |
 | Dependency review | On pull requests |
