@@ -30,7 +30,7 @@
     "audit": "pnpm audit --audit-level=moderate"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.1",
+    "@eslint/js": "9.39.5",
     "@types/node": "24.10.1",
     "@vitest/coverage-v8": "^4.1.11",
     "eslint": "9.39.1",
