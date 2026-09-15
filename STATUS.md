@@ -83,5 +83,9 @@ Swept 2026-09-15; the repository is public as of that date.
 - [x] `gitleaks` over the **entire history**, not just the working tree
 - [x] Privacy deny-list scan over the entire history
 - [x] `docs/17-privacy.md` reviewed and agreed
-- [x] GitHub settings enabled — see [`docs/17-privacy.md#github-settings-checklist`](docs/17-privacy.md#github-settings-checklist)
+- [x] GitHub settings enabled — see [`docs/17-privacy.md#github-settings-checklist`](docs/17-privacy.md#github-settings-checklist).
+      One partial: **CodeQL covers `actions` only** until there is TypeScript to scan — W00 owns it
 - [x] Licence chosen — MIT ([`LICENSE`](LICENSE))
+
+History was redacted and force-pushed before publication, and the pre-rewrite Dependabot branches
+were retired with it — see [`the sweep entry`](docs/50-journal/P0-2026-09-15-publication-sweep.md).

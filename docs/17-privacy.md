@@ -114,16 +114,26 @@ down is the row that broke. Every workstream brief repeats this rule for that re
 ## 4. GitHub settings checklist
 
 To switch on before the repository goes public. All are free on public repositories.
+Enabled 2026-09-15, when the repository was published.
 
-- [ ] **Secret scanning** — on
-- [ ] **Push protection** — on *(the highest-value setting here)*
-- [ ] **CodeQL** code scanning — default setup, JavaScript/TypeScript
-- [ ] **Dependabot** alerts, security updates, and version updates (`.github/dependabot.yml`)
-- [ ] **Dependency review** on pull requests
-- [ ] **Branch protection** on `main`: required status checks, no force-push, no deletion
-- [ ] **Actions permissions** — read-only `GITHUB_TOKEN` by default, elevated per workflow
-- [ ] Verify **forking** implications are understood: a fork made before a history rewrite keeps the
-      old history
+- [x] **Secret scanning** — on
+- [x] **Push protection** — on *(the highest-value setting here)*
+- [~] **CodeQL** code scanning — default setup. Configured for `actions` only: there is no
+      JavaScript/TypeScript in the repository yet. **W00 must add `javascript-typescript`** once
+      application code lands, or the main language ships unscanned
+- [x] **Dependabot** alerts, security updates, and version updates (`.github/dependabot.yml`)
+- [x] **Dependency review** on pull requests (`.github/workflows/dependency-review.yml`)
+- [x] **Branch protection** on `main`: required status checks (`privacy deny-list`, `gitleaks`),
+      no force-push, no deletion. Admins are **not** included, so an emergency direct push is still
+      possible — a deliberate trade for a single-maintainer repository
+- [x] **Actions permissions** — read-only `GITHUB_TOKEN` by default, elevated per workflow
+- [x] Verify **forking** implications are understood: a fork made before a history rewrite keeps the
+      old history. Forking was disabled while the repository was private and there were never any
+      forks, so the pre-publication rewrite below was clean
+
+Two secret-scanning extras — **validity checks** and **non-provider patterns** — could not be
+enabled through the repository API and appear to need an organisation-level setting. Neither is
+required above; both are worth switching on by hand.
 
 ## 5. Pre-publication sweep
 

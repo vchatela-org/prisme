@@ -1,0 +1,24 @@
+name: dependency-review
+
+# Blocks a pull request that introduces a dependency with a known vulnerability
+# or a disallowed licence, before it is merged rather than after.
+# See docs/14-threat-model.md §6 and docs/17-privacy.md §4.
+#
+# This is a no-op until W00 lands a manifest; it is wired now so the gate exists
+# on the first pull request that adds one, rather than being remembered later.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
