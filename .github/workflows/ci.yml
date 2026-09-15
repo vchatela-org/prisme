@@ -52,6 +52,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Type-aware linting needs the workspace packages' declarations, which
+      # resolve through each package's `exports` entry the same way the apps
+      # resolve them at runtime. Without this, every cross-package type is
+      # `any` and the rules that matter most quietly stop applying.
+      - run: pnpm -r --filter "./packages/*" run build
       # ESLint carries two rules that are contract rather than style:
       # packages/domain is pure, and SQL is never built from strings.
       - run: pnpm lint
