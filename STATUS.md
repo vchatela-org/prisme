@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-15 · **Current phase:** P0 — model & spec
+**Last updated:** 2026-09-15 · **Current phase:** P0 **frozen** — wave 1 cleared to start
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Phase | What it delivers | Exit criteria | State |
 |---|---|---|---|
-| **P0** | Data model, ownership matrix, scoring contract, workstream briefs | Model reviewed and frozen; §Verification of the plan passes | 🟡 **in review** |
+| **P0** | Data model, ownership matrix, scoring contract, workstream briefs | Model reviewed and frozen; every field singly owned; both rituals map onto surfaces | 🟢 **frozen 2026-09-15** |
 | P1 | Foundations + read-only ingest + Focus & Areas | prisme answers "what now?" from real data, writing nothing | ⚪ not started |
 | P2 | Initiative ownership + reconciler write-back | A week of reviews with no manual copying and no drift | ⚪ not started |
 | P3 | Reviews in-app (weekly → yearly) | Weekly review runs entirely in prisme | ⚪ not started |
@@ -46,8 +46,28 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
-Scheduling guidance — which may run in parallel, and the one wave that will conflict:
+**Wave 1 — W00, W01, W03, W07 — is cleared to start.** Nothing they depend on is open.
+Scheduling guidance, and the one wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](docs/30-roadmap.md#scheduling-the-agents).
+
+## P0 is frozen
+
+Checked on 2026-09-15, against the exit criteria in
+[`docs/30-roadmap.md`](docs/30-roadmap.md#p0--model-and-specification):
+
+- [x] **Every field in the matrix has exactly one owner.** One cell read as two (`T / ∂`); it is a
+      task-tool field prisme *propagates* under the overwrite guard, so owner and flow are now
+      separate columns — [`docs/11-ownership.md#1-legend`](docs/11-ownership.md#1-legend)
+- [x] **Both rituals map onto surfaces and entities, nothing left over** — the map was missing and is
+      now written: [`docs/10-model.md#cadences-and-where-each-step-happens`](docs/10-model.md#cadences-and-where-each-step-happens)
+- [x] **The spec set is internally consistent** — every internal link and anchor resolves, now
+      enforced by the `docs` workflow; the open questions are numbered identically everywhere
+- [x] 16 workstream briefs, 22 ADRs, synthetic fixtures, privacy machinery — all present
+
+**What frozen means:** the model no longer changes because a workstream finds it inconvenient.
+Changing anything in [`docs/10-model.md`](docs/10-model.md) or
+[`docs/11-ownership.md`](docs/11-ownership.md) now takes an ADR. The previous attempt at this system
+failed on an ambiguous model, and code written against an unfrozen model is code written twice.
 
 ## Decisions
 
@@ -83,7 +103,7 @@ Swept 2026-09-15; the repository is public as of that date.
 - [x] `gitleaks` over the **entire history**, not just the working tree
 - [x] Privacy deny-list scan over the entire history
 - [x] `docs/17-privacy.md` reviewed and agreed
-- [x] GitHub settings enabled — see [`docs/17-privacy.md#github-settings-checklist`](docs/17-privacy.md#github-settings-checklist).
+- [x] GitHub settings enabled — see [`docs/17-privacy.md#4-github-settings-checklist`](docs/17-privacy.md#4-github-settings-checklist).
       One partial: **CodeQL covers `actions` only** until there is TypeScript to scan — W00 owns it
 - [x] Licence chosen — MIT ([`LICENSE`](LICENSE))
 

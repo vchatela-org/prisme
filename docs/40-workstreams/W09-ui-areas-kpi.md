@@ -12,7 +12,7 @@ behaviour.
 ## Read first
 
 - [ADR-0005](../20-decisions/0005-allocate-before-ranking.md) · [ADR-0007](../20-decisions/0007-year-scoped-weights.md)
-- [`../12-scoring.md`](../12-scoring.md#measuring-capacity) — including the stated limitations
+- [`../12-scoring.md`](../12-scoring.md#4-measuring-capacity) — including the stated limitations
 - The `dataviz` skill — **before writing any chart code**
 
 ## Scope

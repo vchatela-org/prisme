@@ -173,7 +173,7 @@ Scoring ranks; selection decides. They are separate steps on purpose.
    to `waiting`, or is demoted at a review. Thrashing the top of the list every time a score shifts
    is how a system loses trust.
 2. **Free slots fill from the top of the ranking**, skipping areas that already have a `now`.
-3. **Work in progress is capped** — see OQ-3 in [`20-decisions/OPEN.md`](20-decisions/OPEN.md).
+3. **Work in progress is capped** — see OQ-2 in [`20-decisions/OPEN.md`](20-decisions/OPEN.md).
 4. **Priority is written outward**: top 3 → highest, remaining `now` → high, `next` anchors →
    medium, everything else → lowest.
 

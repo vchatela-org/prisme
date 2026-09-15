@@ -79,7 +79,7 @@ must fail the build, and it does.
 - **OQ-9 blocks W14** and must be closed before wave 2. It is the only open question with a
   near-term blocker; OQ-1 and OQ-2 block P2, and the rest are deferred by choice.
 - **Before the repository goes public**: the history scan is wired into CI and passes today, but run
-  the full pre-publication sweep in [`../17-privacy.md`](../17-privacy.md#pre-publication-sweep) —
+  the full pre-publication sweep in [`../17-privacy.md`](../17-privacy.md#5-pre-publication-sweep) —
   including reading commit messages, which are public too.
 - **Still to confirm for W00**: the exact rendered env-file path and format, and whether the registry
   pull secret is namespace-scoped.

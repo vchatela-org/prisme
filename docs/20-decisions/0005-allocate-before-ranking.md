@@ -28,7 +28,7 @@ ranking then *justifies* the drift it caused.
   under time pressure.
 - Cross-area comparison is a budget question, not a score question.
 - Capacity must actually be measured, which requires the completion history and makes the
-  measurement's limitations matter ([`12-scoring.md`](../12-scoring.md#measuring-capacity)).
+  measurement's limitations matter ([`12-scoring.md`](../12-scoring.md#4-measuring-capacity)).
 - An area whose work is mostly untracked reads as starved. The bias errs toward surfacing neglect,
   which is the safer direction.
 

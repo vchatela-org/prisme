@@ -94,7 +94,7 @@ export function verifyAssertion(jwt: string, now: Date): Principal;   // throws;
   test with a hostile fixture.
 - CI fails on a deliberately committed fake secret and on a deliberate deny-list hit. **Test both**;
   a gate nobody has seen fail is a gate nobody knows is wired up.
-- The GitHub settings checklist in [`../17-privacy.md`](../17-privacy.md#github-settings-checklist)
+- The GitHub settings checklist in [`../17-privacy.md`](../17-privacy.md#4-github-settings-checklist)
   is complete.
 
 ## Notes

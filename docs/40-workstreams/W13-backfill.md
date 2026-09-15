@@ -11,7 +11,7 @@ prisme starts blind and stays blind for a month.
 
 ## Read first
 
-- [`../12-scoring.md`](../12-scoring.md#measuring-capacity) — the duration preference order and the
+- [`../12-scoring.md`](../12-scoring.md#4-measuring-capacity) — the duration preference order and the
   stated limitations
 - [ADR-0014](../20-decisions/0014-lanes-outside-the-backlog.md) — Run counts toward capacity,
   Signals do not

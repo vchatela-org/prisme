@@ -20,7 +20,7 @@ as this one.
 1. **Monorepo**: pnpm workspaces, `apps/{web,api,sync}`, `packages/{domain,connectors,ui}`. Shared
    `tsconfig` base, ESLint, Prettier, Vitest.
 2. **Configuration loader**: one Zod schema for all environment variables in
-   [`../15-runtime.md`](../15-runtime.md#configuration-contract). Validated at boot, **fails fast
+   [`../15-runtime.md`](../15-runtime.md#2-configuration-contract). Validated at boot, **fails fast
    and loud**, never silently defaults a required value.
    Three input paths, in precedence order: plain environment → `<NAME>_FILE` → **`PRISME_ENV_FILE`**,
    a rendered `KEY=value` file. The last is the primary path in the target cluster, where a Vault
@@ -39,6 +39,9 @@ as this one.
 7. **CI**: typecheck, lint, test, build; `gitleaks`; the privacy deny-list scan; `npm audit`; Trivy;
    the Harbor build/push workflow. Plus `.github/dependabot.yml` and pre-commit hooks for gitleaks
    and the privacy scan.
+   Three workflows already exist — `privacy`, `dependency-review` and `docs` (the internal link
+   check, `scripts/check-doc-links.py`). **Extend them, do not replace them.** `dependency-review`
+   is a deliberate no-op until you land a manifest.
 
 ## Out of scope
 

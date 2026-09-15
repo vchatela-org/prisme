@@ -35,7 +35,7 @@ downstream is wrong if this is wrong, and everything downstream is easy if this 
 4. **`wsjf-balanced` v1**: cost of delay, WSJF, balance factor, the 14-day deadline override.
    `factors` and `explain` populated on every result.
 5. **Capacity computation**: `actual_share` over a rolling window, with the duration preference
-   order from [`../12-scoring.md`](../12-scoring.md#measuring-capacity). Run counts; Signals do not.
+   order from [`../12-scoring.md`](../12-scoring.md#4-measuring-capacity). Run counts; Signals do not.
 6. **Now-set selection**: in-flight keeps its slot, free slots fill from the top skipping areas that
    already hold one, WIP capped by configuration, and the resulting priority mapping.
 
@@ -62,7 +62,7 @@ Every exported function is **pure**: `now` and configuration are arguments, neve
   `[0.5, 2]`; repeated evaluation is identical; unrelated fields do not affect the result.
 - Golden fixtures in `fixtures/scoring/` pin inputs to outputs, and a diff in one **requires** a
   `version` bump — wire that check into CI.
-- The worked example in [`../12-scoring.md`](../12-scoring.md#worked-example) reproduces exactly,
+- The worked example in [`../12-scoring.md`](../12-scoring.md#6-worked-example) reproduces exactly,
   including the two cases where ranking and selection disagree.
 - Adversarial invariant tests: a dependency cycle is rejected; `origin` cannot be mutated; asking
   for a weight without a year does not compile.

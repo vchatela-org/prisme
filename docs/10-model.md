@@ -101,7 +101,7 @@ annual decision unavoidable at the moment it's due, using evidence rather than m
 | `balance_factor` | `clamp(target_share / actual_share, 0.5, 2)` — starved areas rise, over-served ones sink |
 
 Capacity is measured in **time where known** (task duration when set) and estimated otherwise; see
-[`12-scoring.md`](12-scoring.md#measuring-capacity). Run and Signals are excluded from ranking but
+[`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run and Signals are excluded from ranking but
 **included in capacity accounting** — the whole point is to make upkeep's real share visible.
 
 ### Mapping to the task tool
@@ -318,6 +318,47 @@ Cadence, date, checklist state, decisions taken, what moved, notes, and a KPI sn
 moment. The narrative summary is written back to the document tool's review databases so that
 history stays continuous with what came before prisme.
 
+### Cadences, and where each step happens
+
+P0 does not exit until every step of the weekly and monthly rituals lands on a surface that exists
+and entities that are modelled — **nothing left over, nothing invented at build time**. That check is
+this table. It is about *shape*: the concrete checklist is instance data and stays in the document
+tool ([`17-privacy.md`](17-privacy.md)); what is frozen here is that each kind of step has a home.
+
+**Weekly** — keep the `now` set honest for the coming week.
+
+| Step | Surface | Entities it reads or writes |
+|---|---|---|
+| Triage what arrived | `/inbox` | `Takeaway`, `Initiative` in `inbox` |
+| Confirm what finished | `/review/weekly` | `Initiative.status` `review` → `done`; anchor completion arrives from **T** |
+| Check the `now` set for staleness and blockers | `/` (Focus) | `Initiative`, `last_activity` ∂ |
+| Clear the conflict ledger | `/review/weekly` | Conflict ledger ([`16-sync.md`](16-sync.md#4-conflicts)) |
+| Look ahead at deadlines | `/`, `/timeline` | `Initiative.deadline` |
+| Re-score what changed | `/backlog` | Scoring factors; a new append-only `Score` row |
+| Refill free `now` slots | `/backlog` | `Initiative.status`, per-area caps ([`12-scoring.md`](12-scoring.md#5-selecting-the-now-set)) |
+| Record decisions, push the narrative | `/review/weekly` | `Review session`, event log |
+
+**Monthly** — allocation and objectives, deliberately *not* the week's work.
+
+| Step | Surface | Entities it reads or writes |
+|---|---|---|
+| Declared versus observed capacity | `/areas` | `area_weight(area, year)`, `actual_share` ∂, `balance_factor` ∂ |
+| Lane check: Run hours, Signals volume, Ritual adherence | `/kpi`, `/areas/[key]` | `Run`, `Signals`, `Ritual` adherence ∂ |
+| Set objective progress | `/objectives/[id]` | `progress_self` beside `progress_computed` ∂, `measurements[]` |
+| Find orphans, both directions | `/objectives` | `Objective` ↔ `Initiative` links |
+| Author next month's objectives | `/objectives` | `Objective` with `type = monthly` |
+| Replan what slipped | `/timeline` | `planned_start`/`planned_end` ∂, `depends_on[]` |
+| Record decisions, push the narrative | `/review/monthly` | `Review session`, KPI snapshot, event log |
+
+**Quarterly and yearly** add no new step shapes: quarterly is the monthly set over a longer period,
+and yearly adds exactly one surface — `/review/year`, which is the only place `area_weight` is
+writable (§ *The year gate*).
+
+Two things are deliberately **not** ritual steps. The adoption queue (`/adoption`) is one-time
+migration work, not a recurring review. And no ritual step writes a `due` date — planning the week
+into days happens in the task tool, which owns that field
+([`11-ownership.md`](11-ownership.md#5-task)).
+
 ### Event log
 **Append-only. prisme only.** Every score change, status transition, weight change, completion and
 sync action, with actor and before/after.
@@ -355,10 +396,11 @@ database, and an entity whose `origin` is `adopted` is structurally incapable of
 
 ## Open questions
 
+The ones that touch the model. [`20-decisions/OPEN.md`](20-decisions/OPEN.md) is the authoritative
+list and holds the numbering — cite it, do not renumber from here.
+
 | # | Question | Blocks |
 |---|---|---|
-| OQ-1 | Can a project span more than one area? | Project rollups, capacity attribution |
-| OQ-2 | Should prisme write observed duration back to process pages? | Nothing — deferred enhancement |
-| OQ-3 | WIP limits: one `now` per area, five overall? | Now-set selection (P2) |
-
-Tracked in [`20-decisions/OPEN.md`](20-decisions/OPEN.md).
+| OQ-1 | Can a project span more than one area? | Project rollups, capacity attribution (P2) |
+| OQ-2 | WIP limits: one `now` per area, five overall? | `now`-set selection (P2) |
+| OQ-7 | Should prisme write observed duration back to process pages? | Nothing — deferred enhancement |

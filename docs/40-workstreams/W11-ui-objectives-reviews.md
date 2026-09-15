@@ -13,6 +13,9 @@ have never been connected to the work — this is the screen that closes that lo
 - [ADR-0012](../20-decisions/0012-key-results-first-class.md) ·
   [ADR-0013](../20-decisions/0013-self-assessed-progress.md)
 - [`../10-model.md`](../10-model.md) — objectives, key results, review sessions
+- [`../10-model.md#cadences-and-where-each-step-happens`](../10-model.md#cadences-and-where-each-step-happens)
+  — **the step-to-surface map the wizard implements.** Frozen at P0; a step with no surface there is
+  a spec gap to raise, not one to improvise
 - [`../30-roadmap.md`](../30-roadmap.md) — P3's exit criterion is what you are building toward
 
 ## Scope

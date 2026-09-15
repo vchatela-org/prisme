@@ -23,6 +23,11 @@ Per-field ownership makes conflicts resolvable by rule instead of by merge logic
 | **∂** | Derived by prisme from data it does not own; read-only everywhere |
 | → | prisme writes this outward |
 | ← | prisme reads this inward, and never writes it |
+| ⇢ | prisme *propagates* into a field it does not own, under the overwrite guard. The owner still wins — see [`16-sync.md`](16-sync.md#5-overwrite-protection) |
+
+**Owner and flow are different columns for a reason.** One field, one owner, always — but a field
+someone else owns may still be written by prisme, under a rule that states exactly when it may not.
+That is a flow, not shared ownership, and it happens exactly once in this document (§5).
 
 ---
 
@@ -81,7 +86,7 @@ prose, and prose belongs where prose is written. prisme has nothing to say in it
 | `due` date, recurrence | **T** | ← | Yours. Read for planned-vs-done only |
 | Labels other than the anchor marker | **T** | ← | |
 | Comments, attachments | **T** | — | Not read at all |
-| Priority on a **subtask** | **T** / **∂** | → | Inherits from the anchor **unless set by hand** — last-applied tracking makes the difference detectable |
+| Priority on a **subtask** | **T** | ⇢ | Propagated from the anchor, but only while untouched — see the rule below |
 | Completion, `completed_at`, duration | **T** | ← | The raw material for capacity actuals |
 
 ### The subtask priority rule
@@ -94,6 +99,11 @@ work. But a priority *you* set must survive. The rule:
 
 This needs the `last_applied` table and is the reason it exists. Without it the choice is between
 never propagating (useless) and stomping deliberate edits (infuriating).
+
+**The owner is the task tool throughout.** prisme writing a value does not make it prisme's field —
+the guard exists precisely so the owner keeps the last word. [ADR-0008](20-decisions/0008-field-level-ownership.md)
+anticipated this single nuance and named the machinery it requires; it is not an exception to
+one-owner-per-field, it is what one-owner-per-field costs.
 
 ## 6. Objective and Key Result
 
@@ -161,7 +171,7 @@ edits are reclassified as **requests**, not conflicts:
 | Edit `due`, subtasks, comments, content | Nothing — those are yours |
 
 Anything legitimately needed from a phone has a sanctioned channel; everything else is owned and
-enforced. Full policy in [`16-sync.md`](16-sync.md#conflicts).
+enforced. Full policy in [`16-sync.md`](16-sync.md#4-conflicts).
 
 **Ownership is advertised where it would be broken.** Every anchor's description ends with a
 managed-fields marker, so the fields prisme controls are visible in the tool where you might

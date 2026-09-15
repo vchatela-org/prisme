@@ -66,7 +66,7 @@ Deferred until Rituals have adherence data worth acting on (P8).
 
 ### OQ-6 · Which scoring method to add second
 
-Candidates and trade-offs are in [`12-scoring.md`](../12-scoring.md#candidate-methods). The
+Candidates and trade-offs are in [`12-scoring.md`](../12-scoring.md#7-candidate-methods). The
 interesting one is a "revealed preference" method run in **shadow** — the gap between stated values
 and demonstrated choices is itself a review finding.
 

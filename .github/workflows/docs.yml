@@ -1,0 +1,29 @@
+name: docs
+
+# The specification is the product at this stage, and it cites itself heavily.
+# A link to a missing anchor does not fail loudly — it lands at the top of the
+# right file, so the reader gets the wrong section and no error. Fourteen had
+# accumulated by the time P0 was frozen; this is the gate that keeps them out.
+#
+# See docs/50-journal/P0-2026-09-15-model-frozen.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: internal links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # python3 is preinstalled on the runner; no setup action is worth the
+      # extra dependency for a script with no third-party imports.
+      - name: Check internal documentation links
+        run: ./scripts/check-doc-links.py

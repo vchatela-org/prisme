@@ -13,7 +13,7 @@ restructure a real backlog faster than a human can interrupt it.
 
 ## Read first
 
-- [`../14-threat-model.md`](../14-threat-model.md#the-mcp-surface) — the whole section
+- [`../14-threat-model.md`](../14-threat-model.md#4-the-mcp-surface) — the whole section
 - [`../16-sync.md`](../16-sync.md) — the `plan`/`apply` split you are mirroring
 - [`../10-model.md`](../10-model.md) — the vocabulary your tool descriptions must use
 
