@@ -21,7 +21,11 @@ as this one.
    `tsconfig` base, ESLint, Prettier, Vitest.
 2. **Configuration loader**: one Zod schema for all environment variables in
    [`../15-runtime.md`](../15-runtime.md#configuration-contract). Validated at boot, **fails fast
-   and loud**, never silently defaults a required value. Supports `<NAME>_FILE` for every secret.
+   and loud**, never silently defaults a required value.
+   Three input paths, in precedence order: plain environment → `<NAME>_FILE` → **`PRISME_ENV_FILE`**,
+   a rendered `KEY=value` file. The last is the primary path in the target cluster, where a Vault
+   agent init container renders secrets to a file rather than creating per-key Kubernetes Secrets —
+   verify the exact path and format before finalising the Dockerfiles.
 3. **Database**: Drizzle, PostgreSQL. Migration runner as a **standalone entrypoint** for a
    pre-rollout Job — never on application start. Two roles: application (DML only) and migration
    (DDL).

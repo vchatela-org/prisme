@@ -86,9 +86,20 @@ harmless; one that writes on first boot is not.
 
 ### Secret delivery
 
-Any variable may instead be supplied as `<NAME>_FILE` pointing at a mounted path, which is how
-secrets should be delivered in the cluster. **prisme never reads a secret from a file it ships**,
-and never from a committed config file.
+Verified against the target cluster: secrets are injected by a **Vault agent init container** that
+renders a template to a file inside the pod — not by per-key Kubernetes Secrets or an external-secrets
+operator. prisme must therefore support **a rendered env file**, which is the primary path:
+
+| Mechanism | Variable | Notes |
+|---|---|---|
+| **Rendered env file** | `PRISME_ENV_FILE` | Path to a `KEY=value` file. Parsed at boot, **before** schema validation. The primary path in the target cluster |
+| Per-secret file | `<NAME>_FILE` | Alternative, for any single value mounted on its own |
+| Plain environment | `<NAME>` | Local development |
+
+Precedence: plain environment overrides the env file, so a single value can be overridden without
+re-rendering. Whichever path supplies it, the same schema validates it.
+
+**prisme never reads a secret from a file it ships**, and never from a committed config file.
 
 ### External bindings
 
@@ -102,6 +113,15 @@ from the seed path into the database, keyed by role: `objectives_db`, `takeaways
 
 Containerized PostgreSQL in-cluster. Stock image; no extension beyond `pgcrypto`. Nothing assumes a
 managed service.
+
+Verified against the target cluster: PostgreSQL is deployed from a **plain Helm chart**, with no
+database operator present. So prisme gets a connection string and nothing else — no `Cluster`
+custom resource, no operator-managed failover, no automated backup hook. Two consequences worth
+stating rather than discovering:
+
+- **Backups are the deployment repository's responsibility**, and prisme is a system of record
+  (ADR-0001). Confirm a backup exists before the first `apply` writes anything outward.
+- **Assume a single instance.** Do not design for read replicas or failover.
 
 ### Migrations
 
@@ -185,13 +205,27 @@ Redacting by deny-list at the serializer, so a token cannot be logged even by an
 
 What the GitOps repository must supply, and what it gets back:
 
-**Supplies:** the images and their tags · every required environment variable, with secrets mounted
-as files · a PostgreSQL instance and its credentials · the CronJob schedule and window ·
-ingress/TLS · the OIDC client registration.
+**Supplies:** the images and their tags · every required environment variable, with secrets rendered
+to a file by the Vault agent init container · a PostgreSQL instance, its credentials **and its
+backups** · the CronJob schedule and window · ingress via the proxy's route object · the identity
+integration (see below).
 
 **Receives:** `/healthz`, `/readyz`, `/metrics` · exit codes (non-zero on failed reconcile) ·
 structured logs on stdout · a documented schema version per image tag.
 
-**Verify before writing a Dockerfile:** confirm this contract against what the deployment repository
-can actually provide — particularly secret mounting and the OIDC client registration. Discovering a
-mismatch after the images exist is avoidable rework.
+### ⚠ Identity integration is not settled
+
+The cluster's established pattern is **forward-auth via a proxy provider** — the gateway
+authenticates and passes identity headers upstream — rather than each application running its own
+OIDC flow. ADR-0015 assumes the latter.
+
+Both work; they are different trust models, and the choice affects W14 directly. Tracked as
+**OQ-9** in [`20-decisions/OPEN.md`](20-decisions/OPEN.md). **Resolve before W14 starts.**
+
+### Verified, and still to verify
+
+Checked against the live cluster on 2026-09-15: Vault agent injection, Helm-chart
+PostgreSQL, and an identity provider already serving forward-auth.
+
+Still to confirm before W00 finalises the Dockerfiles: the exact rendered env-file path and format,
+whether the registry pull secret is namespace-scoped, and the outcome of OQ-9.

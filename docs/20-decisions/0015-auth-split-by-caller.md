@@ -34,6 +34,28 @@ recognisable prefix so secret scanners can detect a leak.
   accepting provider-issued JWTs for machine identities remains available later if central
   revocation becomes worth the coupling.
 
+## ⚠ Open: how the browser half is implemented
+
+Verified after this ADR was accepted: the target cluster's established pattern is **forward-auth via
+an identity-provider proxy** — the gateway authenticates and passes identity headers upstream —
+rather than each application running its own OIDC flow.
+
+The *decision* here stands either way: humans authenticate through the identity provider, agents use
+prisme-issued scoped tokens. What is unsettled is the mechanism for the first half, and the two have
+materially different trust models:
+
+| | Forward-auth | OIDC in the app |
+|---|---|---|
+| prisme handles | Trusted headers | The full authorization-code flow |
+| Session management | The proxy's | prisme's |
+| Safe only if | prisme is **unreachable except through the proxy** | — |
+| Matches the cluster | Yes, it is the existing pattern | Needs a client registration |
+
+Header trust is simpler and consistent with everything else deployed, but it fails open if prisme is
+ever reachable directly — a network-policy assumption rather than a cryptographic one.
+
+Tracked as **OQ-9**. Resolve before W14 starts; whichever wins, this ADR gets a follow-up recording it.
+
 ## Alternatives
 
 **Identity provider service accounts with client credentials for agents.** Central revocation, one
