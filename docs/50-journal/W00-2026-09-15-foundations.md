@@ -97,6 +97,13 @@ runner fetches rather than the branch under test. Correct behaviour for a public
 history is permanent and shared — but worth knowing before somebody spends an hour on a failure that
 has nothing to do with their change.
 
+**CodeQL reviewed the CI it was being added by.** The `actions` pack of `security-extended` flagged
+every third-party action referenced by a tag: a tag is mutable, so `@v6` is a promise from a
+repository nobody here controls. Fourteen findings, all fixed by pinning to a commit SHA with the
+version in a comment. GitHub-owned actions are exempt because their tags are immutable, and
+Dependabot updates a SHA pin like any other dependency. The first useful thing the new gate did was
+improve the change that introduced it.
+
 **Linting needed a build.** `pnpm lint` passed locally and failed in CI: type-aware rules resolve a
 workspace package through its `exports` entry, so without `dist` every cross-package type is `any`
 and the two rules that are contract rather than style quietly stop applying. The lint job now builds
