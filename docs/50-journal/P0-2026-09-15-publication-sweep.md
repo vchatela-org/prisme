@@ -53,6 +53,13 @@ copyright notice has to name its holder, and that is the only place the owner's 
   tree was clean while the remote still served the original text. Had the repository been made
   public in that window the sweep would have accomplished nothing. Publication must be the *last*
   step, after the redacted history is confirmed on the remote — not after the edit is made locally.
+- **The gitleaks CI job had never passed, once, in the repository's life.** The official action
+  refuses to run for organization accounts without a paid licence key, and fails with exactly the
+  red X that a real finding produces. Every run since the initial commit had been failing for this
+  reason and nobody had opened one. Replaced with the binary, which is free and performs the
+  identical scan — the wrapper was the only licensed part. Two lessons worth keeping: a gate nobody
+  has watched go green is not a gate, and this one was about to become a required status check,
+  which would have blocked every pull request from the moment protection was enabled.
 - **CodeQL cannot cover the main language yet.** Default setup rejects `javascript-typescript`
   because no such code exists at P0; only `actions` could be configured. This is easy to forget
   precisely because the checklist box looks ticked.
