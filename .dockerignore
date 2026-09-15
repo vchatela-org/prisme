@@ -1,0 +1,27 @@
+# Keep the build context small, and keep anything private out of it entirely.
+# A file that never enters the context cannot end up in a layer.
+
+.git/
+seed/
+exports/
+screenshots/
+*-private.md
+.env
+.env.*
+!.env.example
+.github/privacy-denylist.local.txt
+
+node_modules/
+**/node_modules/
+**/dist/
+**/.next/
+**/coverage/
+**/*.tsbuildinfo
+
+docs/
+fixtures/
+seed.example/
+.claude/
+README.md
+STATUS.md
+LICENSE
