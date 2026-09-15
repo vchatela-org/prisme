@@ -1,6 +1,6 @@
 # P0 · 2026-09-15 · Branch and pull-request protocol for every agent
 
-**Agent/author** Claude Code · **Duration** one session · **PR** #1 · **Outcome:** complete
+**Agent/author** Claude Code · **Duration** one session · **PR** #3 · **Outcome:** complete
 
 ## What was done
 
