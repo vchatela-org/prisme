@@ -43,7 +43,11 @@ as this one.
 ## Out of scope
 
 Schema for domain tables (W01 defines it) · authentication (W14) · any feature code · Kubernetes
-manifests (they live in the deployment repository — this repo ships images and a contract).
+manifests (they live in the deployment repository — this repo ships images and a contract) ·
+**database backup and restore** — a dump CronJob in the deployment repository, never code here
+([ADR-0022](../20-decisions/0022-backups-belong-to-the-deployment-repository.md)). Do not add a
+`pg_dump` entrypoint, a backup image or a backup metric, however natural it looks beside the
+migration runner.
 
 ## Contract
 

@@ -13,23 +13,28 @@ onto forty existing routes does not happen.
 
 - [`../14-threat-model.md`](../14-threat-model.md) — the whole document
 - [ADR-0015](../20-decisions/0015-auth-split-by-caller.md) — why authorization stays in prisme
+- [ADR-0021](../20-decisions/0021-verified-forward-auth-assertion.md) — **item 1 is this ADR turned
+  into code.** Its nine rules are the specification; read them before writing the verifier
+- [`../15-runtime.md`](../15-runtime.md#identity-integration) — the `AUTH_*` configuration contract
+  and what the deployment owes you
 - [`../17-privacy.md`](../17-privacy.md) — you own the CI enforcement
 
-## ⚠ Blocked until OQ-9 is resolved
+## Not blocked any more
 
-Cluster verification found the homelab's established pattern is **forward-auth via an
-identity-provider proxy**, not per-application OIDC as ADR-0015 assumed. The two have materially
-different trust models and lead to different code.
-
-**Do not start item 1 below until [OQ-9](../20-decisions/OPEN.md) is closed.** Items 2–10 are
-unaffected and can proceed.
+OQ-9 is closed ([ADR-0021](../20-decisions/0021-verified-forward-auth-assertion.md)): forward-auth,
+with prisme **verifying** the provider's signed assertion instead of trusting an identity header.
+The whole workstream can proceed.
 
 ## Scope
 
-1. **Human authentication** — mechanism pending OQ-9. If OIDC: authorization code + PKCE, session
-   cookie `httpOnly`/`Secure`/`SameSite=Lax`, refresh and provider-initiated logout. If forward-auth:
-   verify a **signed assertion** rather than a bare header, so direct reachability is not
-   catastrophic.
+1. **Human authentication** — verify the provider's signed assertion on every request; trust no
+   identity header, ever, not even as a fallback. Signature against the configured JWKS (never a
+   URL from the request), asymmetric `alg` allow-list, `iss`, `aud`, `exp`/`nbf` with skew, a
+   maximum assertion lifetime, and a `sub` allow-list. Identity is `sub`; username and email are
+   display material. **No prisme session cookie** — logout belongs to the provider. The web tier
+   forwards the assertion to the API, which verifies it again with the same implementation: the web
+   tier is not a trusted hop. A request presenting both an assertion and a bearer token is
+   **rejected**, not resolved by precedence.
 2. **Scoped API tokens for machines**: minted from the UI, **Argon2id-hashed at rest**, plaintext
    shown exactly once, scoped, expiring, revocable, `last_used_at` recorded, with a recognisable
    prefix so secret scanners can detect a leak.
@@ -42,7 +47,7 @@ unaffected and can proceed.
 6. **SSRF guard**: an allow-list for any URL originating in user or third-party data.
 7. **Redaction**: deny-list redaction at the log serializer, so a token cannot be logged even by
    `log.info({ config })`.
-8. **Rate limiting**: per token and per session.
+8. **Rate limiting**: per token and per verified subject.
 9. **CI gates**: CodeQL, secret scanning with push protection, Dependabot, dependency review,
    gitleaks, the privacy deny-list scan, `npm audit`, Trivy, `--ignore-scripts` with an allow-list.
 10. **Kill switch**: disable outward writes entirely while leaving reads working.
@@ -58,12 +63,29 @@ definitions (W06) · API route logic (W05).
 export const requireScope: (scope: Scope) => Middleware;   // no default, no wildcard
 export function issueToken(scopes, expiry): { token: string; id: string };
 export function verifyConfirmation(token, diffHash): boolean;
+
+// One implementation, used by both apps/api and apps/web. Pure apart from the
+// key-set fetch, so the rejection cases are ordinary unit tests.
+export function verifyAssertion(jwt: string, now: Date): Principal;   // throws; never returns a fallback
 ```
 
 ## Definition of done
 
 - A route with no declared scope **fails a test**. Write that test first — it is what keeps
   deny-by-default true as routes multiply.
+- The assertion verifier rejects, each proven by its own test: a token signed by the wrong key · one
+  with `alg: none` · one with an HMAC `alg` (the alg-confusion case, and the one a misconfigured
+  provider actually produces) · a wrong `iss` · a wrong or missing `aud` · an expired one · one
+  whose `exp - iat` exceeds the maximum lifetime · a `sub` outside the allow-list · a well-formed
+  assertion presented alongside a bearer token.
+- **Boot fails** when the configured key set is empty or holds no usable asymmetric key — the
+  symptom of a provider deployed without a signing key, and the one failure that would otherwise
+  look like a working system.
+- **A request carrying only plaintext identity headers — no assertion — is unauthenticated.** This
+  is the test that encodes the whole decision; write it beside the happy path so nobody later adds
+  a "convenient" fallback without going red.
+- The API rejects an unverifiable assertion **even when it arrives from the web tier**, proven by a
+  test that calls the API directly.
 - A read-scoped token cannot invoke any write endpoint or MCP write tool.
 - A stale confirmation token is rejected, proven by a test that mutates state between dry run and
   apply.
@@ -77,6 +99,11 @@ export function verifyConfirmation(token, diffHash): boolean;
 
 ## Notes
 
+- **The assertion is a bearer credential.** Put its header on the redaction deny-list beside the
+  tokens, and never put it in a URL, a log line or an error message.
+- **CSRF survives having no cookie of our own.** The gateway's session cookie is ambient in the
+  browser, so a cross-site state-changing request still arrives authenticated. Origin checks are
+  what stop it; do not conclude they are redundant.
 - **Bind the confirmation token to the diff**, not to the session. A token authorising "whatever
   apply does next" is a round trip, not a control.
 - The highest-risk path is an MCP agent with a write token — assume confusion rather than malice.

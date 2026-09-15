@@ -15,8 +15,8 @@ real question is **who defines its permissions**.
 
 | Caller | Mechanism |
 |---|---|
-| Human, in a browser | **OIDC** against the identity provider — authorization code + PKCE, `httpOnly`/`Secure`/`SameSite` session cookie |
-| Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI, which is itself behind OIDC |
+| Human, in a browser | **The identity provider**, through a verified signed assertion — mechanism settled in [ADR-0021](0021-verified-forward-auth-assertion.md) |
+| Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI, which is itself behind the identity provider |
 
 Tokens are Argon2id-hashed at rest, scoped, expiring, revocable, with `last_used_at` recorded and a
 recognisable prefix so secret scanners can detect a leak.
@@ -34,27 +34,19 @@ recognisable prefix so secret scanners can detect a leak.
   accepting provider-issued JWTs for machine identities remains available later if central
   revocation becomes worth the coupling.
 
-## ⚠ Open: how the browser half is implemented
+## Resolved: how the browser half is implemented
 
-Verified after this ADR was accepted: the target cluster's established pattern is **forward-auth via
-an identity-provider proxy** — the gateway authenticates and passes identity headers upstream —
-rather than each application running its own OIDC flow.
+This ADR originally assumed per-application OIDC. Verification after it was accepted found the
+target cluster's established pattern is **forward-auth through an identity-provider proxy**, which
+is a different trust model — safe only while prisme is unreachable except through the proxy. That
+was tracked as **OQ-9** and it blocked W14.
 
-The *decision* here stands either way: humans authenticate through the identity provider, agents use
-prisme-issued scoped tokens. What is unsettled is the mechanism for the first half, and the two have
-materially different trust models:
+Closed by **[ADR-0021](0021-verified-forward-auth-assertion.md)**: forward-auth, with prisme
+**verifying the provider's signed assertion** on every request rather than trusting an identity
+header. The split decided here is unchanged — identity from the provider, authorization in prisme —
+and the browser half no longer depends on a network-reachability assumption.
 
-| | Forward-auth | OIDC in the app |
-|---|---|---|
-| prisme handles | Trusted headers | The full authorization-code flow |
-| Session management | The proxy's | prisme's |
-| Safe only if | prisme is **unreachable except through the proxy** | — |
-| Matches the cluster | Yes, it is the existing pattern | Needs a client registration |
-
-Header trust is simpler and consistent with everything else deployed, but it fails open if prisme is
-ever reachable directly — a network-policy assumption rather than a cryptographic one.
-
-Tracked as **OQ-9**. Resolve before W14 starts; whichever wins, this ADR gets a follow-up recording it.
+Read ADR-0021 for the verification rules; they are the binding ones.
 
 ## Alternatives
 

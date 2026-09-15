@@ -24,6 +24,8 @@ layer; the task tool remains execution.
   tool supports.
 - The event log enables KPIs and trends that are otherwise unobtainable.
 - prisme becomes a system of record, so it needs backup, migrations and a real security posture.
+  Migrations and security are built here; **backup is infrastructure and is not**
+  ([ADR-0022](0022-backups-belong-to-the-deployment-repository.md)).
 - The model can no longer be edited directly in the document tool. That is a real loss of
   convenience, and the reason the UI has to be good rather than merely functional.
 

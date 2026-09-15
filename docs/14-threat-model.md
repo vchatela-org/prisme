@@ -18,7 +18,7 @@ Ordered by what an attacker would want most.
 |---|---|---|---|
 | A1 | **External API tokens** (document tool, task tool) | Full read/write over the user's entire planning workspace, outside prisme's control | Severe, and not contained by shutting prisme down |
 | A2 | **prisme API / MCP tokens** | Programmatic access to everything prisme holds and can write outward | High |
-| A3 | **Session credentials** | Impersonation in the UI | High |
+| A3 | **Human session credentials** — the gateway's session cookie and the signed assertion derived from it | Impersonation in the UI | High |
 | A4 | **The personal data itself** | Goals, health and relationship context, finances, schedule. Highly sensitive in aggregate | High, irreversible — disclosure cannot be undone |
 | A5 | **The event log** | A behavioural time series: when the user works, what they avoid | Moderate; uniquely revealing |
 | A6 | **Database credentials** | Everything above, at rest | High |
@@ -43,8 +43,8 @@ recorded over years, with enough structure to be trivially summarised. Aggregati
 
 | # | Boundary | Primary risk |
 |---|---|---|
-| ① | Untrusted browser → web | XSS, CSRF, session theft |
-| ② | Web → API | Missing authorization, over-broad session scope |
+| ① | Untrusted browser → web | XSS, CSRF, assertion theft and replay |
+| ② | Web → API | Missing authorization. **The web tier is not a trusted hop** — the API re-verifies the assertion rather than believing the identity the web tier reports |
 | ③ | API → database | Injection, over-privileged database role |
 | ④ | **MCP client → API** | An agent performing destructive writes — highest-risk path |
 | ⑤ | API → external SaaS | **Responses are untrusted input.** Also SSRF, token leakage |
@@ -63,12 +63,32 @@ Split by caller, because the two have genuinely different constraints.
 
 | Caller | Mechanism |
 |---|---|
-| Human, in a browser | **OIDC** against the self-hosted identity provider — authorization code + PKCE. `httpOnly`, `Secure`, `SameSite=Lax` session cookie |
-| Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI (which is itself behind OIDC) |
+| Human, in a browser | The self-hosted identity provider, in front of prisme. prisme **verifies the provider's signed assertion on every request** — signature, issuer, audience, expiry, lifetime and subject allow-list — and trusts no identity header. No prisme session cookie ([ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md)) |
+| Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI (which is itself behind the identity provider) |
+
+A request presenting both credentials is rejected rather than resolved by precedence.
+
+### Why the assertion is verified rather than trusted
+
+The deployment authenticates humans at the gateway and forwards identity upstream. Trusting those
+headers would make prisme's security a **network-reachability assumption**: anything that could
+reach the application directly, bypassing the gateway, could assert any identity — silently, and
+completely, for an application holding read/write tokens to an entire personal workspace. The
+gateway already forwards the provider's *signed* token beside the plaintext headers, so verifying
+it costs nothing and removes the assumption. Full reasoning and the verification rules:
+[ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md).
+
+Two consequences that are easy to get wrong:
+
+- **CSRF is still live.** The absence of a prisme cookie does not help — the gateway's own session
+  cookie is ambient in the browser, so a cross-site state-changing request arrives authenticated.
+  Origin checks on state-changing requests are mandatory.
+- **The assertion is a bearer credential.** It belongs on the log redaction deny-list beside the
+  tokens, and its replay window is the provider's token validity.
 
 ### Why authorization stays in prisme
 
-Agents cannot complete an interactive OIDC flow, so they need a bearer credential regardless. The
+Agents cannot complete an interactive login flow, so they need a bearer credential regardless. The
 question is who defines its permissions. Keeping tool-level scopes in prisme is deliberate: they are
 prisme's domain, they change whenever a tool is added, and pushing them into the identity provider
 would make every new MCP tool an IdP configuration change. Identity belongs to the IdP;
@@ -118,7 +138,8 @@ unlikely to make them.
 |---|---|
 | Injection | Parameterized queries only, via the query builder. No string-built SQL; lint-enforced |
 | XSS | Strict CSP with per-request nonces. No raw HTML injection of third-party content. Rich text from the document tool is sanitised through an allow-list, never a deny-list |
-| CSRF | `SameSite` cookies, plus origin checks on state-changing requests |
+| CSRF | Origin checks on every state-changing request. prisme sets no session cookie, but the gateway's is ambient in the browser, so the check does the work |
+| Identity spoofing | Identity is read **only** from a verified signed assertion. Plaintext identity headers are never a fallback, and a direct connection that bypasses the gateway authenticates nothing |
 | SSRF | Content from external tools contains arbitrary URLs. Nothing fetches a URL originating in user or third-party data without an allow-list |
 | Untrusted input | One Zod schema per boundary, parsed before any other code sees the value — including **responses from external APIs** |
 | Secret leakage | Redacting logger with a deny-list; no secrets in errors, traces, URLs or query strings |
@@ -175,6 +196,7 @@ committed journal entry or test fixture. It is called out in every workstream br
 |---|---|
 | Multi-tenancy, per-user isolation | Single owner by design. Revisit before a second user, not after |
 | Infrastructure secret management, TLS, network policy | Deployment repository |
+| Database backup, restore, retention and dump storage | Deployment repository, as a dump CronJob — [ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md). prisme ships no backup capability and holds no credential for one |
 | Availability and DoS | Internal service, no public ingress. Data loss is the concern, not uptime |
 | Compromise of the external SaaS providers | Accepted. Limited by token scope and rotation |
 | Physical access to the cluster | Deployment repository |

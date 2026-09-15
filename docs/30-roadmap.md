@@ -38,7 +38,12 @@ progress rolled back up, the intent channel, the conflict ledger, the adoption q
 **Exit:** one full week of reviews with no manual copying and an empty conflict ledger. Prior sync
 automations turned off, one at a time, with no drift after each.
 
-**Gate:** `SYNC_WRITE_ENABLED` is not turned on until a human has read a `plan` showing `create: 0`.
+**Gate:** `SYNC_WRITE_ENABLED` is not turned on until a human has read a `plan` showing `create: 0`
+**and a database restore has been rehearsed once**. The restore is infrastructure work in the
+deployment repository — a dump CronJob, nothing built here
+([ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md)) — and it blocks no
+workstream, because everything up to this point writes nothing outward. Full checklist:
+[`../STATUS.md`](../STATUS.md#before-the-first-outward-write).
 
 ## P3 · Reviews in the application
 

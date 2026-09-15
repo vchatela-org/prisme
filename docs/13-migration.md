@@ -149,7 +149,19 @@ backlog of hundreds of "initiatives" and a ranking that means nothing. Most task
 | 10. Retire the superseded automations | — |
 
 Steps 1–7 are reversible by deleting a database. Step 8 is the first irreversible one, and it is
-gated on a human reading a plan.
+gated on two human checks: a person has read the plan, and **a database restore has been rehearsed
+at least once**.
+
+That second one is infrastructure work, done in the GitOps deployment repository as a dump CronJob
+alongside its other databases — never in this repository, which ships no backup capability at all
+([ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md)). It is a checklist
+item with a human owner, not a code path: prisme cannot detect whether a backup exists and will not
+refuse to apply for want of one. It also blocks nothing before this step — steps 1–7 write nothing
+outward — so it can land at any time up to here.
+
+Why it belongs precisely at step 8: until then the only loss is a database that can be rebuilt by
+re-ingesting both tools. From step 8 the database holds the link table, the scores and the adoption
+decisions that no re-ingest can reconstruct — dropping it stops being free.
 
 ## 6. Retiring the old system
 
