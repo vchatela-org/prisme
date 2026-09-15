@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-15 · **Current phase:** P0 **frozen** — wave 1 cleared to start
+**Last updated:** 2026-09-15 · **Current phase:** P0 **frozen** — wave 1 in flight
 
 ---
 
@@ -27,7 +27,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 
 | # | Workstream | Depends on | Wave | State | PR |
 |---|---|---|---|---|---|
-| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | ⚪ | — |
+| [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | 🟡 | [#5](https://github.com/vchatela-org/prisme/pull/5) |
 | [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | ⚪ | — |
 | [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ | — |
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | ⚪ | — |
@@ -53,11 +53,23 @@ name and result, privacy position, what it did not do. **A human merges**; no ag
 PR. `main` is protected: a pull request is required, the checks below are required, and `enforce
 admins` is on, so the bypass an agent used to have through the owner's token is gone.
 
-Required on every PR: `privacy deny-list` · `gitleaks` · `internal links` · `dependency review`.
-**Thin on purpose for now** — W00 and W14 add typecheck, lint, test, build, `npm audit`, Trivy and
-CodeQL over `javascript-typescript`, and each becomes required from the commit that adds it. Rules,
-and what to do at each ending:
+Required on every PR, as of W00 (#5):
+
+`privacy deny-list` · `gitleaks` · `internal links` · `dependency review` · `typecheck` · `lint` ·
+`test` · `build` · `dependency audit` · `images` · `CodeQL (actions)` ·
+`CodeQL (javascript-typescript)` · `CodeQL (python)`
+
+`images` builds all three images, Trivy-scans them, and asserts what is only checkable on a real
+container: that `prisme-api` and `prisme-sync` are the same digest, that neither runs as root, that
+`/healthz` answers with an unreachable database while `/readyz` returns 503, and that a missing
+required variable stops the process with the variable named. `dependency audit` is
+`pnpm audit --audit-level=moderate`. Each became required from the commit that added it. W14 still
+owns its own additions. Rules, and what to do at each ending:
 [`docs/40-workstreams/README.md#checks`](docs/40-workstreams/README.md#checks).
+
+Both security gates have been **watched fail** and are not taken on trust —
+[the W00 entry](docs/50-journal/W00-2026-09-15-foundations.md) records how, and the two things that
+surprised us while doing it.
 
 **Wave 1 — W00, W01, W03, W07 — is cleared to start.** Nothing they depend on is open.
 Scheduling guidance, and the one wave that will conflict:
@@ -117,7 +129,9 @@ Swept 2026-09-15; the repository is public as of that date.
 - [x] Privacy deny-list scan over the entire history
 - [x] `docs/17-privacy.md` reviewed and agreed
 - [x] GitHub settings enabled — see [`docs/17-privacy.md#4-github-settings-checklist`](docs/17-privacy.md#4-github-settings-checklist).
-      One partial: **CodeQL covers `actions` only** until there is TypeScript to scan — W00 owns it
+      ✅ The one partial is closed: CodeQL now covers `actions`, `javascript-typescript` and
+      `python` with the `security-extended` suite, as a workflow in git rather than the repository
+      default — which could never have covered TypeScript before it merged (W00, #5)
 - [x] Licence chosen — MIT ([`LICENSE`](LICENSE))
 
 History was redacted and force-pushed before publication, and the pre-rewrite Dependabot branches
