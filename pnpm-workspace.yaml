@@ -11,3 +11,17 @@ packages:
 # transform pipeline needs. Without it, `pnpm test` cannot start.
 allowBuilds:
   esbuild: true
+
+# Transitive dependencies with a published advisory that their direct parent has
+# not yet picked up. `pnpm audit` is a required check, so these are pinned
+# forward here rather than waived — the gate stays sharp and the reason is
+# written down.
+#
+#   postcss  — pulled in by Next.js. GHSA path traversal + XSS fixes.
+#   esbuild  — pulled in by drizzle-kit through the deprecated @esbuild-kit
+#              packages. Dev-time only, and drizzle-kit never runs in an image.
+#
+# Delete an entry once the parent ships a version that no longer needs it.
+overrides:
+  postcss: '>=8.5.23'
+  esbuild: '>=0.25.12'
