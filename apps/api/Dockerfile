@@ -18,16 +18,23 @@
 # ---------------------------------------------------------------------------
 # Builder — the only stage with a toolchain. Nothing here reaches the runtime.
 # ---------------------------------------------------------------------------
-FROM node:24.21.0-trixie-slim@sha256:db3ae80f5d8df06e04dabdf7b44cbf008d32de168205fa0294444aabbc08c590 AS builder
+FROM node:26.8-trixie-slim@sha256:14bf3eac4bf209d906d3c41256597d3ab1f926b2e93a79e9bdfe1efd32454239 AS builder
 
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-    CI=true
+ENV CI=true
 WORKDIR /build
 
-RUN corepack enable pnpm
-
-# Manifests first: this layer is cached until a dependency actually changes.
+# Manifests first: these layers are cached until a dependency actually changes.
+# The root manifest also has to arrive before pnpm is installed, because that is
+# where pnpm's version comes from.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+
+# Node stopped shipping corepack at v25 (ADR-0023), so pnpm is installed from
+# npm instead. The version is *derived* from `packageManager` in the root
+# manifest rather than written here, so the Dockerfile and the manifest cannot
+# drift; the optional `+sha512…` integrity suffix is stripped.
+RUN pnpm_version="$(node -p "require('/build/package.json').packageManager.split('@').pop().split('+')[0]")" \
+ && npm install --global "pnpm@${pnpm_version}" \
+ && pnpm --version
 COPY apps/api/package.json          apps/api/
 COPY apps/sync/package.json         apps/sync/
 COPY apps/web/package.json          apps/web/
@@ -58,11 +65,15 @@ RUN pnpm deploy --filter @prisme/api --prod --legacy /out \
 # ---------------------------------------------------------------------------
 # Runtime — distroless. No shell, no package manager, nothing to exec into.
 #
-# Debian 13 rather than 12: the debian12 variant is currently behind on
-# openssl and Trivy flags six fixed HIGH/CRITICAL CVEs in it. This one has
-# none. Pinned by digest, and Dependabot watches it.
+# Debian 13 rather than 12: the debian12 variant is behind on openssl and Trivy
+# flags fixed HIGH/CRITICAL CVEs in it. This one has none. Pinned by digest, and
+# Dependabot watches it.
+#
+# nodejs26 to match the builder's major version (ADR-0023). A runtime on a
+# different major than the one the code was compiled and type-checked against is
+# a difference nothing in CI would catch.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:bb6b03d81066993293a10feda7250e8e1cc034035fe9b61cfceededa7c8bf04d AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ea845027bc638317c4b14a8969cc931efc7546ecabb2de1e4dfb2fee835cca2c AS runtime
 
 WORKDIR /app
 
