@@ -94,13 +94,26 @@ Zod for every boundary · Vitest.
 
 1. Read this file, then `docs/40-workstreams/<your-id>.md`, then `docs/50-journal/INDEX.md`.
 2. Read any `docs/` spec your brief cites. Do not re-derive a decision that has an ADR.
-3. Stay inside the directories your brief lists under *Files you may touch*. Other agents are
+3. **Work on a branch.** `git switch -c ws/<id>` from up-to-date `main` before you write anything.
+   Never commit to `main` — branch protection refuses it. Everything below happens on that branch.
+4. Stay inside the directories your brief lists under *Files you may touch*. Other agents are
    working in parallel; wandering outside your tree causes merge conflicts, not just untidiness.
-4. When you finish: append `docs/50-journal/<id>-<date>-<slug>.md`, update its `INDEX.md`, and
-   update your row in `STATUS.md`.
-5. **You may not contradict an Accepted ADR.** If your work requires it, write a new ADR proposing
+5. When you finish: append `docs/50-journal/<id>-<date>-<slug>.md`, update its `INDEX.md`, and
+   update your row in `STATUS.md` (including the PR column) — on your branch, not after.
+6. **Open a pull request and get it green.** Fill in
+   [the template](.github/pull_request_template.md) in full: what changed, which specs and ADRs it
+   honours, every check by name and result, the privacy position, and what you deliberately did not
+   do. Then push and watch the checks.
+7. **You may not contradict an Accepted ADR.** If your work requires it, write a new ADR proposing
    the supersession and stop for review — implementing against a decided ADR silently is worse than
    being blocked.
+8. **You stop when every check on the PR is green, and not before.** Red is yours to fix: re-push
+   until it is green. Never weaken a check to get past it — a relaxed gate is worse than a red one,
+   because it looks like a pass. The two legal endings are *green* and *blocked by an ADR*.
+   **Do not merge your own pull request** — a human merges.
+
+The full protocol, including what "all checks pass" means while the check set is still thin:
+[`docs/40-workstreams/README.md#pull-requests`](docs/40-workstreams/README.md#pull-requests).
 
 ### The journal rule
 

@@ -29,4 +29,6 @@ The review wizard is the highest-value screen in prisme and the easiest to get w
 
 The artefact a review produces should be worth reading a month later.
 
-Fixture data only. Finish by appending a journal entry and updating your row in `STATUS.md`.
+Fixture data only. Finish on a branch (`ws/<id>`): the journal entry and `STATUS.md` row first, then a pull request
+filled in from `.github/pull_request_template.md` and **green on every check**. Fix what is red and
+push again; do not weaken a check to get past it. **Do not merge it yourself** — a human merges.

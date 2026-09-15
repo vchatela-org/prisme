@@ -106,8 +106,11 @@ Signals separation, Run hours against budget.
 
 ## Scheduling the agents
 
-Parallel-safe means **different directories**. Run each workstream in its own git worktree and merge
-per workstream.
+Parallel-safe means **different directories**. Run each workstream in its own git worktree, on its
+own branch (`ws/<id>`), and land it as its own green pull request — never a direct merge to `main`.
+Two agents in the same directories conflict whatever the branching; two agents in different
+directories do not, and separate branches keep their commits separable while their PRs go green at
+different times.
 
 | Wave | In parallel | Why safe | Gate to the next wave |
 |---|---|---|---|
@@ -129,6 +132,10 @@ per workstream.
   a cheaper model.
 - **W14 is not a phase.** It lands with W00 and is re-checked whenever a workstream adds an
   endpoint, a tool or a connector.
+- **Green is a property of a commit, not a branch.** Four green PRs in `apps/web` still merge one at
+  a time; each one that lands moves `main` under the others, and a rebase re-runs the checks against
+  a different tree. Rebase onto `main` and re-confirm green before asking for a merge, not after —
+  and expect the last of four to be doing the most rebasing.
 
 ### Dependency graph
 
