@@ -90,7 +90,7 @@ export interface Schedule {
    * The inputs, kept so `replan` can recompute from them. A schedule is derived
    * data; holding what derived it is what lets a replan be a full recomputation
    * rather than a patch, which is the same level-triggered discipline the
-   * reconciler works by (ADR-0011).
+   * reconciler works by (ADR-0009).
    */
   readonly input: ScheduleInput;
 }

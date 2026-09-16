@@ -65,7 +65,7 @@ same day both are true, and the dependency is the one whose movement propagates,
 worth drawing on a Timeline edge.
 
 **A replan is a full recomputation, diffed** — not dates pushed forward from the move. That is the
-level-triggered discipline of [ADR-0011](../20-decisions/0011-level-triggered-reconciliation.md)
+level-triggered discipline of [ADR-0009](../20-decisions/0009-level-triggered-reconciliation.md)
 applied to planning: a diff against a recomputation is exact by construction, where a patch is exact
 only for the propagation paths whoever wrote it remembered. It is also what lets the diff report a
 *third* initiative moving because an area's slot changed hands — a planner that showed only the
