@@ -1,0 +1,156 @@
+{
+  "_comment": "Synthetic. Four hand-computed scheduling networks, used by packages/domain/src/schedule/cpm-fixtures.test.ts. Every id, title and date here is invented, and none of it resembles any real plan. See ../README.md.",
+
+  "_conventions": [
+    "Durations are WORKING days, taken from the default identity size table: size 1·2·3·5·8·13 -> 1·2·3·5·8·13 working days.",
+    "Spans are INCLUSIVE: an initiative starting on working day s with duration d finishes at the end of the d-th working day, and a dependent starts the next working day after that.",
+    "Slack is in working days and is signed. Negative slack means a deadline that cannot be met.",
+    "workingWeekdays uses 0 = Sunday, matching Date.prototype.getUTCDay. Two cases work all seven days so that a day index is a plain calendar offset and every number below can be checked by counting on a calendar.",
+    "value, timeCriticality and risk play no part in scheduling. The test fills them with a constant rather than pretending they mean something here."
+  ],
+
+  "_expectedValuesWereHandComputed": "Every number under `expected` was worked out by hand from the network above it, not read back from an implementation. That is the point of the file: it is the independent check the W02 brief asks for.",
+
+  "cases": [
+    {
+      "name": "classic-network",
+      "why": "The textbook activity-on-node CPM network: two entry activities, a join, a fork, and a merge. Exercises the forward pass, the backward pass, total float and the critical path with nothing else interfering — capacity is deliberately generous and no deadline is set.",
+      "now": "2026-01-05T00:00:00Z",
+      "weightYear": 2026,
+      "config": {
+        "workingWeekdays": [0, 1, 2, 3, 4, 5, 6],
+        "holidays": [],
+        "concurrentInitiatives": 10
+      },
+      "areas": [{ "key": "alpha", "name": "Alpha", "kind": "area", "weightPct": 100 }],
+      "initiatives": [
+        { "id": "sch-a", "title": "Activity A complete", "areaKey": "alpha", "size": 3, "dependsOn": [] },
+        { "id": "sch-b", "title": "Activity B complete", "areaKey": "alpha", "size": 5, "dependsOn": [] },
+        { "id": "sch-c", "title": "Activity C complete", "areaKey": "alpha", "size": 2, "dependsOn": ["sch-a"] },
+        { "id": "sch-d", "title": "Activity D complete", "areaKey": "alpha", "size": 5, "dependsOn": ["sch-a", "sch-b"] },
+        { "id": "sch-e", "title": "Activity E complete", "areaKey": "alpha", "size": 1, "dependsOn": ["sch-c"] },
+        { "id": "sch-f", "title": "Activity F complete", "areaKey": "alpha", "size": 3, "dependsOn": ["sch-d"] },
+        { "id": "sch-g", "title": "Activity G complete", "areaKey": "alpha", "size": 2, "dependsOn": ["sch-e", "sch-f"] }
+      ],
+      "expected": {
+        "projectStart": "2026-01-05",
+        "projectEnd": "2026-01-19",
+        "minSlackDays": 0,
+        "criticalPath": ["sch-b", "sch-d", "sch-f", "sch-g"],
+        "infeasibleDeadlines": [],
+        "initiatives": [
+          { "id": "sch-a", "earliestStart": "2026-01-05", "earliestFinish": "2026-01-07", "latestStart": "2026-01-07", "latestFinish": "2026-01-09", "slackDays": 2, "onCriticalPath": false, "boundBy": "none", "boundByIds": [] },
+          { "id": "sch-b", "earliestStart": "2026-01-05", "earliestFinish": "2026-01-09", "latestStart": "2026-01-05", "latestFinish": "2026-01-09", "slackDays": 0, "onCriticalPath": true, "boundBy": "none", "boundByIds": [] },
+          { "id": "sch-c", "earliestStart": "2026-01-08", "earliestFinish": "2026-01-09", "latestStart": "2026-01-15", "latestFinish": "2026-01-16", "slackDays": 7, "onCriticalPath": false, "boundBy": "dependency", "boundByIds": ["sch-a"] },
+          { "id": "sch-d", "earliestStart": "2026-01-10", "earliestFinish": "2026-01-14", "latestStart": "2026-01-10", "latestFinish": "2026-01-14", "slackDays": 0, "onCriticalPath": true, "boundBy": "dependency", "boundByIds": ["sch-b"] },
+          { "id": "sch-e", "earliestStart": "2026-01-10", "earliestFinish": "2026-01-10", "latestStart": "2026-01-17", "latestFinish": "2026-01-17", "slackDays": 7, "onCriticalPath": false, "boundBy": "dependency", "boundByIds": ["sch-c"] },
+          { "id": "sch-f", "earliestStart": "2026-01-15", "earliestFinish": "2026-01-17", "latestStart": "2026-01-15", "latestFinish": "2026-01-17", "slackDays": 0, "onCriticalPath": true, "boundBy": "dependency", "boundByIds": ["sch-d"] },
+          { "id": "sch-g", "earliestStart": "2026-01-18", "earliestFinish": "2026-01-19", "latestStart": "2026-01-18", "latestFinish": "2026-01-19", "slackDays": 0, "onCriticalPath": true, "boundBy": "dependency", "boundByIds": ["sch-f"] }
+        ]
+      }
+    },
+
+    {
+      "name": "weekends-and-holidays",
+      "why": "The same arithmetic across a weekend, a month end and a holiday that falls on the Monday after it. A five-working-day slice starting on a Thursday finishes nine calendar days later, and its dependent starts on the Friday. This is the case the brief warns will break.",
+      "now": "2026-01-29T00:00:00Z",
+      "weightYear": 2026,
+      "config": {
+        "workingWeekdays": [1, 2, 3, 4, 5],
+        "holidays": ["2026-02-02"],
+        "concurrentInitiatives": 10
+      },
+      "areas": [{ "key": "alpha", "name": "Alpha", "kind": "area", "weightPct": 100 }],
+      "initiatives": [
+        { "id": "cal-1", "title": "Long slice complete", "areaKey": "alpha", "size": 5, "dependsOn": [] },
+        { "id": "cal-2", "title": "Short follow-up complete", "areaKey": "alpha", "size": 1, "dependsOn": ["cal-1"] }
+      ],
+      "_walkthrough": "Thu 29 Jan, Fri 30 Jan, [Sat 31, Sun 1 skipped], [Mon 2 Feb is a holiday], Tue 3, Wed 4, Thu 5 -> five working days, finishing 2026-02-05. cal-2 resumes on Fri 2026-02-06.",
+      "expected": {
+        "projectStart": "2026-01-29",
+        "projectEnd": "2026-02-06",
+        "minSlackDays": 0,
+        "criticalPath": ["cal-1", "cal-2"],
+        "infeasibleDeadlines": [],
+        "initiatives": [
+          { "id": "cal-1", "earliestStart": "2026-01-29", "earliestFinish": "2026-02-05", "latestStart": "2026-01-29", "latestFinish": "2026-02-05", "slackDays": 0, "onCriticalPath": true, "boundBy": "none", "boundByIds": [] },
+          { "id": "cal-2", "earliestStart": "2026-02-06", "earliestFinish": "2026-02-06", "latestStart": "2026-02-06", "latestFinish": "2026-02-06", "slackDays": 0, "onCriticalPath": true, "boundBy": "dependency", "boundByIds": ["cal-1"] }
+        ]
+      }
+    },
+
+    {
+      "name": "area-capacity",
+      "why": "An area with 5% of the year's capacity cannot run four initiatives at once, which is the constraint the brief names. Four independent two-day slices in that area serialise and say `capacity`; three in an area with 60% run side by side and say `none`. Nothing here depends on anything: the only thing delaying the queue is the weight.",
+      "now": "2026-03-02T00:00:00Z",
+      "weightYear": 2026,
+      "config": {
+        "workingWeekdays": [0, 1, 2, 3, 4, 5, 6],
+        "holidays": [],
+        "concurrentInitiatives": 5
+      },
+      "areas": [
+        { "key": "home", "name": "Home", "kind": "area", "weightPct": 5 },
+        { "key": "craft", "name": "Craft", "kind": "area", "weightPct": 60 },
+        { "key": "health", "name": "Health", "kind": "area", "weightPct": 35 }
+      ],
+      "_slots": "home 5% x 5 = 0.25 -> rounds to 0, floored at 1 slot. craft 60% x 5 = 3 slots. health 35% x 5 = 1.75 -> 2 slots. The floor is deliberate: starving an area to zero is a decision for a yearly review, not an arithmetic accident.",
+      "expectedSlots": { "home": 1, "craft": 3, "health": 2 },
+      "initiatives": [
+        { "id": "cap-h1", "title": "Home slice one complete", "areaKey": "home", "size": 2, "dependsOn": [] },
+        { "id": "cap-h2", "title": "Home slice two complete", "areaKey": "home", "size": 2, "dependsOn": [] },
+        { "id": "cap-h3", "title": "Home slice three complete", "areaKey": "home", "size": 2, "dependsOn": [] },
+        { "id": "cap-h4", "title": "Home slice four complete", "areaKey": "home", "size": 2, "dependsOn": [] },
+        { "id": "cap-c1", "title": "Craft slice one complete", "areaKey": "craft", "size": 2, "dependsOn": [] },
+        { "id": "cap-c2", "title": "Craft slice two complete", "areaKey": "craft", "size": 2, "dependsOn": [] },
+        { "id": "cap-c3", "title": "Craft slice three complete", "areaKey": "craft", "size": 2, "dependsOn": [] }
+      ],
+      "expected": {
+        "projectStart": "2026-03-02",
+        "projectEnd": "2026-03-09",
+        "minSlackDays": 0,
+        "criticalPath": ["cap-h4"],
+        "infeasibleDeadlines": [],
+        "initiatives": [
+          { "id": "cap-h1", "earliestStart": "2026-03-02", "earliestFinish": "2026-03-03", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 6, "onCriticalPath": false, "boundBy": "none", "boundByIds": [] },
+          { "id": "cap-h2", "earliestStart": "2026-03-04", "earliestFinish": "2026-03-05", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 4, "onCriticalPath": false, "boundBy": "capacity", "boundByIds": ["cap-h1"] },
+          { "id": "cap-h3", "earliestStart": "2026-03-06", "earliestFinish": "2026-03-07", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 2, "onCriticalPath": false, "boundBy": "capacity", "boundByIds": ["cap-h2"] },
+          { "id": "cap-h4", "earliestStart": "2026-03-08", "earliestFinish": "2026-03-09", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 0, "onCriticalPath": true, "boundBy": "capacity", "boundByIds": ["cap-h3"] },
+          { "id": "cap-c1", "earliestStart": "2026-03-02", "earliestFinish": "2026-03-03", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 6, "onCriticalPath": false, "boundBy": "none", "boundByIds": [] },
+          { "id": "cap-c2", "earliestStart": "2026-03-02", "earliestFinish": "2026-03-03", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 6, "onCriticalPath": false, "boundBy": "none", "boundByIds": [] },
+          { "id": "cap-c3", "earliestStart": "2026-03-02", "earliestFinish": "2026-03-03", "latestStart": "2026-03-08", "latestFinish": "2026-03-09", "slackDays": 6, "onCriticalPath": false, "boundBy": "none", "boundByIds": [] }
+        ]
+      },
+      "_slackCaveat": "The backward pass respects dependencies and deadlines, not capacity: cap-h1 reads as having six days of slack, which is true of the dependency network and false of the queue behind it. Stated here rather than hidden, and repeated in the module documentation."
+    },
+
+    {
+      "name": "deadline-infeasible",
+      "why": "A deadline that cannot be met. The initiative carrying it runs two working days late, and the negative slack propagates back to its predecessor, which is the useful part: the thing to change is upstream. The deadline itself is reported, never moved (ADR-0003).",
+      "now": "2026-01-05T00:00:00Z",
+      "weightYear": 2026,
+      "config": {
+        "workingWeekdays": [0, 1, 2, 3, 4, 5, 6],
+        "holidays": [],
+        "concurrentInitiatives": 10
+      },
+      "areas": [{ "key": "alpha", "name": "Alpha", "kind": "area", "weightPct": 100 }],
+      "initiatives": [
+        { "id": "dl-a", "title": "Groundwork complete", "areaKey": "alpha", "size": 5, "dependsOn": [] },
+        { "id": "dl-b", "title": "Dependent work complete", "areaKey": "alpha", "size": 3, "dependsOn": ["dl-a"], "deadline": "2026-01-10" }
+      ],
+      "expected": {
+        "projectStart": "2026-01-05",
+        "projectEnd": "2026-01-12",
+        "minSlackDays": -2,
+        "criticalPath": ["dl-a", "dl-b"],
+        "infeasibleDeadlines": ["dl-b"],
+        "initiatives": [
+          { "id": "dl-a", "earliestStart": "2026-01-05", "earliestFinish": "2026-01-09", "latestStart": "2026-01-03", "latestFinish": "2026-01-07", "slackDays": -2, "onCriticalPath": true, "boundBy": "none", "boundByIds": [] },
+          { "id": "dl-b", "earliestStart": "2026-01-10", "earliestFinish": "2026-01-12", "latestStart": "2026-01-08", "latestFinish": "2026-01-10", "slackDays": -2, "onCriticalPath": true, "boundBy": "dependency", "boundByIds": ["dl-a"], "deadlineFeasible": false, "deadlineSlackDays": -2 }
+        ]
+      },
+      "_latestStartInThePast": "dl-a's latest start is 2026-01-03, two days before the project starts. That is correct and is the finding: to meet the deadline the work would have had to begin before today."
+    }
+  ]
+}
