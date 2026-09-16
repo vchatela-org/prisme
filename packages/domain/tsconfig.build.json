@@ -10,5 +10,6 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  // Tests and their builders are scaffolding, not package surface.
+  "exclude": ["src/**/*.test.ts", "src/test-support/**"]
 }
