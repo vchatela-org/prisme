@@ -1,0 +1,74 @@
+{
+  "_comment": "Synthetic. Page 1 of 2 of a role-keyed query. Every last_edited_time is rounded down to the minute, exactly as the tool reports it — that rounding is the bug the watermark overlap exists for.",
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "doc-page-0001",
+      "created_time": "2026-01-05T09:00:00.000Z",
+      "last_edited_time": "2026-09-16T08:58:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "properties": {
+        "Name": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            {
+              "plain_text": "Be measurably fitter by the end of the year",
+              "href": null,
+              "annotations": { "bold": false, "italic": false, "code": false, "color": "default" }
+            }
+          ]
+        },
+        "Notes": {
+          "id": "prop-notes",
+          "type": "rich_text",
+          "rich_text": [
+            {
+              "plain_text": "Reference: ",
+              "href": null,
+              "annotations": { "bold": false }
+            },
+            {
+              "plain_text": "the training plan",
+              "href": "https://example.invalid/plan",
+              "annotations": { "bold": true, "italic": true, "highlight": true }
+            }
+          ]
+        },
+        "Progress": { "id": "prop-progress", "type": "number", "number": 60 },
+        "Status": { "id": "prop-status", "type": "status", "status": { "name": "In progress" } },
+        "Area": { "id": "prop-area", "type": "select", "select": { "name": "Health" } },
+        "Tags": {
+          "id": "prop-tags",
+          "type": "multi_select",
+          "multi_select": [{ "name": "annual" }, { "name": "measurable" }]
+        },
+        "Window": {
+          "id": "prop-window",
+          "type": "date",
+          "date": { "start": "2026-01-01", "end": "2026-12-31" }
+        },
+        "Confirmed": { "id": "prop-confirmed", "type": "checkbox", "checkbox": true },
+        "Serves": {
+          "id": "prop-serves",
+          "type": "relation",
+          "relation": [{ "id": "doc-page-0003" }]
+        },
+        "Owner": {
+          "id": "prop-owner",
+          "type": "people",
+          "people": [{ "object": "user", "id": "doc-user-0001" }]
+        },
+        "Rolled up": {
+          "id": "prop-rollup",
+          "type": "rollup",
+          "rollup": { "type": "number", "number": 3, "function": "count" }
+        }
+      }
+    }
+  ],
+  "next_cursor": "cursor-0002",
+  "has_more": true
+}

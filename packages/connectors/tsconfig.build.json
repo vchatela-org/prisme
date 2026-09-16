@@ -9,6 +9,11 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
+  // `src/testing` is built on purpose: it is the `@prisme/connectors/testing`
+  // entry point, and W04, W05 and W12 write their tests against it.
+  // `src/test-support` is the opposite: fixture loading, which reads the
+  // filesystem and belongs to the tests alone.
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "src/test-support/**"],
+  "references": [{ "path": "../domain/tsconfig.build.json" }]
 }

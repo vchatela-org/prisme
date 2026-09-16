@@ -1,0 +1,17 @@
+{
+  "_comment": "Synthetic. Must FAIL: is_deleted arrives as 0 rather than false. An older version of this API used integers, and JavaScript's truthiness would map 0 to `not deleted` — which is right by accident here and wrong the moment the value is 1.",
+  "sync_token": "sync-token-bad-0002",
+  "items": [
+    {
+      "id": "task-0001",
+      "project_id": "project-0001",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Half-marathon training plan running",
+      "priority": 1,
+      "labels": [],
+      "checked": false,
+      "is_deleted": 0
+    }
+  ]
+}

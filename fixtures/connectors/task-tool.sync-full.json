@@ -1,0 +1,152 @@
+{
+  "_comment": "Synthetic. A full sync response. Task IDs are deliberately unlike the tool's real numeric shape — see README.md.",
+  "sync_token": "sync-token-full-0001",
+  "full_sync": true,
+  "projects": [
+    {
+      "id": "project-0001",
+      "name": "Health",
+      "parent_id": null,
+      "is_archived": false,
+      "is_deleted": false,
+      "child_order": 1
+    },
+    {
+      "id": "project-0002",
+      "name": "Craft",
+      "parent_id": null,
+      "is_archived": false,
+      "is_deleted": false,
+      "child_order": 2
+    },
+    {
+      "id": "project-0003",
+      "name": "Archived odds and ends",
+      "parent_id": "project-0002",
+      "is_archived": true,
+      "is_deleted": false,
+      "child_order": 3
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-0001",
+      "project_id": "project-0001",
+      "name": "Training",
+      "is_archived": false,
+      "is_deleted": false,
+      "section_order": 1
+    },
+    {
+      "id": "section-0002",
+      "project_id": "project-0002",
+      "name": "Workshop",
+      "is_archived": false,
+      "is_deleted": false,
+      "section_order": 1
+    }
+  ],
+  "labels": [
+    { "id": "label-0001", "name": "prisme-anchor", "is_deleted": false, "item_order": 1 },
+    { "id": "label-0002", "name": "errand", "is_deleted": false, "item_order": 2 }
+  ],
+  "items": [
+    {
+      "id": "task-0001",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": null,
+      "content": "Half-marathon training plan running",
+      "description": "Anchor for the initiative. See https://example.invalid/prisme/init-001 for the backlink.",
+      "priority": 4,
+      "labels": ["prisme-anchor"],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 1,
+      "added_at": "2026-08-30T07:15:00.000000Z",
+      "completed_at": null,
+      "due": { "date": "2026-09-18", "is_recurring": false, "string": "18 Sep", "timezone": null },
+      "deadline": { "date": "2026-10-31" },
+      "duration": null
+    },
+    {
+      "id": "task-0002",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": "task-0001",
+      "content": "Book the long run route",
+      "description": "",
+      "priority": 4,
+      "labels": [],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 1,
+      "added_at": "2026-08-30T07:16:00.000000Z",
+      "due": null,
+      "deadline": null,
+      "duration": { "amount": 45, "unit": "minute" }
+    },
+    {
+      "id": "task-0003",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": "task-0002",
+      "content": "Check the shoe mileage",
+      "priority": 2,
+      "labels": [],
+      "checked": true,
+      "is_deleted": false,
+      "child_order": 1,
+      "completed_at": "2026-09-14T09:12:00.000000Z",
+      "due": null,
+      "deadline": null,
+      "duration": { "amount": 10, "unit": "minute" }
+    },
+    {
+      "id": "task-0004",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": "task-0003",
+      "content": "Note the replacement date",
+      "priority": 1,
+      "labels": [],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 1,
+      "due": null,
+      "deadline": null,
+      "duration": null
+    },
+    {
+      "id": "task-0005",
+      "project_id": "project-0002",
+      "section_id": "section-0002",
+      "parent_id": null,
+      "content": "Workshop bench finished",
+      "description": "Two links, one of them not fetchable: https://example.invalid/bench and javascript:alert(1)",
+      "priority": 3,
+      "labels": ["prisme-anchor", "errand"],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 2,
+      "due": { "date": "2026-09-20T09:00:00", "is_recurring": true, "string": "every Saturday" },
+      "deadline": null,
+      "duration": { "amount": 1, "unit": "day" }
+    },
+    {
+      "id": "task-0006",
+      "project_id": "project-0002",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Sweep the offcuts",
+      "priority": 1,
+      "labels": [],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 3,
+      "due": null,
+      "deadline": null,
+      "duration": null
+    }
+  ]
+}

@@ -21,6 +21,26 @@ Specs: [`16-sync.md`](../../docs/16-sync.md) · [`11-ownership.md`](../../docs/1
 5. **Write only what [`11-ownership.md`](../../docs/11-ownership.md) says prisme owns.** In
    particular: prisme writes `deadline`, and **never** `due`.
 
+## Shape
+
+```
+connectors/
+  errors.ts      one error type, a closed set of failure kinds
+  role-key.ts    role → external id, and the read/write capability per role
+  parse.ts       the boundary: parse or fail, with the path redacted
+  sanitise.ts    text + allow-listed marks, URL collection, deny-by-default fetch
+  hash.ts        canonical content hashing
+  watermark.ts   the two-minute overlap, and no-op suppression
+  metrics.ts     the instrumentation port — no prom-client dependency here
+  http/          backoff, transport seam, the retry and failure policy
+  task-tool/     wire schemas, mapping, subtree walk, client        (read: W03)
+  doc-tool/      wire schemas, property and block mapping, client   (read: W03)
+  testing/       `@prisme/connectors/testing` — recorded transports and clients
+```
+
+The write path (W04) belongs beside the two `*-tool/` directories, not inside them: a module that
+can write is worth being able to find.
+
 ## Conventions
 
 - Every client is an interface with a recorded-fixture implementation for tests.
