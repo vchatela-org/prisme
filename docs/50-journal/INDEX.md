@@ -33,6 +33,7 @@ see [`../17-privacy.md`](../17-privacy.md).
 | 2026-09-15 | P0 | [P0-2026-09-15-node-26-baseline.md](P0-2026-09-15-node-26-baseline.md) | Node 26 becomes the toolchain baseline (ADR-0023); corepack is gone from Node, so the builder installs pnpm from npm at the version `packageManager` pins. Web builder and `engines` follow in PR #10 |
 | 2026-09-16 | P0 | [P0-2026-09-16-node-26-web-and-engines.md](P0-2026-09-16-node-26-web-and-engines.md) | Second half of ADR-0023: web builder and its distroless runtime on Node 26 with the same derived pnpm bootstrap, then `engines.node` to `>=26.0.0` — the move `engine-strict` forced to go last. Toolchain now consistent end to end |
 | 2026-09-16 | W01 | [W01-2026-09-16-domain-scoring.md](W01-2026-09-16-domain-scoring.md) | Entities, scoring registry, `wsjf-balanced` v1, capacity and now-set selection, plus the domain tables. Properties tested **exhaustively** over the closed input space rather than sampled. The worked example reproduces end to end; purity lint, the new golden/version gate and every database guard were **watched fail** |
+| 2026-09-16 | W03 | [W03-2026-09-16-connectors.md](W03-2026-09-16-connectors.md) | Read path to both external tools: role-keyed queries, the two-minute watermark overlap with content hashing, allow-listed sanitisation, the retry policy, and recorded-fixture clients. The issue path is **redacted** before it reaches an error — a document tool keys its properties by names that are instance data |
 
 ## Format
 
