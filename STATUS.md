@@ -28,7 +28,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | # | Workstream | Depends on | Wave | State | PR |
 |---|---|---|---|---|---|
 | [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | 🟢 | [#5](https://github.com/vchatela-org/prisme/pull/5) merged |
-| [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | ⚪ | — |
+| [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | 🟡 | [#17](https://github.com/vchatela-org/prisme/pull/17) |
 | [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ | — |
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | ⚪ | — |
 | [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | ⚪ | — |
@@ -57,15 +57,18 @@ admins` is on, so the bypass an agent used to have through the owner's token is 
 Required on every PR, as of W00 (#5):
 
 `privacy deny-list` · `gitleaks` · `internal links` · `dependency review` · `typecheck` · `lint` ·
-`test` · `build` · `dependency audit` · `images` · `CodeQL (actions)` ·
+`test` · `build` · `dependency audit` · `golden fixtures` · `images` · `CodeQL (actions)` ·
 `CodeQL (javascript-typescript)` · `CodeQL (python)`
 
 `images` builds all three images, Trivy-scans them, and asserts what is only checkable on a real
 container: that `prisme-api` and `prisme-sync` are the same digest, that neither runs as root, that
 `/healthz` answers with an unreachable database while `/readyz` returns 503, and that a missing
 required variable stops the process with the variable named. `dependency audit` is
-`pnpm audit --audit-level=moderate`. Each became required from the commit that added it. W14 still
-owns its own additions. Rules, and what to do at each ending:
+`pnpm audit --audit-level=moderate`. `golden fixtures` (W01, #17) refuses a change to a scoring
+golden file that does not bump the method's `version` — without it, two runs of "version 1" can mean
+two different things and every stored score becomes unattributable (ADR-0006). Each became required
+from the commit that added it. W14 still owns its own additions. Rules, and what to do at each
+ending:
 [`docs/40-workstreams/README.md#checks`](docs/40-workstreams/README.md#checks).
 
 Both security gates have been **watched fail** and are not taken on trust —

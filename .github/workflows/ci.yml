@@ -115,3 +115,22 @@ jobs:
       # dependency surface is small enough that a moderate advisory is worth
       # reading rather than batching.
       - run: pnpm audit --audit-level=moderate
+
+  golden:
+    name: golden fixtures
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history, because this check is a comparison: it needs the base
+      # commit's copy of every golden file, not just the working tree's.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # A golden file pins what a scoring method computes. Changing it without
+      # bumping `version` makes every stored score unattributable, and nothing
+      # about that failure is visible at the time it happens — ADR-0006, and
+      # W01's definition of done.
+      - name: Golden fixtures move with their method version
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD^' }}
+        run: ./scripts/check-golden-fixtures.py "$BASE"
