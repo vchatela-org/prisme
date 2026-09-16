@@ -7,6 +7,7 @@ import { mapCompletion, mapLabel, mapProject, mapSection, mapTask } from './map.
 import type { Completion, SyncResult, TaskChange, TaskSnapshot, TaskToolClient } from './types.js';
 import { wireCompletedResponseSchema, wireSyncResponseSchema } from './wire.js';
 import type { RetryPolicy } from '../http/backoff.js';
+import { trimTrailing } from '../util/trim.js';
 
 /**
  * The live task-tool client.
@@ -52,7 +53,7 @@ export interface TaskToolClientOptions {
 }
 
 export function createTaskToolClient(options: TaskToolClientOptions): TaskToolClient {
-  const baseUrl = (options.baseUrl ?? DEFAULT_TASK_TOOL_BASE_URL).replace(/\/+$/, '');
+  const baseUrl = trimTrailing(options.baseUrl ?? DEFAULT_TASK_TOOL_BASE_URL, '/');
   const transport = options.transport ?? createRefusingTransport('task');
 
   const requestOptions = (operation: string): RequestOptions => ({

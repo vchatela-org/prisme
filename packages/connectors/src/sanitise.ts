@@ -1,3 +1,5 @@
+import { trimTrailing } from './util/trim.js';
+
 /**
  * Sanitisation — the control for boundary ⑤ in docs/14-threat-model.md §2.
  *
@@ -112,7 +114,7 @@ export function collectUrls(text: string): readonly string[] {
   const found: string[] = [];
   for (const match of text.matchAll(BARE_URL)) {
     // Trailing sentence punctuation is almost never part of the URL.
-    const candidate = safeUrl(match[0].replace(/[.,;:!?]+$/, ''));
+    const candidate = safeUrl(trimTrailing(match[0], '.,;:!?'));
     if (candidate !== undefined && !found.includes(candidate)) found.push(candidate);
   }
   return found;
