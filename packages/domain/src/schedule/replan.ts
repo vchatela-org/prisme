@@ -12,7 +12,7 @@ import { workingDayOnOrAfter, workingDaysBetween } from './working-days.js';
  * The move is applied by **recomputing the whole schedule** from the inputs
  * that produced the first one, with the moved initiative's `earliest_start`
  * rewritten — not by patching dates forward from the move. That is the same
- * level-triggered discipline the reconciler works by (ADR-0011): a diff against
+ * level-triggered discipline the reconciler works by (ADR-0009): a diff against
  * a full recomputation is exact by construction, where a patch is exact only
  * for the propagation paths whoever wrote it remembered.
  *
