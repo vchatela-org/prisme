@@ -1,0 +1,55 @@
+{
+  "_comment": "Synthetic. An incremental sync: one edit, one completion, one deletion, and a collection the tool omitted entirely.",
+  "sync_token": "sync-token-incremental-0002",
+  "full_sync": false,
+  "items": [
+    {
+      "id": "task-0001",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": null,
+      "content": "Half-marathon training plan running",
+      "description": "Anchor for the initiative. See https://example.invalid/prisme/init-001 for the backlink.",
+      "priority": 3,
+      "labels": ["prisme-anchor"],
+      "checked": false,
+      "is_deleted": false,
+      "child_order": 1,
+      "due": { "date": "2026-09-25", "is_recurring": false },
+      "deadline": { "date": "2026-10-31" },
+      "duration": null
+    },
+    {
+      "id": "task-0004",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "parent_id": "task-0003",
+      "content": "Note the replacement date",
+      "priority": 1,
+      "labels": [],
+      "checked": true,
+      "is_deleted": false,
+      "child_order": 1,
+      "completed_at": "2026-09-16T08:58:00.000000Z",
+      "due": null,
+      "deadline": null,
+      "duration": { "amount": 5, "unit": "minute" }
+    },
+    {
+      "id": "task-0006",
+      "project_id": "project-0002",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Sweep the offcuts",
+      "priority": 1,
+      "labels": [],
+      "checked": false,
+      "is_deleted": true,
+      "child_order": 3,
+      "due": null,
+      "deadline": null,
+      "duration": null
+    }
+  ],
+  "labels": [{ "id": "label-0003", "name": "waiting-on", "is_deleted": false, "item_order": 3 }]
+}

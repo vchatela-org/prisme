@@ -1,0 +1,18 @@
+{
+  "_comment": "Synthetic. Must FAIL: a property declares type `number` and carries a string. This is the shape change that matters — the type prisme knows, with a payload it does not — and coercing \"60%\" to 60 is exactly the guess that corrupts a real value.",
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "doc-page-0001",
+      "created_time": "2026-01-05T09:00:00.000Z",
+      "last_edited_time": "2026-09-16T08:58:00.000Z",
+      "archived": false,
+      "properties": {
+        "Progress": { "id": "prop-progress", "type": "number", "number": "60%" }
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

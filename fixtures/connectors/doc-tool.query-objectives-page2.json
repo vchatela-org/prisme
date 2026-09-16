@@ -1,0 +1,32 @@
+{
+  "_comment": "Synthetic. Page 2, reached through next_cursor. The archived page proves that `in_trash` is read as well as `archived`, and the property-free page proves an empty title is not an error.",
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "doc-page-0002",
+      "created_time": "2026-02-10T11:30:00.000Z",
+      "last_edited_time": "2026-09-16T08:59:00.000Z",
+      "archived": false,
+      "in_trash": true,
+      "properties": {
+        "Name": {
+          "id": "title",
+          "type": "title",
+          "title": [{ "plain_text": "Retire the old scoring spreadsheet", "href": null }]
+        },
+        "Progress": { "id": "prop-progress", "type": "number", "number": null }
+      }
+    },
+    {
+      "object": "page",
+      "id": "doc-page-0003",
+      "created_time": "2026-03-01T08:00:00.000Z",
+      "last_edited_time": "2026-09-16T08:59:00.000Z",
+      "archived": false,
+      "properties": {}
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
