@@ -1,0 +1,17 @@
+{
+  "_comment": "Synthetic. Must FAIL: priority 7 is outside the documented range 1–4. There is no honest mapping for it, and the plausible guess — clamp to 4 — would write the wrong priority into a real backlog.",
+  "sync_token": "sync-token-bad-0001",
+  "items": [
+    {
+      "id": "task-0001",
+      "project_id": "project-0001",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Half-marathon training plan running",
+      "priority": 7,
+      "labels": [],
+      "checked": false,
+      "is_deleted": false
+    }
+  ]
+}

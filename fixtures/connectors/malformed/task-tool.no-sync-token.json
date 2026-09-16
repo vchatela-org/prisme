@@ -1,0 +1,5 @@
+{
+  "_comment": "Synthetic. Must FAIL: the response carries no sync_token. An absent collection means `nothing changed`, but an absent token means the next run has no cursor — and silently re-reading the world every fifteen minutes is the failure that looks like success.",
+  "full_sync": false,
+  "items": []
+}
