@@ -1,5 +1,6 @@
 import { ConnectorError } from '../errors.js';
 import type { RetryPolicy } from '../http/backoff.js';
+import { trimTrailing } from '../util/trim.js';
 import { executeJson, type RequestOptions } from '../http/request.js';
 import { createRefusingTransport, type Transport } from '../http/transport.js';
 import { contentHash } from '../hash.js';
@@ -54,7 +55,7 @@ export interface DocToolClientOptions {
 }
 
 export function createDocToolClient(options: DocToolClientOptions): DocToolClient {
-  const baseUrl = (options.baseUrl ?? DEFAULT_DOC_TOOL_BASE_URL).replace(/\/+$/, '');
+  const baseUrl = trimTrailing(options.baseUrl ?? DEFAULT_DOC_TOOL_BASE_URL, '/');
   const transport = options.transport ?? createRefusingTransport('doc');
   const maxBlockDepth = options.maxBlockDepth ?? MAX_BLOCK_DEPTH;
 

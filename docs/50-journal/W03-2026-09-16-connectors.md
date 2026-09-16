@@ -79,6 +79,16 @@ instead. Nothing in the read path parses an external ID, so the shape is the one
 format a contract test does not need. Two test cases had the same problem from the other direction
 and are assembled from parts, each with a comment saying why.
 
+**CodeQL found three ReDoS holes that every local check had passed.** `typecheck`, `lint`, `test`
+and both privacy scans were green; the pull request came back with three high-severity
+`js/polynomial-redos` alerts, all of them the same idiom — `value.replace(/[…]+$/, '')` to strip
+trailing characters. An anchored `+` over a character class is quadratic, and one of the three ran
+on **paragraph text from the document tool**, so a paragraph ending in a long run of punctuation
+would stall a pass while it held the advisory lock. Replaced with a linear backwards scan
+(`util/trim.ts`), with a regression test that feeds it 100,000 exclamation marks. Worth recording
+for two reasons: the idiom is idiomatic, so it will be written again; and this is the gate earning
+its place — it caught something no other check in the set could have.
+
 **The form encoder does not escape `*`.** The full-sync token is `*`, and the recorded transport
 matched on `sync_token=%2A` — so every "full pass" test was quietly served the incremental fixture.
 Fourteen tests failed at once, which is the good version of this mistake; the same bug in a matcher
