@@ -24,6 +24,7 @@ someone to "just update it with the real numbers".
 | `initiatives.json` | Initiatives across every status, with dependencies and deadlines |
 | `objectives.json` | Annual and monthly objectives with key results |
 | `scoring/wsjf-balanced.golden.json` | Golden inputs → expected outputs for the shipped method |
+| `schedule/cpm-cases.json` | Four scheduling networks with **hand-computed** CPM results |
 | `connectors/` | Recorded external API responses — **redacted before saving** |
 
 ## The two-year span is intentional
