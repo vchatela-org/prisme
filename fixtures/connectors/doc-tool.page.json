@@ -1,0 +1,22 @@
+{
+  "_comment": "Synthetic. A single page as fetchPage reads it. The tool also returns `url` and `public_url`; both identify the workspace, so they are absent here and unread in the client.",
+  "object": "page",
+  "id": "doc-page-0001",
+  "created_time": "2026-01-05T09:00:00.000Z",
+  "last_edited_time": "2026-09-16T08:58:00.000Z",
+  "archived": false,
+  "in_trash": false,
+  "properties": {
+    "Name": {
+      "id": "title",
+      "type": "title",
+      "title": [
+        {
+          "plain_text": "Be measurably fitter by the end of the year",
+          "href": null,
+          "annotations": { "bold": false }
+        }
+      ]
+    }
+  }
+}

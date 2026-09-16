@@ -1,0 +1,86 @@
+{
+  "_comment": "Synthetic. Recorded block-children responses, keyed by the parent they were requested for — the page, then the one block that has children. Each value is exactly what the endpoint returns.",
+  "byParent": {
+    "doc-page-0001": {
+      "object": "list",
+      "results": [
+        {
+          "object": "block",
+          "id": "block-0001",
+          "type": "heading_2",
+          "has_children": false,
+          "heading_2": {
+            "rich_text": [{ "plain_text": "Why this matters", "href": null, "annotations": { "bold": true } }]
+          }
+        },
+        {
+          "object": "block",
+          "id": "block-0002",
+          "type": "paragraph",
+          "has_children": false,
+          "paragraph": {
+            "rich_text": [
+              {
+                "plain_text": "Pasted from the web: <script>alert('xss')</script> and a \u202eflipped\u202c run.",
+                "href": null,
+                "annotations": { "code": true, "color": "red" }
+              },
+              {
+                "plain_text": "the reference",
+                "href": "https://example.invalid/reference",
+                "annotations": { "underline": true }
+              }
+            ]
+          }
+        },
+        {
+          "object": "block",
+          "id": "block-0003",
+          "type": "to_do",
+          "has_children": false,
+          "to_do": {
+            "rich_text": [{ "plain_text": "Confirm the race entry", "href": null }],
+            "checked": true
+          }
+        },
+        {
+          "object": "block",
+          "id": "block-0004",
+          "type": "bulleted_list_item",
+          "has_children": true,
+          "bulleted_list_item": {
+            "rich_text": [{ "plain_text": "Weekly checkpoints", "href": null }]
+          }
+        },
+        {
+          "object": "block",
+          "id": "block-0005",
+          "type": "image",
+          "has_children": false,
+          "image": {
+            "type": "file",
+            "file": { "url": "https://example.invalid/signed/expiring", "expiry_time": "2026-09-16T10:00:00.000Z" }
+          }
+        }
+      ],
+      "next_cursor": null,
+      "has_more": false
+    },
+    "block-0004": {
+      "object": "list",
+      "results": [
+        {
+          "object": "block",
+          "id": "block-0006",
+          "type": "paragraph",
+          "has_children": false,
+          "paragraph": {
+            "rich_text": [{ "plain_text": "Sunday morning, before anything else.", "href": null }]
+          }
+        }
+      ],
+      "next_cursor": null,
+      "has_more": false
+    }
+  }
+}
