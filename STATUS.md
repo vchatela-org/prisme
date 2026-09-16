@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-16 · **Current phase:** P0 **frozen** — W00 and W01 landed; wave 1 continues
+**Last updated:** 2026-09-16 · **Current phase:** P0 **frozen** — W00, W01 and W03 landed; wave 2 has started
 
 ---
 
@@ -29,8 +29,8 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 |---|---|---|---|---|---|
 | [W00](docs/40-workstreams/W00-foundations.md) | Foundations: monorepo, CI, images, DB, migrations, observability | — | 1 | 🟢 | [#5](https://github.com/vchatela-org/prisme/pull/5) merged |
 | [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | 🟢 | [#17](https://github.com/vchatela-org/prisme/pull/17) merged |
-| [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | ⚪ | — |
-| [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟡 | [#18](https://github.com/vchatela-org/prisme/pull/18) |
+| [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | 🟡 | [#19](https://github.com/vchatela-org/prisme/pull/19) |
+| [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟢 | [#18](https://github.com/vchatela-org/prisme/pull/18) merged |
 | [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | ⚪ | — |
 | [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | ⚪ | — |
 | [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ | — |
@@ -75,9 +75,9 @@ Both security gates have been **watched fail** and are not taken on trust —
 [the W00 entry](docs/50-journal/W00-2026-09-15-foundations.md) records how, and the two things that
 surprised us while doing it.
 
-**W00 and W01 have landed; W03 is in review and W07 is cleared to start.** Nothing either depends
-on is open. W01 unblocks wave 2's W02, W04 and W05; W03 unblocks the rest of W04 and W05, and W13.
-W00's remaining follow-ups — including the Docker build fix its first publish found, and
+**W00, W01 and W03 have landed; W02 is in review and W07 is cleared to start.** Nothing any of them
+depends on is open. With W01 and W03 both merged, **W04, W05 and W14 are all unblocked**, as is W13;
+wave 1's only remaining workstream is W07. W00's remaining follow-ups — including the Docker build fix its first publish found, and
 the re-tag that has to follow it — are in
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
 wave that will conflict:

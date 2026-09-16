@@ -14,6 +14,11 @@
  * - `scoring/`    the pluggable method contract, the registry, `wsjf-balanced`
  * - `selection/`  what to do now, which is a different question from what
  *                 ranks highest
+ * - `schedule/`   when it can happen, what it waits on, and what that costs
+ *
+ * `selection/` and `schedule/` answer different questions and must not be
+ * confused: selection decides what to start, scheduling decides when the things
+ * you have decided to do can actually run.
  *
  * Nothing outside `scoring/` reads a method-specific field (ADR-0006). There is
  * no `wsjf` accessor in this file, and there must never be one.
@@ -21,6 +26,7 @@
 
 export * from './capacity/index.js';
 export * from './entities/index.js';
+export * from './schedule/index.js';
 export * from './scoring/index.js';
 export * from './selection/index.js';
 export { clamp } from './util/clamp.js';
