@@ -69,6 +69,37 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+
+    # A real PostgreSQL, because the API's integration tests need one (W05).
+    # The failures that layer actually has are the ones a fake cannot have — a
+    # `numeric` arriving as a string, a `jsonb` column arriving as text, a date
+    # landing on the wrong side of local midnight, a constraint the application
+    # thought it had already checked. Every one of those is invisible to a type
+    # checker, and two of them were found exactly this way.
+    #
+    # Same image and major version as docker-compose.yml, so local and CI agree.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: prisme
+          POSTGRES_PASSWORD: prisme
+          POSTGRES_DB: prisme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prisme -d prisme"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      # One role here rather than the DML/DDL split docker-compose sets up: a
+      # service container has no init scripts. The split is exercised locally
+      # and asserted in the `images` workflow; the point of this database is the
+      # driver and the schema.
+      PRISME_TEST_DATABASE_URL: postgres://prisme:prisme@127.0.0.1:5432/prisme
+
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -80,6 +111,14 @@ jobs:
       # The packages are built first: several tests import a workspace package
       # through its published entry point, which is what the apps do too.
       - run: pnpm -r --filter "./packages/*" run build
+
+      # The database-backed suites skip themselves when this is unset, and a
+      # suite that skips silently in CI is a suite that has stopped running. If
+      # the service ever disappears, this step fails instead of the tests
+      # quietly thinning out.
+      - name: The integration database must be present, not optional
+        run: test -n "$PRISME_TEST_DATABASE_URL"
+
       - run: pnpm test
 
   build:

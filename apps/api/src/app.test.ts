@@ -55,7 +55,7 @@ describe('createApp', () => {
     expect(lines).toEqual([]);
   });
 
-  it('gives a failing route a correlation ID and nothing else', async () => {
+  it('gives a failing route a correlation ID and a fixed sentence, nothing else', async () => {
     const { app } = build();
     app.get('/boom', () => {
       throw new Error('postgres://app:hunter2@db:5432/prisme refused the connection');
@@ -65,7 +65,12 @@ describe('createApp', () => {
     const body = (await response.json()) as Record<string, unknown>;
 
     expect(response.status).toBe(500);
-    expect(Object.keys(body).sort()).toEqual(['correlationId', 'error']);
+    // W05 gave the API one error shape, so this body gained a `message` — a
+    // sentence written in `http/errors.ts` and identical for every failure,
+    // never anything the failure itself said. The assertion is still an exact
+    // key set, and the two leak checks below are the point of the test.
+    expect(Object.keys(body).sort()).toEqual(['correlationId', 'error', 'message']);
+    expect(body['message']).toBe('the request could not be completed');
     expect(JSON.stringify(body)).not.toContain('hunter2');
     expect(JSON.stringify(body)).not.toContain('postgres');
   });
