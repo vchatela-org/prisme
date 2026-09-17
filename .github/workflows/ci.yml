@@ -61,7 +61,13 @@ jobs:
       # resolve through each package's `exports` entry the same way the apps
       # resolve them at runtime. Without this, every cross-package type is
       # `any` and the rules that matter most quietly stop applying.
-      - run: pnpm -r --filter "./packages/*" run build
+      #
+      # `apps/sync` is in the list because it is a library as well as a binary:
+      # the API's `POST /sync` imports `@prisme/sync` (docs/16-sync.md §7). With
+      # its declarations missing, every value crossing that import is an error
+      # type and the `no-unsafe-*` rules fire on code that is in fact typed —
+      # which is how this was found.
+      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" run build
       # ESLint carries two rules that are contract rather than style:
       # packages/domain is pure, and SQL is never built from strings.
       - run: pnpm lint
@@ -110,7 +116,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The packages are built first: several tests import a workspace package
       # through its published entry point, which is what the apps do too.
-      - run: pnpm -r --filter "./packages/*" run build
+      # `apps/sync` too — the API imports it as a library.
+      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" run build
 
       # The database-backed suites skip themselves when this is unset, and a
       # suite that skips silently in CI is a suite that has stopped running. If
