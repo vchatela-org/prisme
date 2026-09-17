@@ -46,6 +46,12 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
+# The component gallery imports the synthetic dataset directly, so a field
+# renamed in a fixture is a build error rather than an empty screen (W07). It
+# is the only data this repository contains and the only data any screen here
+# is allowed to show — docs/17-privacy.md.
+COPY fixtures/ fixtures/
+
 # The workspace packages the app imports must be compiled before `next build`
 # resolves them through their `exports` entry.
 RUN pnpm --filter "@prisme/web^..." run build \
