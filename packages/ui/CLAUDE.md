@@ -61,7 +61,10 @@ package is for what is genuinely shared, and padding it makes it harder to use.
 
 ## The gallery is load-bearing
 
-[`apps/web/src/app/(gallery)/gallery`](../../apps/web/src/app/(gallery)/gallery) renders every
+<!-- Deliberately not a link: a route group's parentheses terminate a Markdown
+     link target early, and the doc-link check is right to reject the result. -->
+
+`apps/web/src/app/(gallery)/gallery` renders every
 component with fixture data. It is how four parallel agents discover what already exists instead of
 building their own. **Anything added here belongs there the same day.**
 
