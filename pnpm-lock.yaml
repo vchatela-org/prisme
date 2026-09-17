@@ -221,12 +221,21 @@ importers:
       '@prisme/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@prisme/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@prisme/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@prisme/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@prisme/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      postgres:
+        specifier: ^3.4.0
+        version: 3.4.9
 
   apps/web:
     dependencies:

@@ -11,6 +11,10 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./write": {
+      "types": "./dist/write/index.d.ts",
+      "default": "./dist/write/index.js"
     }
   },
   "main": "./dist/index.js",

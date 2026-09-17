@@ -10,10 +10,14 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"],
+  // `src/test-support` builds fixtures for the planner's tests and ships in no
+  // image.
+  "exclude": ["src/**/*.test.ts", "src/test-support/**"],
   "references": [
     { "path": "../../packages/config/tsconfig.build.json" },
+    { "path": "../../packages/connectors/tsconfig.build.json" },
     { "path": "../../packages/db/tsconfig.build.json" },
+    { "path": "../../packages/domain/tsconfig.build.json" },
     { "path": "../../packages/observability/tsconfig.build.json" }
   ]
 }

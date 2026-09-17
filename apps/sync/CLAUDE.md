@@ -32,6 +32,23 @@ it, summarise it. If it is hard to read, it will not be read — and then the ga
 
 **Never paste real plan output into this repository**, including into a journal entry. Redact.
 
+## Shape
+
+```
+sync/
+  reconcile/   PURE — the planner, the ownership rules, the plan's rendering    (W04)
+  apply/       the executor, and the store port it writes through               (W04)
+  state/       the one implementation of that port, in SQL                      (W04)
+  run.ts       one pass: read, plan, optionally apply, report
+  main.ts      the CLI: `prisme-sync plan` · `prisme-sync apply`
+  index.ts     `@prisme/sync` — what the API's POST /sync imports
+```
+
+The split is enforced rather than described: `reconcile/` may not import
+`@prisme/db`, `@prisme/connectors`, `@prisme/config` or a Node builtin at all — only their *types* —
+and an ESLint rule in `eslint.config.mjs` says so. W12's adoption queue and W13's backfill belong
+beside these directories, not inside them.
+
 ## Two entrypoints, one library
 
 The CronJob binary and the API's in-process `POST /sync` call the same reconciler behind a
