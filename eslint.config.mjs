@@ -60,8 +60,10 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          // Root-level tooling that belongs to no package's tsconfig.
-          allowDefaultProject: ['vitest.config.ts'],
+          // Tooling that belongs to no package's tsconfig: the root test
+          // configuration, and the script that writes the design system's
+          // generated stylesheet after tsc has compiled its tokens (W07).
+          allowDefaultProject: ['vitest.config.ts', 'packages/ui/scripts/emit-css.mjs'],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -290,9 +292,12 @@ export default tseslint.config(
     },
   },
 
-  // --- Config files outside any tsconfig project ----------------------------
+  // --- Build tooling outside any tsconfig project ---------------------------
+  // Configuration files, and the script that writes the design system's
+  // generated stylesheet from its compiled tokens (W07). These belong to no
+  // package's program, so the type-aware rules have nothing to work from.
   {
-    files: ['**/*.config.mjs', '**/*.config.js'],
+    files: ['**/*.config.mjs', '**/*.config.js', 'packages/ui/scripts/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
   },
 

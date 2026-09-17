@@ -1,7 +1,16 @@
 # W07 · Design system and application shell
 
 **Depends on:** W00 · **Wave:** 1
-**Files you may touch:** `packages/ui/**`, `apps/web/app/layout.tsx`, `apps/web/styles/**`
+**Files you may touch:** `packages/ui/**`, `apps/web/src/app/layout.tsx`,
+`apps/web/src/styles/**`, `apps/web/src/app/(gallery)/**`, `apps/web/src/fixtures.ts`
+
+> The two web paths above were written before W00 existed and named directories it did not create:
+> the app lives under `apps/web/src/`. The gallery route and its fixture reader are listed because
+> the *Contract* below requires a gallery route, which cannot live in `packages/ui` — it needs the
+> app's router. W07 also touched four files outside this list, each recorded in
+> [its journal entry](../50-journal/W07-2026-09-16-design-system.md): `apps/web/package.json`,
+> `apps/web/postcss.config.mjs`, `apps/web/Dockerfile` and `.dockerignore` (the gallery imports
+> `fixtures/`, which was excluded from the build context), and `eslint.config.mjs`.
 
 ## Why
 
