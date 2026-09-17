@@ -4,6 +4,12 @@
   // tsconfig.build.json, which excludes the tests.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // The DOM lives here, unlike every other package in the repository.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // `react-jsx` rather than `preserve`: this package is compiled to JavaScript
+    // by tsc and consumed through its `exports` entry, so the JSX has to be
+    // gone by the time Next.js sees it.
+    "jsx": "react-jsx",
     "noEmit": true,
     "composite": false,
     "declaration": false,
