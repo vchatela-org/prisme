@@ -4,15 +4,16 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 /**
- * Two rules here are not style. They are the executable form of promises made in
- * the specification, and they exist so that nobody has to notice a violation in
- * review:
+ * Three rules here are not style. They are the executable form of promises made
+ * in the specification, and they exist so that nobody has to notice a violation
+ * in review:
  *
  *   - `packages/domain` is pure (CLAUDE.md §4, packages/domain/CLAUDE.md §1–3).
  *   - SQL is never built from strings (docs/14-threat-model.md §5).
+ *   - the reconciler's planner is pure (docs/16-sync.md §3, apps/sync/CLAUDE.md §1).
  *
- * Do not add an exception to either. If one of them is genuinely wrong, that is
- * an ADR, not an eslint-disable.
+ * Do not add an exception to any of them. If one is genuinely wrong, that is an
+ * ADR, not an eslint-disable.
  */
 
 const NODE_BUILTINS = [
@@ -172,6 +173,90 @@ export default tseslint.config(
           selector: "NewExpression[callee.name='Date'][arguments.length=0]",
           message:
             'packages/domain takes `now: Date` as a parameter — packages/domain/CLAUDE.md §2.',
+        },
+      ],
+    },
+  },
+
+  // --- the reconciler's planner is pure -------------------------------------
+  // `plan(desired, observed, lastApplied) → Action[]` decides everything
+  // difficult in the reconciler, and it must stay exhaustively testable against
+  // JSON (docs/16-sync.md §3, apps/sync/CLAUDE.md §1). The temptation this rule
+  // exists to refuse is "just fetch one more thing" in the middle of a plan.
+  //
+  // Types are still importable: an interface has no runtime, and the planner
+  // has to speak about what the connectors return. Everything that *does*
+  // something lives in `apps/sync/src/apply` and `apps/sync/src/state`.
+  {
+    files: ['apps/sync/src/reconcile/**/*.ts'],
+    ignores: ['apps/sync/src/reconcile/**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...NODE_BUILTINS.map((name) => ({
+              name,
+              message:
+                'the planner is pure: no I/O. Read it in `state/`, pass it in — apps/sync/CLAUDE.md §1.',
+            })),
+            {
+              name: '@prisme/db',
+              allowTypeImports: true,
+              message: 'the planner is pure: no database access. Load it through the store port.',
+            },
+            {
+              name: '@prisme/config',
+              allowTypeImports: true,
+              message:
+                'the planner is pure: configuration arrives as its `config` argument, not from the environment.',
+            },
+            {
+              name: '@prisme/connectors',
+              allowTypeImports: true,
+              message:
+                'the planner is pure: no network access. Types are fine; a client is not (use `import type`).',
+            },
+            {
+              name: '@prisme/connectors/write',
+              allowTypeImports: true,
+              message:
+                'the planner decides what to write and never writes it. `apply` holds the writer.',
+            },
+            {
+              name: '@prisme/observability',
+              allowTypeImports: true,
+              message:
+                'the planner emits actions, not log lines. Its caller reports what happened.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['node:*'],
+              message: 'the planner is pure: no I/O — apps/sync/CLAUDE.md §1.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Date',
+          property: 'now',
+          message:
+            'the planner takes no clock. A plan that depends on the current time cannot be reproduced from a fixture.',
+        },
+        {
+          object: 'Math',
+          property: 'random',
+          message: 'the planner is deterministic: the same state must produce the same plan.',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'the planner takes no clock — `apply` stamps the time it acted.',
         },
       ],
     },

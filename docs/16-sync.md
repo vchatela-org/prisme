@@ -55,6 +55,21 @@ The full pass exists to answer a question the incremental path cannot: *did we m
 reports `prisme_sync_drift_objects`, and a non-zero value on two consecutive days means incremental
 sync is broken while appearing healthy.
 
+#### What the reconciler actually reads (W04)
+
+The table above describes the *reads*. The planner's input is not one of them: **every pass reads
+the task tool in full**, because the planner is level-triggered and compares full desired state
+against full observed state (ADR-0009). A partial observation is not a smaller version of that
+question — an anchor absent from an incremental response has not changed, while an anchor absent
+from a full response has been deleted, and those demand opposite answers. One extra request against
+a personal-sized workspace is not a cost worth trading correctness for, and quota is not a
+constraint at this cadence anyway.
+
+The incremental read keeps the job this section cares most about: it is **how drift is measured**.
+An object the full view finds changed that the incremental stream never reported is an object the
+incremental path would have missed, and the count of those is `prisme_sync_drift_objects`. It runs
+only during `apply` — advancing a cursor is a side effect, and `plan` has none.
+
 ### Watermark handling
 
 Change timestamps in the document tool are rounded down to the minute. Querying for

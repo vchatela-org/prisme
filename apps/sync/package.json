@@ -3,7 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/main.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
@@ -13,7 +20,10 @@
   },
   "dependencies": {
     "@prisme/config": "workspace:*",
+    "@prisme/connectors": "workspace:*",
     "@prisme/db": "workspace:*",
-    "@prisme/observability": "workspace:*"
+    "@prisme/domain": "workspace:*",
+    "@prisme/observability": "workspace:*",
+    "postgres": "^3.4.0"
   }
 }
