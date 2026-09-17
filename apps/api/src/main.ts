@@ -15,8 +15,11 @@
 import { serve } from '@hono/node-server';
 import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, checkReadiness, expectedSchemaVersion, loadMigrations } from '@prisme/db';
-import { createLogger, createMetrics } from '@prisme/observability';
+import { createLogger, createMetrics, currentRunContext, newRunId } from '@prisme/observability';
 import { createApp } from './app.js';
+import { createServices, SERVICE_DEFAULTS } from './services/index.js';
+import { createPostgresStore } from './store/postgres.js';
+import { createSyncRunner } from './sync/runner.js';
 
 const config = loadConfigOrExit({ service: 'api' });
 const logger = createLogger({ service: 'prisme-api', level: config.logLevel });
@@ -30,10 +33,49 @@ const database = createDatabase({
 
 let shuttingDown = false;
 
+/**
+ * The service layer, built once at boot.
+ *
+ * `POST /sync` runs the reconciler **in this process**, behind the same
+ * advisory lock the CronJob takes — the scheduled pass and the force-sync
+ * button are one code path by construction (docs/16-sync.md §7).
+ */
+const services = createServices({
+  store: createPostgresStore(database.client),
+  runner: createSyncRunner({
+    client: database.client,
+    taskToolToken: config.tasktoolApiToken as string,
+    writeEnabled: config.sync.writeEnabled,
+    createThreshold: config.sync.createThreshold,
+    baseUrl: config.baseUrl,
+    runId: () => currentRunContext()?.runId ?? newRunId(),
+    now: () => new Date(),
+  }),
+  config: {
+    timezone: config.timezone,
+    capacityWindowWeeks: config.capacity.windowWeeks,
+    defaultTaskMinutes: config.capacity.defaultTaskMinutes,
+    limits: SERVICE_DEFAULTS.limits,
+    concurrentInitiatives: SERVICE_DEFAULTS.concurrentInitiatives,
+    workingWeekdays: SERVICE_DEFAULTS.workingWeekdays,
+    sync: {
+      enabled: config.sync.enabled,
+      writeEnabled: config.sync.writeEnabled,
+      createThreshold: config.sync.createThreshold,
+      windowStart: config.sync.windowStart,
+      windowEnd: config.sync.windowEnd,
+    },
+  },
+});
+
 const app = createApp({
   config,
   logger,
   metrics,
+  services,
+  // No authorizer is installed until W14 lands, so every business route answers
+  // 401. Deliberate: an instance that served data with nothing verifying who
+  // asked would be a worse failure than one that serves none.
   isShuttingDown: () => shuttingDown,
   readiness: () => checkReadiness({ client: database.client, expected: schemaVersion }),
 });

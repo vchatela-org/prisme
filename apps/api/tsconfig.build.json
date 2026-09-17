@@ -13,7 +13,10 @@
   "exclude": ["src/**/*.test.ts"],
   "references": [
     { "path": "../../packages/config/tsconfig.build.json" },
+    { "path": "../../packages/connectors/tsconfig.build.json" },
     { "path": "../../packages/db/tsconfig.build.json" },
-    { "path": "../../packages/observability/tsconfig.build.json" }
+    { "path": "../../packages/domain/tsconfig.build.json" },
+    { "path": "../../packages/observability/tsconfig.build.json" },
+    { "path": "../sync/tsconfig.build.json" }
   ]
 }
