@@ -1,0 +1,40 @@
+/*
+ * The application's only stylesheet.
+ *
+ * Three imports and nothing else — every value below this line would be a
+ * design decision made outside the token table, which is the one thing
+ * `packages/ui` exists to prevent.
+ */
+
+@import 'tailwindcss';
+
+/*
+ * The generated token sheet: the custom properties for both themes, the
+ * `@theme inline` mapping that turns them into utilities, and the
+ * reduced-motion block. Produced from `packages/ui/src/tokens` during that
+ * package's build (see its `scripts/emit-css.mjs`).
+ */
+@import '@prisme/ui/theme.css';
+
+/*
+ * Tailwind's automatic content detection skips anything gitignored, and
+ * `packages/ui/dist` is a build artefact. Without this, every class the design
+ * system uses would be absent from the stylesheet and the whole application
+ * would render unstyled — while building perfectly.
+ */
+@source '../../../../packages/ui/dist';
+
+/*
+ * `font-sans` on the root, so nothing has to remember to set it. The size is
+ * left to the elements; a base font-size here would fight the type scale.
+ */
+@layer base {
+  html {
+    font-family: var(--prisme-font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+  }
+}
