@@ -103,6 +103,10 @@ export function mountRoutes<Deps>(
           if (error.status >= 500) {
             options.logger.error('request failed', { operationId: route.operationId, error });
           }
+          // Written at the throw site, never assembled from request data (W14).
+          for (const [name, value] of Object.entries(error.headers ?? {})) {
+            c.header(name, value);
+          }
           return c.json(error.body(correlationId), error.status as 400);
         }
 

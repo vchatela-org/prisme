@@ -3,11 +3,12 @@ import type { Config } from '@prisme/config';
 import type { Logger, Metrics } from '@prisme/observability';
 import { withRunContext, newRunId } from '@prisme/observability';
 import type { ReadinessReport } from '@prisme/db';
+import type { AuthDeps } from './auth/routes.js';
 import { healthRoutes } from './health.js';
 import { DENY_EVERYTHING, type Authorizer } from './http/authorize.js';
 import { internalErrorBody } from './http/errors.js';
 import { mountRoutes } from './http/mount.js';
-import { API_BASE_PATH, createRoutes } from './routes/index.js';
+import { API_BASE_PATH, API_INFO, createRoutes } from './routes/index.js';
 import type { Services } from './services/index.js';
 
 /**
@@ -40,6 +41,15 @@ export interface AppDependencies {
   readonly services?: Services | undefined;
   /** Defaults to {@link DENY_EVERYTHING}. W14 replaces it. */
   readonly authorizer?: Authorizer | undefined;
+  /**
+   * The token service and the kill switch, for the routes that manage them.
+   *
+   * Separate from `authorizer` because they answer different questions: the
+   * authorizer decides about *this* request, these serve the screens that
+   * change what future requests may do. An instance can have neither, and then
+   * every business route answers 401 and these two answer it too.
+   */
+  readonly auth?: AuthDeps | undefined;
   /** Injected so a test can pin the clock the domain is scored against. */
   readonly now?: (() => Date) | undefined;
 }
@@ -78,7 +88,7 @@ export function createApp(dependencies: AppDependencies): Hono {
 
   if (dependencies.services !== undefined) {
     const v1 = new Hono();
-    mountRoutes(v1, createRoutes(), {
+    mountRoutes(v1, createRoutes(API_INFO, dependencies.auth), {
       authorizer: dependencies.authorizer ?? DENY_EVERYTHING,
       deps: dependencies.services,
       logger: dependencies.logger,
