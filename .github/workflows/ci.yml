@@ -67,7 +67,14 @@ jobs:
       # its declarations missing, every value crossing that import is an error
       # type and the `no-unsafe-*` rules fire on code that is in fact typed —
       # which is how this was found.
-      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" run build
+      #
+      # `apps/api` joined it in W14, for the same reason and found the same
+      # way. It is a library now too: the web tier's middleware imports
+      # `@prisme/api/auth/verify`, because ADR-0021 rule 6 has both tiers
+      # verifying assertions with one implementation. Without its declarations,
+      # every value crossing that import is an error type, and `lint` failed on
+      # thirteen `no-unsafe-*` errors in code that is in fact fully typed.
+      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" --filter "./apps/api" run build
       # ESLint carries two rules that are contract rather than style:
       # packages/domain is pure, and SQL is never built from strings.
       - run: pnpm lint
