@@ -1,0 +1,3942 @@
+[
+  {
+    "name": "focus_now",
+    "title": "What to work on now",
+    "description": "The current now set — what prisme says to work on, with the reason each item is there and what is blocking it — plus the queue a freed slot would draw from. This is the answer to \"what should I do today\". It does not change anything and does not decide what is *next*: work in flight keeps its slot whatever it scores, and promoting something is `set_status` or `propose_now_set`. Scores here compare only within an area (ADR-0005); ranking two items from different areas by score is meaningless.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "asOf": {
+          "type": "string"
+        },
+        "method": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "maxNow": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "maxNowPerArea": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "maxNow",
+            "maxNowPerArea"
+          ],
+          "additionalProperties": false
+        },
+        "overCapacity": {
+          "type": "boolean"
+        },
+        "weightsStale": {
+          "type": "boolean"
+        },
+        "now": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "inbox",
+                  "later",
+                  "next",
+                  "now",
+                  "waiting",
+                  "review",
+                  "done",
+                  "dropped"
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deadline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blockedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "sizedForNow": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "in_flight",
+                  "selected",
+                  "area_at_cap",
+                  "wip_full",
+                  "blocked",
+                  "too_large",
+                  "not_a_candidate"
+                ]
+              },
+              "daysUntilDeadline": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deadlineAtRisk": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "areaKey",
+              "status",
+              "size",
+              "deadline",
+              "score",
+              "rank",
+              "blockedBy",
+              "sizedForNow",
+              "reason",
+              "daysUntilDeadline",
+              "deadlineAtRisk"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "upNext": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "inbox",
+                  "later",
+                  "next",
+                  "now",
+                  "waiting",
+                  "review",
+                  "done",
+                  "dropped"
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deadline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blockedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "sizedForNow": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "in_flight",
+                  "selected",
+                  "area_at_cap",
+                  "wip_full",
+                  "blocked",
+                  "too_large",
+                  "not_a_candidate"
+                ]
+              },
+              "daysUntilDeadline": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deadlineAtRisk": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "areaKey",
+              "status",
+              "size",
+              "deadline",
+              "score",
+              "rank",
+              "blockedBy",
+              "sizedForNow",
+              "reason",
+              "daysUntilDeadline",
+              "deadlineAtRisk"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "slotsByArea": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "used": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "areaKey",
+              "used",
+              "limit"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "asOf",
+        "method",
+        "limits",
+        "overCapacity",
+        "weightsStale",
+        "now",
+        "upNext",
+        "slotsByArea"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "What to work on now",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:focus",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "list_initiatives",
+    "title": "Search the ranked backlog",
+    "description": "Initiatives, filtered and paged, in the order the active scoring method produced. **This is how you turn a title into an id.** Every other tool that names an initiative takes `initiativeId` and nothing else, so start here with `search` when all you have is what the person called it. Use it to find something by area, status or title — not to read the whole backlog, which is paged at 50 and will cost more than it answers. Sorting by `score` returns rows in rank order rather than re-sorting the numbers: two orderings of the same data means the list you read is not the list that chose the week. `projectId` filters by *project*, which is an optional container holding several initiatives — it is not an initiative itself, and a person saying \"the garden project\" usually means an initiative whose title mentions it, so try `search` first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "areaKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "status": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "inbox",
+              "later",
+              "next",
+              "now",
+              "waiting",
+              "review",
+              "done",
+              "dropped"
+            ]
+          }
+        },
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "hasDeadline": {
+          "type": "boolean"
+        },
+        "search": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "sort": {
+          "default": "score",
+          "type": "string",
+          "enum": [
+            "score",
+            "deadline",
+            "age",
+            "title",
+            "size"
+          ]
+        },
+        "direction": {
+          "default": "asc",
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "limit": {
+          "default": 20,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "method": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "sort": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "inbox",
+                  "later",
+                  "next",
+                  "now",
+                  "waiting",
+                  "review",
+                  "done",
+                  "dropped"
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deadline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blockedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "sizedForNow": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "areaKey",
+              "status",
+              "size",
+              "deadline",
+              "score",
+              "rank",
+              "blockedBy",
+              "sizedForNow"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "total",
+        "limit",
+        "offset",
+        "method",
+        "sort",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Search the ranked backlog",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:backlog",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "area_balance",
+    "title": "Declared versus observed capacity per area",
+    "description": "What each area was allocated this year, what it actually received, and the balance factor between them. This is the allocation view — read it before ranking anything, because a score only compares inside an area (ADR-0005). It measures attention routed through tasks, not hours lived. Weights are year-scoped: there is no \"current\" weight, and `stale` true means the year being asked about has none of its own and an earlier year was carried forward.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "minimum": 1970,
+          "maximum": 9999
+        },
+        "weeks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "windowWeeks": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "weightYear": {
+          "type": "integer",
+          "minimum": 1970,
+          "maximum": 9999
+        },
+        "weightSourceYear": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1970,
+              "maximum": 9999
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "area",
+                  "run",
+                  "signals"
+                ]
+              },
+              "countsTowardCapacity": {
+                "type": "boolean"
+              },
+              "minutes": {
+                "type": "number"
+              },
+              "completions": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "actualSharePct": {
+                "type": "number"
+              },
+              "targetSharePct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "balanceFactor": {
+                "type": "number"
+              },
+              "stale": {
+                "type": "boolean"
+              },
+              "minutesBySource": {
+                "type": "object",
+                "properties": {
+                  "recorded": {
+                    "type": "number"
+                  },
+                  "declared": {
+                    "type": "number"
+                  },
+                  "default": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "recorded",
+                  "declared",
+                  "default"
+                ],
+                "additionalProperties": false
+              },
+              "runHoursPerWeek": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "runBudgetHoursPerWeek": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "areaKey",
+              "name",
+              "kind",
+              "countsTowardCapacity",
+              "minutes",
+              "completions",
+              "actualSharePct",
+              "targetSharePct",
+              "balanceFactor",
+              "stale",
+              "minutesBySource",
+              "runHoursPerWeek",
+              "runBudgetHoursPerWeek"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "windowWeeks",
+        "weightYear",
+        "weightSourceYear",
+        "stale",
+        "areas"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Declared versus observed capacity per area",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:areas",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "kpi",
+    "title": "KPI series over a date range",
+    "description": "Throughput, attributed minutes, Run hours against budget, Signals volume, ritual adherence and objective attainment, bucketed by week or month. Ask for the narrowest range that answers the question — every series is returned for every bucket in the range. Signals carry volume and no time at all, and are excluded from capacity (ADR-0014).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "bucket": {
+          "default": "week",
+          "type": "string",
+          "enum": [
+            "week",
+            "month"
+          ]
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "bucket": {
+          "type": "string",
+          "enum": [
+            "week",
+            "month"
+          ]
+        },
+        "throughput": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "area",
+                  "run",
+                  "signals"
+                ]
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "periodStart": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "periodStart",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "areaKey",
+              "kind",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "minutes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "area",
+                  "run",
+                  "signals"
+                ]
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "periodStart": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "periodStart",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "areaKey",
+              "kind",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "runHours": {
+          "type": "object",
+          "properties": {
+            "budgetHoursPerWeek": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "periodStart": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "value": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "periodStart",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "budgetHoursPerWeek",
+            "points"
+          ],
+          "additionalProperties": false
+        },
+        "signalsVolume": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "periodStart": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "periodStart",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "ritualAdherence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ritualId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "targetAdherencePct": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "periodStart": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "periodStart",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "ritualId",
+              "name",
+              "targetAdherencePct",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "objectiveAttainment": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "objectiveId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "period": {
+                "type": "string"
+              },
+              "progressSelfPct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "progressComputedPct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "objectiveId",
+              "title",
+              "period",
+              "progressSelfPct",
+              "progressComputedPct"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "bucket",
+        "throughput",
+        "minutes",
+        "runHours",
+        "signalsVolume",
+        "ritualAdherence",
+        "objectiveAttainment"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "KPI series over a date range",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:kpi",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "objectives",
+    "title": "Objectives and their key results",
+    "description": "Objectives for a period, with each key result's self-assessed progress beside the progress computed from its tasks. **There are two period shapes and no others:** `2026` for an annual objective, `2026-03` for a monthly one. There is no quarter. For a question about one, **omit `period` and filter the results yourself** — `period` takes a single value, so asking about a quarter by month would be three round trips for something one call already answers. The two progress numbers are reported separately on purpose (ADR-0013): self-assessment is the measure that syncs outward, and a divergence between them is the signal, not an error to reconcile.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "period": {
+          "type": "string",
+          "pattern": "^\\d{4}(-\\d{2})?$"
+        },
+        "areaKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "active",
+            "met",
+            "missed",
+            "dropped"
+          ]
+        },
+        "limit": {
+          "default": 20,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "annual",
+                  "monthly"
+                ]
+              },
+              "period": {
+                "type": "string"
+              },
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "active",
+                  "met",
+                  "missed",
+                  "dropped"
+                ]
+              },
+              "keyResults": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "statement": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "number"
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "progressSelfPct": {
+                      "type": "number"
+                    },
+                    "progressComputedPct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "servedBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "statement",
+                    "target",
+                    "unit",
+                    "progressSelfPct",
+                    "progressComputedPct",
+                    "servedBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "type",
+              "period",
+              "areaKey",
+              "status",
+              "keyResults"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "total",
+        "limit",
+        "offset",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Objectives and their key results",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:objectives",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "list_takeaways",
+    "title": "Reading takeaways",
+    "description": "Takeaways captured from readings, in the document tool. **You cannot find one by what it says.** The takeaway text belongs to the document tool outright — prisme holds the link and not the content — so there is no text here and no search argument, and a request like \"the note about meal prep\" cannot be resolved from this surface at all. Read the document tool for that, then come back with the id. What this does answer is which takeaways are still waiting on a decision: filter on `promoted: false`. A takeaway of kind `action` is a backlog candidate and can be promoted with `promote_takeaway`; a `principle` never enters the backlog at all and surfaces as context when its area is reviewed (ADR-0014).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "principle",
+            "action"
+          ]
+        },
+        "promoted": {
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 20,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "principle",
+                  "action"
+                ]
+              },
+              "externalPageId": {
+                "type": "string"
+              },
+              "areaKey": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "promotedTo": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mayEnterBacklog": {
+                "type": "boolean"
+              },
+              "observedAt": {
+                "type": "string",
+                "minLength": 20
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "externalPageId",
+              "areaKey",
+              "promotedTo",
+              "mayEnterBacklog",
+              "observedAt"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "total",
+        "limit",
+        "offset",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Reading takeaways",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:focus",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "sync_status",
+    "title": "Reconciliation state",
+    "description": "Whether reconciliation is enabled, whether outward writes are unfrozen, when the last pass ran and how many conflicts are unresolved. Read this before `apply`: `writeEnabled` false means the write freeze is still on and an apply will refuse rather than partially run. It reports state and triggers nothing — `plan_preview` runs a pass.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "writeEnabled": {
+          "type": "boolean"
+        },
+        "createThreshold": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "hasTaskToolCursor": {
+          "type": "boolean"
+        },
+        "documentWatermark": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastFullPassAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unresolvedConflicts": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "lastRunAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "enabled",
+        "writeEnabled",
+        "createThreshold",
+        "hasTaskToolCursor",
+        "documentWatermark",
+        "lastFullPassAt",
+        "unresolvedConflicts",
+        "lastRunAt"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Reconciliation state",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:sync",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "explain_score",
+    "title": "Why an initiative scores what it does",
+    "description": "One initiative's current score with every intermediate the active method used, the sentence it produced, and how the number has moved over time. Use it when a ranking is surprising — a number nobody can interrogate stops being trusted the first time it surprises someone. It takes an `initiativeId` and nothing else: if you have a title, `list_initiatives` with `search` is how you resolve one. Scores are attributable to the method *and version* that produced them, so two rows with different `methodVersion` are not comparable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "initiativeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "historyLimit": {
+          "default": 10,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "initiativeId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "initiative": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string"
+            },
+            "areaKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "inbox",
+                "later",
+                "next",
+                "now",
+                "waiting",
+                "review",
+                "done",
+                "dropped"
+              ]
+            },
+            "size": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "deadline": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "score": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rank": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "blockedBy": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "sizedForNow": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "areaKey",
+            "status",
+            "size",
+            "deadline",
+            "score",
+            "rank",
+            "blockedBy",
+            "sizedForNow"
+          ],
+          "additionalProperties": false
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number"
+                },
+                "methodId": {
+                  "type": "string"
+                },
+                "methodVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "factors": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                },
+                "explain": {
+                  "type": "string"
+                },
+                "computedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "methodId",
+                "methodVersion",
+                "factors",
+                "explain",
+                "computedAt"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "methodId": {
+                "type": "string"
+              },
+              "methodVersion": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "computedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "value",
+              "methodId",
+              "methodVersion",
+              "computedAt"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "initiative",
+        "score",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Why an initiative scores what it does",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "read:backlog",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "capture",
+    "title": "Capture an initiative into the inbox",
+    "description": "Files a new initiative in the **inbox**, untriaged. Phrase the title as a result — \"fence replaced\", not \"work on fence\": an activity has no completion condition, which is how something stays open for two years. It always lands in `inbox` and never anywhere else; moving it is `set_status`, and estimating it is `score_initiative`. `areaKey` is required and has no default — `area_balance` lists the areas that exist, and if the request does not say which one it belongs to, **ask rather than guess**: an initiative filed in the wrong area is counted against the wrong capacity and ranked against the wrong things. An inbox item is never selected into a now set and carries no meaningful score until it is triaged, which is why the estimates default rather than being required. The dry run lists any existing initiative in the same area with the same title, so a duplicate is visible before it is created. There is no delete: a capture you regret is `set_status` to `dropped` with a reason, which is deliberate — an unexplained disappearance is indistinguishable from a deletion six months later.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "areaKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "value": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "timeCriticality": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "risk": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "size": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "deadline": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "title",
+        "areaKey"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "areaKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "inbox",
+                    "later",
+                    "next",
+                    "now",
+                    "waiting",
+                    "review",
+                    "done",
+                    "dropped"
+                  ]
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rank": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "blockedBy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "sizedForNow": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "areaKey",
+                "status",
+                "size",
+                "deadline",
+                "score",
+                "rank",
+                "blockedBy",
+                "sizedForNow"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Capture an initiative into the inbox",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:initiative",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "promote_takeaway",
+    "title": "Promote a reading takeaway into an initiative",
+    "description": "Creates an initiative from an action takeaway and records the link. It **links, it does not copy**: the takeaway stays where it is, in the document tool, and the initiative gets the title you write here rather than the takeaway's own text — a takeaway is phrased as an idea and an initiative has to be phrased as a result. A takeaway of kind `principle` is refused outright: a principle never enters the backlog. A takeaway already promoted is refused too, because promoting it twice duplicates the work. The new initiative lands in the **inbox**, untriaged, exactly as `capture` does. `takeawayId` comes from `list_takeaways` — which cannot search by topic, because prisme holds the link and not the text.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "takeawayId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "areaKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "value": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "timeCriticality": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "risk": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "size": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "takeawayId",
+        "title",
+        "areaKey",
+        "value",
+        "timeCriticality",
+        "risk",
+        "size"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "areaKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "inbox",
+                    "later",
+                    "next",
+                    "now",
+                    "waiting",
+                    "review",
+                    "done",
+                    "dropped"
+                  ]
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rank": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "blockedBy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "sizedForNow": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "areaKey",
+                "status",
+                "size",
+                "deadline",
+                "score",
+                "rank",
+                "blockedBy",
+                "sizedForNow"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Promote a reading takeaway into an initiative",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:takeaway",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "score_initiative",
+    "title": "Set an initiative’s estimates",
+    "description": "Changes the four estimates the active scoring method reads — value, time criticality, risk and size — on the Fibonacci scale (1, 2, 3, 5, 8, 13); a 4 or a 6 cannot be constructed. It does **not** write a score: scores are computed from these by the active method and appended to history with the method and version that produced them (ADR-0006). It scores an initiative and never a task — nothing in the task tool carries a score (ADR-0004). Omitted fields are left alone. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "initiativeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "value": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "timeCriticality": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "risk": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "size": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            13
+          ]
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "initiativeId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "areaKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "inbox",
+                    "later",
+                    "next",
+                    "now",
+                    "waiting",
+                    "review",
+                    "done",
+                    "dropped"
+                  ]
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rank": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "blockedBy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "sizedForNow": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "areaKey",
+                "status",
+                "size",
+                "deadline",
+                "score",
+                "rank",
+                "blockedBy",
+                "sizedForNow"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Set an initiative’s estimates",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:initiative",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "set_status",
+    "title": "Move one initiative to another status",
+    "description": "Transitions a single initiative and writes the event log with the before and after. The ladder is `inbox` (untriaged) → `later` → `next` → `now` (in flight) → `done`, with `waiting` for blocked on someone else, `review` for finished but unverified, and `dropped` for abandoned. **\"I finished it\" is `done`.** Moving to `dropped` requires a `reason`: a drop with no reason is indistinguishable from a deletion six months later, and the reason is the only part anyone re-reads. To change what the week contains, prefer `propose_now_set` — it shows the whole now set moving at once, where this shows one row; use this one when a single initiative moves for its own reasons. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "initiativeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to": {
+          "type": "string",
+          "enum": [
+            "inbox",
+            "later",
+            "next",
+            "now",
+            "waiting",
+            "review",
+            "done",
+            "dropped"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "initiativeId",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "areaKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "inbox",
+                    "later",
+                    "next",
+                    "now",
+                    "waiting",
+                    "review",
+                    "done",
+                    "dropped"
+                  ]
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rank": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "blockedBy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "sizedForNow": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "areaKey",
+                "status",
+                "size",
+                "deadline",
+                "score",
+                "rank",
+                "blockedBy",
+                "sizedForNow"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Move one initiative to another status",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:initiative",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "propose_now_set",
+    "title": "Propose what the now set should contain",
+    "description": "Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for \"here is what the week should be\" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. Every id must exist: one bad id refuses the whole proposal rather than applying part of it, and `list_initiatives` with `search` is how you turn a title into one. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "initiativeIds": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "initiativeIds"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "promoted": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "demoted": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "now": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "areaKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "inbox",
+                          "later",
+                          "next",
+                          "now",
+                          "waiting",
+                          "review",
+                          "done",
+                          "dropped"
+                        ]
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "deadline": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "score": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "rank": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "blockedBy": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "sizedForNow": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "areaKey",
+                      "status",
+                      "size",
+                      "deadline",
+                      "score",
+                      "rank",
+                      "blockedBy",
+                      "sizedForNow"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "promoted",
+                "demoted",
+                "now"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Propose what the now set should contain",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:initiative",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "start_review",
+    "title": "Open a review session",
+    "description": "Opens a review session of the given cadence. The session is what makes a review a record rather than an afternoon: decisions land on it, and closing it takes a snapshot of per-area capacity as it was at that moment. The dry run reports any session of the same cadence that is still open — a second open weekly review means decisions land on whichever one the caller happened to pick. Use `record_review_decision` to add to it and to close it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cadence": {
+          "type": "string",
+          "enum": [
+            "weekly",
+            "monthly",
+            "quarterly",
+            "yearly"
+          ]
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "cadence"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "cadence": {
+                  "type": "string",
+                  "enum": [
+                    "weekly",
+                    "monthly",
+                    "quarterly",
+                    "yearly"
+                  ]
+                },
+                "startedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "checklist": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "cadence",
+                "startedAt",
+                "completedAt",
+                "decisions",
+                "checklist"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Open a review session",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:review",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "record_review_decision",
+    "title": "Record a decision on a review session",
+    "description": "Appends one decision to an open review session, optionally ticks checklist steps, and optionally closes it. The decision text is appended to what is already there — it never replaces the list. Closing takes the capacity snapshot, and a session that is already closed is not re-snapshotted: what the review saw is part of what the review decided, and recomputing it later would let a review quietly rewrite its own history.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "reviewId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "checklist": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "required": [
+        "reviewId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "cadence": {
+                  "type": "string",
+                  "enum": [
+                    "weekly",
+                    "monthly",
+                    "quarterly",
+                    "yearly"
+                  ]
+                },
+                "startedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "checklist": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "cadence",
+                "startedAt",
+                "completedAt",
+                "decisions",
+                "checklist"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Record a decision on a review session",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:review",
+      "prisme/kind": "write"
+    }
+  },
+  {
+    "name": "plan_preview",
+    "title": "What the reconciler would do",
+    "description": "Runs a reconciler pass in `plan` mode and returns the rendered plan: what prisme would write to the document tool and the task tool, and what it would refuse. It writes nothing, inward or outward, and it hands back **nothing to execute**. **Use this when you only want to look.** If you intend to go on and apply, skip it and call `apply` without a `confirmationToken` instead — that also runs a `plan` pass, returns the same picture, and additionally gives you the token to confirm it with. Calling both just runs the reconciler twice. It needs the `write:sync` scope despite changing nothing, because running a pass reaches the external tools — the scope `POST /sync` requires for `mode: plan` for the same reason, so the outward kill switch withholds it too. Read `counts.create` first: a plan that would create anything when you expected it to adopt is the failure ADR-0010 exists to catch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "full": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "ran": {
+          "type": "boolean"
+        },
+        "full": {
+          "type": "boolean"
+        },
+        "counts": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "applied": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conflicts": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refused": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failures": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "drift": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "report": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "ran",
+        "full",
+        "counts",
+        "applied",
+        "conflicts",
+        "refused",
+        "failures",
+        "drift",
+        "report"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "What the reconciler would do",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:sync",
+      "prisme/kind": "read"
+    }
+  },
+  {
+    "name": "apply",
+    "title": "Apply the reconciler plan",
+    "description": "Executes a reconciler pass against the document tool and the task tool. **This is the one to call when you mean to push changes out** — start with it and no `confirmationToken`: that dry run *is* a `plan` pass, so it returns everything `plan_preview` would and a token besides. Confirm with that token and the diff you were shown is the diff applied; it is refused if a second pass would now do something different. It is the only tool here that writes outside prisme. It writes `deadline` and never `due` (ADR-0003), and it never completes or deletes a task. **What it creates outward, prisme cannot take back** — read `counts.create` before confirming. A refusal in the result — the write freeze, or a plan over the create threshold — means nothing was written, not that some of it was; `sync_status` says in advance whether the freeze is on.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "full": {
+          "default": false,
+          "type": "boolean"
+        },
+        "confirmationToken": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Omit this to perform a dry run: the tool takes no action and returns the diff it would apply, together with a short-lived token. Send that token back — unchanged, with the same arguments — to execute exactly the diff you were shown. The token is refused if anything it described has since changed."
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "status",
+                      "promote",
+                      "reconcile",
+                      "observe"
+                    ]
+                  },
+                  "entity": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "before": {},
+                  "after": {}
+                },
+                "required": [
+                  "op",
+                  "entity",
+                  "id",
+                  "field",
+                  "before",
+                  "after"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "creates": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "summary",
+            "changes",
+            "warnings",
+            "creates"
+          ],
+          "additionalProperties": false
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "expiresInSeconds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "token",
+                "expiresAt",
+                "expiresInSeconds"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "ran": {
+                  "type": "boolean"
+                },
+                "full": {
+                  "type": "boolean"
+                },
+                "counts": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "applied": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "conflicts": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "refused": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "failures": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "drift": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "report": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "ran",
+                "full",
+                "counts",
+                "applied",
+                "conflicts",
+                "refused",
+                "failures",
+                "drift",
+                "report"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tool",
+        "applied",
+        "plan",
+        "confirmation",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Apply the reconciler plan",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "prisme/requiredScope": "write:sync",
+      "prisme/kind": "write"
+    }
+  }
+]

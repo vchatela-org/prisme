@@ -105,6 +105,8 @@ const app = createApp({
   services,
   auth,
   authorizer: auth.authorizer,
+  // W06's write tools consume this; nothing else invents its own.
+  confirmations: auth.confirmations,
   isShuttingDown: () => shuttingDown,
   readiness: () => checkReadiness({ client: database.client, expected: schemaVersion }),
 });
