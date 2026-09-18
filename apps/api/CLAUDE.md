@@ -37,11 +37,24 @@ can interrupt it. Assume confusion, not malice.
 
 ```
 api/
-  routes/     REST, one module per resource
+  http/       the route kit: scopes, one error shape, parsing, mounting, OpenAPI
+  dto/        request and response schemas, and the fields each write refuses
+  routes/     REST, one module per resource — declarations, not logic
+  services/   shared by routes and MCP tools; the only place a rule lives
+  store/      the port, and its one implementation in SQL
+  client/     the response types the web application imports
+  sync/       the POST /sync port, and the reconciler behind it
   mcp/        tool definitions — thin wrappers over services   (W06)
   auth/       assertion verifier, token store, scope middleware (W14)
-  services/   shared by routes and MCP tools
 ```
+
+**A route is declared, never mounted by hand.** `http/route.ts` takes a method,
+a path, a required scope, the schemas on either side and a handler; the router,
+the OpenAPI document and the contract test are all generated from that one
+object, so they cannot disagree. `routes/contract.test.ts` reads back what the
+application actually registered and fails on anything reachable that the
+registry does not describe — which is the only way a route could exist without
+a scope.
 
 ## Testing
 

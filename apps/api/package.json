@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "main": "./dist/main.js",
+  "exports": {
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -15,8 +21,13 @@
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "@prisme/config": "workspace:*",
+    "@prisme/connectors": "workspace:*",
     "@prisme/db": "workspace:*",
+    "@prisme/domain": "workspace:*",
     "@prisme/observability": "workspace:*",
-    "hono": "^4.6.0"
+    "@prisme/sync": "workspace:*",
+    "hono": "^4.6.0",
+    "postgres": "^3.4.0",
+    "zod": "^4.1.0"
   }
 }
