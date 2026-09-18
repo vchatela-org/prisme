@@ -31,6 +31,15 @@ export interface LaneService {
     filter: { kind?: string | undefined; promoted?: boolean | undefined },
     page: PageRequest,
   ): Promise<{ items: TakeawayDtoShape[]; total: number }>;
+  /**
+   * One takeaway, or `not_found`.
+   *
+   * Added by W06 so that `promote_takeaway`'s **dry run** can tell the caller a
+   * principle will be refused, rather than showing a diff that then fails on
+   * execution. A dry run that cannot see the refusal is not a preview of the
+   * write.
+   */
+  getTakeaway(id: string): Promise<TakeawayDtoShape>;
   promote(
     id: string,
     input: {
@@ -92,6 +101,12 @@ export function createLaneService(store: ApiStore, work: WorkService): LaneServi
     async takeaways(filter, page) {
       const paged = await store.lanes.takeaways(filter, page);
       return { items: paged.items.map(toTakeawayDto), total: paged.total };
+    },
+
+    async getTakeaway(id): Promise<TakeawayDtoShape> {
+      const takeaway = await store.lanes.getTakeaway(id);
+      if (takeaway === undefined) throw notFound('takeaway', id);
+      return toTakeawayDto(takeaway);
     },
 
     async promote(id, input, now): Promise<InitiativeDtoShape> {

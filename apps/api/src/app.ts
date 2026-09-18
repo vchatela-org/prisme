@@ -3,11 +3,13 @@ import type { Config } from '@prisme/config';
 import type { Logger, Metrics } from '@prisme/observability';
 import { withRunContext, newRunId } from '@prisme/observability';
 import type { ReadinessReport } from '@prisme/db';
+import type { ConfirmationService } from './auth/confirmation.js';
 import type { AuthDeps } from './auth/routes.js';
 import { healthRoutes } from './health.js';
 import { DENY_EVERYTHING, type Authorizer } from './http/authorize.js';
 import { internalErrorBody } from './http/errors.js';
 import { mountRoutes } from './http/mount.js';
+import { createMcpServer, mcpTools, mountMcp } from './mcp/index.js';
 import { API_BASE_PATH, API_INFO, createRoutes } from './routes/index.js';
 import type { Services } from './services/index.js';
 
@@ -50,6 +52,16 @@ export interface AppDependencies {
    * every business route answers 401 and these two answer it too.
    */
   readonly auth?: AuthDeps | undefined;
+  /**
+   * The diff-bound confirmation mechanism (W14), which W06's write tools
+   * consume.
+   *
+   * Absent means **no MCP write tool can execute** — the dispatcher refuses
+   * rather than proceeding without a confirmation. Read tools still work, which
+   * is the honest state of an instance whose credential store is not wired up:
+   * it can answer questions and cannot change anything.
+   */
+  readonly confirmations?: ConfirmationService | undefined;
   /** Injected so a test can pin the clock the domain is scored against. */
   readonly now?: (() => Date) | undefined;
 }
@@ -95,6 +107,23 @@ export function createApp(dependencies: AppDependencies): Hono {
       now: dependencies.now ?? (() => new Date()),
     });
     app.route(API_BASE_PATH, v1);
+
+    // Outside `/api/v1` on purpose: the MCP endpoint is not a REST route, it is
+    // not in the OpenAPI document, and the deployment routes it separately from
+    // the UI so the proxy does not consume an agent's bearer token
+    // (docs/15-runtime.md §6). It shares the authorizer, so the same refusing
+    // default applies to it as to everything else.
+    mountMcp(app, {
+      server: createMcpServer({
+        tools: mcpTools,
+        confirmations: dependencies.confirmations,
+        logger: dependencies.logger,
+      }),
+      authorizer: dependencies.authorizer ?? DENY_EVERYTHING,
+      services: dependencies.services,
+      logger: dependencies.logger,
+      now: dependencies.now ?? (() => new Date()),
+    });
   }
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
