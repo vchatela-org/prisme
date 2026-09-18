@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-17 · **Current phase:** P0 **frozen** — W00, W01, W02, W03 and W07 landed; wave 1 is complete and wave 2 is in review
+**Last updated:** 2026-09-17 · **Current phase:** P0 **frozen** — W00–W04 and W07 landed; wave 1 is complete and W05 is in review
 
 ---
 
@@ -31,8 +31,8 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W01](docs/40-workstreams/W01-domain-scoring.md) | Domain model + pluggable scoring registry | — | 1 | 🟢 | [#17](https://github.com/vchatela-org/prisme/pull/17) merged |
 | [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | 🟢 | [#19](https://github.com/vchatela-org/prisme/pull/19) merged |
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟢 | [#18](https://github.com/vchatela-org/prisme/pull/18) merged |
-| [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | 🟡 | [#21](https://github.com/vchatela-org/prisme/pull/21) |
-| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | ⚪ | — |
+| [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | 🟢 | [#21](https://github.com/vchatela-org/prisme/pull/21) merged |
+| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟡 | [#22](https://github.com/vchatela-org/prisme/pull/22) |
 | [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ | — |
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged |
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ | — |
@@ -75,15 +75,16 @@ Both security gates have been **watched fail** and are not taken on trust —
 [the W00 entry](docs/50-journal/W00-2026-09-15-foundations.md) records how, and the two things that
 surprised us while doing it.
 
-**W00, W01, W02, W03 and W07 have landed; W04 (#21) is in review.** Nothing any of them depends on
-is open. W07 (#20) was the last of wave 1, so **wave 1 is complete**: W08–W11 now have both halves of
-what they compose from, the API contract aside. With W01 and W03 merged, **W05 and W14 are
-unblocked**, as is W13, and W02 merging cleared **W10**'s schedule dependency.
-**W04 is in review (#21)**: the reconciler exists, so
-`plan` and `apply` are real and the write freeze is the only thing standing between prisme and an
-outward write. It unblocks **W12**, and `POST /sync` is a call into `@prisme/sync` whenever W05 wants
-it. W00's remaining follow-ups — including the Docker build fix its first publish found, and
-the re-tag that has to follow it — are in
+**W00, W01, W02, W03, W04 and W07 have landed; W05 (#22) is in review.** Nothing any of them depends
+on is open. W07 (#20) was the last of wave 1, so **wave 1 is complete**, and W04 (#21) landed the
+reconciler: `plan` and `apply` are real, and the write freeze is the only thing standing between
+prisme and an outward write. That unblocks **W12**.
+**W05 is in review (#22)**: the API contract now exists, so **W08–W11 have everything they compose
+from** and **W06 is unblocked** — its tools wrap the same service layer rather than the routes.
+Every route declares the scope it requires and no authorizer is installed, so the API answers `401`
+to everything until **W14** supplies the mechanism; W14 was already unblocked and is now the thing
+standing between the API and a caller. **W13** is unblocked too. W00's remaining follow-ups —
+including the Docker build fix its first publish found, and the re-tag that has to follow it — are in
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
 wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](docs/30-roadmap.md#scheduling-the-agents).
