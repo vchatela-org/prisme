@@ -36,11 +36,10 @@ const FAKE_DATABASE_URL = ['postgres://prisme:', PASSWORD, '@db.invalid:5432/pri
 function captured(emit: (log: ReturnType<typeof createLogger>) => void): string {
   const lines: string[] = [];
   const original = process.stdout.write.bind(process.stdout);
-  // eslint-disable-next-line @typescript-eslint/unbound-method
-  process.stdout.write = ((chunk: string | Uint8Array) => {
+  process.stdout.write = (chunk: string | Uint8Array) => {
     lines.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
     return true;
-  }) as typeof process.stdout.write;
+  };
   try {
     emit(logger);
   } finally {

@@ -93,12 +93,7 @@ export const MAX_TOKEN_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
 export const DEFAULT_TOKEN_LIFETIME_SECONDS = 90 * 24 * 60 * 60;
 
 export type TokenRejectionReason =
-  | 'malformed'
-  | 'unknown'
-  | 'secret'
-  | 'revoked'
-  | 'expired'
-  | 'scopes';
+  'malformed' | 'unknown' | 'secret' | 'revoked' | 'expired' | 'scopes';
 
 export class TokenRejection extends Error {
   readonly reason: TokenRejectionReason;
@@ -153,12 +148,16 @@ export function createTokenService(options: TokenServiceOptions): TokenService {
   return {
     async issue(input: IssueTokenInput): Promise<IssuedToken> {
       if (input.scopes.length === 0) {
-        throw new TokenRejection('scopes', 'a token with no scope can do nothing; name at least one');
+        throw new TokenRejection(
+          'scopes',
+          'a token with no scope can do nothing; name at least one',
+        );
       }
       for (const scope of input.scopes) {
         // Belt and braces with the Zod schema on the route: a scope that is not
         // in the vocabulary would be stored, granted and forever unmatched.
-        if (!isScope(scope)) throw new TokenRejection('scopes', `${scope} is not a known scope`);
+        if (!isScope(scope))
+          throw new TokenRejection('scopes', `${String(scope)} is not a known scope`);
       }
 
       const lifetime = Math.min(input.expiresInSeconds, MAX_TOKEN_LIFETIME_SECONDS);

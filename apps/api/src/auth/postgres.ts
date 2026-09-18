@@ -38,7 +38,13 @@ function stamp(value: Date | null): string | null {
 
 function instant(value: unknown): Date | null {
   if (value === null || value === undefined) return null;
-  return value instanceof Date ? value : new Date(String(value));
+  if (value instanceof Date) return value;
+  // A `timestamptz` arrives as a Date or as text depending on whether Drizzle
+  // has replaced the shared client's parser (see the note above). Anything else
+  // is a column that is not a timestamp, and inventing a date from its default
+  // stringification would be worse than refusing.
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+  throw new Error('a timestamp column came back as something other than a date or a string');
 }
 
 function required(value: unknown): Date {

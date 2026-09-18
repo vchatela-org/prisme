@@ -19,7 +19,7 @@ beforeAll(async () => {
 
 /** A fetch that answers a fixed map of URLs, and nothing else. */
 function fetcher(routes: Record<string, unknown>, status = 200): typeof globalThis.fetch {
-  return ((input: URL | RequestInfo) => {
+  return (input: unknown) => {
     const url = input instanceof URL ? input.toString() : String(input);
     const body = routes[url];
     if (body === undefined) {
@@ -31,7 +31,7 @@ function fetcher(routes: Record<string, unknown>, status = 200): typeof globalTh
         headers: { 'content-type': 'application/json' },
       }),
     );
-  }) as typeof globalThis.fetch;
+  };
 }
 
 const JWKS_URL = `${TEST_ISSUER}/jwks`;

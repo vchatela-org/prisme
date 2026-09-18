@@ -63,7 +63,11 @@ describe('plan, then apply', () => {
     const world = { 'i-1': 'Ship the thing' };
 
     const diffHash = hashPlan(planFor(world));
-    const issued = await bay.confirmations.issue({ operation: 'sync.apply', diffHash, subject: SUBJECT });
+    const issued = await bay.confirmations.issue({
+      operation: 'sync.apply',
+      diffHash,
+      subject: SUBJECT,
+    });
 
     // Nothing moved: the plan recomputes to the same diff.
     const record = await bay.confirmations.verify(issued.token, hashPlan(planFor(world)), SUBJECT);
@@ -90,9 +94,11 @@ describe('plan, then apply', () => {
     const wouldApply = hashPlan(planFor(world));
     expect(wouldApply).not.toBe(shown);
 
-    await expect(bay.confirmations.verify(issued.token, wouldApply, SUBJECT)).rejects.toMatchObject({
-      reason: 'stale',
-    });
+    await expect(bay.confirmations.verify(issued.token, wouldApply, SUBJECT)).rejects.toMatchObject(
+      {
+        reason: 'stale',
+      },
+    );
   });
 
   it('is single-use', async () => {

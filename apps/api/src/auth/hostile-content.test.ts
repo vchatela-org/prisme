@@ -35,7 +35,10 @@ interface HostileFixture {
 }
 
 const fixture = JSON.parse(
-  readFileSync(new URL('../../../../fixtures/connectors/hostile-rich-text.json', import.meta.url), 'utf8'),
+  readFileSync(
+    new URL('../../../../fixtures/connectors/hostile-rich-text.json', import.meta.url),
+    'utf8',
+  ),
 ) as HostileFixture;
 
 const sanitised = sanitiseRichText(fixture.runs);
@@ -86,9 +89,10 @@ describe('markup in third-party rich text', () => {
     // they are perfectly legitimate Unicode: they let `Invoice ⁧txt.exe⁩` render
     // as `Invoice exe.txt` in a UI and read as something it is not.
     for (const codePoint of ['‮', '‭', '‎', '⁦', '', '', '\r']) {
-      expect(sanitised.text, `U+${codePoint.codePointAt(0)?.toString(16) ?? ''} survived`).not.toContain(
-        codePoint,
-      );
+      expect(
+        sanitised.text,
+        `U+${codePoint.codePointAt(0)?.toString(16) ?? ''} survived`,
+      ).not.toContain(codePoint);
     }
   });
 });

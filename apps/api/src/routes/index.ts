@@ -40,10 +40,7 @@ export const API_INFO: OpenApiInfo = {
  * exists to prevent. What the argument changes is whether a handler can run, not
  * whether the route exists. It never changes whether a scope is required.
  */
-export function createRoutes(
-  info: OpenApiInfo = API_INFO,
-  auth?: AuthDeps | undefined,
-): readonly ApiRoute[] {
+export function createRoutes(info: OpenApiInfo = API_INFO, auth?: AuthDeps): readonly ApiRoute[] {
   const routes: ApiRoute[] = [
     ...areaRoutes,
     ...projectRoutes,

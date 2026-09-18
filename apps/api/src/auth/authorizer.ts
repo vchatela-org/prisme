@@ -118,7 +118,9 @@ export function createAuthorizer(options: AuthorizerOptions): Authorizer {
     return unauthenticated();
   }
 
-  async function authenticate(request: AuthorizationRequest): Promise<Principal | AuthorizationResult> {
+  async function authenticate(
+    request: AuthorizationRequest,
+  ): Promise<Principal | AuthorizationResult> {
     const assertionHeader = options.assertion?.header;
     const rawAssertion =
       assertionHeader === undefined ? undefined : request.header(assertionHeader)?.trim();

@@ -214,7 +214,10 @@ export async function verifyAssertion(
     // Without `iat` the lifetime is unbounded and unknowable. Rejecting is the
     // only honest option: accepting would mean rule 3 silently does not apply
     // to exactly the tokens most likely to be misconfigured.
-    throw new AssertionRejection('claims', 'the assertion has no iat, so its lifetime cannot be bounded');
+    throw new AssertionRejection(
+      'claims',
+      'the assertion has no iat, so its lifetime cannot be bounded',
+    );
   }
   if (exp - iat > policy.maxLifetimeSeconds) {
     throw new AssertionRejection(
