@@ -159,21 +159,38 @@ export function createPostgresAuthStore(sql: Sql): AuthStore {
     },
 
     async consumeConfirmation(id: string, at: Date): Promise<ConfirmationRecord | undefined> {
-      // One statement, and it returns the row *as it was*. The self-join is how
-      // PostgreSQL is asked for the pre-update image: `RETURNING` alone gives
-      // the new row, in which `consumed_at` is always set — and "already used"
-      // would then be indistinguishable from "never existed".
-      //
-      // `COALESCE` keeps the first consumer's timestamp rather than overwriting
-      // it, so the audit line says when the token was really spent.
-      const rows = await sql<ConfirmationRow[]>`
-        UPDATE confirmation_token AS c
-           SET consumed_at = COALESCE(c.consumed_at, ${at.toISOString()})
-          FROM confirmation_token AS prior
-         WHERE c.id = ${id} AND prior.id = c.id
-        RETURNING prior.id, prior.fingerprint, prior.diff_hash, prior.operation,
-                  prior.subject, prior.issued_at, prior.expires_at, prior.consumed_at`;
-      const row = rows[0];
+      /*
+       * **The `WHERE` clause is the mutual exclusion.** Exactly one transaction
+       * can ever see `consumed_at IS NULL` and update the row, so exactly one
+       * caller is told it won.
+       *
+       * The first version of this used a self-join to fetch the pre-update
+       * image in a single statement, and a ten-way race against a real
+       * PostgreSQL showed two winners. Under READ COMMITTED the second
+       * transaction blocks on the row lock, then re-checks its `WHERE` and
+       * proceeds — but the `FROM` side of the join is still reading the
+       * *original* snapshot, so `prior.consumed_at` came back NULL for both.
+       * It is the kind of bug a fake store cannot have, and reading the SQL did
+       * not find it either.
+       *
+       * The second query runs only when nothing was updated, and it races with
+       * nothing: `consumed_at` never returns to NULL, so "already consumed" and
+       * "no such row" are both stable answers by the time it is asked.
+       */
+      const won = await sql<ConfirmationRow[]>`
+        UPDATE confirmation_token
+           SET consumed_at = ${at.toISOString()}
+         WHERE id = ${id} AND consumed_at IS NULL
+        RETURNING *`;
+
+      const winner = won[0];
+      // Returned as it was before this call — `consumedAt: null` is what tells
+      // the caller it is the one that took it.
+      if (winner !== undefined) return { ...confirmationOf(winner), consumedAt: null };
+
+      const existing = await sql<ConfirmationRow[]>`
+        SELECT * FROM confirmation_token WHERE id = ${id}`;
+      const row = existing[0];
       return row === undefined ? undefined : confirmationOf(row);
     },
 
