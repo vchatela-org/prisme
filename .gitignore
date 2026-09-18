@@ -58,3 +58,6 @@ Thumbs.db
 # === Claude Code local state ==================================================
 .claude/settings.local.json
 .claude/plans/
+
+# Added by ggshield
+.cache_ggshield

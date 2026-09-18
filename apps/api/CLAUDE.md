@@ -45,7 +45,7 @@ api/
   client/     the response types the web application imports
   sync/       the POST /sync port, and the reconciler behind it
   mcp/        tool definitions — thin wrappers over services   (W06)
-  auth/       assertion verifier, token store, scope middleware (W14)
+  auth/       assertion verifier, token store, authorizer, kill switch (W14)
 ```
 
 **A route is declared, never mounted by hand.** `http/route.ts` takes a method,
@@ -56,8 +56,26 @@ application actually registered and fails on anything reachable that the
 registry does not describe — which is the only way a route could exist without
 a scope.
 
+## `auth/` — what is already built
+
+W14 landed the mechanism, so a new route or tool inherits it rather than arranging it:
+
+- **Every principal reaches a handler through one authorizer.** Assertion *or* bearer, never both;
+  identity only from a verified signature; the gateway's plaintext identity headers are not read
+  anywhere ([ADR-0021](../../docs/20-decisions/0021-verified-forward-auth-assertion.md)).
+- **The kill switch withholds scopes** rather than setting a flag, so a write route added later is
+  covered on the day it is written. Do not add a second "are writes frozen" check.
+- **`createConfirmationService` and `hashPlan`** are the diff-bound confirmation mechanism. W06 wires
+  them to its write tools; nothing else should invent its own.
+- **`assertUrlAllowed`** is the SSRF guard for any URL prisme fetches. Deny by default, by origin.
+
 ## Testing
 
 Integration tests run against a real PostgreSQL instance seeded from `fixtures/` — never from real
 data. Test the authorization negative cases explicitly: a read-scoped token must not reach any write
 path.
+
+**Database-backed suites are named `*integration.test.ts`**, which puts them in the `integration`
+Vitest project. That project runs its files one at a time: they share one PostgreSQL and truncate it
+between tests, so two running in parallel means one empties the other's tables mid-test. Name a new
+one accordingly, or it will fail in ways that look like somebody else's bug.

@@ -12,6 +12,7 @@
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"],
   "references": [
+    { "path": "../../packages/auth/tsconfig.build.json" },
     { "path": "../../packages/config/tsconfig.build.json" },
     { "path": "../../packages/connectors/tsconfig.build.json" },
     { "path": "../../packages/db/tsconfig.build.json" },
