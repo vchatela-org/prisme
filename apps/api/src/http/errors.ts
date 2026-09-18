@@ -22,6 +22,7 @@ export type ApiErrorCode =
   | 'conflict'
   | 'unprocessable'
   | 'locked'
+  | 'rate_limited'
   | 'internal_error';
 
 export interface FieldProblem {
@@ -46,6 +47,7 @@ const STATUS_BY_CODE: Readonly<Record<ApiErrorCode, number>> = {
   conflict: 409,
   unprocessable: 422,
   locked: 423,
+  rate_limited: 429,
   internal_error: 500,
 };
 
@@ -60,13 +62,29 @@ export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly status: number;
   readonly fields: readonly FieldProblem[] | undefined;
+  /**
+   * Response headers this error needs to be actionable — `Retry-After` on a
+   * `429`, and nothing else so far (W14).
+   *
+   * Deliberately a fixed map set at the throw site rather than anything the
+   * caller's input can reach: a header assembled from request data is a
+   * response-splitting vector, and the whole point of this class is that a
+   * caller learns only what was written here on purpose.
+   */
+  readonly headers: Readonly<Record<string, string>> | undefined;
 
-  constructor(code: ApiErrorCode, message: string, fields?: readonly FieldProblem[]) {
+  constructor(
+    code: ApiErrorCode,
+    message: string,
+    fields?: readonly FieldProblem[],
+    headers?: Readonly<Record<string, string>>,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = STATUS_BY_CODE[code];
     this.fields = fields;
+    this.headers = headers;
   }
 
   body(correlationId: string): ErrorBody {

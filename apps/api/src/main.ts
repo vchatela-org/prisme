@@ -17,6 +17,7 @@ import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, checkReadiness, expectedSchemaVersion, loadMigrations } from '@prisme/db';
 import { createLogger, createMetrics, currentRunContext, newRunId } from '@prisme/observability';
 import { createApp } from './app.js';
+import { createAuth } from './auth/index.js';
 import { createServices, SERVICE_DEFAULTS } from './services/index.js';
 import { createPostgresStore } from './store/postgres.js';
 import { createSyncRunner } from './sync/runner.js';
@@ -68,14 +69,42 @@ const services = createServices({
   },
 });
 
+/**
+ * Authentication, built before the listener opens.
+ *
+ * `await` at module scope, deliberately: the key set is fetched and *checked*
+ * here (W14), and a failure must stop the process rather than become a 401 on
+ * every request. `loadConfigOrExit` has already refused to reach this line
+ * without `AUTH_ISSUER_URL`, `AUTH_AUDIENCE`, `AUTH_ALLOWED_SUBJECTS` and
+ * `TOKEN_PEPPER`, all of which are required for the `api` service.
+ *
+ * There is no branch here that skips it. ADR-0021 rule 9: local development
+ * runs the same verifier against a locally issued key and a development issuer,
+ * because a verification path that can be switched off is one that will ship
+ * switched off.
+ */
+const auth = await createAuth({
+  client: database.client,
+  auth: config.auth as NonNullable<typeof config.auth>,
+  baseUrl: config.baseUrl,
+  tokenPepper: config.tokenPepper as string,
+  logger,
+  now: () => new Date(),
+}).catch((error: unknown) => {
+  // Exit 78 — EX_CONFIG, the same code `loadConfigOrExit` uses. This is a
+  // configuration failure in every case that reaches here, and the message
+  // says which one.
+  logger.fatal('authentication could not be configured, refusing to start', { error });
+  process.exit(78);
+});
+
 const app = createApp({
   config,
   logger,
   metrics,
   services,
-  // No authorizer is installed until W14 lands, so every business route answers
-  // 401. Deliberate: an instance that served data with nothing verifying who
-  // asked would be a worse failure than one that serves none.
+  auth,
+  authorizer: auth.authorizer,
   isShuttingDown: () => shuttingDown,
   readiness: () => checkReadiness({ client: database.client, expected: schemaVersion }),
 });
@@ -86,6 +115,10 @@ const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' 
     schemaVersion,
     timezone: config.timezone,
     syncWriteEnabled: config.sync.writeEnabled,
+    // Configuration, not credentials (docs/15-runtime.md §2) — and the two
+    // values an operator debugging a 401 wants first.
+    issuer: config.auth?.issuerUrl,
+    jwksUrl: auth.jwksUrl,
   });
 });
 

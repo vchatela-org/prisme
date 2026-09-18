@@ -41,6 +41,11 @@ export const SCOPES = {
 
   'admin:areas': 'Create areas and set the year weights — the yearly decision (ADR-0007)',
   'admin:settings': 'Read and change instance settings',
+  // Separate from `admin:settings` on purpose (W14): minting a credential is
+  // the one operation that can *widen* what any future caller may do, so it is
+  // the one a token should have to be granted by name rather than inherit from
+  // a general administrative scope.
+  'admin:tokens': 'Mint, list and revoke the scoped API tokens machines authenticate with',
 } as const satisfies Record<string, string>;
 
 export type Scope = keyof typeof SCOPES;

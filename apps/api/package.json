@@ -8,6 +8,10 @@
     "./client": {
       "types": "./dist/client/index.d.ts",
       "default": "./dist/client/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "default": "./dist/auth/index.js"
     }
   },
   "files": [
@@ -20,6 +24,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
+    "@node-rs/argon2": "^2.2.1",
     "@prisme/config": "workspace:*",
     "@prisme/connectors": "workspace:*",
     "@prisme/db": "workspace:*",
@@ -27,6 +32,7 @@
     "@prisme/observability": "workspace:*",
     "@prisme/sync": "workspace:*",
     "hono": "^4.6.0",
+    "jose": "^6.2.12",
     "postgres": "^3.4.0",
     "zod": "^4.1.0"
   }
