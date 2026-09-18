@@ -114,26 +114,53 @@ down is the row that broke. Every workstream brief repeats this rule for that re
 ## 4. GitHub settings checklist
 
 To switch on before the repository goes public. All are free on public repositories.
-Enabled 2026-09-15, when the repository was published.
+Enabled 2026-09-15, when the repository was published. **Re-read from the GitHub API on 2026-09-18
+(W14)** rather than from this list — a settings checklist that is only ever read is a settings
+checklist that drifts. Every line below says what the API actually returned.
 
-- [x] **Secret scanning** — on
-- [x] **Push protection** — on *(the highest-value setting here)*
-- [~] **CodeQL** code scanning — default setup. Configured for `actions` only: there is no
-      JavaScript/TypeScript in the repository yet. **W00 must add `javascript-typescript`** once
-      application code lands, or the main language ships unscanned
+- [x] **Secret scanning** — on *(verified: `secret_scanning.status = enabled`)*
+- [x] **Push protection** — on *(verified; the highest-value setting here)*
+- [x] **CodeQL** code scanning — **closed by W00 (#5)**: an advanced setup in
+      `.github/workflows/codeql.yml` covering `actions`, `javascript-typescript` and `python` with
+      the `security-extended` suite. The default setup could never have closed it — it derives its
+      language list from the default branch, so it refuses `javascript-typescript` until the code
+      has already merged
 - [x] **Dependabot** alerts, security updates, and version updates (`.github/dependabot.yml`)
+      *(verified: `dependabot_security_updates.status = enabled`)*
 - [x] **Dependency review** on pull requests (`.github/workflows/dependency-review.yml`)
-- [x] **Branch protection** on `main`: required status checks (`privacy deny-list`, `gitleaks`),
-      no force-push, no deletion. Admins are **not** included, so an emergency direct push is still
-      possible — a deliberate trade for a single-maintainer repository
+- [x] **Branch protection** on `main`: required status checks, no force-push, no deletion.
+      **`enforce_admins` is now on** *(verified)*, which closes the bypass the owner's token used to
+      have — the earlier note here said admins were deliberately excluded, and that is no longer
+      true. A pull request is the only route to `main`, for everyone
 - [x] **Actions permissions** — read-only `GITHUB_TOKEN` by default, elevated per workflow
 - [x] Verify **forking** implications are understood: a fork made before a history rewrite keeps the
       old history. Forking was disabled while the repository was private and there were never any
-      forks, so the pre-publication rewrite below was clean
+      forks, so the pre-publication rewrite below was clean. It is enabled now, which is the normal
+      state for a public repository and is only a hazard *before* a rewrite, not after one
 
-Two secret-scanning extras — **validity checks** and **non-provider patterns** — could not be
-enabled through the repository API and appear to need an organisation-level setting. Neither is
-required above; both are worth switching on by hand.
+### Two settings a human still has to make
+
+Neither is required above, and neither blocks anything. Both were attempted again during W14 and
+refused — the repository-level API call is denied, which matches the P0 finding that they appear to
+need an organisation-level setting:
+
+- [ ] **Secret scanning validity checks** *(verified still `disabled`)*
+- [ ] **Non-provider patterns** *(verified still `disabled`)* — the one that would matter most here,
+      because prisme's own tokens carry a `prisme_pat_` prefix (W14) and a non-provider pattern is
+      how GitHub would learn to recognise it
+
+```
+gh api -X PATCH repos/<owner>/<repo> \
+  -f 'security_and_analysis[secret_scanning_validity_checks][status]=enabled' \
+  -f 'security_and_analysis[secret_scanning_non_provider_patterns][status]=enabled'
+```
+
+### One drift found, and not fixed here
+
+The required-check list on `main` does **not** include `golden fixtures`, though
+[`STATUS.md`](../STATUS.md) records it as required from W01 (#17). Reading the API is how that was
+found. It is a branch-protection change rather than a repository change, so it is listed for a human
+rather than made silently — see the W14 journal entry.
 
 ## 5. Pre-publication sweep
 
