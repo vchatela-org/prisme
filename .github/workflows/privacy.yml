@@ -52,3 +52,40 @@ jobs:
 
       - name: Scan full history
         run: gitleaks detect --redact --no-banner --exit-code 1
+
+  selftest:
+    name: security gate self-test
+    runs-on: ubuntu-latest
+
+    # Negative controls for the two jobs above (W14 item 9).
+    #
+    # W00 watched both gates fail by hand, once, and recorded it. That was right
+    # and it does not survive contact with time: a `paths:` filter, a renamed
+    # file, a deny-list emptied by a bad merge, a scanner that starts exiting 0
+    # on a parse error — every one of those turns a gate into decoration, and
+    # every one of them looks exactly like a passing build.
+    #
+    # So the "watched fail" is a job rather than a memory. It plants a generated
+    # UUID and a generated high-entropy credential in a throwaway worktree and
+    # fails if either scanner accepts them — and fails, too, if a clean tree is
+    # *rejected*, because a deny-list that refuses everything is not a working
+    # deny-list either.
+    #
+    # Nothing offending is ever committed: the content is generated at run time
+    # and the worktree is removed whatever happens.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install gitleaks
+        env:
+          # Kept in step with the `gitleaks` job above. Dependabot does not watch
+          # this, so both move by hand, together.
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Both gates must refuse what they exist to refuse
+        run: ./scripts/security-gates-selftest.sh

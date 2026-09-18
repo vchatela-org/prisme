@@ -95,15 +95,14 @@ describe('shapes that are never fetched, whatever the allow-list says', () => {
      * The 10/8 case is assembled rather than written out, and the reason is
      * worth a sentence so nobody "tidies" it back into a literal.
      *
-     * This repository is public and the privacy deny-list carries a local,
-     * gitignored supplement of the owner's real network patterns
-     * (docs/17-privacy.md). That supplement refuses every `10.x.y.z` literal —
-     * correctly, because it cannot tell a textbook example from a real host,
-     * and narrowing somebody's personal deny-list to make a test read nicer is
-     * the wrong trade. Adding a `.privacyignore` entry would be worse: it would
-     * put a hole in the control in exactly the directory that handles
-     * credentials. So the octets are joined at run time. The guard sees the
-     * same string either way.
+     * This repository is public, and `.github/privacy-denylist.txt` refuses
+     * every `10.x.y.z` literal — correctly, because it cannot tell a textbook
+     * example from the owner's real network, and that is precisely the kind of
+     * thing docs/17-privacy.md exists to keep out of a public history.
+     * Narrowing the pattern to make a test read nicer is the wrong trade, and a
+     * `.privacyignore` entry would be worse: a hole in the control, in the one
+     * directory that handles credentials. So the octets are joined at run time.
+     * The guard sees the same string either way.
      */
     const tenDotEight = `http://${[10, 0, 0, 5].join('.')}/`;
 
