@@ -79,6 +79,12 @@ jobs:
             test "$user" != "0"
           done
 
+      # The three AUTH_* values are part of the **web** tier's contract as of
+      # W14: ADR-0021 rule 6 has it verifying assertions too, and there is no
+      # verification without an issuer, an audience and a subject allow-list.
+      # They point at a host that does not exist, on purpose — an unreachable
+      # identity provider must not stop either service answering /healthz.
+      #
       # `/healthz` has no dependencies, so it must answer with no database and
       # no API anywhere near it. That is the whole contract of a liveness probe
       # (docs/15-runtime.md §1) and it is checkable here, on the real image.
@@ -111,6 +117,9 @@ jobs:
           docker run -d --name web-probe --read-only --tmpfs /tmp -p 3001:3000 \
             -e PRISME_BASE_URL='https://prisme.example.com' \
             -e PRISME_API_URL='http://no-such-host:3000' \
+            -e AUTH_ISSUER_URL='https://idp.example.com/application/o/prisme/' \
+            -e AUTH_AUDIENCE='prisme-client-id' \
+            -e AUTH_ALLOWED_SUBJECTS='subject-one' \
             prisme-web:ci
           for _ in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3001/healthz && break || sleep 1

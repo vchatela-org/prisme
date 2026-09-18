@@ -114,6 +114,40 @@ export async function resolveKeySet(options: KeySetOptions): Promise<ResolvedKey
   return { url, keys };
 }
 
+/**
+ * The key set is there and cannot verify anything. **A configuration failure.**
+ *
+ * This is the case W14's definition of done calls "the one failure that would
+ * otherwise look like a working system": a provider deployed with no signing
+ * keypair signs with the client secret and publishes `{}`, and nothing about
+ * that is an error at any layer. It will never fix itself, so a process that
+ * starts is a process that will answer 401 to its owner forever. Callers are
+ * expected to treat this as fatal.
+ */
+export class KeySetUnusable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KeySetUnusable';
+  }
+}
+
+/**
+ * The key set could not be fetched. **An availability failure, and not fatal.**
+ *
+ * Distinguished from {@link KeySetUnusable} because the right response is the
+ * opposite one. Refusing to start would make a brief identity-provider outage
+ * into a crash-looping API — and `/healthz` "has no dependencies" is a
+ * requirement (docs/15-runtime.md §1), which an unreachable provider must not
+ * be allowed to break. Start, serve the probes, answer the human path closed,
+ * and resolve the key set when it can be reached.
+ */
+export class KeySetUnreachable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KeySetUnreachable';
+  }
+}
+
 interface JsonWebKey {
   readonly kty?: unknown;
   readonly use?: unknown;
@@ -151,9 +185,9 @@ export async function assertKeySetUsable(
     // The URL is named because it is configuration, not a secret
     // (docs/15-runtime.md §2). The error's own message is not interpolated: it
     // can carry a proxy's response body.
-    throw new Error(
-      `prisme-api: the signing key set at ${url.toString()} could not be read, so no assertion could ever be verified. ` +
-        `${advice} (${error instanceof Error ? error.name : 'error'})`,
+    throw new KeySetUnreachable(
+      `the signing key set at ${url.toString()} could not be read, so no assertion can be verified ` +
+        `until it can. ${advice} (${error instanceof Error ? error.name : 'error'})`,
     );
   }
 
@@ -166,8 +200,8 @@ export async function assertKeySetUsable(
   );
 
   if (usable.length === 0) {
-    throw new Error(
-      `prisme-api: the signing key set at ${url.toString()} holds no usable asymmetric key ` +
+    throw new KeySetUnusable(
+      `the signing key set at ${url.toString()} holds no usable asymmetric key ` +
         `(${String(keys.length)} key(s) present), so no assertion could ever be verified. ${advice}`,
     );
   }

@@ -52,7 +52,13 @@ export type {
   VerifyAssertionOptions,
 } from './assertion.js';
 
-export { assertKeySetUsable, discoverJwksUrl, resolveKeySet } from './jwks.js';
+export {
+  assertKeySetUsable,
+  discoverJwksUrl,
+  KeySetUnreachable,
+  KeySetUnusable,
+  resolveKeySet,
+} from './jwks.js';
 export type { KeySetOptions, ResolvedKeySet } from './jwks.js';
 
 export { assertSameOrigin, originPolicyFor, OriginRejected } from './origin.js';
