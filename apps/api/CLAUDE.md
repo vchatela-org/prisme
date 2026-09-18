@@ -33,6 +33,28 @@ can interrupt it. Assume confusion, not malice.
   state has moved. A token authorising "whatever apply does next" is a round trip, not a control.
 - Every MCP-initiated write lands in the event log with the token identity as actor.
 
+### `mcp/` — what W06 built
+
+Seventeen tools on `POST /mcp`, outside `/api/v1` and outside the OpenAPI document. The protocol is
+implemented here rather than taken from the reference SDK
+([ADR-0024](../../docs/20-decisions/0024-mcp-without-the-sdk.md)) — so **conformance is ours**, and
+`mcp/protocol.test.ts` is what holds it.
+
+- **A tool is declared, never dispatched by hand.** `mcp/tool.ts` is `http/route.ts` for this door:
+  name, scope, schemas, handler. `defineWriteTool` cannot produce a tool without a `plan`, so there
+  is no way to write one here that acts on first call.
+- **The endpoint reads the tool's scope before it authenticates**, and hands *that* to the
+  authorizer. This is what makes the kill switch reach a tool added later without anyone writing a
+  check for it — do not replace it with a single scope for the whole endpoint.
+- **A plan must be able to go stale.** Read `before` from the world, and put nothing clock-dependent
+  in a diff: a timestamp inside makes every confirmation stale on arrival. Use the `observe` op for
+  state a plan reads only so the hash can move — never `create`, which feeds the count ADR-0010
+  guard 3 is about.
+- **A refusal belongs in `plan`.** A dry run that cannot show the refusal is not a preview of the
+  write.
+- `tool-manifest.json` is generated and checked in. `vitest -u` rewrites it; the point is that a
+  reviewer reads the diff, because a tool description is not reviewed anywhere else.
+
 ## Layout
 
 ```
@@ -44,7 +66,7 @@ api/
   store/      the port, and its one implementation in SQL
   client/     the response types the web application imports
   sync/       the POST /sync port, and the reconciler behind it
-  mcp/        tool definitions — thin wrappers over services   (W06)
+  mcp/        the tool kit, the tools, the JSON-RPC dispatcher and its endpoint (W06)
   auth/       assertion verifier, token store, authorizer, kill switch (W14)
 ```
 
