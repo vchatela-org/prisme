@@ -1,5 +1,4 @@
 import { decodeProtectedHeader, jwtVerify, type JWTVerifyGetKey, type JWTPayload } from 'jose';
-import { ownerPrincipal, type Principal, type PrincipalDisplay } from './principal.js';
 
 /**
  * The assertion verifier — [ADR-0021](docs/20-decisions/0021-verified-forward-auth-assertion.md)
@@ -14,16 +13,18 @@ import { ownerPrincipal, type Principal, type PrincipalDisplay } from './princip
  *
  * ### The nine rules, and where each one is
  *
- * 1. identity only from the assertion — there is no header path to a
- *    {@link Principal} anywhere in this directory; see `authorizer.ts`
+ * 1. identity only from the assertion — there is no header path to a verified
+ *    subject anywhere in this package; see `apps/api/src/auth/authorizer.ts`
  * 2. the full verification set — {@link verifyAssertion} below, one rejection
  *    per named reason
  * 3. over-long assertions rejected — {@link AssertionRejection.lifetime}
- * 4. the identity key is `sub` — `principal.ts`
+ * 4. the identity key is `sub` — {@link VerifiedAssertion}
  * 5. no prisme session cookie — nothing here sets one, and nothing reads one
  * 6. both tiers verify — this module is the implementation both import
- * 7. assertion and bearer together is a rejection — `authorizer.ts`
- * 8. deny-by-default unchanged — `OWNER_SCOPES` is enumerated, not a wildcard
+ * 7. assertion and bearer together is a rejection —
+ *    `apps/api/src/auth/authorizer.ts`
+ * 8. deny-by-default unchanged — scopes are the API's business, not this
+ *    package's; see the note on {@link VerifiedAssertion}
  * 9. no development bypass — there is no flag in this file, and no branch that
  *    returns a principal without a signature check
  *
@@ -89,10 +90,19 @@ export interface AssertionPolicy {
   readonly maxLifetimeSeconds: number;
 }
 
+/**
+ * A resolver from a token's header to the key that should verify it.
+ *
+ * Aliased so that `apps/api` and `apps/web` never import `jose` themselves:
+ * the verifier is this package's job, and a second package reaching for the
+ * JOSE library is the first step towards a second implementation of it.
+ */
+export type KeySource = JWTVerifyGetKey;
+
 export interface VerifyAssertionOptions {
   readonly policy: AssertionPolicy;
   /** The key set. Configuration-derived — never a URL from the request. */
-  readonly keys: JWTVerifyGetKey;
+  readonly keys: KeySource;
 }
 
 /**
@@ -135,7 +145,32 @@ function claimString(payload: JWTPayload, name: string): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-function displayOf(payload: JWTPayload): PrincipalDisplay {
+/**
+ * Who the assertion says is asking — and **nothing about what they may do**.
+ *
+ * This package deliberately knows no scopes. Authorization is prisme's domain
+ * and lives in `apps/api` (docs/14-threat-model.md §3, *Why authorization stays
+ * in prisme*); a verifier that also decided permissions would be a second place
+ * for that decision to live, and the second place is the one that goes wrong.
+ *
+ * `subject` is `sub` and nothing else (ADR-0021 rule 4). {@link display} is
+ * exactly what its name says: material for a UI, never used in a decision. A
+ * rename in the identity provider must not silently become a different
+ * principal, and must not silently become the *same* one — which is what
+ * happens the moment an `email` is used as the key.
+ */
+export interface VerifiedAssertion {
+  readonly subject: string;
+  readonly display: AssertionDisplay;
+}
+
+export interface AssertionDisplay {
+  readonly username?: string | undefined;
+  readonly name?: string | undefined;
+  readonly email?: string | undefined;
+}
+
+function displayOf(payload: JWTPayload): AssertionDisplay {
   return {
     username: claimString(payload, 'preferred_username'),
     name: claimString(payload, 'name'),
@@ -146,10 +181,10 @@ function displayOf(payload: JWTPayload): PrincipalDisplay {
 /**
  * Verify one assertion, or throw.
  *
- * **Never returns a fallback.** There is no "unverified principal", no
- * anonymous result and no boolean to check — the only way past this function is
- * a `Principal` built from a signature that verified, which is what makes the
- * type system a participant in ADR-0021 rule 1.
+ * **Never returns a fallback.** There is no "unverified subject", no anonymous
+ * result and no boolean to check — the only way past this function is a
+ * {@link VerifiedAssertion} built from a signature that verified, which is what
+ * makes the type system a participant in ADR-0021 rule 1.
  *
  * `now` is a parameter rather than a call to `new Date()` so every expiry case
  * is an ordinary unit test instead of a test that sleeps.
@@ -164,7 +199,7 @@ export async function verifyAssertion(
   jwt: string,
   now: Date,
   options: VerifyAssertionOptions,
-): Promise<Principal> {
+): Promise<VerifiedAssertion> {
   const { policy } = options;
   const algs = effectiveAlgs(policy);
   if (algs.length === 0) {
@@ -233,7 +268,7 @@ export async function verifyAssertion(
     throw new AssertionRejection('subject', 'the subject is not allow-listed');
   }
 
-  return ownerPrincipal(sub, displayOf(payload));
+  return { subject: sub, display: displayOf(payload) };
 }
 
 /** jose's error codes, mapped onto prisme's reasons for the log line. */

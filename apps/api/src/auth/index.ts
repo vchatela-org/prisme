@@ -2,11 +2,15 @@ import type postgres from 'postgres';
 import type { AuthConfig } from '@prisme/config';
 import type { Logger } from '@prisme/observability';
 import type { Authorizer } from '../http/authorize.js';
-import { assertPolicyUsable, type AssertionPolicy } from './assertion.js';
+import {
+  assertKeySetUsable,
+  assertPolicyUsable,
+  originPolicyFor,
+  resolveKeySet,
+  type AssertionPolicy,
+} from '@prisme/auth';
 import { createAuthorizer } from './authorizer.js';
 import { createConfirmationService, type ConfirmationService } from './confirmation.js';
-import { assertKeySetUsable, resolveKeySet } from './jwks.js';
-import { originPolicyFor } from './origin.js';
 import { createPostgresAuthStore } from './postgres.js';
 import type { AuthDeps } from './routes.js';
 import { createTokenService } from './tokens.js';
@@ -20,19 +24,17 @@ import { createWriteSwitch } from './write-switch.js';
  * validated configuration and a database handle; nothing in this directory
  * reads `process.env`.
  *
- * **The one implementation both tiers use.** ADR-0021 rule 6: the web tier
- * verifies the assertion and forwards it, and the API verifies it again with
- * the same code — the web tier is not a trusted hop and holds no ambient
- * authority over the API. `@prisme/api/auth` is that shared entry point, which
- * is why this package exports it.
+ * **The one implementation both tiers use is `@prisme/auth`.** ADR-0021 rule 6:
+ * the web tier verifies the assertion and forwards the one it verified, and the
+ * API verifies it again with the same code — the web tier is not a trusted hop
+ * and holds no ambient authority over the API. That code is a package rather
+ * than part of this directory so the web tier can import it without inheriting
+ * this app's dependency closure; the reasoning is in `packages/auth/src/index.ts`.
  */
 
-export { verifyAssertion, AssertionRejection, assertPolicyUsable } from './assertion.js';
-export type { AssertionPolicy, AssertionRejectionReason } from './assertion.js';
+// The verification primitives are `@prisme/auth`'s, and are not re-exported
+// here: one import path per thing, so nobody has to wonder which is canonical.
 export { createAuthorizer, IGNORED_IDENTITY_HEADERS } from './authorizer.js';
-export { assertKeySetUsable, discoverJwksUrl, resolveKeySet } from './jwks.js';
-export { assertSameOrigin, originPolicyFor, OriginRejected } from './origin.js';
-export type { OriginPolicy } from './origin.js';
 export { ownerPrincipal, OWNER_SCOPES } from './principal.js';
 export type { Principal } from './principal.js';
 export { createTokenService, TokenRejection } from './tokens.js';
@@ -47,7 +49,6 @@ export {
 export type { ConfirmationService } from './confirmation.js';
 export { createWriteSwitch, withheldScopes, OUTWARD_WRITE_SCOPES } from './write-switch.js';
 export type { WriteSwitch } from './write-switch.js';
-export { assertUrlAllowed, isUrlAllowed, UrlRejected } from './url-guard.js';
 export { createRateLimiter, DEFAULT_RATE_LIMITS } from './rate-limit.js';
 export { createPostgresAuthStore } from './postgres.js';
 export { createMemoryAuthStore } from './memory-store.js';

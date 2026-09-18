@@ -1,4 +1,3 @@
-import type { JWTVerifyGetKey } from 'jose';
 import type { Logger } from '@prisme/observability';
 import type {
   AuthorizationRequest,
@@ -8,9 +7,16 @@ import type {
 } from '../http/authorize.js';
 import { ApiError } from '../http/errors.js';
 import type { Scope } from '../http/scopes.js';
-import { AssertionRejection, verifyAssertion, type AssertionPolicy } from './assertion.js';
-import { assertSameOrigin, OriginRejected, type OriginPolicy } from './origin.js';
-import type { Principal } from './principal.js';
+import {
+  AssertionRejection,
+  assertSameOrigin,
+  OriginRejected,
+  verifyAssertion,
+  type AssertionPolicy,
+  type KeySource,
+  type OriginPolicy,
+} from '@prisme/auth';
+import { ownerPrincipal, type Principal } from './principal.js';
 import { createRateLimiter, DEFAULT_RATE_LIMITS, type RateLimiter } from './rate-limit.js';
 import { TokenRejection, type TokenService } from './tokens.js';
 import { looksLikeApiToken } from './token-format.js';
@@ -82,7 +88,7 @@ export const IGNORED_IDENTITY_HEADERS: readonly string[] = [
 
 export interface AssertionSource {
   readonly policy: AssertionPolicy;
-  readonly keys: JWTVerifyGetKey;
+  readonly keys: KeySource;
   /** `AUTH_ASSERTION_HEADER`. The *header name* is configuration; its value is a credential. */
   readonly header: string;
 }
@@ -167,10 +173,14 @@ export function createAuthorizer(options: AuthorizerOptions): Authorizer {
     if (source === undefined) return refuse('no identity provider is configured');
 
     try {
-      return await verifyAssertion(rawAssertion, options.now(), {
-        policy: source.policy,
-        keys: source.keys,
-      });
+      // The one place a verified subject becomes authority. `@prisme/auth`
+      // deliberately does not know what a scope is.
+      return ownerPrincipal(
+        await verifyAssertion(rawAssertion, options.now(), {
+          policy: source.policy,
+          keys: source.keys,
+        }),
+      );
     } catch (error) {
       if (error instanceof AssertionRejection) {
         return refuse(`assertion: ${error.reason}`, { path: request.path });

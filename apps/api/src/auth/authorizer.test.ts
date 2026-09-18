@@ -4,10 +4,16 @@ import type { AuthorizationRequest, AuthorizationResult } from '../http/authoriz
 import type { Scope } from '../http/scopes.js';
 import { createAuthorizer, IGNORED_IDENTITY_HEADERS } from './authorizer.js';
 import { createMemoryAuthStore } from './memory-store.js';
-import { originPolicyFor } from './origin.js';
+import { originPolicyFor } from '@prisme/auth';
 import { createRateLimiter } from './rate-limit.js';
 import type { AuthStore } from './store.js';
-import { createTestKeys, goodClaims, NOW, TEST_POLICY, type TestKeys } from './test-support.js';
+import {
+  createTestKeys,
+  goodClaims,
+  NOW,
+  TEST_POLICY,
+  type TestKeys,
+} from '@prisme/auth/test-support';
 import { createTokenService, type TokenService } from './tokens.js';
 import { createWriteSwitch, type WriteSwitch } from './write-switch.js';
 

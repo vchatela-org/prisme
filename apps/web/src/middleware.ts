@@ -9,7 +9,7 @@ import {
   resolveKeySet,
   verifyAssertion,
   type AssertionPolicy,
-} from '@prisme/api/auth/verify';
+} from '@prisme/auth';
 
 /**
  * The web tier's half of W14: verify, check the origin, and set the headers a
@@ -31,8 +31,10 @@ import {
  * tier entirely gains nothing. What this buys is that an unauthenticated
  * browser gets an honest answer here rather than a page shell that discovers,
  * one fetch later, that it has nothing to render. It uses the *same* verifier
- * the API uses (`@prisme/api/auth/verify`), because two implementations of a
- * signature check are two things to keep in agreement and one of them will lose.
+ * the API uses (`@prisme/auth`), because two implementations of a signature
+ * check are two things to keep in agreement and one of them will lose — and it
+ * is a package rather than an import from `apps/api` so that verifying costs
+ * this tier no database driver it has no business holding.
  *
  * The reverse of the rule is the load-bearing half, and it lives in the API:
  * the web tier forwards what it verified, and the API **verifies it again**.
