@@ -69,19 +69,37 @@ describe('markup in third-party rich text', () => {
     expect(all).not.toContain('onclick');
   });
 
-  it('drops a javascript: href rather than carrying it to a renderer', () => {
+  /*
+   * Asserted as an allow-list, which is how the sanitiser actually works.
+   *
+   * The first version of these two tests enumerated the bad schemes —
+   * `javascript:`, then `data:` — and CodeQL's `js/incomplete-url-scheme-check`
+   * flagged it high, correctly: the list was missing `vbscript:`, and a list of
+   * the schemes somebody thought of is exactly the shape of check that fails.
+   *
+   * `packages/connectors` was never doing that; `ALLOWED_URL_SCHEMES` there is
+   * `{http:, https:}` and everything else is dropped. So the weaker assertion
+   * was the *test*, quietly checking less than the code guarantees. Stating the
+   * allow-list covers `javascript:`, `data:`, `vbscript:` and every scheme
+   * nobody has thought of yet, in one line.
+   */
+  const HTTP_ONLY = /^https?:\/\//i;
+
+  it('drops a non-http href rather than carrying it to a renderer', () => {
     for (const segment of sanitised.segments) {
-      expect(segment.href ?? '').not.toMatch(/^javascript:/i);
-      expect(segment.href ?? '').not.toMatch(/^data:/i);
+      if (segment.href === undefined) continue;
+      expect(segment.href, `${segment.href} reached a renderer`).toMatch(HTTP_ONLY);
     }
+    // And the hostile hrefs are genuinely gone rather than never present: the
+    // fixture supplies three links, and only the http one survives as an href.
+    expect(sanitised.segments.filter((segment) => segment.href !== undefined)).toHaveLength(0);
   });
 
   it('collects only http(s) URLs, and only as data', () => {
+    expect(sanitised.urls.length).toBeGreaterThan(0);
     for (const url of sanitised.urls) {
-      expect(url).toMatch(/^https?:\/\//);
+      expect(url, `${url} was collected`).toMatch(HTTP_ONLY);
     }
-    expect(sanitised.urls.some((url) => url.startsWith('javascript:'))).toBe(false);
-    expect(sanitised.urls.some((url) => url.startsWith('data:'))).toBe(false);
   });
 
   it('strips control characters and bidirectional overrides', () => {
