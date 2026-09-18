@@ -8,6 +8,7 @@
     "start": "next start --port 3001"
   },
   "dependencies": {
+    "@prisme/auth": "workspace:*",
     "@prisme/config": "workspace:*",
     "@prisme/observability": "workspace:*",
     "@prisme/ui": "workspace:*",

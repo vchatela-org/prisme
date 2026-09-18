@@ -90,6 +90,8 @@ export interface TestDatabase {
  * new table from the reset and leaves one suite's rows in the next one's view.
  */
 const TABLES = [
+  'confirmation_token',
+  'api_token',
   'sync_conflict',
   'last_applied',
   'entity_link',
@@ -149,6 +151,21 @@ export async function openTestDatabase(): Promise<TestDatabase> {
        * listed, which is how a new table quietly escapes the reset.
        */
       await owner`truncate ${owner(TABLES as unknown as string[])} restart identity`;
+
+      /*
+       * `write_switch` is reset rather than truncated (W14).
+       *
+       * It is a singleton whose row the migration inserts, and reading it is
+       * how the authorizer learns whether writes are frozen. Truncating it
+       * would leave the table empty, `readWriteSwitch` would throw, and every
+       * subsequent suite would fail somewhere far from the cause — so the reset
+       * restores the released state instead of removing the row.
+       */
+      await owner`
+        UPDATE write_switch
+           SET engaged = false, mode = 'outward', changed_at = NULL,
+               changed_by = NULL, reason = NULL
+         WHERE id = 'singleton'`;
     },
     async close(): Promise<void> {
       await client.end({ timeout: 5 });

@@ -80,9 +80,9 @@ contract at all.
 | `MIGRATION_DATABASE_URL` | | | | ● | PostgreSQL connection string, **migration role** — DDL. Used only by the pre-rollout Job |
 | `PRISME_BASE_URL` | ● | ● | ● | | Public base URL, for backlinks and origin checks |
 | `PRISME_API_URL` | ● | | | | Where the web tier reaches the API |
-| `AUTH_ISSUER_URL` | | ● | | | Identity provider issuer, as it appears in the `iss` claim |
-| `AUTH_AUDIENCE` | | ● | | | Expected `aud` — the provider client the assertion was issued for |
-| `AUTH_ALLOWED_SUBJECTS` | | ● | | | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
+| `AUTH_ISSUER_URL` | ● | ● | | | Identity provider issuer, as it appears in the `iss` claim |
+| `AUTH_AUDIENCE` | ● | ● | | | Expected `aud` — the provider client the assertion was issued for |
+| `AUTH_ALLOWED_SUBJECTS` | ● | ● | | | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
 | `TOKEN_PEPPER` | | ● | | | Additional secret mixed into API-token hashing |
 | `DOCTOOL_API_TOKEN` | | ● | ● | | Document-tool integration token |
 | `TASKTOOL_API_TOKEN` | | ● | ● | | Task-tool API token |
@@ -94,6 +94,15 @@ contract rather than merely unused. Its `/readyz` asks the API whether *it* is r
 Two variables here were not in the P0 draft and were added by W00 because the split above needs
 them: `PRISME_API_URL`, and `MIGRATION_DATABASE_URL` for the role split that was already specified
 in §3 but had no variable to carry it.
+
+**The three `AUTH_*` rows gained a `W` in W14**, and the P0 draft was wrong rather than out of date:
+[ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md) rule 6 says *both* tiers verify —
+"the web tier forwards the assertion it verified to the API, and the API verifies it again" — and a
+tier that verifies needs the issuer, the audience and the subject allow-list. There is no
+verification without them. This does not widen what the web process holds in any way that matters:
+`AUTH_*` values are configuration rather than credentials (below), the human authentication path
+holds no secret at all, and `DATABASE_URL` is still absent from the web contract, which is the
+boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually draws.
 
 ### Optional, with defaults
 

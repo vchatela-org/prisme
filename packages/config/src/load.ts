@@ -158,8 +158,20 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
 
   if (problems.length > 0) throw new ConfigError(service, problems);
 
+  /*
+   * Assembled for the two services that verify assertions (W14).
+   *
+   * It used to be `service === 'api'`, which was true when only the API
+   * verified. ADR-0021 rule 6 gives the web tier the same job, and the failure
+   * this caused was worth the walk: with the variables required for `web` but
+   * the object still built only for `api`, `config.auth` came back `undefined`,
+   * the middleware's defensive fallbacks turned that into an empty policy, and
+   * the process died reporting "AUTH_ALLOWED_SUBJECTS is empty" about a
+   * variable that was set correctly. The fallbacks are gone too — a default
+   * that hides a wiring bug is worse than the crash it prevents.
+   */
   const auth: AuthConfig | undefined =
-    service === 'api'
+    service === 'api' || service === 'web'
       ? {
           issuerUrl: parsed['AUTH_ISSUER_URL'] as string,
           audience: parsed['AUTH_AUDIENCE'] as string,

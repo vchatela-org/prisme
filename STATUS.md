@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-17 · **Current phase:** P0 **frozen** — W00–W04 and W07 landed; wave 1 is complete and W05 is in review
+**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05 and W07 landed; **wave 2 is complete** with W14 in review
 
 ---
 
@@ -32,7 +32,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W02](docs/40-workstreams/W02-schedule-engine.md) | Schedule & dependency engine | W01 | 2 | 🟢 | [#19](https://github.com/vchatela-org/prisme/pull/19) merged |
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟢 | [#18](https://github.com/vchatela-org/prisme/pull/18) merged |
 | [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | 🟢 | [#21](https://github.com/vchatela-org/prisme/pull/21) merged |
-| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟡 | [#22](https://github.com/vchatela-org/prisme/pull/22) |
+| [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟢 | [#22](https://github.com/vchatela-org/prisme/pull/22) merged |
 | [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ | — |
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged |
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ | — |
@@ -41,7 +41,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ | — |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
-| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | ⚪ | — |
+| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟡 | [#23](https://github.com/vchatela-org/prisme/pull/23) |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
@@ -56,9 +56,23 @@ admins` is on, so the bypass an agent used to have through the owner's token is 
 
 Required on every PR, as of W00 (#5):
 
-`privacy deny-list` · `gitleaks` · `internal links` · `dependency review` · `typecheck` · `lint` ·
-`test` · `build` · `dependency audit` · `golden fixtures` · `images` · `CodeQL (actions)` ·
-`CodeQL (javascript-typescript)` · `CodeQL (python)`
+`privacy deny-list` · `gitleaks` · `security gate self-test` · `internal links` ·
+`dependency review` · `typecheck` · `lint` · `test` · `build` · `dependency audit` ·
+`golden fixtures` · `images` · `CodeQL (actions)` · `CodeQL (javascript-typescript)` ·
+`CodeQL (python)`
+
+⚠ **Two of those are not actually enforced on `main` yet.** Read back from the GitHub API on
+2026-09-18 (W14): the required-check list does **not** include `golden fixtures`, though this file
+has claimed it since W01 (#17), and `security gate self-test` is new with W14. Both are branch
+protection settings rather than repository ones, so W14 listed them for a human rather than changing
+them silently — [the W14 entry](docs/50-journal/W14-2026-09-18-security.md). A list of required
+checks that nobody reads back is how a gate stops being required without anybody deciding it should.
+
+`security gate self-test` (W14) is the negative control for the two secret scanners: it plants a
+generated secret and a generated deny-list hit in a throwaway worktree and fails if either scanner
+accepts them — or if a clean tree is rejected, because a deny-list that refuses everything is not a
+working one. W00 watched both fail by hand once; this is that, on every pull request, because a
+`paths:` filter or a bad merge turns a gate into decoration and the build stays green either way.
 
 `images` builds all three images, Trivy-scans them, and asserts what is only checkable on a real
 container: that `prisme-api` and `prisme-sync` are the same digest, that neither runs as root, that
@@ -73,17 +87,23 @@ ending:
 
 Both security gates have been **watched fail** and are not taken on trust —
 [the W00 entry](docs/50-journal/W00-2026-09-15-foundations.md) records how, and the two things that
-surprised us while doing it.
+surprised us while doing it. As of W14 that is no longer a memory: `security gate self-test` watches
+them fail on every pull request, so a gate that quietly stops firing is a red build rather than a
+green one.
 
-**W00, W01, W02, W03, W04 and W07 have landed; W05 (#22) is in review.** Nothing any of them depends
-on is open. W07 (#20) was the last of wave 1, so **wave 1 is complete**, and W04 (#21) landed the
-reconciler: `plan` and `apply` are real, and the write freeze is the only thing standing between
-prisme and an outward write. That unblocks **W12**.
-**W05 is in review (#22)**: the API contract now exists, so **W08–W11 have everything they compose
-from** and **W06 is unblocked** — its tools wrap the same service layer rather than the routes.
-Every route declares the scope it requires and no authorizer is installed, so the API answers `401`
-to everything until **W14** supplies the mechanism; W14 was already unblocked and is now the thing
-standing between the API and a caller. **W13** is unblocked too. W00's remaining follow-ups —
+**W00–W05 and W07 have landed; W14 (#23) is in review, and it is the last of wave 2.** Nothing any
+of them depends on is open. W07 (#20) closed wave 1; W04 (#21) landed the reconciler, so `plan` and
+`apply` are real and the write freeze is the only thing standing between prisme and an outward
+write — which unblocks **W12**. W05 (#22) landed the API contract, so **W08–W11 have everything they
+compose from** and **W06 is unblocked**: its tools wrap the same service layer rather than the
+routes, and W14 has already built the diff-bound confirmation mechanism they need.
+
+**The API now has a caller.** Until W14, every route declared a scope and no authorizer was
+installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
+provider assertion for humans, Argon2id-hashed scoped tokens for agents, deny-by-default on every
+route, an API-level kill switch that withholds write scopes, and a strict CSP on the web tier.
+**Wave 3 (W06, W08, W12) is fully unblocked** once it merges, and **W13** was already. W00's
+remaining follow-ups —
 including the Docker build fix its first publish found, and the re-tag that has to follow it — are in
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
 wave that will conflict:
