@@ -162,7 +162,7 @@ const listInitiatives = defineReadTool({
   title: 'Search the ranked backlog',
   scope: 'read:backlog',
   description:
-    'Initiatives, filtered and paged, in the order the active scoring method produced. Use it to find something by area, status or title — not to read the whole backlog, which is paged at 50 and will cost more than it answers. Sorting by `score` returns rows in rank order rather than re-sorting the numbers: two orderings of the same data means the list you read is not the list that chose the week.',
+    'Initiatives, filtered and paged, in the order the active scoring method produced. **This is how you turn a title into an id.** Every other tool that names an initiative takes `initiativeId` and nothing else, so start here with `search` when all you have is what the person called it. Use it to find something by area, status or title — not to read the whole backlog, which is paged at 50 and will cost more than it answers. Sorting by `score` returns rows in rank order rather than re-sorting the numbers: two orderings of the same data means the list you read is not the list that chose the week. `projectId` filters by *project*, which is an optional container holding several initiatives — it is not an initiative itself, and a person saying "the garden project" usually means an initiative whose title mentions it, so try `search` first.',
   input: z.strictObject({
     areaKey: areaKey.optional(),
     status: z.array(initiativeStatus).max(8).optional(),
@@ -247,7 +247,7 @@ const objectives = defineReadTool({
   title: 'Objectives and their key results',
   scope: 'read:objectives',
   description:
-    "Objectives for a period — `2026` for an annual one, `2026-03` for a month — with each key result's self-assessed progress beside the progress computed from its tasks. The two are reported separately on purpose (ADR-0013): self-assessment is the measure that syncs outward, and a divergence between them is the signal, not an error to reconcile.",
+    "Objectives for a period, with each key result's self-assessed progress beside the progress computed from its tasks. **There are two period shapes and no others:** `2026` for an annual objective, `2026-03` for a monthly one. There is no quarter. For a question about one, **omit `period` and filter the results yourself** — `period` takes a single value, so asking about a quarter by month would be three round trips for something one call already answers. The two progress numbers are reported separately on purpose (ADR-0013): self-assessment is the measure that syncs outward, and a divergence between them is the signal, not an error to reconcile.",
   input: z.strictObject({
     period: z
       .string()
@@ -320,7 +320,7 @@ const listTakeaways = defineReadTool({
   title: 'Reading takeaways',
   scope: 'read:focus',
   description:
-    'Takeaways captured from readings, in the document tool. A takeaway of kind `action` is a backlog candidate and can be promoted with `promote_takeaway`; a `principle` never enters the backlog at all and surfaces as context when its area is reviewed (ADR-0014). Filter on `promoted: false` to find what is still waiting on a decision. The takeaway text belongs to the document tool and is not returned here — prisme holds the link, not the content.',
+    'Takeaways captured from readings, in the document tool. **You cannot find one by what it says.** The takeaway text belongs to the document tool outright — prisme holds the link and not the content — so there is no text here and no search argument, and a request like "the note about meal prep" cannot be resolved from this surface at all. Read the document tool for that, then come back with the id. What this does answer is which takeaways are still waiting on a decision: filter on `promoted: false`. A takeaway of kind `action` is a backlog candidate and can be promoted with `promote_takeaway`; a `principle` never enters the backlog at all and surfaces as context when its area is reviewed (ADR-0014).',
   input: z.strictObject({
     kind: z.enum(['principle', 'action']).optional(),
     promoted: z.boolean().optional(),
@@ -358,7 +358,7 @@ const explainScore = defineReadTool({
   title: 'Why an initiative scores what it does',
   scope: 'read:backlog',
   description:
-    "One initiative's current score with every intermediate the active method used, the sentence it produced, and how the number has moved over time. Use it when a ranking is surprising — a number nobody can interrogate stops being trusted the first time it surprises someone. Scores are attributable to the method *and version* that produced them, so two rows with different `methodVersion` are not comparable.",
+    "One initiative's current score with every intermediate the active method used, the sentence it produced, and how the number has moved over time. Use it when a ranking is surprising — a number nobody can interrogate stops being trusted the first time it surprises someone. It takes an `initiativeId` and nothing else: if you have a title, `list_initiatives` with `search` is how you resolve one. Scores are attributable to the method *and version* that produced them, so two rows with different `methodVersion` are not comparable.",
   input: z.strictObject({
     initiativeId: entityId,
     historyLimit: z.int().min(0).max(100).default(10),

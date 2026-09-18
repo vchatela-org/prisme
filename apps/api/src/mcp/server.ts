@@ -71,7 +71,12 @@ export const INSTRUCTIONS = [
   '- A deadline prioritises; a date plans. prisme writes `deadline` and never writes `due`.',
   '- Weights are scoped to a year. There is no current weight, only the weight in force for a given year.',
   '',
-  'Every tool that writes is a dry run unless you send a `confirmationToken`. Call it once to see the diff, show that diff to a human, then call it again with the token it returned. The token is bound to the exact diff: if anything it described has changed, it is refused and you should read the new diff rather than retrying.',
+  'Two things about calling these tools:',
+  '',
+  '1. **Every tool that writes is a dry run unless you send a `confirmationToken`.** Call it once to see the diff, show that diff to a human, then call it again — same arguments — with the token it returned. The token is bound to that exact diff: if anything it described has changed, it is refused, and the right response is to read the new diff rather than to retry. A dry run that reports no changes returns no token, because there is nothing to confirm.',
+  '2. **Tools name an initiative by id, never by title.** `list_initiatives` with `search` is how you turn what somebody called a thing into the id every other tool wants. Takeaways are the exception with no answer: prisme stores the link and not the text, so a takeaway cannot be found by what it says — only listed, and read in the document tool.',
+  '',
+  'A *project* is an optional container holding several initiatives. It is not an initiative and it is not scored; only initiatives are.',
 ].join('\n');
 
 /** The scope a protocol-level method needs: the manifest is metadata about the API. */
