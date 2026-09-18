@@ -358,7 +358,7 @@
   {
     "name": "list_initiatives",
     "title": "Search the ranked backlog",
-    "description": "Initiatives, filtered and paged, in the order the active scoring method produced. Use it to find something by area, status or title — not to read the whole backlog, which is paged at 50 and will cost more than it answers. Sorting by `score` returns rows in rank order rather than re-sorting the numbers: two orderings of the same data means the list you read is not the list that chose the week.",
+    "description": "Initiatives, filtered and paged, in the order the active scoring method produced. **This is how you turn a title into an id.** Every other tool that names an initiative takes `initiativeId` and nothing else, so start here with `search` when all you have is what the person called it. Use it to find something by area, status or title — not to read the whole backlog, which is paged at 50 and will cost more than it answers. Sorting by `score` returns rows in rank order rather than re-sorting the numbers: two orderings of the same data means the list you read is not the list that chose the week. `projectId` filters by *project*, which is an optional container holding several initiatives — it is not an initiative itself, and a person saying \"the garden project\" usually means an initiative whose title mentions it, so try `search` first.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1077,7 +1077,7 @@
   {
     "name": "objectives",
     "title": "Objectives and their key results",
-    "description": "Objectives for a period — `2026` for an annual one, `2026-03` for a month — with each key result's self-assessed progress beside the progress computed from its tasks. The two are reported separately on purpose (ADR-0013): self-assessment is the measure that syncs outward, and a divergence between them is the signal, not an error to reconcile.",
+    "description": "Objectives for a period, with each key result's self-assessed progress beside the progress computed from its tasks. **There are two period shapes and no others:** `2026` for an annual objective, `2026-03` for a monthly one. There is no quarter. For a question about one, **omit `period` and filter the results yourself** — `period` takes a single value, so asking about a quarter by month would be three round trips for something one call already answers. The two progress numbers are reported separately on purpose (ADR-0013): self-assessment is the measure that syncs outward, and a divergence between them is the signal, not an error to reconcile.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1256,7 +1256,7 @@
   {
     "name": "list_takeaways",
     "title": "Reading takeaways",
-    "description": "Takeaways captured from readings, in the document tool. A takeaway of kind `action` is a backlog candidate and can be promoted with `promote_takeaway`; a `principle` never enters the backlog at all and surfaces as context when its area is reviewed (ADR-0014). Filter on `promoted: false` to find what is still waiting on a decision. The takeaway text belongs to the document tool and is not returned here — prisme holds the link, not the content.",
+    "description": "Takeaways captured from readings, in the document tool. **You cannot find one by what it says.** The takeaway text belongs to the document tool outright — prisme holds the link and not the content — so there is no text here and no search argument, and a request like \"the note about meal prep\" cannot be resolved from this surface at all. Read the document tool for that, then come back with the id. What this does answer is which takeaways are still waiting on a decision: filter on `promoted: false`. A takeaway of kind `action` is a backlog candidate and can be promoted with `promote_takeaway`; a `principle` never enters the backlog at all and surfaces as context when its area is reviewed (ADR-0014).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1479,7 +1479,7 @@
   {
     "name": "explain_score",
     "title": "Why an initiative scores what it does",
-    "description": "One initiative's current score with every intermediate the active method used, the sentence it produced, and how the number has moved over time. Use it when a ranking is surprising — a number nobody can interrogate stops being trusted the first time it surprises someone. Scores are attributable to the method *and version* that produced them, so two rows with different `methodVersion` are not comparable.",
+    "description": "One initiative's current score with every intermediate the active method used, the sentence it produced, and how the number has moved over time. Use it when a ranking is surprising — a number nobody can interrogate stops being trusted the first time it surprises someone. It takes an `initiativeId` and nothing else: if you have a title, `list_initiatives` with `search` is how you resolve one. Scores are attributable to the method *and version* that produced them, so two rows with different `methodVersion` are not comparable.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1689,7 +1689,7 @@
   {
     "name": "capture",
     "title": "Capture an initiative into the inbox",
-    "description": "Files a new initiative in the **inbox**, untriaged. Phrase the title as a result — \"fence replaced\", not \"work on fence\": an activity has no completion condition, which is how something stays open for two years. It always lands in `inbox` and never anywhere else; moving it is `set_status`, and estimating it is `score_initiative`. An inbox item is never selected into a now set and carries no meaningful score until it is triaged, which is why the estimates default rather than being required. The dry run lists any existing initiative in the same area with the same title, so a duplicate is visible before it is created.",
+    "description": "Files a new initiative in the **inbox**, untriaged. Phrase the title as a result — \"fence replaced\", not \"work on fence\": an activity has no completion condition, which is how something stays open for two years. It always lands in `inbox` and never anywhere else; moving it is `set_status`, and estimating it is `score_initiative`. `areaKey` is required and has no default — `area_balance` lists the areas that exist, and if the request does not say which one it belongs to, **ask rather than guess**: an initiative filed in the wrong area is counted against the wrong capacity and ranked against the wrong things. An inbox item is never selected into a now set and carries no meaningful score until it is triaged, which is why the estimates default rather than being required. The dry run lists any existing initiative in the same area with the same title, so a duplicate is visible before it is created. There is no delete: a capture you regret is `set_status` to `dropped` with a reason, which is deliberate — an unexplained disappearance is indistinguishable from a deletion six months later.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1998,7 +1998,7 @@
   {
     "name": "promote_takeaway",
     "title": "Promote a reading takeaway into an initiative",
-    "description": "Creates an initiative from an action takeaway and records the link. It **links, it does not copy**: the takeaway stays where it is, in the document tool, and the initiative gets the title you write here rather than the takeaway's own text — a takeaway is phrased as an idea and an initiative has to be phrased as a result. A takeaway of kind `principle` is refused outright: a principle never enters the backlog. A takeaway already promoted is refused too, because promoting it twice duplicates the work.",
+    "description": "Creates an initiative from an action takeaway and records the link. It **links, it does not copy**: the takeaway stays where it is, in the document tool, and the initiative gets the title you write here rather than the takeaway's own text — a takeaway is phrased as an idea and an initiative has to be phrased as a result. A takeaway of kind `principle` is refused outright: a principle never enters the backlog. A takeaway already promoted is refused too, because promoting it twice duplicates the work. The new initiative lands in the **inbox**, untriaged, exactly as `capture` does. `takeawayId` comes from `list_takeaways` — which cannot search by topic, because prisme holds the link and not the text.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2308,7 +2308,7 @@
   {
     "name": "score_initiative",
     "title": "Set an initiative’s estimates",
-    "description": "Changes the four estimates the active scoring method reads — value, time criticality, risk and size — on the Fibonacci scale (1, 2, 3, 5, 8, 13); a 4 or a 6 cannot be constructed. It does **not** write a score: scores are computed from these by the active method and appended to history with the method and version that produced them (ADR-0006). It scores an initiative and never a task — nothing in the task tool carries a score (ADR-0004). Omitted fields are left alone.",
+    "description": "Changes the four estimates the active scoring method reads — value, time criticality, risk and size — on the Fibonacci scale (1, 2, 3, 5, 8, 13); a 4 or a 6 cannot be constructed. It does **not** write a score: scores are computed from these by the active method and appended to history with the method and version that produced them (ADR-0006). It scores an initiative and never a task — nothing in the task tool carries a score (ADR-0004). Omitted fields are left alone. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2601,7 +2601,7 @@
   {
     "name": "set_status",
     "title": "Move one initiative to another status",
-    "description": "Transitions a single initiative and writes the event log with the before and after. Moving to `dropped` requires a `reason`: a drop with no reason is indistinguishable from a deletion six months later, and the reason is the only part anyone re-reads. To change what the week contains, prefer `propose_now_set` — it shows the whole now set moving at once, where this shows one row.",
+    "description": "Transitions a single initiative and writes the event log with the before and after. The ladder is `inbox` (untriaged) → `later` → `next` → `now` (in flight) → `done`, with `waiting` for blocked on someone else, `review` for finished but unverified, and `dropped` for abandoned. **\"I finished it\" is `done`.** Moving to `dropped` requires a `reason`: a drop with no reason is indistinguishable from a deletion six months later, and the reason is the only part anyone re-reads. To change what the week contains, prefer `propose_now_set` — it shows the whole now set moving at once, where this shows one row; use this one when a single initiative moves for its own reasons. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2869,7 +2869,7 @@
   {
     "name": "propose_now_set",
     "title": "Propose what the now set should contain",
-    "description": "Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for \"here is what the week should be\" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.",
+    "description": "Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for \"here is what the week should be\" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. Every id must exist: one bad id refuses the whole proposal rather than applying part of it, and `list_initiatives` with `search` is how you turn a title into one. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -3598,7 +3598,7 @@
   {
     "name": "plan_preview",
     "title": "What the reconciler would do",
-    "description": "Runs a reconciler pass in `plan` mode and returns the rendered plan: what prisme would write to the document tool and the task tool, and what it would refuse. It writes nothing, inward or outward. It nonetheless needs the `write:sync` scope, because running a pass reaches the external tools — the same scope `POST /sync` requires for the same reason, and the outward kill switch therefore withholds it. Read `counts.create` first: a plan that would create anything when you expected it to adopt is the failure ADR-0010 exists to catch.",
+    "description": "Runs a reconciler pass in `plan` mode and returns the rendered plan: what prisme would write to the document tool and the task tool, and what it would refuse. It writes nothing, inward or outward, and it hands back **nothing to execute**. **Use this when you only want to look.** If you intend to go on and apply, skip it and call `apply` without a `confirmationToken` instead — that also runs a `plan` pass, returns the same picture, and additionally gives you the token to confirm it with. Calling both just runs the reconciler twice. It needs the `write:sync` scope despite changing nothing, because running a pass reaches the external tools — the scope `POST /sync` requires for `mode: plan` for the same reason, so the outward kill switch withholds it too. Read `counts.create` first: a plan that would create anything when you expected it to adopt is the failure ADR-0010 exists to catch.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -3704,7 +3704,7 @@
   {
     "name": "apply",
     "title": "Apply the reconciler plan",
-    "description": "Executes a reconciler pass against the document tool and the task tool. Its dry run **is** a `plan` pass, so the diff you confirm is the plan as it stands at that moment; the confirmation is refused if a second pass would now do something different. It is the only tool here that writes outside prisme. It writes `deadline` and never `due` (ADR-0003), and it never completes or deletes a task. A refusal in the result — the write freeze, or a plan over the create threshold — means nothing was written, not that some of it was.",
+    "description": "Executes a reconciler pass against the document tool and the task tool. **This is the one to call when you mean to push changes out** — start with it and no `confirmationToken`: that dry run *is* a `plan` pass, so it returns everything `plan_preview` would and a token besides. Confirm with that token and the diff you were shown is the diff applied; it is refused if a second pass would now do something different. It is the only tool here that writes outside prisme. It writes `deadline` and never `due` (ADR-0003), and it never completes or deletes a task. **What it creates outward, prisme cannot take back** — read `counts.create` before confirming. A refusal in the result — the write freeze, or a plan over the create threshold — means nothing was written, not that some of it was; `sync_status` says in advance whether the freeze is on.",
     "inputSchema": {
       "type": "object",
       "properties": {

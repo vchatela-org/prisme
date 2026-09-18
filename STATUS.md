@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 2 is complete**
+**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 3 has started with W06**
 
 ---
 
@@ -33,7 +33,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟢 | [#18](https://github.com/vchatela-org/prisme/pull/18) merged |
 | [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | 🟢 | [#21](https://github.com/vchatela-org/prisme/pull/21) merged |
 | [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟢 | [#22](https://github.com/vchatela-org/prisme/pull/22) merged |
-| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | ⚪ | — |
+| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | 🟢 | [#26](https://github.com/vchatela-org/prisme/pull/26) |
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged |
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ | — |
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
@@ -98,6 +98,16 @@ write freeze is the only thing standing between prisme and an outward write — 
 **W12**. W05 (#22) landed the API contract, so **W08–W11 have everything they compose from** and
 **W06 is unblocked**: its tools wrap the same service layer rather than the routes, and W14 has
 already built the diff-bound confirmation mechanism they need.
+
+**W06 is the first of wave 3** ([#26](https://github.com/vchatela-org/prisme/pull/26)): seventeen MCP
+tools on one stateless endpoint, wrapping the same service layer the REST routes call. Every write
+tool is a dry run returning a diff and a token bound to it, verified against a plan **re-derived at
+execution time** — so a confirmation cannot authorise a diff nobody saw, and goes stale the moment
+the world moves. The endpoint reads the *tool's* scope before it authenticates and hands that to the
+authorizer, which is what makes W14's kill switch reach a tool written today with nothing in W06
+noticing. The MCP protocol is implemented against its specification rather than taken from the
+reference SDK — [ADR-0024](docs/20-decisions/0024-mcp-without-the-sdk.md), which accepts out loud
+that conformance is now ours. **W08 and W12 remain the open half of wave 3.**
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-

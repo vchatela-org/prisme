@@ -61,7 +61,7 @@ const capture = defineWriteTool({
   title: 'Capture an initiative into the inbox',
   scope: 'write:initiative',
   description:
-    'Files a new initiative in the **inbox**, untriaged. Phrase the title as a result — "fence replaced", not "work on fence": an activity has no completion condition, which is how something stays open for two years. It always lands in `inbox` and never anywhere else; moving it is `set_status`, and estimating it is `score_initiative`. An inbox item is never selected into a now set and carries no meaningful score until it is triaged, which is why the estimates default rather than being required. The dry run lists any existing initiative in the same area with the same title, so a duplicate is visible before it is created.',
+    'Files a new initiative in the **inbox**, untriaged. Phrase the title as a result — "fence replaced", not "work on fence": an activity has no completion condition, which is how something stays open for two years. It always lands in `inbox` and never anywhere else; moving it is `set_status`, and estimating it is `score_initiative`. `areaKey` is required and has no default — `area_balance` lists the areas that exist, and if the request does not say which one it belongs to, **ask rather than guess**: an initiative filed in the wrong area is counted against the wrong capacity and ranked against the wrong things. An inbox item is never selected into a now set and carries no meaningful score until it is triaged, which is why the estimates default rather than being required. The dry run lists any existing initiative in the same area with the same title, so a duplicate is visible before it is created. There is no delete: a capture you regret is `set_status` to `dropped` with a reason, which is deliberate — an unexplained disappearance is indistinguishable from a deletion six months later.',
   input: z.strictObject({
     title: z.string().min(1).max(500),
     areaKey,
@@ -167,7 +167,7 @@ const promoteTakeaway = defineWriteTool({
   title: 'Promote a reading takeaway into an initiative',
   scope: 'write:takeaway',
   description:
-    "Creates an initiative from an action takeaway and records the link. It **links, it does not copy**: the takeaway stays where it is, in the document tool, and the initiative gets the title you write here rather than the takeaway's own text — a takeaway is phrased as an idea and an initiative has to be phrased as a result. A takeaway of kind `principle` is refused outright: a principle never enters the backlog. A takeaway already promoted is refused too, because promoting it twice duplicates the work.",
+    "Creates an initiative from an action takeaway and records the link. It **links, it does not copy**: the takeaway stays where it is, in the document tool, and the initiative gets the title you write here rather than the takeaway's own text — a takeaway is phrased as an idea and an initiative has to be phrased as a result. A takeaway of kind `principle` is refused outright: a principle never enters the backlog. A takeaway already promoted is refused too, because promoting it twice duplicates the work. The new initiative lands in the **inbox**, untriaged, exactly as `capture` does. `takeawayId` comes from `list_takeaways` — which cannot search by topic, because prisme holds the link and not the text.",
   input: z.strictObject({
     takeawayId: entityId,
     title: z.string().min(1).max(500),
@@ -255,7 +255,7 @@ const scoreInitiative = defineWriteTool({
   title: 'Set an initiative’s estimates',
   scope: 'write:initiative',
   description:
-    'Changes the four estimates the active scoring method reads — value, time criticality, risk and size — on the Fibonacci scale (1, 2, 3, 5, 8, 13); a 4 or a 6 cannot be constructed. It does **not** write a score: scores are computed from these by the active method and appended to history with the method and version that produced them (ADR-0006). It scores an initiative and never a task — nothing in the task tool carries a score (ADR-0004). Omitted fields are left alone.',
+    'Changes the four estimates the active scoring method reads — value, time criticality, risk and size — on the Fibonacci scale (1, 2, 3, 5, 8, 13); a 4 or a 6 cannot be constructed. It does **not** write a score: scores are computed from these by the active method and appended to history with the method and version that produced them (ADR-0006). It scores an initiative and never a task — nothing in the task tool carries a score (ADR-0004). Omitted fields are left alone. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.',
   input: z.strictObject({
     initiativeId: entityId,
     value: fibonacci.optional(),
@@ -313,7 +313,7 @@ const setStatus = defineWriteTool({
   title: 'Move one initiative to another status',
   scope: 'write:initiative',
   description:
-    'Transitions a single initiative and writes the event log with the before and after. Moving to `dropped` requires a `reason`: a drop with no reason is indistinguishable from a deletion six months later, and the reason is the only part anyone re-reads. To change what the week contains, prefer `propose_now_set` — it shows the whole now set moving at once, where this shows one row.',
+    'Transitions a single initiative and writes the event log with the before and after. The ladder is `inbox` (untriaged) → `later` → `next` → `now` (in flight) → `done`, with `waiting` for blocked on someone else, `review` for finished but unverified, and `dropped` for abandoned. **"I finished it" is `done`.** Moving to `dropped` requires a `reason`: a drop with no reason is indistinguishable from a deletion six months later, and the reason is the only part anyone re-reads. To change what the week contains, prefer `propose_now_set` — it shows the whole now set moving at once, where this shows one row; use this one when a single initiative moves for its own reasons. If you have a title rather than an `initiativeId`, `list_initiatives` with `search` is how you resolve one.',
   input: z.strictObject({
     initiativeId: entityId,
     to: initiativeStatus,
@@ -378,7 +378,7 @@ const proposeNowSet = defineWriteTool({
   title: 'Propose what the now set should contain',
   scope: 'write:initiative',
   description:
-    'Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for "here is what the week should be" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.',
+    'Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for "here is what the week should be" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. Every id must exist: one bad id refuses the whole proposal rather than applying part of it, and `list_initiatives` with `search` is how you turn a title into one. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.',
   input: z.strictObject({
     initiativeIds: z.array(entityId).max(20),
   }),
@@ -710,7 +710,7 @@ const planPreview = defineReadTool({
   title: 'What the reconciler would do',
   scope: 'write:sync',
   description:
-    'Runs a reconciler pass in `plan` mode and returns the rendered plan: what prisme would write to the document tool and the task tool, and what it would refuse. It writes nothing, inward or outward. It nonetheless needs the `write:sync` scope, because running a pass reaches the external tools — the same scope `POST /sync` requires for the same reason, and the outward kill switch therefore withholds it. Read `counts.create` first: a plan that would create anything when you expected it to adopt is the failure ADR-0010 exists to catch.',
+    'Runs a reconciler pass in `plan` mode and returns the rendered plan: what prisme would write to the document tool and the task tool, and what it would refuse. It writes nothing, inward or outward, and it hands back **nothing to execute**. **Use this when you only want to look.** If you intend to go on and apply, skip it and call `apply` without a `confirmationToken` instead — that also runs a `plan` pass, returns the same picture, and additionally gives you the token to confirm it with. Calling both just runs the reconciler twice. It needs the `write:sync` scope despite changing nothing, because running a pass reaches the external tools — the scope `POST /sync` requires for `mode: plan` for the same reason, so the outward kill switch withholds it too. Read `counts.create` first: a plan that would create anything when you expected it to adopt is the failure ADR-0010 exists to catch.',
   input: z.strictObject({
     full: z.boolean().default(false),
   }),
@@ -736,7 +736,7 @@ const apply = defineWriteTool({
   title: 'Apply the reconciler plan',
   scope: 'write:sync',
   description:
-    'Executes a reconciler pass against the document tool and the task tool. Its dry run **is** a `plan` pass, so the diff you confirm is the plan as it stands at that moment; the confirmation is refused if a second pass would now do something different. It is the only tool here that writes outside prisme. It writes `deadline` and never `due` (ADR-0003), and it never completes or deletes a task. A refusal in the result — the write freeze, or a plan over the create threshold — means nothing was written, not that some of it was.',
+    'Executes a reconciler pass against the document tool and the task tool. **This is the one to call when you mean to push changes out** — start with it and no `confirmationToken`: that dry run *is* a `plan` pass, so it returns everything `plan_preview` would and a token besides. Confirm with that token and the diff you were shown is the diff applied; it is refused if a second pass would now do something different. It is the only tool here that writes outside prisme. It writes `deadline` and never `due` (ADR-0003), and it never completes or deletes a task. **What it creates outward, prisme cannot take back** — read `counts.create` before confirming. A refusal in the result — the write freeze, or a plan over the create threshold — means nothing was written, not that some of it was; `sync_status` says in advance whether the freeze is on.',
   input: z.strictObject({
     full: z.boolean().default(false),
   }),
