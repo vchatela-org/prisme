@@ -61,12 +61,13 @@ Required on every PR, as of W00 (#5):
 `golden fixtures` · `images` · `CodeQL (actions)` · `CodeQL (javascript-typescript)` ·
 `CodeQL (python)`
 
-⚠ **Two of those are not actually enforced on `main` yet.** Read back from the GitHub API on
-2026-09-18 (W14): the required-check list does **not** include `golden fixtures`, though this file
-has claimed it since W01 (#17), and `security gate self-test` is new with W14. Both are branch
-protection settings rather than repository ones, so W14 listed them for a human rather than changing
-them silently — [the W14 entry](docs/50-journal/W14-2026-09-18-security.md). A list of required
-checks that nobody reads back is how a gate stops being required without anybody deciding it should.
+✅ **Both are now enforced on `main`.** W14 found, on 2026-09-18, that the required-check list did
+**not** include `golden fixtures` — despite this file claiming it since W01 (#17) — and that
+`security gate self-test` had never been added. Branch protection is a setting a human makes, not
+an agent silently, so W14 listed it rather than changing it; it was closed the same day, by hand,
+and read back from the API to confirm — [the W14 entry](docs/50-journal/W14-2026-09-18-security.md).
+A list of required checks that nobody reads back is how a gate stops being required without anybody
+deciding it should.
 
 `security gate self-test` (W14) is the negative control for the two secret scanners: it plants a
 generated secret and a generated deny-list hit in a throwaway worktree and fails if either scanner

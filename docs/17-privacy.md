@@ -138,29 +138,57 @@ checklist that drifts. Every line below says what the API actually returned.
       forks, so the pre-publication rewrite below was clean. It is enabled now, which is the normal
       state for a public repository and is only a hazard *before* a rewrite, not after one
 
-### Two settings a human still has to make
+### Two settings that needed a human, now closed (2026-09-18)
 
-Neither is required above, and neither blocks anything. Both were attempted again during W14 and
-refused — the repository-level API call is denied, which matches the P0 finding that they appear to
-need an organisation-level setting:
+The repository-level API call from here was never the fix — it returns success but silently leaves
+both settings `disabled`. The P0 finding was right that this needs an organisation-level action, and
+the reason turned out to be twofold:
 
-- [ ] **Secret scanning validity checks** *(verified still `disabled`)*
-- [ ] **Non-provider patterns** *(verified still `disabled`)* — the one that would matter most here,
-      because prisme's own tokens carry a `prisme_pat_` prefix (W14) and a non-provider pattern is
-      how GitHub would learn to recognise it
+- Attaching an org **code security configuration** to the repository needs the `admin:org` OAuth
+  scope, which the token in use during W14 didn't have.
+- The org's existing default configuration ("GitHub recommended", id 17) failed to attach to
+  `prisme` specifically: it also sets `code_scanning_default_setup: enabled`, which collides with
+  prisme's custom advanced-setup CodeQL workflow ([`.github/workflows/codeql.yml`](../.github/workflows/codeql.yml)).
+  The attach call reports `status: "failed"` with no further detail, and — because it applies
+  atomically — that silently took the two secret-scanning settings down with it too.
+
+Fixed by creating a second, repo-scoped configuration ("prisme secret scanning", id `277411`) that
+only sets the secret-scanning knobs and leaves code scanning, dependency graph and Dependabot as
+`not_set`, then attaching that one to `prisme` alone:
+
+- [x] **Secret scanning validity checks** *(verified: `enabled`, via config 277411)*
+- [x] **Non-provider patterns** *(verified: `enabled`)* — the one that matters most here, because
+      prisme's own tokens carry a `prisme_pat_` prefix (W14) and a non-provider pattern is how
+      GitHub learns to recognise it
 
 ```
-gh api -X PATCH repos/<owner>/<repo> \
-  -f 'security_and_analysis[secret_scanning_validity_checks][status]=enabled' \
-  -f 'security_and_analysis[secret_scanning_non_provider_patterns][status]=enabled'
+gh auth refresh -h github.com -s admin:org
+gh api -X POST orgs/<org>/code-security/configurations \
+  -f name="<repo> secret scanning" \
+  -f secret_scanning=enabled -f secret_scanning_push_protection=enabled \
+  -f secret_scanning_validity_checks=enabled -f secret_scanning_non_provider_patterns=enabled \
+  -f advanced_security=enabled \
+  -f code_scanning_default_setup=not_set -f dependency_graph=not_set \
+  -f dependabot_alerts=not_set -f dependabot_security_updates=not_set \
+  -f private_vulnerability_reporting=not_set
+gh api -X POST orgs/<org>/code-security/configurations/<id>/attach \
+  -f scope=selected -F 'selected_repository_ids[]=<repo id>'
 ```
 
-### One drift found, and not fixed here
+Note for the next reader: `repos/<owner>/<repo>` (`security_and_analysis`) does not reflect settings
+applied through an org configuration — it only mirrors direct repository-level toggles, and kept
+reporting both as `disabled` after they were verifiably live. Read
+`repos/<owner>/<repo>/code-security-configuration` instead.
 
-The required-check list on `main` does **not** include `golden fixtures`, though
-[`STATUS.md`](../STATUS.md) records it as required from W01 (#17). Reading the API is how that was
-found. It is a branch-protection change rather than a repository change, so it is listed for a human
-rather than made silently — see the W14 journal entry.
+### One drift found, and now closed (2026-09-18)
+
+The required-check list on `main` did **not** include `golden fixtures`, though
+[`STATUS.md`](../STATUS.md) has recorded it as required since W01 (#17), and `security gate
+self-test` (W14) had never been added either. It was a branch-protection change rather than a
+repository change, so W14 listed it for a human rather than making it silently. Closed by PATCHing
+`repos/<owner>/<repo>/branches/main/protection/required_status_checks` with the full 15-context
+list (the original 13 plus both) and reading the result back from the API to confirm — `strict`
+must be sent as a real boolean (`-F`, not `-f`, in `gh api`) or GitHub rejects the request.
 
 ## 5. Pre-publication sweep
 
