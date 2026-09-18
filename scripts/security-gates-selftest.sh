@@ -69,18 +69,37 @@ git -C "$WORKTREE" add planted-privacy.md
 
 check "privacy deny-list" env -C "$WORKTREE" ./scripts/privacy-scan.sh --staged
 
-# --- 2. gitleaks -------------------------------------------------------------
+# --- 2. gitleaks ---------------------------------------------------------------
 #
-# A high-entropy assignment under a credential-shaped name, which is what
-# gitleaks' generic rule is for. Generated, for the same reason as above.
+# A private-key block, and the choice of rule is the whole lesson of this
+# section.
+#
+# The first version planted a high-entropy value under an
+# `aws_secret_access_key =` assignment, aiming at gitleaks' `generic-api-key`
+# rule. It passed locally and failed in CI — because that rule is *probabilistic*:
+# it scores Shannon entropy and drops candidates containing stopwords, so whether
+# it fires depends on which random string came out of the generator that run. A
+# negative control that is right most of the time is not a control, it is noise
+# that will eventually be muted.
+#
+# `private-key` matches a fixed header with no entropy threshold, so it fires
+# every time or never — which is exactly the property a control needs.
+#
+# The header is assembled from a variable rather than written out, because a
+# script containing the literal would be caught by the very scan it is testing
+# on every `gitleaks detect` over this repository. That is not a workaround; it
+# is the gate demonstrating that it works, in passing.
 
-planted_secret="$(
-  python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
+marker='PRIVATE KEY'
+planted_key_body="$(
+  python3 -c 'import base64, secrets; print(base64.b64encode(secrets.token_bytes(96)).decode())'
 )"
 
 {
   echo "# planted by security-gates-selftest.sh — never committed"
-  echo "aws_secret_access_key = \"${planted_secret}\""
+  echo "-----BEGIN RSA ${marker}-----"
+  echo "${planted_key_body}"
+  echo "-----END RSA ${marker}-----"
 } > "$WORKTREE/planted-secret.txt"
 
 git -C "$WORKTREE" add planted-secret.txt
