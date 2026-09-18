@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05 and W07 landed; **wave 2 is complete** with W14 in review
+**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 2 is complete**
 
 ---
 
@@ -41,7 +41,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ | — |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
-| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟡 | [#23](https://github.com/vchatela-org/prisme/pull/23) |
+| [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
@@ -92,18 +92,20 @@ surprised us while doing it. As of W14 that is no longer a memory: `security gat
 them fail on every pull request, so a gate that quietly stops firing is a red build rather than a
 green one.
 
-**W00–W05 and W07 have landed; W14 (#23) is in review, and it is the last of wave 2.** Nothing any
-of them depends on is open. W07 (#20) closed wave 1; W04 (#21) landed the reconciler, so `plan` and
-`apply` are real and the write freeze is the only thing standing between prisme and an outward
-write — which unblocks **W12**. W05 (#22) landed the API contract, so **W08–W11 have everything they
-compose from** and **W06 is unblocked**: its tools wrap the same service layer rather than the
-routes, and W14 has already built the diff-bound confirmation mechanism they need.
+**W00–W05, W07 and W14 have landed — wave 2 is complete.** Nothing any of them depends on is open.
+W07 (#20) closed wave 1; W04 (#21) landed the reconciler, so `plan` and `apply` are real and the
+write freeze is the only thing standing between prisme and an outward write — which unblocks
+**W12**. W05 (#22) landed the API contract, so **W08–W11 have everything they compose from** and
+**W06 is unblocked**: its tools wrap the same service layer rather than the routes, and W14 has
+already built the diff-bound confirmation mechanism they need.
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
 provider assertion for humans, Argon2id-hashed scoped tokens for agents, deny-by-default on every
-route, an API-level kill switch that withholds write scopes, and a strict CSP on the web tier.
-**Wave 3 (W06, W08, W12) is fully unblocked** once it merges, and **W13** was already. W00's
+route, an API-level kill switch that withholds write scopes, and a strict CSP on the web tier. Its
+two settings follow-ups — the required-check list and secret scanning — were closed by hand the
+same day, [#24](https://github.com/vchatela-org/prisme/pull/24). **Wave 3 (W06, W08, W12) is now
+fully unblocked**, and **W13** was already. W00's
 remaining follow-ups —
 including the Docker build fix its first publish found, and the re-tag that has to follow it — are in
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
