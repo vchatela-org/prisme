@@ -3,6 +3,8 @@ import type postgres from 'postgres';
 import { createLogger, createMetrics } from '@prisme/observability';
 import type { Config } from '@prisme/config';
 import { createApp } from '../app.js';
+import { createConfirmationService, type ConfirmationService } from '../auth/confirmation.js';
+import { createPostgresAuthStore } from '../auth/postgres.js';
 import { ApiError } from '../http/errors.js';
 import type { Authorizer, Identity } from '../http/authorize.js';
 import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
@@ -79,6 +81,16 @@ export interface TestAppOptions {
   readonly runner?: SyncRunner | undefined;
   /** Pinned, so a ranking computed in a test is the same ranking tomorrow. */
   readonly now?: Date | undefined;
+  /**
+   * Defaults to the **real** confirmation service on the test database (W06).
+   *
+   * Deliberately not a stub. Single use, atomic consumption and expiry are
+   * properties of the `UPDATE … RETURNING` in `auth/postgres.ts`, and a fake
+   * that returns "yes" would assert nothing about the control W06 depends on.
+   * Pass `null` to build an instance that has none, which is the one case worth
+   * faking: it must make every write tool refuse.
+   */
+  readonly confirmations?: ConfirmationService | null | undefined;
 }
 
 export interface TestApp {
@@ -110,6 +122,14 @@ export function createTestApp(options: TestAppOptions): TestApp {
     },
   });
 
+  const now = (): Date => options.now ?? PINNED_NOW;
+
+  const confirmations =
+    options.confirmations === null
+      ? undefined
+      : (options.confirmations ??
+        createConfirmationService({ store: createPostgresAuthStore(options.client), now }));
+
   const app = createApp({
     config: TEST_CONFIG,
     logger: createLogger({ service: 'prisme-api-test', level: 'fatal' }),
@@ -118,7 +138,8 @@ export function createTestApp(options: TestAppOptions): TestApp {
     isShuttingDown: () => false,
     services,
     authorizer: authorizerFor(options.identity ?? FULL_IDENTITY),
-    now: () => options.now ?? PINNED_NOW,
+    confirmations,
+    now,
   });
 
   return {

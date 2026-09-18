@@ -22,3 +22,9 @@ seed.example/
 # Workflow YAML is aligned by hand, and reformatting the three that predate this
 # workstream would bury a real change in cosmetic noise.
 .github/
+
+# Generated, and compared byte for byte. `tools.contract.test.ts` writes this
+# file from the tool definitions and fails when it drifts, so reformatting it
+# would fail that test rather than tidy anything — and the diff a reviewer reads
+# is the point of checking it in at all (W06).
+apps/api/src/mcp/tool-manifest.json
