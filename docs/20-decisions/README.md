@@ -36,6 +36,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0021](0021-verified-forward-auth-assertion.md) | Trust a verified assertion, never an identity header | Accepted |
 | [0022](0022-backups-belong-to-the-deployment-repository.md) | Database backups belong to the deployment repository | Accepted |
 | [0023](0023-node-26-toolchain-baseline.md) | Node 26 is the toolchain baseline, pnpm installed from npm | Accepted |
+| [0024](0024-mcp-without-the-sdk.md) | The MCP surface is written against the specification, not the SDK | Accepted |
 
 ## Format
 
