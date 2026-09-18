@@ -68,13 +68,15 @@ jobs:
       # type and the `no-unsafe-*` rules fire on code that is in fact typed —
       # which is how this was found.
       #
-      # `apps/api` joined it in W14, for the same reason and found the same
-      # way. It is a library now too: the web tier's middleware imports
-      # `@prisme/api/auth/verify`, because ADR-0021 rule 6 has both tiers
-      # verifying assertions with one implementation. Without its declarations,
-      # every value crossing that import is an error type, and `lint` failed on
-      # thirteen `no-unsafe-*` errors in code that is in fact fully typed.
-      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" --filter "./apps/api" run build
+      # `apps/api` is deliberately *not* in the list. W14 briefly put it there,
+      # because the web middleware imported the assertion verifier from it and
+      # `lint` failed on thirteen `no-unsafe-*` errors in correctly typed code.
+      # That was the wrong fix for a real problem: a `workspace:*` edge from
+      # `@prisme/web` to `@prisme/api` also drags the Postgres driver, Hono and
+      # a native Argon2 binding into the web image, and the web tier holds no
+      # database credential by design (docs/14-threat-model.md §2). The verifier
+      # moved to `@prisme/auth` instead, and the glob above covers it.
+      - run: pnpm -r --filter "./packages/*" --filter "./apps/sync" run build
       # ESLint carries two rules that are contract rather than style:
       # packages/domain is pure, and SQL is never built from strings.
       - run: pnpm lint

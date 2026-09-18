@@ -12,10 +12,16 @@ import {
 import type { Services } from '../services/index.js';
 import { createAuthorizer } from './authorizer.js';
 import { createConfirmationService, hashPlan } from './confirmation.js';
-import { originPolicyFor } from './origin.js';
+import { originPolicyFor } from '@prisme/auth';
 import { createPostgresAuthStore } from './postgres.js';
 import type { AuthStore } from './store.js';
-import { createTestKeys, goodClaims, NOW, TEST_POLICY, type TestKeys } from './test-support.js';
+import {
+  createTestKeys,
+  goodClaims,
+  NOW,
+  TEST_POLICY,
+  type TestKeys,
+} from '@prisme/auth/test-support';
 import { createTokenService, type TokenService } from './tokens.js';
 import { createWriteSwitch, type WriteSwitch } from './write-switch.js';
 

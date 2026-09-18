@@ -1,7 +1,13 @@
+import type { VerifiedAssertion } from '@prisme/auth';
 import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
 
 /**
- * Who is asking, once something has been verified.
+ * Who is asking, once something has been verified — **and what they may do**.
+ *
+ * This is the seam. `@prisme/auth` answers "whose signature is this" and stops;
+ * the scope vocabulary is prisme's domain, so turning a verified subject into
+ * authority happens here and only here (docs/14-threat-model.md §3, *Why
+ * authorization stays in prisme*).
  *
  * Two kinds, and they arrive by genuinely different routes (ADR-0015): a human
  * through the identity provider's signed assertion, an agent through a
@@ -46,6 +52,11 @@ export interface Principal {
  */
 export const OWNER_SCOPES: readonly Scope[] = SCOPE_NAMES;
 
-export function ownerPrincipal(subject: string, display?: PrincipalDisplay): Principal {
-  return { kind: 'human', subject, scopes: OWNER_SCOPES, display };
+export function ownerPrincipal(verified: VerifiedAssertion): Principal {
+  return {
+    kind: 'human',
+    subject: verified.subject,
+    scopes: OWNER_SCOPES,
+    display: verified.display,
+  };
 }

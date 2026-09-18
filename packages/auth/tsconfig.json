@@ -1,0 +1,13 @@
+{
+  // Everything in the package, tests included, so ESLint and the editor see
+  // test files with full type information. It emits nothing; the build is
+  // tsconfig.build.json, which excludes the tests.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*.ts"]
+}

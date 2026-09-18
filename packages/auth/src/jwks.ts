@@ -1,4 +1,5 @@
-import { createRemoteJWKSet, type JWTVerifyGetKey } from 'jose';
+import { createRemoteJWKSet } from 'jose';
+import type { KeySource } from './assertion.js';
 import { assertUrlAllowed } from './url-guard.js';
 
 /**
@@ -40,7 +41,7 @@ export interface KeySetOptions {
 
 export interface ResolvedKeySet {
   readonly url: URL;
-  readonly keys: JWTVerifyGetKey;
+  readonly keys: KeySource;
 }
 
 /**

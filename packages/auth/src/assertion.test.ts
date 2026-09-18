@@ -40,30 +40,31 @@ async function rejection(jwt: string, at: Date = NOW): Promise<AssertionRejectio
 }
 
 describe('a well-formed assertion', () => {
-  it('resolves to the owner principal, keyed on sub', async () => {
-    const principal = await verifyAssertion(await keys.sign(goodClaims()), NOW, {
+  it('resolves to a verified subject, keyed on sub', async () => {
+    const verified = await verifyAssertion(await keys.sign(goodClaims()), NOW, {
       policy: TEST_POLICY,
       keys: keys.keys,
     });
 
-    expect(principal.kind).toBe('human');
-    expect(principal.subject).toBe(TEST_SUBJECT);
+    expect(verified.subject).toBe(TEST_SUBJECT);
     // Display material, and provably not the identity: the subject above is the
     // opaque `sub`, not the username or the address.
-    expect(principal.display?.username).toBe('owner');
-    expect(principal.display?.email).toBe('owner@prisme.invalid');
-    expect(principal.subject).not.toBe(principal.display?.email);
+    expect(verified.display.username).toBe('owner');
+    expect(verified.display.email).toBe('owner@prisme.invalid');
+    expect(verified.subject).not.toBe(verified.display.email);
   });
 
-  it('holds every scope, enumerated rather than wildcarded', async () => {
-    const principal = await verifyAssertion(await keys.sign(goodClaims()), NOW, {
+  it('says nothing about what the subject may do', async () => {
+    const verified = await verifyAssertion(await keys.sign(goodClaims()), NOW, {
       policy: TEST_POLICY,
       keys: keys.keys,
     });
 
-    expect(principal.scopes).toContain('read:focus');
-    expect(principal.scopes).toContain('admin:tokens');
-    expect(principal.scopes).not.toContain('*');
+    // Authorization is prisme's domain and lives in apps/api
+    // (docs/14-threat-model.md §3). A verifier that also handed out permissions
+    // would be a second place for that decision to live.
+    expect(verified).not.toHaveProperty('scopes');
+    expect(Object.keys(verified).sort()).toEqual(['display', 'subject']);
   });
 
   it('tolerates a clock a little behind the provider', async () => {

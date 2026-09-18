@@ -38,6 +38,7 @@ RUN pnpm_version="$(node -p "require('/build/package.json').packageManager.split
 COPY apps/api/package.json          apps/api/
 COPY apps/sync/package.json         apps/sync/
 COPY apps/web/package.json          apps/web/
+COPY packages/auth/package.json     packages/auth/
 COPY packages/config/package.json   packages/config/
 COPY packages/db/package.json       packages/db/
 COPY packages/observability/package.json packages/observability/

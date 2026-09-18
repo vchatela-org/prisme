@@ -206,6 +206,9 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.2.1
         version: 2.2.1
+      '@prisme/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@prisme/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -227,9 +230,6 @@ importers:
       hono:
         specifier: ^4.6.0
         version: 4.13.7
-      jose:
-        specifier: ^6.2.12
-        version: 6.2.12
       postgres:
         specifier: ^3.4.0
         version: 3.4.9
@@ -260,9 +260,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@prisme/api':
+      '@prisme/auth':
         specifier: workspace:*
-        version: link:../api
+        version: link:../../packages/auth
       '@prisme/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -297,6 +297,12 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
+
+  packages/auth:
+    dependencies:
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
 
   packages/config:
     dependencies:
