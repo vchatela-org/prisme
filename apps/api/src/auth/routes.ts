@@ -162,7 +162,7 @@ function need(deps: AuthDeps | undefined): AuthDeps {
   return deps;
 }
 
-export function createAuthRoutes(deps?: AuthDeps | undefined): readonly ApiRoute[] {
+export function createAuthRoutes(deps?: AuthDeps): readonly ApiRoute[] {
   return [
     defineRoute({
       operationId: 'listApiTokens',
@@ -260,7 +260,8 @@ export function createAuthRoutes(deps?: AuthDeps | undefined): readonly ApiRoute
       response: WriteSwitchDto,
       handle: async (context) => {
         const auth = need(deps);
-        if (!context.body.engaged) return switchDto(await auth.writeSwitch.release(context.identity.subject));
+        if (!context.body.engaged)
+          return switchDto(await auth.writeSwitch.release(context.identity.subject));
 
         if (context.body.reason === undefined) {
           throw new ApiError('invalid_request', 'engaging the write freeze requires a reason', [

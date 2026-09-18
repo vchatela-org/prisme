@@ -68,13 +68,7 @@ function canonical(value: unknown): string {
 }
 
 export type ConfirmationRejectionReason =
-  | 'malformed'
-  | 'unknown'
-  | 'secret'
-  | 'consumed'
-  | 'expired'
-  | 'stale'
-  | 'subject';
+  'malformed' | 'unknown' | 'secret' | 'consumed' | 'expired' | 'stale' | 'subject';
 
 export class ConfirmationRejection extends Error {
   readonly reason: ConfirmationRejectionReason;

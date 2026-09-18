@@ -133,9 +133,24 @@ export const VARIABLES = {
   },
   PRISME_BASE_URL: { schema: httpUrl('PRISME_BASE_URL'), required: ['web', 'api', 'sync'] },
   PRISME_API_URL: { schema: httpUrl('PRISME_API_URL'), required: ['web'] },
-  AUTH_ISSUER_URL: { schema: httpUrl('AUTH_ISSUER_URL'), required: ['api'] },
-  AUTH_AUDIENCE: { schema: nonEmpty('AUTH_AUDIENCE'), required: ['api'] },
-  AUTH_ALLOWED_SUBJECTS: { schema: csv('AUTH_ALLOWED_SUBJECTS'), required: ['api'] },
+  /*
+   * Required by the **web tier as well as the API** (W14).
+   *
+   * The P0 contract marked these `api`-only, on the reading that the web tier
+   * merely relays. ADR-0021 rule 6 says otherwise, in terms: the web tier
+   * verifies the assertion and forwards the one it verified, and "the web tier
+   * is not a trusted hop". A tier that verifies needs the issuer, the audience
+   * and the subject allow-list — there is no verification without them.
+   *
+   * This is not a widening of what the web process holds in any meaningful
+   * sense: `AUTH_*` values are configuration rather than credentials
+   * (docs/15-runtime.md §2), and the human authentication path holds no secret
+   * at all. `DATABASE_URL` is still absent from the web contract, which is the
+   * boundary that actually matters (docs/14-threat-model.md §2).
+   */
+  AUTH_ISSUER_URL: { schema: httpUrl('AUTH_ISSUER_URL'), required: ['web', 'api'] },
+  AUTH_AUDIENCE: { schema: nonEmpty('AUTH_AUDIENCE'), required: ['web', 'api'] },
+  AUTH_ALLOWED_SUBJECTS: { schema: csv('AUTH_ALLOWED_SUBJECTS'), required: ['web', 'api'] },
   TOKEN_PEPPER: { schema: nonEmpty('TOKEN_PEPPER'), required: ['api'] },
   DOCTOOL_API_TOKEN: { schema: nonEmpty('DOCTOOL_API_TOKEN'), required: ['api', 'sync'] },
   TASKTOOL_API_TOKEN: { schema: nonEmpty('TASKTOOL_API_TOKEN'), required: ['api', 'sync'] },

@@ -33,7 +33,9 @@ interface Harness {
   readonly store: AuthStore;
   readonly tokens: TokenService;
   readonly writeSwitch: WriteSwitch;
-  authorize(request: Partial<AuthorizationRequest> & { headers?: Record<string, string> }): Promise<AuthorizationResult>;
+  authorize(
+    request: Partial<AuthorizationRequest> & { headers?: Record<string, string> },
+  ): Promise<AuthorizationResult>;
 }
 
 function harness(options: { withIdentityProvider?: boolean } = {}): Harness {
@@ -143,7 +145,9 @@ describe('which credential', () => {
       { ...goodClaims(), sub: 'not-allow-listed' },
       { ...goodClaims(), iss: 'https://evil.invalid' },
     ]) {
-      const result = await bay.authorize({ headers: { 'x-prisme-assertion': await keys.sign(claims) } });
+      const result = await bay.authorize({
+        headers: { 'x-prisme-assertion': await keys.sign(claims) },
+      });
       expect(result.ok).toBe(false);
       if (!result.ok) messages.add(result.error.message);
     }
@@ -294,7 +298,11 @@ describe('cross-site state-changing requests', () => {
 describe('the kill switch', () => {
   it('withholds write:sync in outward mode, and leaves reads alone', async () => {
     const bay = harness();
-    await bay.writeSwitch.engage({ mode: 'outward', by: 'owner', reason: 'reconciler misbehaving' });
+    await bay.writeSwitch.engage({
+      mode: 'outward',
+      by: 'owner',
+      reason: 'reconciler misbehaving',
+    });
 
     const write = await bay.authorize({
       scope: 'write:sync',

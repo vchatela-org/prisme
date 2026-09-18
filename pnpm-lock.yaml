@@ -260,6 +260,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@prisme/api':
+        specifier: workspace:*
+        version: link:../api
       '@prisme/config':
         specifier: workspace:*
         version: link:../../packages/config

@@ -111,9 +111,7 @@ export async function createTestKeys(): Promise<TestKeys> {
       // produces: an identity provider with no signing keypair falls back to
       // HMAC with the client secret (ADR-0021 context).
       const secret = await generateSecret('HS256');
-      return new SignJWT(claims)
-        .setProtectedHeader({ alg: 'HS256', kid: 'test-key' })
-        .sign(secret);
+      return new SignJWT(claims).setProtectedHeader({ alg: 'HS256', kid: 'test-key' }).sign(secret);
     },
     unsecured: (claims) => new UnsecuredJWT(claims).encode(),
   };

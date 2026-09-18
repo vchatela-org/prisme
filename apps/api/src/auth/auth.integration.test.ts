@@ -1,10 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { Hono } from 'hono';
+import type { Hono } from 'hono';
 import { createLogger, createMetrics } from '@prisme/observability';
 import type { Config } from '@prisme/config';
 import { createApp } from '../app.js';
 import { API_BASE_PATH, createRoutes } from '../routes/index.js';
-import { openTestDatabase, describeWithDatabase, type TestDatabase } from '../test-support/database.js';
+import {
+  openTestDatabase,
+  describeWithDatabase,
+  type TestDatabase,
+} from '../test-support/database.js';
 import type { Services } from '../services/index.js';
 import { createAuthorizer } from './authorizer.js';
 import { createConfirmationService, hashPlan } from './confirmation.js';
@@ -135,8 +139,15 @@ describe.runIf(describeWithDatabase === 'run')('authentication end to end', () =
     it('answers 401 on every route when no credential is presented', async () => {
       for (const route of createRoutes()) {
         const path = route.path.replace(/:[A-Za-z0-9_]+/g, 'x');
-        const response = await call(route.method.toUpperCase(), path, {}, route.method === 'get' ? undefined : {});
-        expect(response.status, `${route.operationId} answered ${String(response.status)}`).toBe(401);
+        const response = await call(
+          route.method.toUpperCase(),
+          path,
+          {},
+          route.method === 'get' ? undefined : {},
+        );
+        expect(response.status, `${route.operationId} answered ${String(response.status)}`).toBe(
+          401,
+        );
       }
     });
 
@@ -149,7 +160,9 @@ describe.runIf(describeWithDatabase === 'run')('authentication end to end', () =
           { 'x-forwarded-user': 'owner', 'x-forwarded-email': 'owner@prisme.invalid' },
           route.method === 'get' ? undefined : {},
         );
-        expect(response.status, `${route.operationId} answered ${String(response.status)}`).toBe(401);
+        expect(response.status, `${route.operationId} answered ${String(response.status)}`).toBe(
+          401,
+        );
       }
     });
   });
@@ -295,7 +308,10 @@ describe.runIf(describeWithDatabase === 'run')('authentication end to end', () =
       await writeSwitch.engage({ mode: 'all', by: 'owner', reason: 'integration test' });
 
       // A fresh switch over the same database: a new process, in effect.
-      const restarted = createWriteSwitch({ store: createPostgresAuthStore(database.client), now: () => NOW });
+      const restarted = createWriteSwitch({
+        store: createPostgresAuthStore(database.client),
+        now: () => NOW,
+      });
       const current = await restarted.current();
       expect(current.engaged).toBe(true);
       expect(current.mode).toBe('all');

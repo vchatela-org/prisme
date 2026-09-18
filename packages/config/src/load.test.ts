@@ -126,11 +126,40 @@ describe('loadConfig', () => {
         env: {
           PRISME_BASE_URL: 'https://prisme.example.com',
           PRISME_API_URL: 'http://prisme-api:3000',
+          // Required of the web tier as of W14: ADR-0021 rule 6 gives it the
+          // same verification job as the API. This is the boundary that
+          // matters, and it is unchanged — `DATABASE_URL` is still absent.
+          AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme',
+          AUTH_AUDIENCE: 'prisme',
+          AUTH_ALLOWED_SUBJECTS: 'abc123',
         },
         service: 'web',
       });
       expect(config.databaseUrl).toBeUndefined();
       expect(config.apiUrl).toBe('http://prisme-api:3000');
+    });
+
+    it('gives the web tier an assertion policy, because it verifies too', () => {
+      // The web tier used to get `auth: undefined` whatever it was configured
+      // with, because the object was built only for the API. That produced a
+      // boot failure reporting an empty subject allow-list about a variable
+      // that was set — see the note in `load.ts`.
+      const config = loadConfig({
+        env: {
+          PRISME_BASE_URL: 'https://prisme.example.com',
+          PRISME_API_URL: 'http://prisme-api:3000',
+          AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme',
+          AUTH_AUDIENCE: 'prisme',
+          AUTH_ALLOWED_SUBJECTS: 'abc123, def456',
+        },
+        service: 'web',
+      });
+
+      expect(config.auth?.issuerUrl).toBe('https://idp.example.com/application/o/prisme');
+      expect(config.auth?.allowedSubjects).toEqual(['abc123', 'def456']);
+      // …and still no credential of any kind on this path (ADR-0021).
+      expect(config.tokenPepper).toBeUndefined();
+      expect(config.doctoolApiToken).toBeUndefined();
     });
 
     it('the migration job needs the DDL role and nothing else', () => {
