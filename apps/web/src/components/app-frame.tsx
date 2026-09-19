@@ -8,7 +8,7 @@ import {
   type NavGroup,
   type PaletteCommand,
 } from '@prisme/ui';
-import { GitMerge, Inbox, LayoutList, Target } from 'lucide-react';
+import { ChartNoAxesCombined, GitMerge, Inbox, LayoutList, Scale, Target } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, type ReactNode } from 'react';
@@ -28,12 +28,15 @@ import { useMemo, type ReactNode } from 'react';
  *
  * ## The navigation only lists what exists
  *
- * Areas, Timeline, Objectives and the reviews are wave 4 and 5. They are absent
- * rather than disabled: a navigation item that goes nowhere is a 404 a reader
- * finds by clicking, and it teaches them the navigation is unreliable. The
- * *creation* entry points are the ones the brief asks to render as disabled
+ * Timeline, Objectives and the cadence reviews are still wave 4 and 5. They are
+ * absent rather than disabled: a navigation item that goes nowhere is a 404 a
+ * reader finds by clicking, and it teaches them the navigation is unreliable.
+ * The *creation* entry points are the ones the brief asks to render as disabled
  * affordances, and those live on the screens that would create something —
  * where the affordance says what will eventually happen there.
+ *
+ * Areas and KPI were added by W09 on the day their routes landed, which is the
+ * rule this comment describes rather than an exception to it.
  */
 
 const NAV: readonly NavGroup[] = [
@@ -42,6 +45,10 @@ const NAV: readonly NavGroup[] = [
       { label: 'Focus', href: '/', icon: <Target aria-hidden /> },
       { label: 'Backlog', href: '/backlog', icon: <LayoutList aria-hidden /> },
       { label: 'Inbox', href: '/inbox', icon: <Inbox aria-hidden /> },
+      // Areas and KPI are the measurement surfaces: read weekly and hard at
+      // the year's end, rather than several times a day like the three above.
+      { label: 'Areas', href: '/areas', icon: <Scale aria-hidden /> },
+      { label: 'KPI', href: '/kpi', icon: <ChartNoAxesCombined aria-hidden /> },
       // Adoption is a migration surface, not a daily one: it is worked hard
       // once and then rarely, and it becomes empty on purpose. It sits here
       // rather than in a group of its own because it is reached the same way
@@ -105,6 +112,33 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         keywords: ['triage', 'capture', 'takeaway'],
         run: () => {
           router.push('/inbox');
+        },
+      },
+      {
+        id: 'go-areas',
+        label: 'Go to Areas',
+        group: 'Navigate',
+        keywords: ['balance', 'capacity', 'declared', 'observed', 'weights'],
+        run: () => {
+          router.push('/areas');
+        },
+      },
+      {
+        id: 'go-kpi',
+        label: 'Go to the KPI dashboard',
+        group: 'Navigate',
+        keywords: ['metrics', 'throughput', 'adherence', 'attainment', 'charts'],
+        run: () => {
+          router.push('/kpi');
+        },
+      },
+      {
+        id: 'go-year-review',
+        label: 'Go to the Year Review',
+        group: 'Navigate',
+        keywords: ['weights', 'allocation', 'year', 'annual'],
+        run: () => {
+          router.push('/review/year');
         },
       },
       {
