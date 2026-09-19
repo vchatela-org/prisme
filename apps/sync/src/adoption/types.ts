@@ -1,5 +1,3 @@
-import type { Origin } from '@prisme/domain';
-
 /**
  * The vocabulary of adoption.
  *
@@ -143,6 +141,10 @@ export interface Classification {
  * Only **unbound** entities belong here. One already carrying an
  * `entity_external_ref` cannot be the answer: guard 1 would refuse the second
  * binding at the database, and proposing it would be proposing a failure.
+ *
+ * No `origin`. Matching does not consult provenance and must not: an adopted
+ * entity and one prisme created are equally matchable, and the guard that keeps
+ * them apart lives in the planner, not here.
  */
 export interface MatchTarget {
   readonly prismeId: string;
@@ -150,7 +152,6 @@ export interface MatchTarget {
   readonly title: string;
   readonly areaKey?: string | undefined;
   readonly closed: boolean;
-  readonly origin: Origin;
 }
 
 export interface Proposal {

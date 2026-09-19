@@ -49,3 +49,36 @@ export type {
 
 export { shouldRunNow } from './window.js';
 export type { WindowDecision, WindowOptions } from './window.js';
+
+/**
+ * Adoption (W12). `plan`-only by construction: {@link adopt} takes two *read*
+ * clients and a store whose only write is the candidate mirror, so there is no
+ * outward door for a caller to find.
+ */
+export { adopt } from './adoption/run.js';
+export type { AdoptOptions, AdoptResult } from './adoption/run.js';
+export { createAdoptionStore } from './adoption/store.js';
+export type { AdoptionStore } from './adoption/ports.js';
+export { scan, unresolved } from './adoption/queue.js';
+export type { ScanInput, ScanOptions, ScanResult } from './adoption/queue.js';
+export { classify, DEFAULT_CLASSIFIER_CONFIG } from './adoption/classify.js';
+export type { ClassifierConfig } from './adoption/classify.js';
+export { resolve, indexTargets } from './adoption/resolve.js';
+export { coverage, wouldProduceCreate } from './adoption/coverage.js';
+export type { AuditableEntity, CoverageReport, CreateRisk } from './adoption/coverage.js';
+export { formatAdoptionPlan } from './adoption/report.js';
+export { normalise, exactForm } from './adoption/normalise.js';
+export { fuzzyMatch, similarity, titlesAgree, FUZZY_THRESHOLD } from './adoption/similarity.js';
+export { externalKey, isAdoptable, ADOPTABLE_KINDS, CANDIDATE_KINDS } from './adoption/types.js';
+export type {
+  Candidate,
+  CandidateKind,
+  Classification,
+  Confidence,
+  DecidedSet,
+  ExternalKind,
+  ExternalObject,
+  MatchRule,
+  MatchTarget,
+  Proposal,
+} from './adoption/types.js';
