@@ -109,6 +109,8 @@ export const timelineEntryDto = z.object({
   initiativeId: entityId,
   title: z.string(),
   areaKey,
+  /** So a Gantt can group by project without a second request and a join. */
+  projectId: entityId.nullable(),
   status: z.string(),
   durationDays: z.int(),
   plannedStart: calendarDate,

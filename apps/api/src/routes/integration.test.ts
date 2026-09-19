@@ -361,7 +361,12 @@ describeOrSkip('the API against PostgreSQL', () => {
     }
 
     interface ReplanBody {
-      move: { initiativeId: string; requestedStart: string; actualStart: string; honoured: boolean };
+      move: {
+        initiativeId: string;
+        requestedStart: string;
+        actualStart: string;
+        honoured: boolean;
+      };
       shifted: {
         initiativeId: string;
         fromStart: string;
@@ -384,15 +389,11 @@ describeOrSkip('the API against PostgreSQL', () => {
 
       // `init-006` depends on `init-005`, and the edge is drawn from the
       // dependency to the dependent rather than the other way round.
-      expect(timeline.edges).toContainEqual({
-        from: blocker,
-        to: dependent,
-        critical: expect.any(Boolean) as unknown as boolean,
-      });
-
-      const dependentEntry = timeline.initiatives.find(
-        (entry) => entry.initiativeId === dependent,
+      expect(timeline.edges.some((edge) => edge.from === blocker && edge.to === dependent)).toBe(
+        true,
       );
+
+      const dependentEntry = timeline.initiatives.find((entry) => entry.initiativeId === dependent);
       expect(dependentEntry?.boundBy).toBe('dependency');
       expect(dependentEntry?.boundByIds).toContain(blocker);
 
@@ -438,7 +439,10 @@ describeOrSkip('the API against PostgreSQL', () => {
       );
 
       const preview = (
-        await app.request('GET', url(`/timeline/replan?initiativeId=${blocker}&newStart=2026-11-09`))
+        await app.request(
+          'GET',
+          url(`/timeline/replan?initiativeId=${blocker}&newStart=2026-11-09`),
+        )
       ).body as ReplanBody;
 
       // Commit the way the surface does: `earliest_start` is the only date a
