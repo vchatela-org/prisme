@@ -526,6 +526,105 @@ export const deadlineHealthSchema = z.object({
 
 export type DeadlineHealth = z.infer<typeof deadlineHealthSchema>;
 
+/* -------------------------------------------------------------------------
+ * The Timeline (W10)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * One bar.
+ *
+ * Every date here was computed by `packages/domain`'s schedule engine and is
+ * rendered exactly as it arrived. `boundBy` is the field the surface is really
+ * about: it says which constraint decided the start, and a Gantt that cannot
+ * answer that gets overridden once and then ignored (W02 brief §6).
+ *
+ * `deadlineFeasible` is a **flag and only a flag**. prisme never moves a
+ * deadline to make a plan work (ADR-0003), and nothing on this screen offers
+ * to — the one thing a drag writes is `earliest_start`.
+ */
+export const timelineEntrySchema = z.object({
+  initiativeId: id,
+  title: z.string(),
+  areaKey,
+  projectId: id.nullable(),
+  status: z.string(),
+  durationDays: z.number().int(),
+  plannedStart: calendarDate,
+  plannedEnd: calendarDate,
+  earliestStart: calendarDate,
+  earliestFinish: calendarDate,
+  latestStart: calendarDate,
+  latestFinish: calendarDate,
+  slackDays: z.number().int(),
+  onCriticalPath: z.boolean(),
+  deadline: calendarDate.nullable(),
+  deadlineFeasible: z.boolean(),
+  deadlineSlackDays: z.number().int().nullable(),
+  boundBy: z.enum(['dependency', 'earliest_start', 'capacity', 'none']),
+  boundByIds: z.array(id),
+});
+
+export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
+
+export const timelineSchema = z.object({
+  projectStart: calendarDate,
+  projectEnd: calendarDate.nullable(),
+  weightYear: z.number().int(),
+  weightsStale: z.boolean(),
+  initiatives: z.array(timelineEntrySchema),
+  edges: z.array(z.object({ from: id, to: id, critical: z.boolean() })),
+  criticalPath: z.array(id),
+  minSlackDays: z.number().int(),
+  infeasibleDeadlines: z.array(id),
+  /** Depended-on ids not in the plan: it is optimistic exactly there, and says so. */
+  danglingRefs: z.array(id),
+  /** Concurrent initiatives each area may run, from that year's weights. */
+  areaSlots: z.array(z.object({ areaKey, slots: z.number().int() })),
+});
+
+export type Timeline = z.infer<typeof timelineSchema>;
+
+/**
+ * What one move would do, before anything is written.
+ *
+ * The drag asks for this and renders the answer. It does not work out where a
+ * bar lands — a preview the browser computed is a preview that can disagree
+ * with what gets saved, and the disagreement would appear only after somebody
+ * committed it.
+ */
+export const replanSchema = z.object({
+  move: z.object({
+    initiativeId: id,
+    requestedStart: calendarDate,
+    /** Where the plan actually puts it. A move is a request, not an instruction. */
+    actualStart: calendarDate,
+    honoured: z.boolean(),
+    boundBy: z.enum(['dependency', 'earliest_start', 'capacity', 'none']),
+  }),
+  shifted: z.array(
+    z.object({
+      initiativeId: id,
+      fromStart: calendarDate,
+      toStart: calendarDate,
+      fromEnd: calendarDate,
+      toEnd: calendarDate,
+      startDeltaDays: z.number().int(),
+      endDeltaDays: z.number().int(),
+      isDownstream: z.boolean(),
+    }),
+  ),
+  brokenDeadlines: z.array(id),
+  repairedDeadlines: z.array(id),
+  after: z.object({
+    projectEnd: calendarDate.nullable(),
+    criticalPath: z.array(id),
+    infeasibleDeadlines: z.array(id),
+    minSlackDays: z.number().int(),
+  }),
+});
+
+export type Replan = z.infer<typeof replanSchema>;
+
 /**
  * A page of takeaways, read for its `total` alone.
  *

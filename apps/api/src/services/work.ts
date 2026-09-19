@@ -208,6 +208,7 @@ function toTimelineShape(schedule: Schedule, snapshot: Ranking): TimelineShape {
         initiativeId: scheduled.id,
         title: record?.title ?? '',
         areaKey: scheduled.areaKey,
+        projectId: record?.projectId ?? null,
         status: record?.status ?? 'unknown',
         durationDays: scheduled.durationDays,
         plannedStart: scheduled.plannedStart,
