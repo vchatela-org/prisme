@@ -76,6 +76,7 @@ export * from './charts/chart-scale.js';
 export * from './charts/line-chart.js';
 export * from './charts/series.js';
 export * from './charts/stat-tile.js';
+export * from './charts/value-format.js';
 
 // Shell
 export * from './shell/app-shell.js';

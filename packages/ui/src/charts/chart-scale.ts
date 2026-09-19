@@ -146,6 +146,34 @@ export function nearestIndex(positions: readonly number[], x: number): number {
   return best;
 }
 
+/** Roughly how many labels a 640-unit axis fits without crowding. */
+const AXIS_LABEL_TARGET = 8;
+
+/**
+ * Whether the label at `index` is drawn on a time axis of `count` buckets.
+ *
+ * Every `step`th label is kept, and the **last one always is** — a chart whose
+ * axis stops short of its own final period reads as though the data does. The
+ * subtlety is the interaction between those two rules: when `count - 1` is not
+ * a multiple of `step`, the last stepped label can land one or two positions
+ * before the end and the two overlap into an unreadable smear. So a stepped
+ * label within half a step of the end is dropped in favour of the end.
+ *
+ * Pure, and tested, because it is an off-by-one that only shows up at certain
+ * bucket counts — 37 months does it, 36 does not.
+ */
+export function keepLabel(index: number, count: number, target = AXIS_LABEL_TARGET): boolean {
+  if (count <= 0) return false;
+  const last = count - 1;
+  if (index === last) return true;
+
+  const step = Math.max(1, Math.ceil(count / target));
+  if (index % step !== 0) return false;
+
+  // Far enough from the end that the two will not collide.
+  return last - index > step / 2;
+}
+
 /**
  * A bar with a **4px rounded data-end and a square baseline** — the mark spec,
  * which no rectangle primitive can express (`rx` rounds all four corners and
