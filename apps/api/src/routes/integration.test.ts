@@ -344,6 +344,164 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  describe('the timeline and its replan preview', () => {
+    interface TimelineBody {
+      initiatives: {
+        initiativeId: string;
+        earliestStart: string;
+        earliestFinish: string;
+        deadline: string | null;
+        deadlineFeasible: boolean;
+        boundBy: string;
+        boundByIds: string[];
+      }[];
+      edges: { from: string; to: string; critical: boolean }[];
+      criticalPath: string[];
+      areaSlots: { areaKey: string; slots: number }[];
+    }
+
+    interface ReplanBody {
+      move: { initiativeId: string; requestedStart: string; actualStart: string; honoured: boolean };
+      shifted: {
+        initiativeId: string;
+        fromStart: string;
+        toStart: string;
+        toEnd: string;
+        startDeltaDays: number;
+        isDownstream: boolean;
+      }[];
+      brokenDeadlines: string[];
+      repairedDeadlines: string[];
+      after: { criticalPath: string[]; infeasibleDeadlines: string[] };
+    }
+
+    const blocker = fixtureId('init-005');
+    const dependent = fixtureId('init-006');
+
+    it('serves the plan with the capacity each area was planned under', async () => {
+      const { body } = await api().request('GET', url('/timeline'));
+      const timeline = body as TimelineBody;
+
+      // `init-006` depends on `init-005`, and the edge is drawn from the
+      // dependency to the dependent rather than the other way round.
+      expect(timeline.edges).toContainEqual({
+        from: blocker,
+        to: dependent,
+        critical: expect.any(Boolean) as unknown as boolean,
+      });
+
+      const dependentEntry = timeline.initiatives.find(
+        (entry) => entry.initiativeId === dependent,
+      );
+      expect(dependentEntry?.boundBy).toBe('dependency');
+      expect(dependentEntry?.boundByIds).toContain(blocker);
+
+      // Every area carries a slot count, floored at one, so the surface can
+      // show how full an area was rather than only that something waited.
+      expect(timeline.areaSlots.length).toBeGreaterThan(0);
+      for (const slot of timeline.areaSlots) expect(slot.slots).toBeGreaterThanOrEqual(1);
+    });
+
+    it('moves the dependents when the thing they wait on moves', async () => {
+      const { body } = await api().request(
+        'GET',
+        url(`/timeline/replan?initiativeId=${blocker}&newStart=2026-11-09`),
+      );
+      const diff = body as ReplanBody;
+
+      expect(diff.move.initiativeId).toBe(blocker);
+      expect(diff.move.requestedStart).toBe('2026-11-09');
+
+      // The moved one first, then the consequences — and the dependent is one
+      // of them, which is the whole requirement: when one thing moves, the
+      // things that depend on it move too.
+      expect(diff.shifted[0]?.initiativeId).toBe(blocker);
+      expect(diff.shifted[0]?.isDownstream).toBe(false);
+
+      const downstream = diff.shifted.find((entry) => entry.initiativeId === dependent);
+      expect(downstream?.isDownstream).toBe(true);
+      expect(downstream?.startDeltaDays).toBeGreaterThan(0);
+
+      // Pushing the blocker past the dependent's deadline breaks it, and the
+      // preview says so before anything is written.
+      expect(diff.brokenDeadlines).toContain(dependent);
+      expect(diff.repairedDeadlines).toEqual([]);
+      expect(diff.after.infeasibleDeadlines).toContain(dependent);
+    });
+
+    it('never moves a deadline, and the commit matches the preview exactly', async () => {
+      const app = api();
+
+      const before = (await app.request('GET', url('/timeline'))).body as TimelineBody;
+      const deadlinesBefore = new Map(
+        before.initiatives.map((entry) => [entry.initiativeId, entry.deadline]),
+      );
+
+      const preview = (
+        await app.request('GET', url(`/timeline/replan?initiativeId=${blocker}&newStart=2026-11-09`))
+      ).body as ReplanBody;
+
+      // Commit the way the surface does: `earliest_start` is the only date a
+      // human owns here, and `planned_start` is derived from it (ADR-0003,
+      // docs/11-ownership.md).
+      const committed = await app.request('PATCH', url(`/initiatives/${blocker}`), {
+        earliestStart: preview.move.requestedStart,
+      });
+      expect(committed.status).toBe(200);
+
+      const after = (await app.request('GET', url('/timeline'))).body as TimelineBody;
+      const afterById = new Map(after.initiatives.map((entry) => [entry.initiativeId, entry]));
+
+      // The preview promised a set of dates. This is that promise, checked
+      // against the plan the API actually serves afterwards — the failure the
+      // brief warns about is a preview that disagrees with what gets saved.
+      expect(preview.shifted.length).toBeGreaterThan(0);
+      for (const shift of preview.shifted) {
+        const entry = afterById.get(shift.initiativeId);
+        expect(entry?.earliestStart, `${shift.initiativeId} start`).toBe(shift.toStart);
+        expect(entry?.earliestFinish, `${shift.initiativeId} finish`).toBe(shift.toEnd);
+      }
+      expect([...afterById.keys()].sort()).toEqual([...deadlinesBefore.keys()].sort());
+
+      // And not one deadline moved, on any initiative, in either direction.
+      for (const entry of after.initiatives) {
+        expect(entry.deadline, `${entry.initiativeId} deadline`).toBe(
+          deadlinesBefore.get(entry.initiativeId),
+        );
+      }
+      expect(afterById.get(dependent)?.deadlineFeasible).toBe(false);
+    });
+
+    it('refuses a move of work that is not in the plan, without a server failure', async () => {
+      const closed = fixtureId('init-012');
+      const { status } = await api().request(
+        'GET',
+        url(`/timeline/replan?initiativeId=${closed}&newStart=2026-11-09`),
+      );
+      // `init-012` is `done`: closed work is not scheduled, so there is nothing
+      // to move. A caller naming it is a 422, not a 500.
+      expect(status).toBe(422);
+    });
+
+    it('previews behind a read scope, and cannot commit with one', async () => {
+      const reader = api(identityWith(['read:timeline']));
+
+      const preview = await reader.request(
+        'GET',
+        url(`/timeline/replan?initiativeId=${blocker}&newStart=2026-11-09`),
+      );
+      expect(preview.status).toBe(200);
+
+      // The preview is a read; the move is a write. A token that can ask what
+      // a drag would do cannot perform one — which is also what lets the
+      // preview keep working while the kill switch withholds write scopes.
+      const commit = await reader.request('PATCH', url(`/initiatives/${blocker}`), {
+        earliestStart: '2026-11-09',
+      });
+      expect(commit.status).toBe(403);
+    });
+  });
+
   describe('balance', () => {
     it('measures the four-week window and reads numeric shares back as numbers', async () => {
       const app = api();

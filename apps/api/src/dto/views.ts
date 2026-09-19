@@ -140,9 +140,69 @@ export const timelineDto = z.object({
   infeasibleDeadlines: z.array(entityId),
   /** Depended-on ids that are not in the plan: it is optimistic exactly here. */
   danglingRefs: z.array(entityId),
+  /**
+   * Concurrent initiatives each area may run, from the year's weights — the
+   * capacity constraint the plan was built under, floored at one.
+   *
+   * Served because the constraint is otherwise invisible: a Timeline can show
+   * that something is `boundBy: 'capacity'` but not *how full* the area was,
+   * and a reader who cannot see the limit reads a delay as an error. Deriving
+   * it in a browser would be a second copy of `slotsForWeight`.
+   */
+  areaSlots: z.array(z.object({ areaKey, slots: z.int() })),
 });
 
 export const TimelineDto = named('Timeline', timelineDto);
+
+/**
+ * What one move would do — the drag's preview, and a **read**.
+ *
+ * `GET`, on a read scope, with the move in the query: this computes a
+ * hypothetical plan and writes nothing at all. That is not a technicality about
+ * HTTP verbs. An instance with writes frozen must still be able to ask what a
+ * move would cost, and a preview behind `write:initiative` would go dark
+ * exactly when the kill switch is pulled (W14) — which is the moment somebody
+ * most wants to know what they are about to be unable to do.
+ *
+ * Committing the move is a separate, ordinary write: `PATCH /initiatives/{id}`
+ * with `earliestStart`. Nothing here writes `deadline`, ever — prisme flags an
+ * impossible deadline and never moves one (ADR-0003).
+ */
+export const replanDto = z.object({
+  move: z.object({
+    initiativeId: entityId,
+    requestedStart: calendarDate,
+    /** Where it actually lands. Differs when a dependency or the area refused. */
+    actualStart: calendarDate,
+    honoured: z.boolean(),
+    boundBy: z.enum(['dependency', 'earliest_start', 'capacity', 'none']),
+  }),
+  /** Everything whose dates change, the moved one first, then by id. */
+  shifted: z.array(
+    z.object({
+      initiativeId: entityId,
+      fromStart: calendarDate,
+      toStart: calendarDate,
+      fromEnd: calendarDate,
+      toEnd: calendarDate,
+      startDeltaDays: z.int(),
+      endDeltaDays: z.int(),
+      isDownstream: z.boolean(),
+    }),
+  ),
+  /** Feasible before the move, impossible after it. */
+  brokenDeadlines: z.array(entityId),
+  repairedDeadlines: z.array(entityId),
+  /** The plan as it would be, in the parts a preview redraws. */
+  after: z.object({
+    projectEnd: calendarDate.nullable(),
+    criticalPath: z.array(entityId),
+    infeasibleDeadlines: z.array(entityId),
+    minSlackDays: z.int(),
+  }),
+});
+
+export const ReplanDto = named('Replan', replanDto);
 
 const bucketPointDto = z.object({
   periodStart: calendarDate,

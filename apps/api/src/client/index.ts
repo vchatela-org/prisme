@@ -18,6 +18,7 @@ import type {
   focusEntryDto,
   inboxDto,
   kpiDto,
+  replanDto,
   timelineDto,
 } from '../dto/views.js';
 import type { ErrorBody, FieldProblem } from '../http/errors.js';
@@ -67,6 +68,7 @@ export type FocusEntry = z.infer<typeof focusEntryDto>;
 export type Inbox = z.infer<typeof inboxDto>;
 export type Backlog = z.infer<typeof backlogDto>;
 export type Timeline = z.infer<typeof timelineDto>;
+export type Replan = z.infer<typeof replanDto>;
 export type Kpi = z.infer<typeof kpiDto>;
 
 export type { ErrorBody, FieldProblem, Scope };
