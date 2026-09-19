@@ -4,6 +4,8 @@ import {
   computeSchedule,
   daysUntil,
   InvariantError,
+  parseCalendarDate,
+  replan,
   SCHEDULE_DEFAULTS,
   statusIndex,
   toScoreRows,
@@ -18,6 +20,7 @@ import type {
   focusDto,
   focusEntryDto,
   inboxDto,
+  replanDto,
   timelineDto,
 } from '../dto/views.js';
 import { ApiError, notFound } from '../http/errors.js';
@@ -42,6 +45,21 @@ export type FocusEntryShape = z.infer<typeof focusEntryDto>;
 export type BacklogEntryShape = z.infer<typeof backlogEntryDto>;
 export type InboxShape = z.infer<typeof inboxDto>;
 export type TimelineShape = z.infer<typeof timelineDto>;
+export type ReplanShape = z.infer<typeof replanDto>;
+
+/**
+ * One move, as the Timeline asks about it.
+ *
+ * `newStart` is a *request*: a dependency or a full area can refuse it, and the
+ * answer says so rather than quietly granting a date the plan cannot support.
+ * There is no deadline in here, and there is nowhere to put one — a drag never
+ * moves a deadline (ADR-0003, W02 brief §4).
+ */
+export interface ReplanRequest {
+  readonly initiativeId: string;
+  /** `YYYY-MM-DD`, parsed to the domain's branded date here, as `/kpi` does. */
+  readonly newStart: string;
+}
 
 export interface WorkConfig {
   readonly capacityWindowWeeks: number;
@@ -109,6 +127,7 @@ export interface WorkService {
     sort: string;
   }>;
   timeline(now: Date): Promise<TimelineShape>;
+  replanTimeline(move: ReplanRequest, now: Date): Promise<ReplanShape>;
 
   get(id: string, now: Date): Promise<InitiativeDtoShape>;
   create(input: CreateInitiativeRequest, now: Date): Promise<InitiativeDtoShape>;
@@ -152,6 +171,74 @@ function scheduleOf(ranking: Ranking, config: WorkConfig): Schedule {
     },
     now: ranking.now,
   });
+}
+
+/**
+ * A schedule, as the Timeline reads it.
+ *
+ * Extracted so that `/timeline` and the replan preview cannot describe the same
+ * plan differently. The preview returns a *diff* rather than a second copy of
+ * this shape — the browser substitutes the moved dates onto the bars it already
+ * has — but both are read off one mapping, and the one thing worse than no
+ * preview is a preview that disagrees with the plan it previews.
+ */
+function toTimelineShape(schedule: Schedule, snapshot: Ranking): TimelineShape {
+  const critical = new Set(schedule.criticalPath);
+
+  const edges: { from: string; to: string; critical: boolean }[] = [];
+  for (const scheduled of schedule.initiatives) {
+    const initiative = snapshot.recordById.get(scheduled.id);
+    for (const dependency of initiative?.dependsOn ?? []) {
+      edges.push({
+        from: dependency,
+        to: scheduled.id,
+        critical: critical.has(dependency) && critical.has(scheduled.id),
+      });
+    }
+  }
+
+  return {
+    projectStart: schedule.projectStart,
+    projectEnd: schedule.projectEnd ?? null,
+    weightYear: schedule.config.weightYear,
+    weightsStale: schedule.config.weightsStale,
+    initiatives: schedule.initiatives.map((scheduled) => {
+      const record = snapshot.recordById.get(scheduled.id);
+      return {
+        initiativeId: scheduled.id,
+        title: record?.title ?? '',
+        areaKey: scheduled.areaKey,
+        projectId: record?.projectId ?? null,
+        status: record?.status ?? 'unknown',
+        durationDays: scheduled.durationDays,
+        plannedStart: scheduled.plannedStart,
+        plannedEnd: scheduled.plannedEnd,
+        earliestStart: scheduled.earliestStart,
+        earliestFinish: scheduled.earliestFinish,
+        latestStart: scheduled.latestStart,
+        latestFinish: scheduled.latestFinish,
+        slackDays: scheduled.slackDays,
+        onCriticalPath: scheduled.onCriticalPath,
+        deadline: scheduled.deadline ?? null,
+        deadlineFeasible: scheduled.deadlineFeasible,
+        deadlineSlackDays: scheduled.deadlineSlackDays ?? null,
+        boundBy: scheduled.boundBy,
+        boundByIds: [...scheduled.boundByIds],
+      };
+    }),
+    edges: edges.sort((left, right) => {
+      if (left.from !== right.from) return left.from < right.from ? -1 : 1;
+      if (left.to !== right.to) return left.to < right.to ? -1 : 1;
+      return 0;
+    }),
+    criticalPath: [...schedule.criticalPath],
+    minSlackDays: schedule.minSlackDays,
+    infeasibleDeadlines: [...schedule.infeasibleDeadlines],
+    danglingRefs: [...schedule.danglingRefs],
+    areaSlots: [...schedule.config.slotsByArea]
+      .map(([areaKey, slots]) => ({ areaKey, slots }))
+      .sort((left, right) => (left.areaKey < right.areaKey ? -1 : 1)),
+  };
 }
 
 /** Domain invariants are caller errors at this boundary, not server failures. */
@@ -371,58 +458,53 @@ export function createWorkService(
 
     async timeline(now: Date): Promise<TimelineShape> {
       const snapshot = await ranking(now);
-      const schedule = scheduleOf(snapshot, config);
-      const critical = new Set(schedule.criticalPath);
+      return toTimelineShape(scheduleOf(snapshot, config), snapshot);
+    },
 
-      const edges: { from: string; to: string; critical: boolean }[] = [];
-      for (const scheduled of schedule.initiatives) {
-        const initiative = snapshot.recordById.get(scheduled.id);
-        for (const dependency of initiative?.dependsOn ?? []) {
-          edges.push({
-            from: dependency,
-            to: scheduled.id,
-            critical: critical.has(dependency) && critical.has(scheduled.id),
+    async replanTimeline(move: ReplanRequest, now: Date): Promise<ReplanShape> {
+      const snapshot = await ranking(now);
+      const before = scheduleOf(snapshot, config);
+
+      // `replan` refuses an id it was not built from, and closed work, with an
+      // invariant error. Both are the caller naming something unschedulable,
+      // which is a `422` rather than a server failure.
+      const diff = (() => {
+        try {
+          return replan(before, {
+            id: move.initiativeId,
+            newStart: parseCalendarDate(move.newStart),
           });
+        } catch (error) {
+          return asApiError(error);
         }
-      }
+      })();
 
       return {
-        projectStart: schedule.projectStart,
-        projectEnd: schedule.projectEnd ?? null,
-        weightYear: schedule.config.weightYear,
-        weightsStale: schedule.config.weightsStale,
-        initiatives: schedule.initiatives.map((scheduled) => {
-          const record = snapshot.recordById.get(scheduled.id);
-          return {
-            initiativeId: scheduled.id,
-            title: record?.title ?? '',
-            areaKey: scheduled.areaKey,
-            status: record?.status ?? 'unknown',
-            durationDays: scheduled.durationDays,
-            plannedStart: scheduled.plannedStart,
-            plannedEnd: scheduled.plannedEnd,
-            earliestStart: scheduled.earliestStart,
-            earliestFinish: scheduled.earliestFinish,
-            latestStart: scheduled.latestStart,
-            latestFinish: scheduled.latestFinish,
-            slackDays: scheduled.slackDays,
-            onCriticalPath: scheduled.onCriticalPath,
-            deadline: scheduled.deadline ?? null,
-            deadlineFeasible: scheduled.deadlineFeasible,
-            deadlineSlackDays: scheduled.deadlineSlackDays ?? null,
-            boundBy: scheduled.boundBy,
-            boundByIds: [...scheduled.boundByIds],
-          };
-        }),
-        edges: edges.sort((left, right) => {
-          if (left.from !== right.from) return left.from < right.from ? -1 : 1;
-          if (left.to !== right.to) return left.to < right.to ? -1 : 1;
-          return 0;
-        }),
-        criticalPath: [...schedule.criticalPath],
-        minSlackDays: schedule.minSlackDays,
-        infeasibleDeadlines: [...schedule.infeasibleDeadlines],
-        danglingRefs: [...schedule.danglingRefs],
+        move: {
+          initiativeId: diff.move.id,
+          requestedStart: diff.move.requestedStart,
+          actualStart: diff.move.actualStart,
+          honoured: diff.move.honoured,
+          boundBy: diff.move.boundBy,
+        },
+        shifted: diff.shifted.map((entry) => ({
+          initiativeId: entry.id,
+          fromStart: entry.fromStart,
+          toStart: entry.toStart,
+          fromEnd: entry.fromEnd,
+          toEnd: entry.toEnd,
+          startDeltaDays: entry.startDeltaDays,
+          endDeltaDays: entry.endDeltaDays,
+          isDownstream: entry.isDownstream,
+        })),
+        brokenDeadlines: [...diff.brokenDeadlines],
+        repairedDeadlines: [...diff.repairedDeadlines],
+        after: {
+          projectEnd: diff.after.projectEnd ?? null,
+          criticalPath: [...diff.after.criticalPath],
+          infeasibleDeadlines: [...diff.after.infeasibleDeadlines],
+          minSlackDays: diff.after.minSlackDays,
+        },
       };
     },
 

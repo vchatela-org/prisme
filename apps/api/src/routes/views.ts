@@ -7,7 +7,7 @@ import {
   initiativeStatus,
   pagination,
 } from '../dto/common.js';
-import { BacklogDto, FocusDto, InboxDto, KpiDto, TimelineDto } from '../dto/views.js';
+import { BacklogDto, FocusDto, InboxDto, KpiDto, ReplanDto, TimelineDto } from '../dto/views.js';
 import { defineRoute, noQuery, type ApiRoute } from './kit.js';
 
 /**
@@ -99,6 +99,23 @@ export const viewRoutes: readonly ApiRoute[] = [
     query: noQuery,
     response: TimelineDto,
     handle: (context, services) => services.work.timeline(context.now),
+  }),
+
+  defineRoute({
+    operationId: 'getTimelineReplan',
+    method: 'get',
+    path: '/timeline/replan',
+    scope: 'read:timeline',
+    summary: 'What one move would do: the diff, before anything is written',
+    description:
+      'A drag asks this before it commits. It recomputes the whole plan around the move and returns what shifted, what that breaks and what it repairs — and writes nothing, which is why it is a `GET` on a read scope: an instance with writes frozen can still ask what a move would cost. Committing is `PATCH /initiatives/{id}` with `earliestStart`; a move never touches a deadline (ADR-0003).',
+    query: z.strictObject({ initiativeId: entityId, newStart: calendarDate }),
+    response: ReplanDto,
+    handle: (context, services) =>
+      services.work.replanTimeline(
+        { initiativeId: context.query.initiativeId, newStart: context.query.newStart },
+        context.now,
+      ),
   }),
 
   defineRoute({
