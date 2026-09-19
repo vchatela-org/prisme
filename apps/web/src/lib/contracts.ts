@@ -364,3 +364,178 @@ export const adoptionQueueSchema = z.object({
 });
 
 export type AdoptionQueue = z.infer<typeof adoptionQueueSchema>;
+
+/* -------------------------------------------------------------------------
+ * Areas, weights and measurement (W09)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * An area with the fields the Areas screen reads, on top of the three the
+ * daily surfaces need.
+ *
+ * Extended rather than added to `areaSchema` on purpose: a field is described
+ * where it is rendered, and widening the schema every screen shares would mean
+ * Focus fails to load because the KPI dashboard wanted a budget (rule 2 at the
+ * top of this file).
+ */
+export const areaDetailSchema = areaSchema.extend({
+  active: z.boolean(),
+  /** Only the Change lane is ranked. Run and Signals are lanes, not competitors. */
+  rankable: z.boolean(),
+  /** Upkeep is budgeted in hours per week, not as a share of capacity. */
+  runBudgetHoursPerWeek: z.number().nullable(),
+});
+
+export type AreaDetail = z.infer<typeof areaDetailSchema>;
+
+export const areaDetailListSchema = z.object({ items: z.array(areaDetailSchema) });
+
+/**
+ * The weights in force for a year, and whether they were decided *for* it.
+ *
+ * `stale` is the year gate (ADR-0007). It is read on every surface that draws
+ * a target share, and a screen that renders this without showing it has
+ * restored exactly the silence the gate removes — so there is no path through
+ * these screens where `stale` is parsed and then dropped.
+ */
+export const areaWeightsSchema = z.object({
+  year: z.number().int(),
+  sourceYear: z.number().int().nullable(),
+  stale: z.boolean(),
+  /** Whether the rankable areas' weights add up to a whole person's capacity. */
+  sumPct: z.number(),
+  weights: z.array(z.object({ areaKey, year: z.number().int(), weightPct: z.number() })),
+});
+
+export type AreaWeights = z.infer<typeof areaWeightsSchema>;
+
+/**
+ * Declared versus observed capacity, per area — the view that exists nowhere
+ * else, and the reason prisme allocates before it ranks.
+ *
+ * `balanceFactor` arrives computed. Nothing in this tier derives it: the
+ * clamp, the window and the exclusions all live in `packages/domain`, and a
+ * second implementation here is how the two end up disagreeing in front of
+ * the reader (`apps/web/CLAUDE.md` non-negotiable 1).
+ */
+export const areaBalanceSchema = z.object({
+  areaKey,
+  name: z.string(),
+  kind: areaKind,
+  countsTowardCapacity: z.boolean(),
+  minutes: z.number(),
+  completions: z.number().int(),
+  actualSharePct: z.number(),
+  targetSharePct: z.number().nullable(),
+  balanceFactor: z.number(),
+  stale: z.boolean(),
+  /** What the measurement rests on: a recorded duration, or an estimate. */
+  minutesBySource: z.object({
+    recorded: z.number(),
+    declared: z.number(),
+    default: z.number(),
+  }),
+  runHoursPerWeek: z.number().nullable(),
+  runBudgetHoursPerWeek: z.number().nullable(),
+});
+
+export type AreaBalance = z.infer<typeof areaBalanceSchema>;
+
+export const balanceSchema = z.object({
+  /** The window the observation covers, half-open: `(from, to]`. */
+  from: calendarDate,
+  to: calendarDate,
+  windowWeeks: z.number().int(),
+  weightYear: z.number().int(),
+  weightSourceYear: z.number().int().nullable(),
+  stale: z.boolean(),
+  areas: z.array(areaBalanceSchema),
+});
+
+export type Balance = z.infer<typeof balanceSchema>;
+
+const bucketPointSchema = z.object({ periodStart: calendarDate, value: z.number() });
+
+const areaSeriesSchema = z.object({
+  areaKey,
+  kind: areaKind,
+  points: z.array(bucketPointSchema),
+});
+
+/**
+ * The KPI series.
+ *
+ * Note what is *not* here: no share, and no balance factor over time. The API
+ * serves attributed minutes per bucket and this tier normalises them, which is
+ * arithmetic over a series the API has already applied its rules to — the
+ * Signals exclusion in particular is baked in upstream, arriving as zeroes
+ * (`./kpi-view.ts`).
+ */
+export const kpiSchema = z.object({
+  from: calendarDate,
+  to: calendarDate,
+  bucket: z.enum(['week', 'month']),
+  throughput: z.array(areaSeriesSchema),
+  minutes: z.array(areaSeriesSchema),
+  runHours: z.object({
+    budgetHoursPerWeek: z.number().nullable(),
+    points: z.array(bucketPointSchema),
+  }),
+  signalsVolume: z.array(bucketPointSchema),
+  ritualAdherence: z.array(
+    z.object({
+      ritualId: id,
+      name: z.string(),
+      targetAdherencePct: z.number(),
+      points: z.array(bucketPointSchema),
+    }),
+  ),
+  objectiveAttainment: z.array(
+    z.object({
+      objectiveId: id,
+      title: z.string(),
+      period: z.string(),
+      progressSelfPct: z.number().nullable(),
+      progressComputedPct: z.number().nullable(),
+    }),
+  ),
+});
+
+export type Kpi = z.infer<typeof kpiSchema>;
+
+/**
+ * Only the deadline-health part of the timeline.
+ *
+ * The Gantt itself is W10's surface; what the KPI dashboard needs from it is
+ * how many deadlines the schedule says cannot be met. prisme flags an
+ * infeasible deadline and never moves one (ADR-0003), so this is a count of
+ * flags, not a judgement made here.
+ */
+export const deadlineHealthSchema = z.object({
+  initiatives: z.array(
+    z.object({
+      initiativeId: id,
+      areaKey,
+      deadline: calendarDate.nullable(),
+      deadlineFeasible: z.boolean(),
+      deadlineSlackDays: z.number().int().nullable(),
+    }),
+  ),
+  infeasibleDeadlines: z.array(id),
+});
+
+export type DeadlineHealth = z.infer<typeof deadlineHealthSchema>;
+
+/**
+ * A page of takeaways, read for its `total` alone.
+ *
+ * Reading-to-action conversion is two of these — every action takeaway, and
+ * the promoted ones — so the ratio is a division of two counts the API
+ * reports, with no list ever walked in the browser.
+ */
+export const takeawayPageSchema = z.object({
+  items: z.array(takeawaySchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
