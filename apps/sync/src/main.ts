@@ -3,9 +3,10 @@
  * prisme-sync — the CronJob binary and the command line.
  *
  * ```
- *   prisme-sync plan     read everything, decide nothing, print the diff
- *   prisme-sync apply    the same plan, executed
- *   prisme-sync          apply, which is what the CronJob runs
+ *   prisme-sync plan          read everything, decide nothing, print the diff
+ *   prisme-sync apply         the same plan, executed
+ *   prisme-sync               apply, which is what the CronJob runs
+ *   prisme-sync adopt --plan  the adoption scan: candidates, coverage, create audit
  * ```
  *
  * `plan` has no side effects and is free to run at any time, including outside
@@ -24,6 +25,8 @@ import { createFrozenWriter, createTaskToolWriter } from '@prisme/connectors/wri
 import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db';
 import { createLogger, createMetrics, currentRunContext, withNewRun } from '@prisme/observability';
+import { adopt } from './adoption/run.js';
+import { createAdoptionStore } from './adoption/store.js';
 import { createPostgresStore } from './state/postgres.js';
 import { reconcile } from './run.js';
 import { shouldRunNow } from './window.js';
@@ -37,17 +40,39 @@ const config = loadConfigOrExit({ service: 'sync' });
 const logger = createLogger({ service: 'prisme-sync', level: config.logLevel });
 const metrics = createMetrics({ collectDefaults: false });
 
-function modeFrom(argv: readonly string[]): 'plan' | 'apply' | undefined {
+function modeFrom(argv: readonly string[]): 'plan' | 'apply' | 'adopt' | undefined {
   const [command] = argv.slice(2);
   if (command === undefined || command === 'apply') return 'apply';
   if (command === 'plan') return 'plan';
+  if (command === 'adopt') return 'adopt';
   return undefined;
+}
+
+/**
+ * `adopt` accepts `--plan` and refuses anything else.
+ *
+ * The flag is redundant — this command has no other mode and cannot have one —
+ * and it is required anyway, because a bare `prisme-sync adopt` reads like a
+ * verb that does something. Somebody typing it at three in the morning against
+ * a live workspace should have had to say the word `plan` first.
+ */
+function adoptIsPlanOnly(argv: readonly string[]): boolean {
+  const flags = argv.slice(3);
+  return flags.length === 1 && flags[0] === '--plan';
 }
 
 async function main(): Promise<number> {
   const mode = modeFrom(process.argv);
   if (mode === undefined) {
-    process.stderr.write('usage: prisme-sync [plan|apply]\n');
+    process.stderr.write('usage: prisme-sync [plan|apply|adopt --plan]\n');
+    return EXIT_FAILED;
+  }
+
+  if (mode === 'adopt' && !adoptIsPlanOnly(process.argv)) {
+    process.stderr.write(
+      'usage: prisme-sync adopt --plan\n' +
+        'Adoption is plan-only: it proposes, and a human decides in the queue at /adoption.\n',
+    );
     return EXIT_FAILED;
   }
 
@@ -83,6 +108,53 @@ async function main(): Promise<number> {
   };
 
   try {
+    if (mode === 'adopt') {
+      // The same advisory lock as a reconciler pass, and for a reason beyond
+      // tidiness: the scan reads what is unbound, and a pass binding things
+      // underneath it would produce a queue proposing work that was decided
+      // while the scan was looking elsewhere.
+      const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
+        logger.info('adoption scan started');
+        return adopt({
+          store: createAdoptionStore(database.client),
+          taskClient: createTaskToolClient({
+            token: config.tasktoolApiToken as string,
+            transport,
+            metrics: connectorMetrics,
+          }),
+          // No document-tool client: nothing in this repository loads the role
+          // bindings yet, so the stores are not addressable. The scan runs on
+          // the task tool alone and says so in its header rather than pretending
+          // it read everything — see the W12 journal entry's follow-ups.
+          now: () => new Date(),
+          persist: true,
+        });
+      });
+
+      if (!outcome.acquired) {
+        logger.info('a reconciler pass holds the lock; skipping rather than queueing');
+        return EXIT_LOCKED;
+      }
+      /* c8 ignore next -- the lock was acquired, so a result exists */
+      if (outcome.result === undefined) return EXIT_FAILED;
+
+      // Instance data. Printed to a terminal, never pasted into the repository.
+      process.stdout.write(`${outcome.result.report}\n`);
+
+      logger.info('adoption scan complete', {
+        queue: outcome.result.scan.queue.length,
+        certain: outcome.result.scan.autoLinkable.length,
+        manual: outcome.result.coverage.queue.manualRemainder,
+        linkCoveragePct: outcome.result.coverage.linkCoveragePct,
+        wouldCreate: outcome.result.coverage.wouldCreate.length,
+      });
+
+      // A create risk is not a failure of this command — it is the finding the
+      // command exists to produce, and it exits clean so that reading it is a
+      // decision rather than a broken pipeline.
+      return EXIT_OK;
+    }
+
     const startedAt = Date.now();
     const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
       logger.info('pass started', { mode, writeEnabled: config.sync.writeEnabled });

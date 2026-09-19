@@ -1,6 +1,7 @@
 import type { ScanResult } from './queue.js';
 import { unresolved } from './queue.js';
-import type { CandidateKind, MatchTarget } from './types.js';
+import type { Origin } from '@prisme/domain';
+import type { CandidateKind } from './types.js';
 
 /**
  * The verification tooling — W12 scope item 7.
@@ -20,11 +21,20 @@ import type { CandidateKind, MatchTarget } from './types.js';
  * both measures and enforces is one that can be satisfied by weakening itself.
  */
 
-/** An entity as the audit sees it: provenance, and whether it is bound. */
+/**
+ * An entity as the audit sees it: provenance, and whether it is bound.
+ *
+ * **Only entities that carry an `origin` column can appear here** — today,
+ * initiatives and projects. A key result or a ritual has no provenance because
+ * nothing creates one outward, so it cannot satisfy guard 2's predicate and
+ * has nothing for this audit to say. Giving it a fabricated origin to make the
+ * table look complete would produce a create count derived from a value nobody
+ * set, which is worse than a narrower number that is true.
+ */
 export interface AuditableEntity {
   readonly prismeId: string;
   readonly kind: CandidateKind;
-  readonly origin: MatchTarget['origin'];
+  readonly origin: Origin;
   readonly bound: boolean;
 }
 

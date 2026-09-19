@@ -97,7 +97,6 @@ describe('what the audit surfaces', () => {
             title: 'Rebuild the garden shed',
             areaKey: 'home',
             closed: false,
-            origin: 'created_in_prisme',
           },
         ],
       ),
@@ -122,7 +121,6 @@ describe('the rendered plan', () => {
       title: 'A different title entirely',
       areaKey: 'home',
       closed: false,
-      origin: 'adopted',
     },
     {
       prismeId: 'i-1',
@@ -130,7 +128,6 @@ describe('the rendered plan', () => {
       title: 'Rebuild the garden shed',
       areaKey: 'home',
       closed: false,
-      origin: 'created_in_prisme',
     },
   ];
 

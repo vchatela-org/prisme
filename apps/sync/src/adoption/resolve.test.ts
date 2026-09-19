@@ -36,7 +36,6 @@ function targetOf(overrides: Partial<MatchTarget> = {}): MatchTarget {
     title: 'Rebuild the garden shed',
     areaKey: 'home',
     closed: false,
-    origin: 'created_in_prisme',
     ...overrides,
   };
 }
