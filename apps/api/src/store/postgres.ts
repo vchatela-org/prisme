@@ -1,6 +1,7 @@
 import type postgres from 'postgres';
 import type {
   AdherenceRecord,
+  AdoptionCandidateRecord,
   AdoptionRecord,
   AppendEventInput,
   ApiStore,
@@ -66,6 +67,18 @@ type Tx = postgres.TransactionSql;
 function stamp(value: Date | null | undefined): string | null {
   return value === null || value === undefined ? null : value.toISOString();
 }
+
+/**
+ * The estimates an adopted initiative starts with.
+ *
+ * Adoption says *this already exists* and nothing about how big or how valuable
+ * it is, but the four estimates are NOT NULL and an initiative without them
+ * cannot be scored at all. The middle of the scale is the least wrong
+ * placeholder: it ranks the item in the middle of the inbox, where the next
+ * review replaces every one of these. The same number, for the same reason, as
+ * the intent channel's capture in `apps/sync/src/state/postgres.ts`.
+ */
+const ADOPT_ESTIMATE = 3;
 
 function instant(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
@@ -1118,6 +1131,168 @@ export function createPostgresStore(client: Sql): ApiStore {
         return toAdoption(row);
       },
 
+      /**
+       * The queue: the scan's mirror, minus everything already decided.
+       *
+       * The two `not exists` clauses are the convergence property in SQL. A
+       * candidate that has been linked is answered; one that has been ignored
+       * was answered by a human who said no, permanently. Neither is a question,
+       * and re-asking is how a queue gets abandoned (docs/13-migration.md §4).
+       *
+       * Only adoptable kinds appear: the scan does not mirror a loose task, and
+       * this clause is the second line of defence if it ever did.
+       */
+      async adoptionQueue(filter, page: PageRequest): Promise<Paged<AdoptionCandidateRecord>> {
+        const rows = await client<(CandidateRow & { total: string })[]>`
+          select c.external_kind, c.external_id, c.title, c.area_key, c.proposed_kind, c.reason,
+                 c.match_rule, c.confidence, c.proposed_id, c.similarity, c.scanned_at,
+                 count(*) over () as total
+          from adoption_candidate c
+          where c.proposed_kind in ('initiative', 'project', 'key_result', 'ritual')
+            and not exists (
+              select 1 from entity_link l
+              where l.external_kind = c.external_kind and l.external_id = c.external_id
+            )
+            and not exists (
+              select 1 from adoption_ignore g
+              where g.external_kind = c.external_kind and g.external_id = c.external_id
+            )
+            ${filter.areaKey === undefined ? client`` : client`and c.area_key = ${filter.areaKey}`}
+            ${filter.kind === undefined ? client`` : client`and c.proposed_kind = ${filter.kind}`}
+          order by
+            case c.match_rule
+              when 'existing_mapping' then 0
+              when 'exact_title' then 1
+              when 'normalised_title' then 2
+              when 'fuzzy_title' then 3
+              else 5
+            end,
+            c.external_id
+          limit ${page.limit} offset ${page.offset}`;
+        return {
+          items: rows.map(toCandidate),
+          total: rows[0] === undefined ? 0 : Number(rows[0].total),
+        };
+      },
+
+      /**
+       * Adopt: one entity with `origin = 'adopted'`, and the link, in one
+       * transaction.
+       *
+       * **Nothing outward is created, and nothing here could create it.** The
+       * entity is inserted with `origin = 'adopted'`, which the planner's guard
+       * 2 excludes from ever producing a `create` — and the column is immutable
+       * after insert, enforced by a trigger, so it cannot later become one.
+       *
+       * The reference itself is *not* bound here. The row in `entity_link` is a
+       * decided-but-unbound link, which the reconciler turns into an `adopt`
+       * action on its next pass (`DesiredAnchor.pendingExternalId`). Binding it
+       * from this endpoint would mean the API and the reconciler both writing
+       * `entity_external_ref`, and guard 1 is not a race to be won.
+       *
+       * Two kinds are refused rather than guessed at: a key result needs an
+       * objective and a ritual needs a cadence and a target, and neither is
+       * anywhere in a candidate. Refusing is the rule (apps/sync/CLAUDE.md §5);
+       * both are adoptable through the merge path, against an entity that
+       * already exists.
+       */
+      async adoptCandidate(input) {
+        return client.begin(async (tx) => {
+          const candidates = await tx<CandidateRow[]>`
+            select external_kind, external_id, title, area_key, proposed_kind, reason,
+                   match_rule, confidence, proposed_id, similarity, scanned_at
+            from adoption_candidate
+            where external_kind = ${input.externalKind} and external_id = ${input.externalId}
+            for update`;
+          const candidate = candidates[0];
+          if (candidate === undefined) return undefined;
+          if (candidate.area_key === null) {
+            return {
+              ok: false,
+              reason:
+                'this candidate sits outside every mapped area, and an entity belonging to no area ' +
+                'cannot be allocated to — map its location to an area first',
+            };
+          }
+
+          let prismeId: string;
+          if (candidate.proposed_kind === 'initiative') {
+            // The four estimates are NOT NULL and an initiative without them
+            // cannot be scored at all. The middle of the scale is the least
+            // wrong placeholder, and `inbox` is where it gets replaced — the
+            // same reasoning as the intent channel's capture.
+            const inserted = await tx<{ id: string }[]>`
+              insert into initiative
+                (title, area_key, status, value, time_criticality, risk, size, origin)
+              values (${candidate.title}, ${candidate.area_key}, 'inbox',
+                      ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE},
+                      'adopted')
+              returning id::text`;
+            prismeId = (inserted[0] as { id: string }).id;
+          } else if (candidate.proposed_kind === 'project') {
+            const inserted = await tx<{ id: string }[]>`
+              insert into project (name, area_key, status, origin)
+              values (${candidate.title}, ${candidate.area_key}, 'active', 'adopted')
+              returning id::text`;
+            prismeId = (inserted[0] as { id: string }).id;
+          } else {
+            return {
+              ok: false,
+              reason:
+                `adopting a ${candidate.proposed_kind} needs values no candidate carries ` +
+                '(an objective, or a cadence and a target) — merge it onto an entity that ' +
+                'already exists instead, through POST /adoption/decisions',
+            };
+          }
+
+          // The decision is a human one by definition — it arrived through an
+          // authenticated request — so `certain` is not required of it, and the
+          // table's `only_certainty_is_automatic` check is satisfied by
+          // `decided_by = 'human'`.
+          const links = await tx<AdoptionRow[]>`
+            insert into entity_link
+              (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+            values (${prismeId}, ${candidate.external_kind}, ${candidate.external_id},
+                    ${candidate.match_rule ?? 'manual'}, ${candidate.confidence ?? 'manual'},
+                    'human', ${stamp(input.decidedAt)}::timestamptz)
+            returning prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
+                      decided_at, false as bound`;
+
+          return {
+            ok: true,
+            prismeId,
+            kind: candidate.proposed_kind,
+            record: toAdoption(links[0] as AdoptionRow),
+          };
+        });
+      },
+
+      /**
+       * Ignore, permanently.
+       *
+       * `on conflict do nothing` rather than an update: the row is append-only
+       * and a trigger refuses the update anyway, so the only sane response to
+       * ignoring something twice is to leave the first decision — and its
+       * timestamp — exactly as it was.
+       */
+      async ignoreCandidate(input) {
+        const candidates = await client<CandidateRow[]>`
+          select external_kind, external_id, title, area_key, proposed_kind, reason,
+                 match_rule, confidence, proposed_id, similarity, scanned_at
+          from adoption_candidate
+          where external_kind = ${input.externalKind} and external_id = ${input.externalId}`;
+        const candidate = candidates[0];
+        if (candidate === undefined) return undefined;
+
+        await client`
+          insert into adoption_ignore (external_kind, external_id, reason, decided_by, decided_at)
+          values (${input.externalKind}, ${input.externalId}, ${input.reason ?? null},
+                  'human', ${stamp(input.decidedAt)}::timestamptz)
+          on conflict (external_kind, external_id) do nothing`;
+
+        return toCandidate(candidate);
+      },
+
       async conflicts(resolution, page: PageRequest): Promise<Paged<ConflictRecord>> {
         const rows = await client<(ConflictRow & { total: string })[]>`
           select id::text, entity_id, field, prisme_value, external_value, detected_at,
@@ -1339,6 +1514,20 @@ export function createPostgresStore(client: Sql): ApiStore {
     occurred_at: Date | string;
   }
 
+  interface CandidateRow {
+    external_kind: string;
+    external_id: string;
+    title: string;
+    area_key: string | null;
+    proposed_kind: string;
+    reason: string;
+    match_rule: string | null;
+    confidence: string | null;
+    proposed_id: string | null;
+    similarity: string | number | null;
+    scanned_at: Date | string;
+  }
+
   interface AdoptionRow {
     prisme_id: string;
     external_kind: string;
@@ -1360,6 +1549,29 @@ export function createPostgresStore(client: Sql): ApiStore {
       decidedBy: row.decided_by,
       decidedAt: required(row.decided_at, 'entity_link.decided_at'),
       bound: row.bound,
+    };
+  }
+
+  /**
+   * A candidate row.
+   *
+   * `similarity` is `numeric`, which the driver hands back as a **string** —
+   * `Number(null)` is 0, so the null check comes first or every unscored
+   * candidate reports a perfect 0.000 similarity it never had.
+   */
+  function toCandidate(row: CandidateRow): AdoptionCandidateRecord {
+    return {
+      externalKind: row.external_kind,
+      externalId: row.external_id,
+      title: row.title,
+      areaKey: row.area_key,
+      proposedKind: row.proposed_kind,
+      reason: row.reason,
+      matchRule: row.match_rule,
+      confidence: row.confidence,
+      proposedId: row.proposed_id,
+      similarity: row.similarity === null ? null : Number(row.similarity),
+      scannedAt: required(row.scanned_at, 'adoption_candidate.scanned_at'),
     };
   }
 

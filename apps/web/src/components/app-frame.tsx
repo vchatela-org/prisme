@@ -8,7 +8,7 @@ import {
   type NavGroup,
   type PaletteCommand,
 } from '@prisme/ui';
-import { Inbox, LayoutList, Target } from 'lucide-react';
+import { GitMerge, Inbox, LayoutList, Target } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, type ReactNode } from 'react';
@@ -42,6 +42,11 @@ const NAV: readonly NavGroup[] = [
       { label: 'Focus', href: '/', icon: <Target aria-hidden /> },
       { label: 'Backlog', href: '/backlog', icon: <LayoutList aria-hidden /> },
       { label: 'Inbox', href: '/inbox', icon: <Inbox aria-hidden /> },
+      // Adoption is a migration surface, not a daily one: it is worked hard
+      // once and then rarely, and it becomes empty on purpose. It sits here
+      // rather than in a group of its own because it is reached the same way
+      // the other three are, and a second group for one item is a heading.
+      { label: 'Adoption', href: '/adoption', icon: <GitMerge aria-hidden /> },
     ],
   },
 ];

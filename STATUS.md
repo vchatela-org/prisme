@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08 and W14 landed; **wave 3 in progress: W06 and W08 are merged, W12 is open**
+**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08 and W14 landed; **wave 3 is complete: W06 and W08 are merged, W12 is open as [#29](https://github.com/vchatela-org/prisme/pull/29)**
 
 ---
 
@@ -39,7 +39,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
-| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | ⚪ | — |
+| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
 | [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
@@ -127,7 +127,29 @@ a length that comes from data is exact as an attribute. The repository's first c
 renders the design system and asserts the markup carries no `style=`, so this cannot come back
 unseen. What is left on the gallery is twelve violations from Radix's own markup, recorded in
 [the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them make
-a hidden native control visible, so wave 4 should know. **W12 remains the open half of wave 3.**
+a hidden native control visible, so wave 4 should know.
+
+**W12 closes wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
+which is the highest-risk workstream in the project and the one thing standing between prisme and
+years of existing work. It is `plan`-only by shape rather than by a flag — `adopt` takes two *read*
+clients and a store whose only write is a candidate mirror, so there is no outward door for a caller
+to find. The scan is level-triggered like every other pass: the whole external world in, the whole
+queue out, and `adoption_candidate` replaced wholesale. Decisions live in `entity_link` and
+`adoption_ignore`, which a scan never touches.
+
+Two things in it are worth knowing before reading the diff. **Rule 4 needed more than a threshold**:
+pure Sørensen–Dice scores `Review the 2026 budget` against `Review the 2027 budget` at 0.90, and no
+threshold separates that pair without rejecting every real near-match too — so a fuzzy proposal now
+requires the score *and* a word-level agreement test, and a ten-pair near-miss corpus is refused even
+at a threshold of zero. And **the queue holds only what would become an entity**: a loose task, a
+principle and a signal are counted and reported, never queued, because nobody works a queue of four
+thousand. A 4 020-object corpus produces a queue of five, asserted rather than hoped.
+
+The document-tool half of the classifier is built, unit-tested and **not reachable**: nothing in this
+repository loads the role bindings, so `createDocToolClient` still has no caller and the scan runs on
+the task tool alone — saying `document tool   not read` in its header rather than pretending
+otherwise. That is a missing dependency, recorded in
+[the entry](docs/50-journal/W12-2026-09-19-adoption.md), not a gap in W12.
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
@@ -187,6 +209,9 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
 - [ ] **A restore rehearsed at least once**, not merely scheduled
 - [ ] `plan` read by hand, `create: 0` confirmed (ADR-0010 guard 3)
 - [ ] Adoption queue worked; link coverage reported (W12)
+- [ ] `prisme-sync adopt --plan` **run against the live instance** and read by hand. W12 built it and
+      deliberately recorded no output: the plan carries real titles and cannot enter this repository
+      (`apps/sync/CLAUDE.md`). A human runs it, confirms `Would create: 0`, and agrees with the plan
 
 ## Before the repository goes public
 
