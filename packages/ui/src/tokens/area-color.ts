@@ -36,7 +36,54 @@ export type AreaKind = 'area' | 'run' | 'signals';
 /** 1-based, matching the palette's slot numbering. */
 export type SeriesSlot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
+/** Every slot a mark can take: one of the eight hues, or the lane grey. */
+export type ColorSlot = SeriesSlot | 'lane';
+
+/**
+ * A reference to one of the design system's custom properties.
+ *
+ * The template type is the point, not decoration: this value is written into
+ * an SVG `fill` attribute, so restricting it to `var(--prisme-…)` is what
+ * keeps a caller from ever putting data-derived text there.
+ */
+export type ColorVar = `var(--prisme-${string})`;
+
 export type AreaColorOverrides = Readonly<Record<string, SeriesSlot>>;
+
+/**
+ * The class that paints a slot, in HTML.
+ *
+ * Tailwind resolves each of these to `var(--prisme-series-n)` through the
+ * `@theme inline` block the token sheet generates, so a swatch follows the
+ * active theme exactly as an inline `background-color` did — and, unlike the
+ * inline style, it survives a Content-Security-Policy that refuses `style`
+ * attributes (docs/14-threat-model.md; `no-inline-style.test.tsx`).
+ *
+ * The table is written out rather than assembled because Tailwind scans source
+ * *text*: a class name built at runtime is one its scanner never sees, and the
+ * swatch would render unpainted with nothing failing.
+ */
+const SLOT_CLASS: Readonly<Record<ColorSlot, string>> = {
+  1: 'bg-series-1',
+  2: 'bg-series-2',
+  3: 'bg-series-3',
+  4: 'bg-series-4',
+  5: 'bg-series-5',
+  6: 'bg-series-6',
+  7: 'bg-series-7',
+  8: 'bg-series-8',
+  lane: 'bg-lane',
+};
+
+/** The class an HTML mark paints with. */
+export function colorSlotClass(slot: ColorSlot): string {
+  return SLOT_CLASS[slot];
+}
+
+/** The CSS value an SVG mark paints with, as a `fill` or a `stroke`. */
+export function colorSlotVar(slot: ColorSlot): ColorVar {
+  return slot === 'lane' ? 'var(--prisme-lane)' : `var(--prisme-series-${String(slot)})`;
+}
 
 /**
  * FNV-1a over the key's UTF-8 bytes. Chosen for being small, dependency-free
@@ -74,20 +121,29 @@ export function areaColorSlot(
 }
 
 /**
- * The CSS value to paint with — always a custom property, so the colour
- * follows the active theme instead of being frozen at render time.
+ * The CSS value an area's **SVG** marks paint with — always a custom property,
+ * so the colour follows the active theme instead of being frozen at render
+ * time.
  *
- * Data-derived colour is the one case where the system uses an inline style
- * rather than a utility class: a class name assembled at runtime is a class
- * name Tailwind's scanner never sees, and it would silently render unstyled.
+ * HTML marks use `areaColorClass` instead. The split is not taste: a `style`
+ * attribute is refused by the policy the web tier sends, while an SVG `fill`
+ * is an attribute CSP does not govern. Neither carries anything but a token.
  */
 export function areaColorVar(
   key: string,
   kind: AreaKind = 'area',
   overrides: AreaColorOverrides = {},
+): ColorVar {
+  return colorSlotVar(areaColorSlot(key, kind, overrides) ?? 'lane');
+}
+
+/** The class an area's HTML marks paint with. */
+export function areaColorClass(
+  key: string,
+  kind: AreaKind = 'area',
+  overrides: AreaColorOverrides = {},
 ): string {
-  const slot = areaColorSlot(key, kind, overrides);
-  return slot === null ? 'var(--prisme-lane)' : `var(--prisme-series-${slot})`;
+  return colorSlotClass(areaColorSlot(key, kind, overrides) ?? 'lane');
 }
 
 /**

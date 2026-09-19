@@ -3,14 +3,26 @@
 import { useRef, useState } from 'react';
 import { cn } from '../lib/cn.js';
 import { ChartFrame, ChartTable, type ChartFrameProps } from './chart-frame.js';
+import {
+  colorSlotClass,
+  colorSlotVar,
+  type ColorSlot,
+  type ColorVar,
+} from '../tokens/area-color.js';
 import { linearScale, linePath, nearestIndex, niceTicks, paddedDomain } from './chart-scale.js';
-import { SERIES_LIMIT, seriesVar } from './series.js';
+import { SERIES_LIMIT, seriesSlot } from './series.js';
 
 export interface LineSeries {
   label: string;
   /** `null` is a gap in the record, not a zero. It breaks the line. */
   values: readonly (number | null)[];
-  color?: string;
+  /**
+   * Overrides the categorical slot for this line — an area's slot, so the line
+   * matches its badge. A slot rather than a colour: the line is an SVG
+   * `stroke` and its legend key is a class, and both derive from this one
+   * value (`tokens/area-color.ts`).
+   */
+  slot?: ColorSlot;
 }
 
 export interface LineChartProps extends Omit<
@@ -72,7 +84,9 @@ export function LineChart({ labels, series, format, ...frame }: LineChartProps) 
   const positions = labels.map((_, index) => xAt(index));
   const ticks = niceTicks(domain[0], domain[1], 4);
 
-  const colorFor = (line: LineSeries, index: number): string => line.color ?? seriesVar(index);
+  const slotFor = (line: LineSeries, index: number): ColorSlot => line.slot ?? seriesSlot(index);
+  const colorFor = (line: LineSeries, index: number): ColorVar =>
+    colorSlotVar(slotFor(line, index));
 
   const tableView = (
     <ChartTable
@@ -113,7 +127,7 @@ export function LineChart({ labels, series, format, ...frame }: LineChartProps) 
       tableView={tableView}
       legend={series.map((line, index) => ({
         label: line.label,
-        color: colorFor(line, index),
+        colorClass: colorSlotClass(slotFor(line, index)),
         shape: 'line',
       }))}
     >
@@ -146,7 +160,7 @@ export function LineChart({ labels, series, format, ...frame }: LineChartProps) 
                 dominantBaseline="middle"
                 fontSize={11}
                 fill="var(--prisme-ink-secondary)"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
+                className="tabular-nums"
               >
                 {formatValue(tick)}
               </text>
@@ -280,8 +294,10 @@ export function LineChart({ labels, series, format, ...frame }: LineChartProps) 
                 <span key={line.label} className="flex items-center gap-2">
                   <span
                     aria-hidden="true"
-                    className="h-0.5 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: colorFor(line, index) }}
+                    className={cn(
+                      'h-0.5 w-3 shrink-0 rounded-full',
+                      colorSlotClass(slotFor(line, index)),
+                    )}
                   />
                   <span className="text-sm font-semibold text-ink tabular-nums">
                     {value === null || value === undefined ? '—' : formatValue(value)}

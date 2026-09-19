@@ -3,7 +3,7 @@
 import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn.js';
 import type { AreaKind } from '../tokens/area-color.js';
-import { useAreaColorVar } from './area-color-context.js';
+import { useAreaColorClass } from './area-color-context.js';
 
 export interface AreaBadgeProps extends Omit<ComponentProps<'span'>, 'children'> {
   /** The stable key. The colour comes from this, never from list position. */
@@ -33,7 +33,7 @@ export function AreaBadge({
   className,
   ...props
 }: AreaBadgeProps) {
-  const color = useAreaColorVar(areaKey, kind);
+  const colorClass = useAreaColorClass(areaKey, kind);
 
   return (
     <span
@@ -46,8 +46,7 @@ export function AreaBadge({
     >
       <span
         aria-hidden="true"
-        className={cn('shrink-0 rounded-full', size === 'sm' ? 'size-2' : 'size-2.5')}
-        style={{ backgroundColor: color }}
+        className={cn('shrink-0 rounded-full', size === 'sm' ? 'size-2' : 'size-2.5', colorClass)}
       />
       {name}
     </span>
@@ -65,12 +64,11 @@ export function AreaSwatch({
   className,
   ...props
 }: Omit<ComponentProps<'span'>, 'children'> & { areaKey: string; kind?: AreaKind }) {
-  const color = useAreaColorVar(areaKey, kind);
+  const colorClass = useAreaColorClass(areaKey, kind);
   return (
     <span
       aria-hidden="true"
-      className={cn('inline-block size-2.5 shrink-0 rounded-full', className)}
-      style={{ backgroundColor: color }}
+      className={cn('inline-block size-2.5 shrink-0 rounded-full', colorClass, className)}
       {...props}
     />
   );

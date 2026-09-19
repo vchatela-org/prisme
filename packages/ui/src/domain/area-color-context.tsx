@@ -1,7 +1,13 @@
 'use client';
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { areaColorVar, type AreaColorOverrides, type AreaKind } from '../tokens/area-color.js';
+import {
+  areaColorClass,
+  areaColorVar,
+  type AreaColorOverrides,
+  type AreaKind,
+  type ColorVar,
+} from '../tokens/area-color.js';
 
 const AreaColorContext = createContext<AreaColorOverrides>({});
 
@@ -22,7 +28,16 @@ export function AreaColorProvider({
   return <AreaColorContext.Provider value={value}>{children}</AreaColorContext.Provider>;
 }
 
-/** The CSS custom property an area paints with, honouring any pinning. */
-export function useAreaColorVar(key: string, kind: AreaKind = 'area'): string {
+/**
+ * The CSS custom property an area's **SVG** marks paint with, honouring any
+ * pinning. An HTML mark wants `useAreaColorClass` — see `area-color.ts` for
+ * why the system has both.
+ */
+export function useAreaColorVar(key: string, kind: AreaKind = 'area'): ColorVar {
   return areaColorVar(key, kind, useContext(AreaColorContext));
+}
+
+/** The class an area's HTML marks paint with, honouring any pinning. */
+export function useAreaColorClass(key: string, kind: AreaKind = 'area'): string {
+  return areaColorClass(key, kind, useContext(AreaColorContext));
 }
