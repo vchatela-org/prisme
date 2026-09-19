@@ -9,8 +9,16 @@ import {
   type ColorSlot,
   type ColorVar,
 } from '../tokens/area-color.js';
-import { linearScale, linePath, nearestIndex, niceTicks, paddedDomain } from './chart-scale.js';
+import {
+  keepLabel,
+  linearScale,
+  linePath,
+  nearestIndex,
+  niceTicks,
+  paddedDomain,
+} from './chart-scale.js';
 import { SERIES_LIMIT, seriesSlot } from './series.js';
+import { resolveFormat, type ValueFormat } from './value-format.js';
 
 export interface LineSeries {
   label: string;
@@ -32,7 +40,15 @@ export interface LineChartProps extends Omit<
   /** One label per x position — a week, a month. */
   labels: readonly string[];
   series: readonly LineSeries[];
+  /** Only reachable from a client component — a function cannot be serialised. */
   format?: (value: number) => string;
+  /**
+   * The same instruction as data, so a **server** component can set it.
+   * `format` cannot cross the server/client boundary; this is the door for
+   * every screen in `apps/web`, which are server components by convention
+   * (`./value-format.ts`).
+   */
+  formatAs?: ValueFormat;
 }
 
 const WIDTH = 640;
@@ -56,10 +72,10 @@ const PADDING = { top: 12, right: 16, bottom: 28, left: 44 };
  * are two charts, or one chart indexed to a common base: a dual axis invents a
  * correlation by choosing where the two scales happen to line up.
  */
-export function LineChart({ labels, series, format, ...frame }: LineChartProps) {
+export function LineChart({ labels, series, format, formatAs, ...frame }: LineChartProps) {
   const [active, setActive] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const formatValue = format ?? ((value: number) => value.toFixed(1));
+  const formatValue = resolveFormat(format, formatAs);
 
   if (series.length > SERIES_LIMIT) {
     return (
@@ -263,12 +279,25 @@ export function LineChart({ labels, series, format, ...frame }: LineChartProps) 
 
           {labels.map((label, index) =>
             // Thin the labels rather than overlapping them.
-            index % Math.ceil(labels.length / 8) === 0 || index === labels.length - 1 ? (
+            //
+            // The last label is always drawn, so a stepped one too close to it
+            // is dropped instead: with 37 monthly buckets the step lands on 35
+            // and the end is 36, and the two render on top of each other. The
+            // old rule had no guard for that, and it is invisible to every
+            // check except opening the page (packages/ui/CLAUDE.md, *Testing*).
+            keepLabel(index, labels.length) ? (
               <text
                 key={label}
                 x={xAt(index)}
                 y={HEIGHT - 8}
-                textAnchor="middle"
+                /*
+                  The end labels are anchored to the plot's edges rather than
+                  centred on them. A centred label at the last position hangs
+                  half its width past `plotRight` and is clipped by the
+                  viewBox — "Sep 26" renders as "Sep 2(" — which the reserved
+                  right padding is too narrow to absorb for any real label.
+                */
+                textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}
                 fontSize={11}
                 fill="var(--prisme-ink-secondary)"
               >

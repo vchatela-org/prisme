@@ -3,6 +3,7 @@ import {
   areaPath,
   barPath,
   barThickness,
+  keepLabel,
   linearScale,
   linePath,
   nearestIndex,
@@ -220,5 +221,51 @@ describe('barThickness', () => {
         expect(used, `${band}/${series}`).toBeLessThan(band);
       }
     }
+  });
+});
+
+describe('keepLabel', () => {
+  const kept = (count: number): number[] =>
+    Array.from({ length: count }, (_, index) => index).filter((index) => keepLabel(index, count));
+
+  it('always draws the last label', () => {
+    for (const count of [1, 2, 7, 12, 36, 37, 52]) {
+      expect(keepLabel(count - 1, count)).toBe(true);
+    }
+  });
+
+  it('never draws two labels adjacent to each other', () => {
+    // The bug this exists for: 37 monthly buckets step by 5, so the last
+    // stepped label is 35 and the end is 36 — they overlapped into a smear.
+    for (let count = 2; count <= 60; count += 1) {
+      const indices = kept(count);
+      const gaps = indices.slice(1).map((index, i) => index - (indices[i] ?? 0));
+      const step = Math.max(1, Math.ceil(count / 8));
+      for (const gap of gaps) expect(gap).toBeGreaterThan(step / 2);
+    }
+  });
+
+  it('drops the crowded stepped label rather than the end', () => {
+    expect(keepLabel(36, 37)).toBe(true);
+    expect(keepLabel(35, 37)).toBe(false);
+  });
+
+  it('keeps a stepped label that is comfortably clear of the end', () => {
+    expect(keepLabel(30, 37)).toBe(true);
+  });
+
+  it('draws roughly the number of labels asked for', () => {
+    for (const count of [12, 26, 37, 52]) {
+      expect(kept(count).length).toBeGreaterThanOrEqual(5);
+      expect(kept(count).length).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('draws every label when there are fewer than the target', () => {
+    expect(kept(5)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('draws nothing for an empty axis', () => {
+    expect(keepLabel(0, 0)).toBe(false);
   });
 });
