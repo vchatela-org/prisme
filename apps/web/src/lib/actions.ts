@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { apiFetch } from './api';
 import { failureCopy, type ApiFailure } from './api-result';
 import {
+  adoptionCandidateSchema,
   FIBONACCI,
   INITIATIVE_STATUSES,
   initiativeSchema,
@@ -336,4 +337,162 @@ export async function promoteTakeaway(input: PromoteInput): Promise<ActionResult
   revalidatePath('/inbox');
   revalidatePath('/backlog');
   return { ok: true, message: 'Promoted into the inbox as an initiative.' };
+}
+
+/**
+ * The adoption queue's three decisions (W12).
+ *
+ * Every one of them is `plan`-adjacent in the sense that matters: **none writes
+ * anything outward**. Adopting creates a prisme entity with `origin = adopted`
+ * and a link; merging binds an external object to an entity that already
+ * exists; ignoring records that a human said no. The external tools are not
+ * touched by any of the three, which is the whole reason adoption is safe to do
+ * at speed (docs/13-migration.md §1).
+ *
+ * The queue is the one surface where a wrong click is expensive, so each action
+ * names its fields explicitly and re-parses them. A spread here would be a way
+ * to adopt an object under a title it does not have.
+ */
+
+const candidateSchema = z.object({
+  externalKind: z.enum(['page', 'project', 'section', 'task']),
+  externalId: z.string().min(1).max(200),
+});
+
+function revalidateAdoption(): void {
+  revalidatePath('/adoption');
+  revalidatePath('/backlog');
+  revalidatePath('/inbox');
+}
+
+/**
+ * Adopt: a linked prisme entity, and nothing outward.
+ *
+ * The body carries only the candidate's identity. Title, area and kind come
+ * from the scan's mirror on the API side — a caller cannot supply them, which
+ * is the shape of every accidental duplicate this workstream exists to prevent.
+ */
+export async function adoptCandidate(input: {
+  externalKind: string;
+  externalId: string;
+}): Promise<ActionResult> {
+  const parsed = candidateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That is not a candidate',
+      description: 'An adoption needs the external object’s kind and its identifier.',
+    };
+  }
+
+  const result = await apiFetch({
+    path: '/adoption/adopt',
+    method: 'POST',
+    body: { externalKind: parsed.data.externalKind, externalId: parsed.data.externalId },
+    schema: z.object({ prismeId: z.string(), bound: z.boolean() }),
+  });
+
+  if (!result.ok) return failed(result, 'this candidate');
+
+  revalidateAdoption();
+  return { ok: true, message: 'Adopted. Nothing was created in either tool.' };
+}
+
+const mergeSchema = candidateSchema.extend({
+  prismeId: z.string().min(1).max(200),
+  matchRule: z.enum([
+    'existing_mapping',
+    'exact_title',
+    'normalised_title',
+    'fuzzy_title',
+    'manual',
+  ]),
+  confidence: z.enum(['certain', 'high', 'medium', 'low', 'manual']),
+});
+
+/**
+ * Merge: bind this external object to an entity prisme already has.
+ *
+ * This is what accepting a proposal does. The confidence recorded is the
+ * rule's, not `certain` — the decision is a human one either way, and
+ * overstating how it was reached would make the ledger useless for working out,
+ * later, which links to re-examine.
+ */
+export async function mergeCandidate(input: {
+  externalKind: string;
+  externalId: string;
+  prismeId: string;
+  matchRule: string;
+  confidence: string;
+}): Promise<ActionResult> {
+  const parsed = mergeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That merge is not complete',
+      description:
+        'A merge needs the external object, the prisme entity, and how they were matched.',
+    };
+  }
+
+  const result = await apiFetch({
+    path: '/adoption/decisions',
+    method: 'POST',
+    body: {
+      prismeId: parsed.data.prismeId,
+      externalKind: parsed.data.externalKind,
+      externalId: parsed.data.externalId,
+      matchRule: parsed.data.matchRule,
+      confidence: parsed.data.confidence,
+    },
+    schema: z.object({ prismeId: z.string(), bound: z.boolean() }),
+  });
+
+  if (!result.ok) return failed(result, 'this candidate');
+
+  revalidateAdoption();
+  return { ok: true, message: 'Linked to the entity prisme already had.' };
+}
+
+const ignoreSchema = candidateSchema.extend({
+  reason: z.string().min(1).max(500).optional(),
+});
+
+/**
+ * Ignore, permanently.
+ *
+ * There is no undo, and the copy says so before the click rather than after it
+ * — see `IgnoreButton`. An ignored object stays adoptable by its external
+ * identifier; ignoring keeps it out of the queue, not out of existence, and
+ * that is what lets the queue converge (docs/13-migration.md §4).
+ */
+export async function ignoreCandidate(input: {
+  externalKind: string;
+  externalId: string;
+  reason?: string;
+}): Promise<ActionResult> {
+  const parsed = ignoreSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That is not a candidate',
+      description: 'An ignore needs the external object’s kind and its identifier.',
+    };
+  }
+
+  const result = await apiFetch({
+    path: '/adoption/ignore',
+    method: 'POST',
+    body: {
+      externalKind: parsed.data.externalKind,
+      externalId: parsed.data.externalId,
+      ...(parsed.data.reason === undefined ? {} : { reason: parsed.data.reason }),
+    },
+    schema: adoptionCandidateSchema,
+  });
+
+  if (!result.ok) return failed(result, 'this candidate');
+
+  revalidateAdoption();
+  return { ok: true, message: 'Ignored. It will not come back.' };
 }
