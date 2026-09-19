@@ -19,6 +19,7 @@ import {
 import {
   applyPreview,
   BOUND_BY_LABEL,
+  capacityBandLabel,
   capacityBands,
   criticalIn,
   explain,
@@ -367,11 +368,40 @@ export function TimelineBoard({ timeline, areas, projects, today }: TimelineBoar
                     fillOpacity={0.07}
                   >
                     <title>
-                      {`Every one of ${band.areaKey}'s ${String(band.slots)} slots is in use from ${dateOfDay(band.fromDay)} to ${dateOfDay(band.toDay - 1)}. Work in this area cannot start sooner than the next free slot.`}
+                      {capacityBandLabel(
+                        areaIndex.get(band.areaKey)?.name ?? band.areaKey,
+                        band,
+                        dateOfDay,
+                      )}
                     </title>
                   </rect>
                 );
               })}
+
+              {/* The selected row's highlight is its own layer, deliberately.
+                  It started life inside the bar's interactive group, where it
+                  made the group's hit area the width of the whole plot — so a
+                  pointer-down in empty space, hundreds of pixels from the bar,
+                  began a drag of it. Nothing but driving the page shows that:
+                  the bar still looked and behaved correctly. */}
+              {selectedId === null
+                ? null
+                : laidOut.flatMap((group) =>
+                    group.rows
+                      .filter(({ row }) => row.initiativeId === selectedId)
+                      .map(({ row, y }) => (
+                        <rect
+                          key={row.initiativeId}
+                          x={0}
+                          y={y + AXIS_HEIGHT}
+                          width={scale.width}
+                          height={ROW_HEIGHT}
+                          fill="var(--prisme-accent)"
+                          fillOpacity={0.06}
+                          aria-hidden="true"
+                        />
+                      )),
+                  )}
 
               <Edges
                 edges={timeline.edges}
@@ -397,7 +427,6 @@ export function TimelineBoard({ timeline, areas, projects, today }: TimelineBoar
                     }
                     critical={critical.has(row.initiativeId)}
                     infeasible={infeasible.has(row.initiativeId)}
-                    selected={row.initiativeId === selectedId}
                     dragDelta={drag?.id === row.initiativeId ? drag.deltaDays : 0}
                     onPointerDown={onPointerDown}
                     onPointerMove={onPointerMove}
@@ -406,6 +435,8 @@ export function TimelineBoard({ timeline, areas, projects, today }: TimelineBoar
                   />
                 )),
               )}
+
+              <DeadlineMarkers laidOut={laidOut} scale={scale} infeasible={infeasible} />
             </svg>
           </div>
         </div>
@@ -531,9 +562,12 @@ function RailRow({
 function Axis({ scale, height }: { scale: ReturnType<typeof buildScale>; height: number }) {
   return (
     <g>
-      {/* Weekends, where a day is wide enough for the shading to mean
-          something. A plan counted in working days reads wrong without them. */}
-      {scale.dayWidth >= 7
+      {/* Weekends, at the one zoom where a day is wide enough for the shading
+          to mean something. A plan counted in working days reads wrong without
+          them — but at 7px a day they stop being two shaded days and become a
+          full-height stripe every week, which is the "heavy gridlines" the
+          dataviz skill lists as an anti-pattern. Found by looking. */}
+      {scale.dayWidth >= 12
         ? Array.from({ length: scale.days }, (_, offset) => scale.originDay + offset)
             .filter(isWeekend)
             .map((day) => (
@@ -648,7 +682,6 @@ function Bar({
   kind,
   critical,
   infeasible,
-  selected,
   dragDelta,
   onPointerDown,
   onPointerMove,
@@ -661,7 +694,6 @@ function Bar({
   kind: AreaKind;
   critical: boolean;
   infeasible: boolean;
-  selected: boolean;
   dragDelta: number;
   onPointerDown: (event: React.PointerEvent, row: TimelineRow) => void;
   onPointerMove: (event: React.PointerEvent, row: TimelineRow) => void;
@@ -694,16 +726,22 @@ function Bar({
     >
       <title>{`${row.title} · ${row.start} → ${row.end} · ${BOUND_BY_LABEL[row.boundBy]}`}</title>
 
-      {selected ? (
-        <rect
-          x={0}
-          y={y + AXIS_HEIGHT}
-          width={scale.width}
-          height={ROW_HEIGHT}
-          fill="var(--prisme-accent)"
-          fillOpacity={0.06}
-        />
-      ) : null}
+      {/* The hit target, drawn first and invisible.
+          A bar is 14px tall and can be 3px wide at the year zoom, which is
+          below the ~24px a pointer can reliably land on — the dataviz skill
+          lists the pinpoint target as an anti-pattern, and a bar too small to
+          grab is a drag that only works on big initiatives. It also *bounds*
+          the group: before this existed, the group's box stretched from the
+          bar to its deadline marker, which for a deadline two months out put
+          the focus ring around half the plot and the centre of the element in
+          empty space. Only driving the page shows either. */}
+      <rect
+        x={x - 4}
+        y={centre - 12}
+        width={Math.max(width + 8, 24)}
+        height={24}
+        fill="transparent"
+      />
 
       <rect
         x={x}
@@ -732,21 +770,59 @@ function Bar({
           strokeDasharray="4 3"
         />
       ) : null}
+    </g>
+  );
+}
 
-      {row.deadline === null ? null : (
-        <g>
-          <path
-            d={`M ${String(xOf(scale, row.deadline))} ${String(centre - 6)} L ${String(xOf(scale, row.deadline) + 6)} ${String(centre)} L ${String(xOf(scale, row.deadline))} ${String(centre + 6)} L ${String(xOf(scale, row.deadline) - 6)} ${String(centre)} Z`}
-            fill={infeasible ? 'var(--prisme-status-critical)' : 'var(--prisme-chart-neutral)'}
-            stroke="var(--prisme-surface-raised)"
-            strokeWidth={2}
-          />
-          <title>
-            {infeasible
-              ? `Deadline ${row.deadline}, which this plan misses. prisme flags it and never moves it.`
-              : `Deadline ${row.deadline}, which this plan meets.`}
-          </title>
-        </g>
+/**
+ * The deadline markers, as their own layer.
+ *
+ * Outside the bars' interactive groups on purpose: a deadline is a fact about
+ * the initiative, not a control, and a marker months to the right of its bar
+ * inside that group made the group's box — and so its focus ring — span the
+ * gap between them.
+ *
+ * The shape carries the meaning as much as the colour does. A status hue on
+ * its own is not an encoding anybody can read in forced-colours mode or in
+ * print, so an impossible deadline is *also* a row in the table below and a
+ * sentence in the explanation panel (`packages/ui/CLAUDE.md`, the `dataviz`
+ * skill's rule on reserved status colour).
+ */
+function DeadlineMarkers({
+  laidOut,
+  scale,
+  infeasible,
+}: {
+  laidOut: readonly LaidOutGroup[];
+  scale: ReturnType<typeof buildScale>;
+  infeasible: ReadonlySet<string>;
+}) {
+  return (
+    <g>
+      {laidOut.flatMap((group) =>
+        group.rows
+          .filter(({ row }) => row.deadline !== null)
+          .map(({ row, y }) => {
+            const deadline = row.deadline ?? '';
+            const at = xOf(scale, deadline);
+            const centre = y + ROW_HEIGHT / 2 + AXIS_HEIGHT;
+            const missed = infeasible.has(row.initiativeId);
+            return (
+              <g key={row.initiativeId}>
+                <path
+                  d={`M ${String(at)} ${String(centre - 6)} L ${String(at + 6)} ${String(centre)} L ${String(at)} ${String(centre + 6)} L ${String(at - 6)} ${String(centre)} Z`}
+                  fill={missed ? 'var(--prisme-status-critical)' : 'var(--prisme-chart-neutral)'}
+                  stroke="var(--prisme-surface-raised)"
+                  strokeWidth={2}
+                />
+                <title>
+                  {missed
+                    ? `${row.title}: deadline ${deadline}, which this plan misses. prisme flags it and never moves it.`
+                    : `${row.title}: deadline ${deadline}, which this plan meets.`}
+                </title>
+              </g>
+            );
+          }),
       )}
     </g>
   );
