@@ -340,6 +340,29 @@ export function capacityBands(
   );
 }
 
+/**
+ * What a saturated band says when a reader hovers it.
+ *
+ * Written as a sentence about the area rather than a possessive, which is what
+ * the first version was — and which produced "every one of relationships's 1
+ * slots", wrong twice in six words. Copy with a number in it needs a test as
+ * much as arithmetic does; this is the one screen whose whole job is explaining
+ * itself, and a sentence that reads as a bug undermines the explanation beside
+ * it.
+ */
+export function capacityBandLabel(
+  areaName: string,
+  band: Pick<CapacityBand, 'slots' | 'fromDay' | 'toDay'>,
+  dateOf: (day: number) => string,
+): string {
+  const span = `${dateOf(band.fromDay)} to ${dateOf(band.toDay - 1)}`;
+  const capacity =
+    band.slots === 1
+      ? `${areaName} has one slot and it is in use`
+      : `${areaName} has ${String(band.slots)} slots and all of them are in use`;
+  return `${capacity} from ${span}. Nothing else in this area can start until one comes free — the year's weights decide how many an area gets (ADR-0005).`;
+}
+
 /* -------------------------------------------------------------------------
  * The preview, as prose
  * ---------------------------------------------------------------------- */

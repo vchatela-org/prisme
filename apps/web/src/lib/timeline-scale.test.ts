@@ -142,10 +142,47 @@ describe('tick labels', () => {
     }
   });
 
-  it('always labels the first tick, so the axis starts somewhere named', () => {
+  it('never prints a label that would be clipped by the left edge', () => {
+    // The mirror of the rule above, and the one the first version missed: a
+    // label is centred on its tick, so a tick near x = 0 loses its opening
+    // characters. Found by opening the page, not by a test.
+    for (const zoom of ZOOMS) {
+      for (const days of [14, 30, 90, 365]) {
+        const scale = buildScale({
+          from: '2026-01-05',
+          to: dateOfDay(dayOf('2026-01-05') + days),
+          zoom,
+        });
+        for (const tick of scale.ticks) {
+          if (tick.label !== null) expect(tick.x - 22).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
+  it('gives the today marker its own room in the axis band', () => {
+    // `today` is drawn in the same band as the tick labels, and nothing about
+    // a tick knows it is there — so it overprinted the nearest one until the
+    // marker's position became an input to the thinning.
+    const scale = buildScale({
+      from: '2026-09-21',
+      to: '2026-11-30',
+      zoom: 'week',
+      today: '2026-09-21',
+    });
+    expect(scale.todayX).not.toBeNull();
+    for (const tick of scale.ticks) {
+      if (tick.label !== null) {
+        expect(Math.abs(tick.x - (scale.todayX ?? 0))).toBeGreaterThanOrEqual(52);
+      }
+    }
+  });
+
+  it('always labels the first tick that fits, so the axis starts somewhere named', () => {
     const ticks: Tick[] = [
-      { day: 0, x: 0, label: 'Jan', major: true },
-      { day: 10, x: 8, label: 'Feb', major: true },
+      // Both clear of the left edge; the second is too close to the first.
+      { day: 0, x: 30, label: 'Jan', major: true },
+      { day: 10, x: 38, label: 'Feb', major: true },
     ];
     const thinned = thinLabels(ticks, 400);
     expect(thinned[0]?.label).toBe('Jan');

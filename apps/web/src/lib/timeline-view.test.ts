@@ -3,6 +3,7 @@ import type { Replan, TimelineEntry } from './contracts';
 import { dayOf } from './timeline-scale';
 import {
   applyPreview,
+  capacityBandLabel,
   capacityBands,
   criticalIn,
   explain,
@@ -400,6 +401,20 @@ describe('the capacity overlay', () => {
     expect(bands).toHaveLength(2);
     expect(bands[0]?.toDay).toBe(dayOf('2026-09-24'));
     expect(bands[1]?.fromDay).toBe(dayOf('2026-09-28'));
+  });
+
+  it('reads its own label as a sentence, at one slot and at several', () => {
+    const dateOf = (day: number) => `day-${String(day)}`;
+
+    const one = capacityBandLabel('Relationships', { slots: 1, fromDay: 3, toDay: 6 }, dateOf);
+    expect(one).toContain('Relationships has one slot and it is in use');
+    expect(one).toContain('from day-3 to day-5');
+    // The two failures the first version shipped, both visible only on screen.
+    expect(one).not.toContain('1 slots');
+    expect(one).not.toContain("s's");
+
+    const several = capacityBandLabel('Health', { slots: 2, fromDay: 3, toDay: 4 }, dateOf);
+    expect(several).toContain('Health has 2 slots and all of them are in use');
   });
 
   it('ignores an area the plan reports no slot count for', () => {

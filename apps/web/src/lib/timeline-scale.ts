@@ -161,20 +161,38 @@ function mondayOnOrAfter(day: number): number {
 /**
  * Drop the labels that would collide, keeping the gridlines.
  *
- * The first candidate always keeps its label — an axis whose first tick is
- * bare reads as though the chart starts somewhere unnamed — and a label whose
- * text would run past the right edge is dropped rather than clipped.
+ * Three things can make a label unreadable, and all three are properties of the
+ * *list* rather than of one tick, which is why this is a pass over the whole
+ * thing rather than a decision at each `<text>`:
+ *
+ * 1. **A neighbour too close.** The label overprints the one before it.
+ * 2. **An edge.** A label is centred on its tick, so half of it hangs off the
+ *    plot at either end and the browser clips it — `Sep 26` rendered as
+ *    `Sep 2(`, which is how W09 found this on the KPI charts. Both ends: the
+ *    first version of this function guarded only the right, and the left edge
+ *    then clipped the opening month the first time the page was opened.
+ * 3. **The today marker**, which has its own label in the same band. Nothing
+ *    about a tick knows that, so the marker's position is passed in.
+ *
+ * The first *surviving* label is always kept where it fits — an axis whose
+ * opening tick is bare reads as though the plan starts somewhere unnamed.
  */
 export function thinLabels(
   ticks: readonly Tick[],
   width: number,
   minGap = MIN_LABEL_GAP,
+  todayX: number | null = null,
 ): readonly Tick[] {
   let lastLabelled = Number.NEGATIVE_INFINITY;
-  return ticks.map((tick, index) => {
-    const fits = tick.x + LABEL_HALF_WIDTH <= width;
-    const clear = index === 0 || tick.x - lastLabelled >= minGap;
-    if (fits && clear) {
+  return ticks.map((tick) => {
+    const insidePlot = tick.x - LABEL_HALF_WIDTH >= 0 && tick.x + LABEL_HALF_WIDTH <= width;
+    const clearOfNeighbour =
+      lastLabelled === Number.NEGATIVE_INFINITY || tick.x - lastLabelled >= minGap;
+    // `today` is a short word and sits to the right of its rule, so it needs
+    // less room than a tick's own half-width on that side.
+    const clearOfToday = todayX === null || Math.abs(tick.x - todayX) >= minGap;
+
+    if (insidePlot && clearOfNeighbour && clearOfToday) {
       lastLabelled = tick.x;
       return tick;
     }
@@ -236,7 +254,7 @@ export function buildScale({ from, to, zoom, today, padDays = 7 }: ScaleInput): 
     originDay,
     days,
     width,
-    ticks: thinLabels(raw, width),
+    ticks: thinLabels(raw, width, MIN_LABEL_GAP, todayX),
     todayX,
   };
 }
