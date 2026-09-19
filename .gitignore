@@ -19,6 +19,10 @@ docs/50-journal/*-private.md
 # exports and screenshots of the live instance
 exports/
 screenshots/
+# page snapshots, console logs and screenshots written by the Playwright MCP
+# server while driving the app locally — local debugging output, never review
+# material, and it captures whatever data the browser happened to be showing
+.playwright-mcp/
 *.dump
 *.sqlite
 *.sqlite3
