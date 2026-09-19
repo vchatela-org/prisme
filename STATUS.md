@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-18 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 3 has started with W06**
+**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 3 in progress: W06 and W08 are green and await merge, W12 is open**
 
 ---
 
@@ -35,7 +35,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟢 | [#22](https://github.com/vchatela-org/prisme/pull/22) merged |
 | [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | 🟢 | [#26](https://github.com/vchatela-org/prisme/pull/26) |
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged |
-| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | ⚪ | — |
+| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) |
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
@@ -107,7 +107,22 @@ the world moves. The endpoint reads the *tool's* scope before it authenticates a
 authorizer, which is what makes W14's kill switch reach a tool written today with nothing in W06
 noticing. The MCP protocol is implemented against its specification rather than taken from the
 reference SDK — [ADR-0024](docs/20-decisions/0024-mcp-without-the-sdk.md), which accepts out loud
-that conformance is now ours. **W08 and W12 remain the open half of wave 3.**
+that conformance is now ours.
+
+**W08 is the second** ([#27](https://github.com/vchatela-org/prisme/pull/27)): Focus, Backlog, Inbox
+and initiative detail — the screens prisme is actually used from. Every decision they make is a pure
+function in `apps/web/src/lib`, tested without a browser, and nothing above it computes a score: the
+ranking and its explanation are displayed exactly as the API returns them. Driven against a
+fixture-derived dataset through a throwaway local identity provider, because `packages/auth` has no
+development bypass and the middleware resolves a real JWKS before any route renders — which is
+correct, and which every remaining UI workstream will have to solve again.
+
+That run surfaced one cross-workstream defect worth knowing before wave 4 starts: **W14's CSP
+refuses every server-rendered `style` attribute**, and a nonce cannot authorise one. `<AreaBadge>`
+and `<BalanceMeter>` set their colour that way, so area colour is absent until React re-applies it
+through the CSSOM on hydration, and each page logs around a hundred violations. The end state is
+right and the policy must not be relaxed to fix it — area colour should come from the stylesheet the
+design system already generates. **W07 with W14 own that. W12 remains the open half of wave 3.**
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
