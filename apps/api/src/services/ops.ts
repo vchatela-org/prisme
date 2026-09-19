@@ -1,16 +1,18 @@
 import type { z } from 'zod';
 import { CANDIDATE_SELECTION_LIMITS, SCHEDULE_DEFAULTS, type Registry } from '@prisme/domain';
 import type { settingsDto, syncRunDto, syncStatusDto } from '../dto/ops.js';
-import { notFound } from '../http/errors.js';
+import { ApiError, notFound } from '../http/errors.js';
 import type { Identity } from '../http/authorize.js';
 import type { ApiStore, PageRequest } from '../store/types.js';
 import type { SyncRunner } from '../sync/port.js';
 import {
   toAdoptionDto,
+  toCandidateDto,
   toConflictDto,
   toEventDto,
   toReviewDto,
   type AdoptionDtoShape,
+  type CandidateDtoShape,
   type ConflictDtoShape,
   type EventDtoShape,
   type ReviewDtoShape,
@@ -90,6 +92,21 @@ export interface OpsService {
     identity: Identity,
     now: Date,
   ): Promise<AdoptionDtoShape>;
+
+  adoptionQueue(
+    filter: { areaKey?: string | undefined; kind?: string | undefined },
+    page: PageRequest,
+  ): Promise<{ items: CandidateDtoShape[]; total: number }>;
+  adoptCandidate(
+    input: { externalKind: string; externalId: string },
+    identity: Identity,
+    now: Date,
+  ): Promise<AdoptionDtoShape>;
+  ignoreCandidate(
+    input: { externalKind: string; externalId: string; reason?: string | undefined },
+    identity: Identity,
+    now: Date,
+  ): Promise<CandidateDtoShape>;
 
   conflicts(
     resolution: string | undefined,
@@ -177,6 +194,60 @@ export function createOpsService(
         occurredAt: now,
       });
       return toAdoptionDto(decided);
+    },
+
+    async adoptionQueue(filter, page) {
+      const paged = await store.ops.adoptionQueue(filter, page);
+      return { items: paged.items.map(toCandidateDto), total: paged.total };
+    },
+
+    /**
+     * Adopt: a linked entity, and nothing outward.
+     *
+     * The event is recorded against the **external** object rather than the new
+     * entity, because that is the thing whose history a person is reconstructing
+     * when they ask "where did this come from" — and it is the identifier that
+     * existed before prisme did.
+     */
+    async adoptCandidate(input, identity, now): Promise<AdoptionDtoShape> {
+      const outcome = await store.ops.adoptCandidate({ ...input, decidedAt: now });
+      if (outcome === undefined) throw notFound('adoption candidate', input.externalId);
+      if (!outcome.ok) throw new ApiError('invalid_request', outcome.reason);
+
+      await store.ops.appendEvent({
+        kind: 'adoption_decision',
+        entityKind: input.externalKind,
+        entityId: input.externalId,
+        field: 'adopt',
+        before: null,
+        after: { prismeId: outcome.prismeId, kind: outcome.kind, origin: 'adopted' },
+        actor: identity.kind,
+        occurredAt: now,
+      });
+      return toAdoptionDto(outcome.record);
+    },
+
+    /** Ignore: permanently, and in the event log, because it is a decision. */
+    async ignoreCandidate(input, identity, now): Promise<CandidateDtoShape> {
+      const ignored = await store.ops.ignoreCandidate({
+        externalKind: input.externalKind,
+        externalId: input.externalId,
+        reason: input.reason,
+        decidedAt: now,
+      });
+      if (ignored === undefined) throw notFound('adoption candidate', input.externalId);
+
+      await store.ops.appendEvent({
+        kind: 'adoption_decision',
+        entityKind: input.externalKind,
+        entityId: input.externalId,
+        field: 'ignore',
+        before: null,
+        after: { ignored: true, ...(input.reason === undefined ? {} : { reason: input.reason }) },
+        actor: identity.kind,
+        occurredAt: now,
+      });
+      return toCandidateDto(ignored);
     },
 
     async conflicts(resolution, page) {

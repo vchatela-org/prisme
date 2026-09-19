@@ -14,9 +14,16 @@ import type { adherenceDto, ritualDto, takeawayDto } from '../dto/lanes.js';
 import type { areaDto, areaMappingDto } from '../dto/area.js';
 import type { initiativeDto, projectDto, scoreDto, taskDto } from '../dto/initiative.js';
 import type { keyResultDto, measurementDto, objectiveDto } from '../dto/okr.js';
-import type { adoptionEntryDto, conflictDto, eventDto, reviewSessionDto } from '../dto/ops.js';
+import type {
+  adoptionCandidateDto,
+  adoptionEntryDto,
+  conflictDto,
+  eventDto,
+  reviewSessionDto,
+} from '../dto/ops.js';
 import type {
   AdherenceRecord,
+  AdoptionCandidateRecord,
   AdoptionRecord,
   AreaMappingRecord,
   AreaRecord,
@@ -66,6 +73,7 @@ export type AdherenceDtoShape = z.infer<typeof adherenceDto>;
 export type ReviewDtoShape = z.infer<typeof reviewSessionDto>;
 export type EventDtoShape = z.infer<typeof eventDto>;
 export type AdoptionDtoShape = z.infer<typeof adoptionEntryDto>;
+export type CandidateDtoShape = z.infer<typeof adoptionCandidateDto>;
 export type ConflictDtoShape = z.infer<typeof conflictDto>;
 
 export function iso(value: Date): string {
@@ -352,6 +360,29 @@ export function toAdoptionDto(record: AdoptionRecord): AdoptionDtoShape {
     decidedBy: record.decidedBy,
     decidedAt: iso(record.decidedAt),
     bound: record.bound,
+  };
+}
+
+/**
+ * A candidate, for the queue.
+ *
+ * `title` is instance data and it is here on purpose: a human cannot work a
+ * queue of identifiers. It is the reason this response is scoped to
+ * `read:adoption` rather than being open to anything with a read token.
+ */
+export function toCandidateDto(record: AdoptionCandidateRecord): CandidateDtoShape {
+  return {
+    externalKind: record.externalKind as CandidateDtoShape['externalKind'],
+    externalId: record.externalId,
+    title: record.title,
+    areaKey: record.areaKey,
+    proposedKind: record.proposedKind as CandidateDtoShape['proposedKind'],
+    reason: record.reason,
+    matchRule: record.matchRule as CandidateDtoShape['matchRule'],
+    confidence: record.confidence as CandidateDtoShape['confidence'],
+    proposedId: record.proposedId,
+    similarity: record.similarity,
+    scannedAt: iso(record.scannedAt),
   };
 }
 

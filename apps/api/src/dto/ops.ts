@@ -80,6 +80,44 @@ export const adoptionEntryDto = z.object({
   bound: z.boolean(),
 });
 
+/**
+ * One row of the **adoption queue** — a candidate, from the last scan's mirror.
+ *
+ * Distinct from {@link adoptionEntryDto}, which is a *decision*. A candidate is
+ * a question: an external object with no prisme link, classified by
+ * docs/13-migration.md §4 and carrying at most one proposal. The scan writes
+ * these; nothing here has been decided by anybody.
+ *
+ * `title` is **instance data**. It exists in this response because a human
+ * cannot work a queue of identifiers — and for no other reason.
+ */
+export const adoptionCandidateDto = z.object({
+  externalKind: z.enum(['page', 'project', 'section', 'task']),
+  externalId: z.string(),
+  title: z.string(),
+  areaKey: z.string().nullable(),
+  proposedKind: z.enum([
+    'initiative',
+    'project',
+    'key_result',
+    'ritual',
+    'run',
+    'signal',
+    'takeaway',
+    'task',
+  ]),
+  /** Why the classifier said so, in prisme's vocabulary. Displayed, never parsed. */
+  reason: z.string(),
+  matchRule: z
+    .enum(['existing_mapping', 'exact_title', 'normalised_title', 'fuzzy_title', 'manual'])
+    .nullable(),
+  confidence: z.enum(['certain', 'high', 'medium', 'low', 'manual']).nullable(),
+  proposedId: z.string().nullable(),
+  /** 0–1, only for a fuzzy proposal — shown so the human can disagree with it. */
+  similarity: z.number().nullable(),
+  scannedAt: instant,
+});
+
 export const settingsDto = z.object({
   timezone: z.string(),
   scoring: z.object({
@@ -164,6 +202,8 @@ export const ReviewSessionDto = named('ReviewSession', reviewSessionDto);
 export const ReviewSessionPageDto = named('ReviewSessionPage', page(reviewSessionDto));
 export const EventPageDto = named('EventPage', page(eventDto));
 export const AdoptionPageDto = named('AdoptionPage', page(adoptionEntryDto));
+export const AdoptionQueuePageDto = named('AdoptionQueuePage', page(adoptionCandidateDto));
+export const AdoptionCandidateDto = named('AdoptionCandidate', adoptionCandidateDto);
 export const AdoptionEntryDto = named('AdoptionEntry', adoptionEntryDto);
 export const ConflictDto = named('Conflict', conflictDto);
 export const SettingsDto = named('Settings', settingsDto);
@@ -230,4 +270,47 @@ export const triggerSyncBody = defineWrite(
 export const resolveConflictBody = defineWrite(
   'ResolveConflict',
   z.strictObject({ resolution: z.enum(['prisme_wins', 'external_wins']) }),
+);
+
+/**
+ * Adopt: create a prisme entity with `origin = adopted`, bound to the object
+ * that already exists.
+ *
+ * The body carries **only the identity of the candidate**. Title, area and kind
+ * come from the mirror the scan wrote, so a caller cannot adopt an object under
+ * a title it does not have — which is the shape of every accidental duplicate
+ * this workstream exists to prevent.
+ */
+export const adoptCandidateBody = defineWrite(
+  'AdoptCandidate',
+  z.strictObject({
+    externalKind: z.enum(['page', 'project', 'section', 'task']),
+    externalId: z.string().min(1).max(200),
+  }),
+  {
+    title: 'taken from the candidate the scan recorded, never from the request',
+    areaKey: 'taken from the candidate; an object outside every mapped area cannot be adopted',
+    origin:
+      "always 'adopted', and immutable after insert — an adopted entity cannot produce a create (ADR-0010, guard 2)",
+  },
+);
+
+/**
+ * Ignore: permanently, and recorded.
+ *
+ * There is no un-ignore endpoint, and that absence is the feature. An ignored
+ * object stays adoptable by explicit external id; it is only kept out of the
+ * queue (docs/13-migration.md §4).
+ */
+export const ignoreCandidateBody = defineWrite(
+  'IgnoreCandidate',
+  z.strictObject({
+    externalKind: z.enum(['page', 'project', 'section', 'task']),
+    externalId: z.string().min(1).max(200),
+    reason: z.string().min(1).max(500).optional(),
+  }),
+  {
+    decidedBy: "always 'human' — nothing ignores an item on a person's behalf",
+    decidedAt: 'stamped when the decision is recorded',
+  },
 );

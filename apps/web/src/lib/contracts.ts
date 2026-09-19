@@ -316,3 +316,51 @@ export const eventPageSchema = z.object({
   limit: z.number().int(),
   offset: z.number().int(),
 });
+
+/**
+ * One row of the adoption queue (W12).
+ *
+ * A candidate is a **question**, not a decision: an external object with no
+ * prisme link, classified by docs/13-migration.md §4 and carrying at most one
+ * proposal. `title` is the only instance data on this screen, and it is here
+ * because a human cannot work a queue of identifiers.
+ *
+ * `similarity` is nullable *and* only ever set for a fuzzy proposal. The screen
+ * shows it whenever it is there — a similarity score nobody can see is a number
+ * nobody can disagree with, and disagreeing is the whole job of this queue.
+ */
+export const adoptionCandidateSchema = z.object({
+  externalKind: z.enum(['page', 'project', 'section', 'task']),
+  externalId: z.string().min(1).max(200),
+  title: z.string(),
+  areaKey: areaKey.nullable(),
+  proposedKind: z.enum([
+    'initiative',
+    'project',
+    'key_result',
+    'ritual',
+    'run',
+    'signal',
+    'takeaway',
+    'task',
+  ]),
+  reason: z.string(),
+  matchRule: z
+    .enum(['existing_mapping', 'exact_title', 'normalised_title', 'fuzzy_title', 'manual'])
+    .nullable(),
+  confidence: z.enum(['certain', 'high', 'medium', 'low', 'manual']).nullable(),
+  proposedId: z.string().nullable(),
+  similarity: z.number().nullable(),
+  scannedAt: z.string(),
+});
+
+export type AdoptionCandidate = z.infer<typeof adoptionCandidateSchema>;
+
+export const adoptionQueueSchema = z.object({
+  items: z.array(adoptionCandidateSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+export type AdoptionQueue = z.infer<typeof adoptionQueueSchema>;

@@ -292,6 +292,42 @@ export interface AdoptionRecord {
   readonly bound: boolean;
 }
 
+/**
+ * One candidate from the last scan's mirror.
+ *
+ * Derived data: the scan replaces the table wholesale each run, and nothing a
+ * human decided is stored in it (docs/13-migration.md §4).
+ */
+export interface AdoptionCandidateRecord {
+  readonly externalKind: string;
+  readonly externalId: string;
+  readonly title: string;
+  readonly areaKey: string | null;
+  readonly proposedKind: string;
+  readonly reason: string;
+  readonly matchRule: string | null;
+  readonly confidence: string | null;
+  readonly proposedId: string | null;
+  readonly similarity: number | null;
+  readonly scannedAt: Date;
+}
+
+/**
+ * What adopting a candidate did, or why it could not.
+ *
+ * A refusal is a value rather than a thrown error because it is an **answer**:
+ * a key result needs an objective and a ritual needs a cadence, and neither is
+ * anywhere in a candidate. The caller gets the sentence, not a stack trace.
+ */
+export type AdoptOutcome =
+  | {
+      readonly ok: true;
+      readonly prismeId: string;
+      readonly kind: string;
+      readonly record: AdoptionRecord;
+    }
+  | { readonly ok: false; readonly reason: string };
+
 export interface ConflictRecord {
   readonly id: string;
   readonly entityId: string;
@@ -500,6 +536,29 @@ export interface ApiStore {
       confidence: string;
       decidedAt: Date;
     }): Promise<AdoptionRecord>;
+
+    /** The queue: candidates the scan found, minus everything already decided. */
+    adoptionQueue(
+      filter: { readonly areaKey?: string | undefined; readonly kind?: string | undefined },
+      page: PageRequest,
+    ): Promise<Paged<AdoptionCandidateRecord>>;
+    /**
+     * Adopt a candidate: one entity with `origin = 'adopted'`, and the link to
+     * the object that already exists. **Creates nothing outward** — the
+     * reconciler binds the reference on its next pass.
+     */
+    adoptCandidate(input: {
+      externalKind: string;
+      externalId: string;
+      decidedAt: Date;
+    }): Promise<AdoptOutcome | undefined>;
+    /** Permanently. There is no un-ignore, and the table refuses one. */
+    ignoreCandidate(input: {
+      externalKind: string;
+      externalId: string;
+      reason: string | undefined;
+      decidedAt: Date;
+    }): Promise<AdoptionCandidateRecord | undefined>;
 
     conflicts(resolution: string | undefined, page: PageRequest): Promise<Paged<ConflictRecord>>;
     resolveConflict(id: string, resolution: string): Promise<ConflictRecord | undefined>;
