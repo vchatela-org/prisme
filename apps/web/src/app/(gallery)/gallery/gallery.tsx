@@ -11,6 +11,7 @@ import {
   Breadcrumbs,
   Button,
   Card,
+  cn,
   colorTokens,
   Combobox,
   CommandPalette,
@@ -158,13 +159,48 @@ const NAV = [
   },
 ];
 
+/**
+ * The two demos below paint a *token* rather than a component, so the value
+ * has to reach CSS somehow. Written out as literal utility classes because
+ * Tailwind generates only what it can read in the source — and a `style`
+ * attribute, the obvious alternative, is refused by the web tier's policy.
+ */
+const SPACE_DEMO_WIDTH: Readonly<Record<'1' | '2' | '3' | '4' | '6' | '8', string>> = {
+  1: 'w-[var(--prisme-space-1)]',
+  2: 'w-[var(--prisme-space-2)]',
+  3: 'w-[var(--prisme-space-3)]',
+  4: 'w-[var(--prisme-space-4)]',
+  6: 'w-[var(--prisme-space-6)]',
+  8: 'w-[var(--prisme-space-8)]',
+};
+
+const RADIUS_DEMO: Readonly<Record<'sm' | 'md' | 'lg' | 'xl', string>> = {
+  sm: 'rounded-sm',
+  md: 'rounded-md',
+  lg: 'rounded-lg',
+  xl: 'rounded-xl',
+};
+
+/**
+ * One colour token, painted.
+ *
+ * An SVG rather than a `span` with a background: the token to paint is chosen
+ * at runtime, so it can be neither a Tailwind class (the scanner reads source
+ * text, not values) nor a `style` attribute (the policy the web tier sends has
+ * no `unsafe-inline`, and a nonce cannot authorise an attribute). `fill` is an
+ * attribute CSP does not govern, and it still takes a custom property, so the
+ * swatch follows the theme.
+ */
 function Swatch({ name, light, dark }: { name: string; light: string; dark: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span
+      <svg
+        aria-hidden="true"
+        focusable="false"
         className="size-8 shrink-0 rounded-md border border-border-hairline"
-        style={{ backgroundColor: `var(--prisme-${name})` }}
-      />
+      >
+        <rect width="100%" height="100%" fill={`var(--prisme-${name})`} />
+      </svg>
       <span className="flex flex-col">
         <code className="text-xs text-ink">{name}</code>
         {/* Both values, always: the swatch shows the theme in force, and a
@@ -203,9 +239,8 @@ function Foundations() {
           {(['text-hero', 'text-2xl', 'text-xl', 'text-base', 'text-sm', 'text-xs'] as const).map(
             (size) => (
               <div key={size} className="flex items-baseline gap-3">
-                <span className="text-ink" style={{ fontSize: `var(--prisme-${size})` }}>
-                  Allocate first
-                </span>
+                {/* The token names in the list above are the utility names. */}
+                <span className={cn('text-ink', size)}>Allocate first</span>
                 <code className="text-xs text-ink-muted">{typeTokens[size]}</code>
               </div>
             ),
@@ -216,7 +251,7 @@ function Foundations() {
           <h3 className="text-sm font-medium text-ink">Space</h3>
           {(['1', '2', '3', '4', '6', '8'] as const).map((step) => (
             <div key={step} className="flex items-center gap-3">
-              <span className="h-3 bg-accent" style={{ width: `var(--prisme-space-${step})` }} />
+              <span className={cn('h-3 bg-accent', SPACE_DEMO_WIDTH[step])} />
               <code className="text-xs text-ink-muted">
                 space-{step} · {spaceTokens[step]}
               </code>
@@ -230,10 +265,14 @@ function Foundations() {
             {(['sm', 'md', 'lg', 'xl'] as const).map((radius) => (
               <div key={radius} className="flex flex-col items-center gap-1">
                 <span
-                  className="size-10 bg-surface-page ring-1 ring-border-strong"
-                  style={{ borderRadius: radiusTokens[radius] }}
+                  className={cn(
+                    'size-10 bg-surface-page ring-1 ring-border-strong',
+                    RADIUS_DEMO[radius],
+                  )}
                 />
-                <code className="text-xs text-ink-muted">{radius}</code>
+                <code className="text-xs text-ink-muted">
+                  {radius} · {radiusTokens[radius]}
+                </code>
               </div>
             ))}
           </div>
@@ -328,11 +367,7 @@ function Primitives() {
                 value: initiative.id,
                 label: initiative.title,
                 adornment: (
-                  <span
-                    aria-hidden="true"
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: `var(--prisme-series-1)` }}
-                  />
+                  <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-series-1" />
                 ),
               }))}
             />
@@ -621,17 +656,17 @@ function Charts() {
             {
               label: 'Health',
               values: [1.1, 1.3, 1.5, 1.6, 1.8, 1.9, 2.0],
-              color: 'var(--prisme-series-1)',
+              slot: 1,
             },
             {
               label: 'Craft',
               values: [1.4, 1.2, 1.1, 1.0, 1.0, 1.0, 1.0],
-              color: 'var(--prisme-series-3)',
+              slot: 3,
             },
             {
               label: 'Home',
               values: [0.9, 0.8, null, 0.7, 0.6, 0.5, 0.5],
-              color: 'var(--prisme-series-5)',
+              slot: 5,
             },
           ]}
         />

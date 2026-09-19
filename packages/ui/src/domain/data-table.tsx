@@ -32,7 +32,13 @@ export interface DataTableColumn<T> {
   /** Columns a reader may hide. The first column is never hideable. */
   hideable?: boolean;
   defaultHidden?: boolean;
-  width?: string;
+  /**
+   * A width **utility class** — `w-24`, `w-1/3` — not a CSS length. It used to
+   * be a length in a `style` attribute, which the web tier's policy refuses,
+   * so the column silently took its natural width instead. A literal class at
+   * the call site is a width Tailwind can actually generate.
+   */
+  widthClass?: string;
 }
 
 export interface DataTableProps<T> {
@@ -221,7 +227,6 @@ export function DataTable<T>({
                   <th
                     key={column.id}
                     scope="col"
-                    style={column.width ? { width: column.width } : undefined}
                     aria-sort={
                       sorted === 'asc'
                         ? 'ascending'
@@ -234,6 +239,7 @@ export function DataTable<T>({
                     className={cn(
                       'px-3 py-2 font-medium text-ink-secondary',
                       column.align === 'right' ? 'text-right' : 'text-left',
+                      column.widthClass,
                     )}
                   >
                     {column.sortValue ? (

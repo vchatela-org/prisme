@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Check } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn.js';
 import type { AreaKind } from '../tokens/area-color.js';
-import { useAreaColorVar } from './area-color-context.js';
+import { useAreaColorClass, useAreaColorVar } from './area-color-context.js';
 import { balanceReading, balanceSummary, type BalanceTone } from './balance-meter-core.js';
 
 export interface BalanceMeterProps {
@@ -55,6 +55,7 @@ export function BalanceMeter({
   className,
 }: BalanceMeterProps) {
   const color = useAreaColorVar(areaKey, kind);
+  const colorClass = useAreaColorClass(areaKey, kind);
   const reading = balanceReading(targetPct, observedPct);
   const summary = balanceSummary(targetPct, observedPct);
 
@@ -62,11 +63,7 @@ export function BalanceMeter({
     <div className={cn('flex flex-col gap-1.5', className)}>
       <div className="flex items-baseline justify-between gap-4">
         <span className="flex items-center gap-1.5 text-sm text-ink">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
+          <span aria-hidden="true" className={cn('size-2.5 shrink-0 rounded-full', colorClass)} />
           {name}
         </span>
         <span className="flex items-center gap-1 text-xs text-ink-secondary tabular-nums">
@@ -91,10 +88,34 @@ export function BalanceMeter({
         aria-label={name}
         className="relative h-2 w-full overflow-hidden rounded-full bg-surface-page ring-1 ring-border-hairline ring-inset"
       >
-        <div
-          className="h-full rounded-full transition-[width] duration-[var(--prisme-duration-normal)]"
-          style={{ width: `${reading.fillPct.toFixed(2)}%`, backgroundColor: color }}
-        />
+        {/*
+          The fill is an SVG rect rather than a div with a width.
+
+          A length that comes from data cannot be a utility class — Tailwind
+          only generates what it can read in the source — and the inline style
+          that used to carry it is refused by the Content-Security-Policy the
+          web tier sends, which has no `unsafe-inline` and cannot nonce a
+          `style` *attribute*. On a `rect` the same number is a plain
+          attribute, which CSP does not govern and which needs no rounding to
+          a set of pre-generated widths. It is also how every other bar in this
+          package is already drawn, which is why the charts never had this bug.
+        */}
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 size-full"
+          preserveAspectRatio="none"
+          focusable="false"
+        >
+          <rect
+            x={0}
+            y={0}
+            height="100%"
+            width={`${reading.fillPct.toFixed(2)}%`}
+            rx={4}
+            fill={color}
+            className="transition-[width] duration-[var(--prisme-duration-normal)]"
+          />
+        </svg>
 
         {/*
           The target tick. It sits at the midpoint by construction, and it is
