@@ -53,6 +53,26 @@ intent distinguishes them.
 Practical rule to try: if it has an outcome you would put in a review, it is an initiative;
 otherwise it is Run.
 
+### OQ-10 · Should a required security gate fail closed when its upstream is unreachable?
+
+**Blocks:** no phase — but it blocks *every* merge, intermittently, whenever npm is in maintenance
+
+`dependency audit` runs `pnpm audit --audit-level=moderate`, which asks
+`registry.npmjs.org/-/npm/v1/security/advisories/bulk` at check time. When that endpoint is down the
+check fails having learned nothing: it is not reporting a vulnerability, it is failing to ask. The
+two states are indistinguishable in the pull request's status list, and because the check is
+required, an upstream outage blocks merges on branches that change no dependency at all. This
+happened to [#31](https://github.com/vchatela-org/prisme/pull/31) on 2026-09-19 and cost a full
+re-run cycle once npm recovered.
+
+Failing closed is a defensible default for a security gate — a green that means "could not check"
+is worse than a red. But nobody has chosen it out loud, and the alternatives are real: a cached or
+vendored advisory database, or distinguishing *unreachable* from *vulnerable* so only the latter is
+required. Whichever is chosen must not become a gate that passes when it has not actually checked.
+
+**It is W14's gate**, so it is recorded here rather than decided: raise it as an ADR against
+[`14-threat-model.md`](../14-threat-model.md) before changing the workflow.
+
 ---
 
 ## Not blocking anything

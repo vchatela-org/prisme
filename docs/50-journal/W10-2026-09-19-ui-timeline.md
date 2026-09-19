@@ -182,6 +182,23 @@ a check that turns every outage into a blocked merge. That is arguably correct f
 alternative (an offline advisory database, or a cached one) exists. Not raised as an ADR here
 because it is W14's gate and not this workstream's to decide.
 
+### Resolution, later the same day
+
+npm's advisory endpoint recovered. The endpoint was probed directly and answered `200` while the
+status page still read *Service Under Maintenance* — the status page lagged the recovery, so the
+probe rather than the page is what settled it. `pnpm audit --audit-level=moderate` then returned
+`No known vulnerabilities found` locally, and re-running only the failed job turned it green in
+24 s against the same commit. **All seventeen checks are green at `353e585`**, read back from the
+pull request; no dependency, workflow or gate was changed to get there.
+
+The counting in the paragraph above is left as it was written, which is why it says sixteen: the
+`CodeQL` umbrella check reports alongside its three language jobs, so the check set is seventeen,
+not sixteen. Worth knowing before claiming a total.
+
+The separate question is now recorded as
+[OQ-10](../20-decisions/OPEN.md) rather than left in this entry, because a journal entry is not
+where someone looks for what is undecided. It is still W14's to decide; nothing here changed it.
+
 ## Privacy
 
 Fixture data only. The dataset behind every observation here is `fixtures/areas.json` and
