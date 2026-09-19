@@ -19,7 +19,13 @@ import { defineConfig } from 'vitest/config';
  * integration suites ever dominate the run.
  */
 
-const INCLUDE = ['packages/*/src/**/*.test.ts', 'apps/*/src/**/*.test.ts'];
+/**
+ * `.tsx` as well as `.ts`: a component test is the only way to assert on what
+ * a component actually renders — which is how the CSP/inline-style defect got
+ * past every check the repository had (`packages/ui/src/no-inline-style.test.tsx`).
+ * They run in the same node environment; `react-dom/server` needs no browser.
+ */
+const INCLUDE = ['packages/*/src/**/*.test.ts?(x)', 'apps/*/src/**/*.test.ts?(x)'];
 const INTEGRATION = [
   'packages/*/src/**/*integration.test.ts',
   'apps/*/src/**/*integration.test.ts',
@@ -54,7 +60,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],
       include: ['packages/*/src/**/*.ts', 'apps/*/src/**/*.ts'],
-      exclude: ['**/*.test.ts', '**/index.ts', '**/bin/**', '**/test-support/**'],
+      exclude: ['**/*.test.ts?(x)', '**/index.ts', '**/bin/**', '**/test-support/**'],
     },
   },
 });

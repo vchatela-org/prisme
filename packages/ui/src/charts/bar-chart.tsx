@@ -3,18 +3,28 @@
 import { useState } from 'react';
 import { cn } from '../lib/cn.js';
 import { ChartFrame, ChartTable, type ChartFrameProps } from './chart-frame.js';
+import {
+  colorSlotClass,
+  colorSlotVar,
+  type ColorSlot,
+  type ColorVar,
+} from '../tokens/area-color.js';
 import { barPath, barThickness, linearScale, niceTicks, zeroBasedDomain } from './chart-scale.js';
-import { SERIES_LIMIT, seriesVar } from './series.js';
+import { SERIES_LIMIT, seriesClass, seriesSlot } from './series.js';
 
 export interface BarDatum {
   label: string;
   /** One value per series, in the order `series` names them. */
   values: readonly number[];
   /**
-   * Overrides the categorical slot for this row — pass an area's colour here
-   * so the bar matches its badge everywhere else on the screen.
+   * Overrides the categorical slot for this row — pass `areaColorSlot(key)`
+   * here so the bar matches that area's badge everywhere else on the screen.
+   *
+   * A slot rather than a colour, because the row is painted twice: as an SVG
+   * `fill` on the bar and as a class on the tooltip's key. Both derive from
+   * this, so they cannot disagree.
    */
-  color?: string;
+  slot?: ColorSlot;
 }
 
 export interface BarChartProps extends Omit<
@@ -73,7 +83,9 @@ export function BarChart({ data, series, format, reference, ...frame }: BarChart
   const x = linearScale(domain, [LABEL_WIDTH, LABEL_WIDTH + plotWidth]);
   const ticks = niceTicks(domain[0], domain[1], 5);
 
-  const colorFor = (datum: BarDatum, index: number): string => datum.color ?? seriesVar(index);
+  const slotFor = (datum: BarDatum, index: number): ColorSlot => datum.slot ?? seriesSlot(index);
+  const colorFor = (datum: BarDatum, index: number): ColorVar =>
+    colorSlotVar(slotFor(datum, index));
 
   const tableView = (
     <ChartTable head={[frame.title, ...series]} caption={`${frame.title}, as a table`}>
@@ -100,7 +112,11 @@ export function BarChart({ data, series, format, reference, ...frame }: BarChart
       {...frame}
       empty={data.length === 0}
       tableView={tableView}
-      legend={series.map((label, index) => ({ label, color: seriesVar(index), shape: 'rect' }))}
+      legend={series.map((label, index) => ({
+        label,
+        colorClass: seriesClass(index),
+        shape: 'rect',
+      }))}
     >
       <div className="relative">
         <svg
@@ -206,7 +222,7 @@ export function BarChart({ data, series, format, reference, ...frame }: BarChart
                           dominantBaseline="middle"
                           fontSize={11}
                           fill="var(--prisme-ink-secondary)"
-                          style={{ fontVariantNumeric: 'tabular-nums' }}
+                          className="tabular-nums"
                         >
                           {formatValue(value)}
                         </text>
@@ -236,7 +252,7 @@ export function BarChart({ data, series, format, reference, ...frame }: BarChart
               textAnchor="middle"
               fontSize={11}
               fill="var(--prisme-ink-secondary)"
-              style={{ fontVariantNumeric: 'tabular-nums' }}
+              className="tabular-nums"
             >
               {formatValue(tick)}
             </text>
@@ -248,10 +264,10 @@ export function BarChart({ data, series, format, reference, ...frame }: BarChart
             label={data[hovered.row]?.label ?? ''}
             series={series.length > 1 ? (series[hovered.series] ?? '') : undefined}
             value={formatValue(data[hovered.row]?.values[hovered.series] ?? 0)}
-            color={
-              data[hovered.row]?.color ??
-              (hovered.series < SERIES_LIMIT ? seriesVar(hovered.series) : seriesVar(0))
-            }
+            colorClass={colorSlotClass(
+              data[hovered.row]?.slot ??
+                seriesSlot(hovered.series < SERIES_LIMIT ? hovered.series : 0),
+            )}
           />
         ) : null}
       </div>
@@ -267,12 +283,12 @@ function BarTooltip({
   label,
   series,
   value,
-  color,
+  colorClass,
 }: {
   label: string;
   series?: string | undefined;
   value: string;
-  color: string;
+  colorClass: string;
 }) {
   return (
     <div
@@ -282,11 +298,7 @@ function BarTooltip({
         'border border-border-hairline bg-surface-overlay px-2 py-1 shadow-overlay',
       )}
     >
-      <span
-        aria-hidden="true"
-        className="h-0.5 w-3 rounded-full"
-        style={{ backgroundColor: color }}
-      />
+      <span aria-hidden="true" className={cn('h-0.5 w-3 rounded-full', colorClass)} />
       <span className="text-sm font-semibold text-ink tabular-nums">{value}</span>
       <span className="text-xs text-ink-secondary">
         {label}

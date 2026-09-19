@@ -1,3 +1,9 @@
+import {
+  colorSlotClass,
+  colorSlotVar,
+  type ColorVar,
+  type SeriesSlot,
+} from '../tokens/area-color.js';
 import { CATEGORICAL_SLOT_COUNT } from '../tokens/palette.js';
 
 /** Eight. Not a soft limit — there is no ninth hue to reach for. */
@@ -16,7 +22,7 @@ export const SERIES_LIMIT = CATEGORICAL_SLOT_COUNT;
  * Chart components catch this and render their error state, so a ninth series
  * is a visible, explained failure rather than a crash.
  */
-export function seriesVar(index: number): string {
+export function seriesSlot(index: number): SeriesSlot {
   if (!Number.isInteger(index) || index < 0) {
     throw new Error(`A series index must be a non-negative integer, got ${String(index)}`);
   }
@@ -27,5 +33,15 @@ export function seriesVar(index: number): string {
         `facet into small multiples, or encode with shape as well as colour.`,
     );
   }
-  return `var(--prisme-series-${String(index + 1)})`;
+  return (index + 1) as SeriesSlot;
+}
+
+/** The value an SVG mark paints with. */
+export function seriesVar(index: number): ColorVar {
+  return colorSlotVar(seriesSlot(index));
+}
+
+/** The class an HTML mark — a legend swatch, a tooltip key — paints with. */
+export function seriesClass(index: number): string {
+  return colorSlotClass(seriesSlot(index));
 }

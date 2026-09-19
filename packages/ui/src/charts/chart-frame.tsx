@@ -8,8 +8,13 @@ import { ErrorState, LoadingState } from '../primitives/states.js';
 
 export interface LegendItem {
   label: string;
-  /** A CSS colour — always a `var(--prisme-…)`, never a literal. */
-  color: string;
+  /**
+   * The *class* the key paints with — `seriesClass(n)` or `areaColorClass(k)`,
+   * never a colour and never an inline style. A legend key is HTML, and the
+   * policy the web tier sends refuses a `style` attribute outright
+   * (`tokens/area-color.ts`).
+   */
+  colorClass: string;
   /** Legends mirror the mark: a rect for bars and areas, a line for lines. */
   shape?: 'rect' | 'line';
 }
@@ -102,8 +107,8 @@ export function ChartFrame({
                 className={cn(
                   'shrink-0',
                   item.shape === 'line' ? 'h-0.5 w-4 rounded-full' : 'size-2.5 rounded-sm',
+                  item.colorClass,
                 )}
-                style={{ backgroundColor: item.color }}
               />
               {item.label}
             </li>
