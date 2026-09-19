@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import { instant, reviewCadence } from '../dto/common.js';
 import {
+  adoptCandidateBody,
+  AdoptionCandidateDto,
   AdoptionEntryDto,
   AdoptionPageDto,
+  AdoptionQueuePageDto,
+  ignoreCandidateBody,
   ConflictDto,
   ConflictPageDto,
   decideAdoptionBody,
@@ -174,6 +178,74 @@ export const opsRoutes: readonly ApiRoute[] = [
           externalId: context.body.externalId,
           matchRule: context.body.matchRule,
           confidence: context.body.confidence,
+        },
+        context.identity,
+        context.now,
+      ),
+  }),
+
+  defineRoute({
+    operationId: 'listAdoptionQueue',
+    method: 'get',
+    path: '/adoption/queue',
+    scope: 'read:adoption',
+    summary: 'The adoption queue: external objects with no prisme link, and what they could be',
+    description:
+      "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4). Ordered by how confident the proposal is, so the fast rows come first.",
+    query: z.strictObject({
+      ...pageQuery.shape,
+      areaKey: z.string().min(1).max(60).optional(),
+      kind: z.enum(['initiative', 'project', 'key_result', 'ritual']).optional(),
+    }),
+    response: AdoptionQueuePageDto,
+    handle: async (context, services) => {
+      const result = await services.ops.adoptionQueue(
+        { areaKey: context.query.areaKey, kind: context.query.kind },
+        { limit: context.query.limit, offset: context.query.offset },
+      );
+      return { ...result, limit: context.query.limit, offset: context.query.offset };
+    },
+  }),
+
+  defineRoute({
+    operationId: 'adoptCandidate',
+    method: 'post',
+    path: '/adoption/adopt',
+    scope: 'write:adoption',
+    summary: 'Adopt a candidate: a linked prisme entity, and nothing outward',
+    description:
+      "Creates one entity with `origin = 'adopted'` — which the planner can never emit a `create` for, by guard 2 — and the link to the object that already exists. It does not bind the reference: that is the reconciler's `adopt` action on its next pass, so that `entity_external_ref` has one writer rather than two racing for guard 1. A key result or a ritual is refused rather than guessed at, because neither’s required values are anywhere in a candidate; merge those onto an entity that already exists.",
+    body: adoptCandidateBody,
+    response: AdoptionEntryDto,
+    status: 201,
+    handle: (context, services) =>
+      services.ops.adoptCandidate(
+        { externalKind: context.body.externalKind, externalId: context.body.externalId },
+        context.identity,
+        context.now,
+      ),
+  }),
+
+  defineRoute({
+    operationId: 'ignoreCandidate',
+    method: 'post',
+    path: '/adoption/ignore',
+    scope: 'write:adoption',
+    summary: 'Ignore a candidate, permanently',
+    description:
+      'Recorded, and never re-proposed. There is deliberately no un-ignore endpoint and the table refuses a delete: a queue that re-proposes the same items every week gets abandoned in a fortnight, and then the model quietly diverges from reality. An ignored object is still adoptable by explicit external id — ignore keeps it out of the queue, not out of existence.',
+    body: ignoreCandidateBody,
+    // 200, not the kit's default 201 for a `post`. Ignoring records a decision
+    // rather than creating a resource — and ignoring the same item twice
+    // creates nothing at all, so a 201 would be a lie on the second call.
+    status: 200,
+    response: AdoptionCandidateDto,
+    handle: (context, services) =>
+      services.ops.ignoreCandidate(
+        {
+          externalKind: context.body.externalKind,
+          externalId: context.body.externalId,
+          reason: context.body.reason,
         },
         context.identity,
         context.now,
