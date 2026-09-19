@@ -1,5 +1,5 @@
 import { exactForm, normalise } from './normalise.js';
-import { FUZZY_THRESHOLD, roundSimilarity, similarity } from './similarity.js';
+import { fuzzyMatch, FUZZY_THRESHOLD, roundSimilarity } from './similarity.js';
 import {
   RULE_CONFIDENCE,
   type Classification,
@@ -188,8 +188,10 @@ function bestFuzzy(
   for (const target of targets.all) {
     if (target.kind !== classification.kind) continue;
     if (!comparable(object, target)) continue;
-    const score = similarity(object.title, target.title);
-    if (score < threshold) continue;
+    // The threshold and the word-level agreement test, together and never
+    // apart — `fuzzyMatch` is the only door to rule 4.
+    const score = fuzzyMatch(object.title, target.title, threshold);
+    if (score === undefined) continue;
     if (best === undefined || score > best.score) {
       best = { target, score };
       tied = false;

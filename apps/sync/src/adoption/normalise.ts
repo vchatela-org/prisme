@@ -17,13 +17,34 @@
  */
 
 /**
- * Leading numbering: `1.`, `2)`, `03 -`, `IV.`, `#4`, `-`, `•`.
+ * Leading numbering, as four separate shapes rather than one regular
+ * expression nobody can check against the four examples in the spec:
  *
- * Anchored, and it takes at most one run, so `1. 2. keep going` loses only the
+ * | Shape | Matches |
+ * |---|---|
+ * | ordinal | `1.`, `2)`, `03 -`, `IV.`, `a)` — a counter *and* its separator |
+ * | hash | `#4`, `# 12` — the separator is the hash, so none is needed after |
+ * | bullet | `-`, `*`, `•`, `–` followed by a space |
+ *
+ * All anchored, and only one is applied, so `1. 2. keep going` loses only the
  * first. A title that is *entirely* numbering keeps it — see {@link normalise}.
+ *
+ * The counter must be followed by a separator. Without that requirement `2026
+ * objectives` loses its year, which is the difference between two annual
+ * reviews.
  */
-const LEADING_NUMBERING =
-  /^[\s]*(?:[#-]\s*)?(?:\d{1,3}|[ivxIVX]{1,5}|[a-zA-Z])\s*[).:\-–—]\s+|^[\s]*[-*•–—]\s+/u;
+const LEADING_NUMBERING = new RegExp(
+  [
+    // ordinal: an arabic number, a short roman numeral, or a single letter,
+    // then one of `)`, `.`, `:` or a dash, then space.
+    String.raw`^\s*(?:\d{1,3}|[ivxIVX]{1,5}|[a-zA-Z])\s*[).:\-–—]\s+`,
+    // hash-numbered
+    String.raw`^\s*#\s*\d{1,3}[).:\-–—]?\s+`,
+    // bullet
+    String.raw`^\s*[-*•–—]\s+`,
+  ].join('|'),
+  'u',
+);
 
 /** Anything that is not a letter, a number or a space, once accents are gone. */
 const PUNCTUATION = /[^\p{L}\p{N}\s]+/gu;
