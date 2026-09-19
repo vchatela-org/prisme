@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08 and W14 landed; **wave 3 is complete: W06 and W08 are merged, W12 is open as [#29](https://github.com/vchatela-org/prisme/pull/29)**
+**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08, W12 and W14 landed; **wave 3 is complete**, and **wave 4 has opened with W09 as [#30](https://github.com/vchatela-org/prisme/pull/30)**
 
 ---
 
@@ -36,10 +36,10 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | 🟢 | [#26](https://github.com/vchatela-org/prisme/pull/26) merged |
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged, [#28](https://github.com/vchatela-org/prisme/pull/28) |
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) merged |
-| [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
+| [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | 🟢 | [#30](https://github.com/vchatela-org/prisme/pull/30) |
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
-| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) |
+| [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) merged |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
 | [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
@@ -129,7 +129,27 @@ unseen. What is left on the gallery is twelve violations from Radix's own markup
 [the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them make
 a hidden native control visible, so wave 4 should know.
 
-**W12 closes wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
+**W09 opens wave 4** ([#30](https://github.com/vchatela-org/prisme/pull/30)): Areas, area detail,
+the Year Review and the KPI dashboard — declared versus observed capacity, which is the view that
+exists in no other tool and the reason prisme allocates before it ranks. The rule the workstream is
+really about is the year boundary, and it is a lookup rather than a convention: weights are held per
+year, a bucket resolves its own, and writing 2027's allocation leaves 2026's target line exactly
+where it was — proved against a live instance, not only in a test. Cycle time is **deliberately not
+drawn**: prisme records no moment at which an initiative started, and reconstructing one from the
+event log is aggregation the API owns.
+
+Two defects it found matter to everyone. **Every write from `apps/web` was being answered `403`** —
+W14's CSRF check requires an `Origin` on the assertion path, `apiFetch` sent none, and that silently
+broke W08's status and estimate writes and W12's three adoption decisions. Reads were unaffected,
+which is why four screens shipped without anyone seeing it. And **`packages/ui`'s charts could not be
+rendered from a server component at all**, because `format` is a function prop and a function cannot
+cross that boundary — a `500` on first open, after every check had passed. Both are fixed here, the
+second additively, so **W10 and W11 will not hit either**. What is *not* fixed, and is now the most
+visible thing left: area colour collides on every screen, because the pinning map `packages/ui`
+provides is mounted nowhere but the gallery —
+[the entry](docs/50-journal/W09-2026-09-19-ui-areas-kpi.md).
+
+**W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and
 years of existing work. It is `plan`-only by shape rather than by a flag — `adopt` takes two *read*
 clients and a store whose only write is a candidate mirror, so there is no outward door for a caller
