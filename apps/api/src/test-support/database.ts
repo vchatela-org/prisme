@@ -91,6 +91,10 @@ export interface TestDatabase {
  */
 const TABLES = [
   'confirmation_token',
+  'adoption_candidate',
+  // Append-only, with a trigger refusing DELETE — the same reason `event_log`
+  // is on this list and the same reason `truncate` is what resets it.
+  'adoption_ignore',
   'api_token',
   'sync_conflict',
   'last_applied',
