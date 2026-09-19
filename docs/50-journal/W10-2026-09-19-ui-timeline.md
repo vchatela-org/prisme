@@ -164,6 +164,24 @@ PostgreSQL) and `build` all green locally before the pull request, plus the priv
 Every screen state was driven in a browser — both themes, all four zooms, a keyboard move, a
 refused move, and a commit verified against the plan served afterwards.
 
+On the pull request, **fifteen of the sixteen checks are green and `dependency audit` is red for a
+reason that is not this branch's**: npm's advisory endpoint is answering `503 — "We are currently
+performing maintenance"`, so `pnpm audit` cannot reach it at all. It is not reporting a
+vulnerability; it is failing to ask. Confirmed three ways — the job's own log, a re-run of it, and
+`pnpm audit --audit-level=moderate` failing identically on a local machine against `main`'s
+dependency set, which this branch does not change (no dependency is added, removed or bumped).
+
+Recorded rather than worked around, per
+[`docs/40-workstreams/README.md#where-you-stop`](../40-workstreams/README.md#where-you-stop): the
+gate is not disabled, no `continue-on-error` is added, and the run is not looped against an outage.
+It needs one re-run once npm's status page is clear, which is a human's call.
+
+**Worth deciding separately:** a required check that depends on a third-party endpoint being up is
+a check that turns every outage into a blocked merge. That is arguably correct for a security gate
+— failing closed is the right default — but it is a choice nobody has made out loud, and the
+alternative (an offline advisory database, or a cached one) exists. Not raised as an ADR here
+because it is W14's gate and not this workstream's to decide.
+
 ## Privacy
 
 Fixture data only. The dataset behind every observation here is `fixtures/areas.json` and
