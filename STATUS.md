@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08, W12 and W14 landed; **wave 3 is complete**, and **wave 4 has opened with W09 as [#30](https://github.com/vchatela-org/prisme/pull/30)**
+**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W09, W12 and W14 landed; **wave 3 is complete**, and **wave 4 is under way**: W09 merged ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 open as [#31](https://github.com/vchatela-org/prisme/pull/31)
 
 ---
 
@@ -37,7 +37,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged, [#28](https://github.com/vchatela-org/prisme/pull/28) |
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) merged |
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | 🟢 | [#30](https://github.com/vchatela-org/prisme/pull/30) |
-| [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
+| [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | 🟢 | [#31](https://github.com/vchatela-org/prisme/pull/31) |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) merged |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
@@ -148,6 +148,24 @@ second additively, so **W10 and W11 will not hit either**. What is *not* fixed, 
 visible thing left: area colour collides on every screen, because the pinning map `packages/ui`
 provides is mounted nowhere but the gallery —
 [the entry](docs/50-journal/W09-2026-09-19-ui-areas-kpi.md).
+
+**W10 is the second of wave 4** ([#31](https://github.com/vchatela-org/prisme/pull/31)): the
+Timeline — bars, dependency edges, the critical path, deadline markers and drag-to-replan. Nothing
+on the screen computes a date: the plan comes from `/timeline`, a drag asks what a move would do and
+renders the answer, and committing writes `earliest_start` — the only scheduling date a human owns.
+No deadline is written from this screen and there is nowhere for it to be.
+
+It found the same shape of missing dependency W12 did, and closed it: **W02 built `replan` and W05
+never exposed it**, so the drag had nothing to ask. `GET /timeline/replan` is that endpoint, and it
+is a `GET` on `read:timeline` deliberately — a preview writes nothing, and behind a write scope it
+would go dark exactly when W14's kill switch is pulled, which is the moment somebody most wants to
+know what they are about to be unable to do. A move is a *request*: a dependency or a full area can
+refuse the day a bar was dropped on, and the panel says so rather than drawing the bar somewhere
+else. Five defects no check could see, including a bar whose hit area was the width of the plot,
+and the **left-edge mirror** of the axis-clipping bug W09 fixed on the right — writing one test and
+not its mirror is the mistake worth remembering. The harness was built and thrown away for the
+fourth time, and the entry now carries the three details that cost the most time —
+[the entry](docs/50-journal/W10-2026-09-19-ui-timeline.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and
