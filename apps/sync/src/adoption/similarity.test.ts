@@ -9,11 +9,12 @@ import {
 } from './similarity.js';
 
 /**
- * The threshold is the number that decides whether a wrong suggestion is put in
- * front of a tired human at the moment they are clicking through a queue. So
- * the important assertions here are the **near-misses**: pairs of real-shaped
- * titles that are different pieces of work and must score *below*
- * {@link FUZZY_THRESHOLD}.
+ * Rule 4 decides whether a wrong suggestion is put in front of a tired human at
+ * the moment they are clicking through a queue. So the important assertions
+ * here are the **near-misses**: pairs of real-shaped titles that are different
+ * pieces of work and must produce no match at all — from `fuzzyMatch`, which is
+ * the threshold and {@link titlesAgree} together, because either one alone
+ * lets a pair through that the other catches.
  *
  * If a change to this file makes a near-miss pass, that is not a test to
  * update. It is the corruption ADR-0010 exists to prevent, arriving as a green
