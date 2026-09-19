@@ -35,6 +35,27 @@ import { classifyStatus, correlationIdOf, type ApiResult } from './api-result';
  * Failures carry a correlation id and a kind. The API's own message is not
  * displayed and not logged: it is the one channel by which an upstream detail
  * could reach a browser (docs/14-threat-model.md §5).
+ *
+ * ## 4. A state-changing call states where it came from
+ *
+ * The API runs W14's origin check on every state-changing request that arrives
+ * on the **assertion** path, and refuses one with no `Origin` outright — a
+ * missing header is a refusal on purpose, because treating its absence as
+ * "probably not a browser" is a bypass with a bookmark on it
+ * (`packages/auth/src/origin.ts`).
+ *
+ * This tier is on that path: it forwards the browser's assertion, so the API
+ * sees a human principal and applies the check. Until W09 drove a write
+ * end-to-end against a real API, nothing here sent an `Origin` at all, and
+ * **every write from this application was answered 403** — the estimate and
+ * status writes as much as the weight write that found it. A read was
+ * unaffected, which is why it stayed invisible: the screens all worked.
+ *
+ * The value is this tier's own public origin, which is what the API's policy
+ * is built from (`originPolicyFor(settings.baseUrl)` — both services are
+ * configured with the same `PRISME_BASE_URL`). It is not copied from the
+ * incoming request: an origin taken from a header is an origin an attacker
+ * chooses, and the check would then be decorative.
  */
 
 /** Matches `API_BASE_PATH` in `@prisme/api/client`, which the web cannot import. */
@@ -83,6 +104,29 @@ function assertionHeader(config: Config): string {
   return config.auth?.assertionHeader ?? 'x-prisme-assertion';
 }
 
+/** The methods the API treats as state-changing, and so origin-checks. */
+export function isStateChanging(method: ApiCall<unknown>['method']): boolean {
+  return method !== undefined && method !== 'GET';
+}
+
+/**
+ * This application's own public origin — scheme, host and port, no path.
+ *
+ * `PRISME_BASE_URL` may legitimately carry a path or a trailing slash; the
+ * API compares exact origins, so it is normalised through `URL` rather than
+ * string-trimmed.
+ */
+export function originOf(config: Config): string {
+  if (config.baseUrl === '') {
+    // Required for this service, so reaching here means the boot check in
+    // `instrumentation.ts` did not run. Loud, like `apiOrigin` — the quiet
+    // alternative is omitting the header, and that is a write path that
+    // answers 403 forever with nothing saying why.
+    throw new Error('prisme-web: PRISME_BASE_URL is absent; see docs/15-runtime.md §2');
+  }
+  return new URL(config.baseUrl).origin;
+}
+
 export interface ApiCall<T> {
   readonly path: string;
   readonly schema: z.ZodType<T>;
@@ -116,6 +160,13 @@ export async function apiFetch<T>(call: ApiCall<T>): Promise<ApiResult<T>> {
   const requestHeaders: Record<string, string> = { accept: 'application/json' };
   if (assertion !== null) requestHeaders[header] = assertion;
   if (call.body !== undefined) requestHeaders['content-type'] = 'application/json';
+
+  // Keyed on the method rather than on the presence of a body: `DELETE` and a
+  // bodyless `POST` are state-changing too, and the API decides what counts
+  // the same way. A read deliberately sends nothing — the check is bound to
+  // state changes, and a header on every request is a header nobody notices
+  // has stopped being set.
+  if (isStateChanging(call.method)) requestHeaders['origin'] = originOf(config);
 
   let response: Response;
   try {

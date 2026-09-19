@@ -11,6 +11,7 @@ import {
 } from '../tokens/area-color.js';
 import { barPath, barThickness, linearScale, niceTicks, zeroBasedDomain } from './chart-scale.js';
 import { SERIES_LIMIT, seriesClass, seriesSlot } from './series.js';
+import { resolveFormat, type ValueFormat } from './value-format.js';
 
 export interface BarDatum {
   label: string;
@@ -34,7 +35,10 @@ export interface BarChartProps extends Omit<
   data: readonly BarDatum[];
   /** Series names. One means no legend — the title already says what it is. */
   series: readonly string[];
+  /** Only reachable from a client component — a function cannot be serialised. */
   format?: (value: number) => string;
+  /** The same instruction as data, for a server component (`./value-format.ts`). */
+  formatAs?: ValueFormat;
   /** Marks a reference position on the value axis: a target, an agreed share. */
   reference?: { value: number; label: string };
 }
@@ -58,9 +62,9 @@ const SURFACE_GAP = 2;
  * height grows with the number of rows *and includes the axis band*: a fixed
  * height that clips the axis is how a card ends up with its own tiny scrollbar.
  */
-export function BarChart({ data, series, format, reference, ...frame }: BarChartProps) {
+export function BarChart({ data, series, format, formatAs, reference, ...frame }: BarChartProps) {
   const [hovered, setHovered] = useState<{ row: number; series: number } | null>(null);
-  const formatValue = format ?? ((value: number) => value.toFixed(1));
+  const formatValue = resolveFormat(format, formatAs);
 
   if (series.length > SERIES_LIMIT) {
     return (
