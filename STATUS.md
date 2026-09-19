@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W05, W07 and W14 landed; **wave 3 in progress: W06 and W08 are green and await merge, W12 is open**
+**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W08 and W14 landed; **wave 3 in progress: W06 and W08 are merged, W12 is open**
 
 ---
 
@@ -33,9 +33,9 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W03](docs/40-workstreams/W03-connectors.md) | Connectors, read path | — | 1 | 🟢 | [#18](https://github.com/vchatela-org/prisme/pull/18) merged |
 | [W04](docs/40-workstreams/W04-reconciler.md) | Reconciler: plan/apply, conflicts, intent channel | W01, W03 | 2 | 🟢 | [#21](https://github.com/vchatela-org/prisme/pull/21) merged |
 | [W05](docs/40-workstreams/W05-api.md) | REST API + OpenAPI | W01, W03 | 2 | 🟢 | [#22](https://github.com/vchatela-org/prisme/pull/22) merged |
-| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | 🟢 | [#26](https://github.com/vchatela-org/prisme/pull/26) |
-| [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged |
-| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) |
+| [W06](docs/40-workstreams/W06-mcp.md) | MCP server + dry-run write guards | W05 | 3 | 🟢 | [#26](https://github.com/vchatela-org/prisme/pull/26) merged |
+| [W07](docs/40-workstreams/W07-design-system.md) | Design system & app shell | W00 | 1 | 🟢 | [#20](https://github.com/vchatela-org/prisme/pull/20) merged, [#28](https://github.com/vchatela-org/prisme/pull/28) |
+| [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) merged |
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | ⚪ | — |
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | ⚪ | — |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
@@ -117,12 +117,17 @@ fixture-derived dataset through a throwaway local identity provider, because `pa
 development bypass and the middleware resolves a real JWKS before any route renders — which is
 correct, and which every remaining UI workstream will have to solve again.
 
-That run surfaced one cross-workstream defect worth knowing before wave 4 starts: **W14's CSP
-refuses every server-rendered `style` attribute**, and a nonce cannot authorise one. `<AreaBadge>`
-and `<BalanceMeter>` set their colour that way, so area colour is absent until React re-applies it
-through the CSSOM on hydration, and each page logs around a hundred violations. The end state is
-right and the policy must not be relaxed to fix it — area colour should come from the stylesheet the
-design system already generates. **W07 with W14 own that. W12 remains the open half of wave 3.**
+That run surfaced one cross-workstream defect, and it is now **closed**
+([#28](https://github.com/vchatela-org/prisme/pull/28)): W14's CSP refuses every server-rendered
+`style` attribute, a nonce cannot authorise one, and `<AreaBadge>` and `<BalanceMeter>` painted
+their colour that way — about a hundred violations per page, and no area colour until hydration.
+The policy did not move. Colour now reaches HTML as a literal utility class and SVG as a `fill`
+attribute, both derived from the area's slot, and the balance meter's fill is an SVG `rect` because
+a length that comes from data is exact as an attribute. The repository's first component test
+renders the design system and asserts the markup carries no `style=`, so this cannot come back
+unseen. What is left on the gallery is twelve violations from Radix's own markup, recorded in
+[the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them make
+a hidden native control visible, so wave 4 should know. **W12 remains the open half of wave 3.**
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-

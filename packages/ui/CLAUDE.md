@@ -35,12 +35,22 @@ Tailwind v4 utilities over Radix (`radix-ui`, the single umbrella package) and `
 shadcn/ui idiom — Radix supplies the focus traps, the roving focus and the ARIA wiring that a
 hand-rolled dialog or combobox gets subtly wrong.
 
-Two things follow from the way the package is built, and both bite if you do not know them:
+Three things follow from the way the package is built, and all three bite if you do not know them:
 
 - **Utility classes must be literal.** Tailwind scans source text, so a class name assembled at
-  runtime (`` `bg-${token}` ``) is never generated. Data-derived colour therefore uses an inline
-  style with a custom property — `style={{ backgroundColor: 'var(--prisme-series-3)' }}` — and that
-  is the only sanctioned use of `style`.
+  runtime (`` `bg-${token}` ``) is never generated. A colour chosen at runtime therefore comes from
+  a **lookup table of literal classes** — `colorSlotClass(slot)` in
+  [`src/tokens/area-color.ts`](src/tokens/area-color.ts), which is written out precisely so the
+  scanner can see every entry.
+- **Never `style`.** Not for colour, not for a width, not once. The policy the web tier sends is
+  `style-src 'self' 'nonce-…'` with no `unsafe-inline`, and a nonce cannot authorise a `style`
+  *attribute* — so every one is refused by the browser and logged. Two ways to paint remain, and
+  between them they cover everything: a class from the generated stylesheet, and — when the value
+  genuinely comes from data, like the length of a bar — an **SVG attribute**, which CSP does not
+  govern. Both are enforced, by [`src/no-inline-style.test.tsx`](src/no-inline-style.test.tsx)
+  rendering the components and
+  [`src/tokens/no-inline-style-source.test.ts`](src/tokens/no-inline-style-source.test.ts) reading
+  the source of this package and `apps/web`.
 - **`@prisme/ui/server` exists for a reason.** The main entry re-exports client components, so
   importing anything from it in a server component drags it across the client boundary and fails at
   *request* time. Tokens, contrast, chart geometry, sorting and the theme cookie are also exported
