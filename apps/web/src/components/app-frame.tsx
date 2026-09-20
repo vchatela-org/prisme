@@ -16,12 +16,14 @@ import {
   Goal,
   Inbox,
   LayoutList,
+  PackagePlus,
   Scale,
   Target,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { CaptureDialog } from './capture-dialog';
 
 /**
  * The frame the daily surfaces sit in.
@@ -47,8 +49,14 @@ import { useMemo, type ReactNode } from 'react';
  *
  * Areas and KPI were added by W09, the Timeline by W10, and Objectives and
  * Reviews by W11, each on the day its route landed — which is the rule this
- * comment describes rather than an exception to it. The creation flows (W15)
- * are still absent.
+ * comment describes rather than an exception to it.
+ *
+ * W15 adds **Creations** — the ledger of what prisme has asked the external
+ * tools for and not yet confirmed. The three creation *flows* are not in the
+ * navigation and deliberately so: creating is an action rather than a place,
+ * and it belongs in the palette, on the keyboard path, next to where somebody
+ * already is. The ledger is the one that is a place, because it is where you
+ * go when something you asked for has not appeared.
  */
 
 const NAV: readonly NavGroup[] = [
@@ -75,6 +83,11 @@ const NAV: readonly NavGroup[] = [
       // rather than in a group of its own because it is reached the same way
       // the other three are, and a second group for one item is a heading.
       { label: 'Adoption', href: '/adoption', icon: <GitMerge aria-hidden /> },
+      // Creations sits beside Adoption for the same reason: both are about
+      // the boundary with the external tools, both are read when something
+      // there does not match what prisme says, and both become empty on
+      // purpose.
+      { label: 'Creations', href: '/create/creations', icon: <PackagePlus aria-hidden /> },
     ],
   },
 ];
@@ -90,6 +103,7 @@ export interface AppFrameProps {
 export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrameProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [capturing, setCapturing] = useState(false);
 
   const nav = useMemo<readonly NavGroup[]>(
     () =>
@@ -108,6 +122,51 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
 
   const commands = useMemo<readonly PaletteCommand[]>(
     () => [
+      /*
+       * Capture is first, and it is the only command that does not navigate.
+       *
+       * The brief's target is a capture from the palette in under ten
+       * seconds with its decisions deferred, and every navigation in that
+       * path costs a page load and loses the screen the person was reading.
+       * So this opens a dialog over wherever they are: ⌘K, "capture", type,
+       * Enter, and they are back where they started.
+       */
+      {
+        id: 'capture',
+        label: 'Capture something',
+        group: 'Create',
+        keywords: ['quick', 'inbox', 'note', 'todo', 'task', 'jot'],
+        run: () => {
+          setCapturing(true);
+        },
+      },
+      {
+        id: 'new-initiative',
+        label: 'New initiative',
+        group: 'Create',
+        keywords: ['outcome', 'score', 'wsjf', 'backlog'],
+        run: () => {
+          router.push('/create/initiative');
+        },
+      },
+      {
+        id: 'new-project',
+        label: 'New project',
+        group: 'Create',
+        keywords: ['container', 'sections', 'renovation', 'large', 'effort'],
+        run: () => {
+          router.push('/create/project');
+        },
+      },
+      {
+        id: 'go-creations',
+        label: 'Go to Creations',
+        group: 'Navigate',
+        keywords: ['ledger', 'pending', 'queued', 'failed', 'outstanding'],
+        run: () => {
+          router.push('/create/creations');
+        },
+      },
       {
         id: 'go-focus',
         label: 'Go to Focus',
@@ -237,6 +296,7 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         {children}
       </AppShell>
       <CommandPalette commands={commands} />
+      <CaptureDialog open={capturing} onOpenChange={setCapturing} />
     </ToastProvider>
   );
 }

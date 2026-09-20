@@ -118,6 +118,50 @@ describe('planning a convergence', () => {
   });
 });
 
+describe('the write freeze', () => {
+  /**
+   * The defect a real frozen instance found. The frozen writer refuses each
+   * call, so an `apply` that ran into it recorded every intent `failed` and
+   * climbed every attempt counter — and the next pass did it again. A
+   * correctly-frozen deployment ended up showing a ledger full of failures
+   * and a CronJob red every fifteen minutes.
+   *
+   * A freeze is a **refusal**, not a failure, and nothing is attempted.
+   */
+  it('attempts nothing and records nothing, rather than failing every intent', async () => {
+    const store = fakeStore(PROJECT_WITH_THREE_SECTIONS);
+
+    const result = await converge({
+      mode: 'apply',
+      store,
+      writer: createFrozenCreationWriter(),
+      writeEnabled: false,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(result.refused).toContain('write freeze');
+    expect(result.failed).toBe(0);
+    expect(result.created).toBe(0);
+    expect([...store.rows.values()].every((row) => row.state === 'pending')).toBe(true);
+    // The counter is what a person reads as "this has been tried five times".
+    expect([...store.rows.values()].every((row) => row.attempts === 0)).toBe(true);
+  });
+
+  it('says nothing was attempted, so an empty failure count is not read as success', async () => {
+    const result = await converge({
+      mode: 'apply',
+      store: fakeStore(PROJECT_WITH_THREE_SECTIONS),
+      writer: createFrozenCreationWriter(),
+      writeEnabled: false,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(result.report).toContain('nothing was attempted');
+  });
+});
+
 describe('a whole project, in one pass', () => {
   it('creates the project, then its sections in order, each under its new parent', async () => {
     const store = fakeStore(PROJECT_WITH_THREE_SECTIONS);
@@ -279,21 +323,28 @@ describe('a failure partway through', () => {
     expect(tool.creations).toHaveLength(2);
   });
 
+  /**
+   * A writer that refuses while writes are *enabled* is a real failure — a
+   * revoked token, a refused command — and it is recorded with the
+   * connector's own redacted message: tool, operation and an error code,
+   * never the tool's prose, which quotes the object's own content back.
+   */
   it('records a connector refusal without repeating the tool’s prose', async () => {
     const store = fakeStore([PROJECT_WITH_THREE_SECTIONS[0] as Intent]);
-    const frozen = createFrozenCreationWriter('the write freeze is on');
+    const refusing = createFrozenCreationWriter('the integration token was revoked');
 
     const result = await converge({
       mode: 'apply',
       store,
-      writer: frozen,
-      writeEnabled: false,
+      writer: refusing,
+      writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
     });
 
     expect(result.failed).toBe(1);
-    expect(result.outcomes[0]?.reason).toContain('write freeze');
+    expect(result.outcomes[0]?.reason).toContain('create project');
+    expect(result.outcomes[0]?.reason).not.toContain('Renovate');
     expect(store.rows.get('p-01')?.state).toBe('failed');
   });
 });

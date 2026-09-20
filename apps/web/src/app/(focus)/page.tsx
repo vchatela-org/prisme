@@ -53,7 +53,7 @@ export const metadata = {
 export default async function FocusPage() {
   const [focus, areas, sync] = await Promise.all([
     apiFetch({ path: '/focus', schema: focusSchema }),
-    apiFetch({ path: '/areas', query: { limit: '200' }, schema: areaListSchema }),
+    apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({ path: '/sync', schema: syncStatusSchema }),
   ]);
 

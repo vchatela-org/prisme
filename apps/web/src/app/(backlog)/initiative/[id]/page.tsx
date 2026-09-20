@@ -1,13 +1,14 @@
-import { AreaBadge, Badge, Button, Card, EmptyState, ScorePill, Section } from '@prisme/ui';
-import { ExternalLink, FileText, Link2 } from 'lucide-react';
+import { AreaBadge, Badge, Card, EmptyState, ScorePill, Section } from '@prisme/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PageButton } from '@/app/(create)/page-button';
 import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
 import { StatusMenu } from '@/components/status-menu';
 import { apiFetch } from '@/lib/api';
 import {
   areaListSchema,
+  creationListSchema,
   eventPageSchema,
   focusSchema,
   initiativeSchema,
@@ -15,6 +16,7 @@ import {
   taskListSchema,
   type Area,
 } from '@/lib/contracts';
+import { pageStateOf } from '@/lib/create-view';
 import { dayOf, daysSince, dueSummary } from '@/lib/focus-view';
 import { countsFrom } from '@/lib/guardrails';
 
@@ -35,16 +37,25 @@ import { countsFrom } from '@/lib/guardrails';
 export default async function InitiativePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [initiative, tasks, scores, areas, focus, events] = await Promise.all([
+  const [initiative, tasks, scores, areas, focus, events, creations] = await Promise.all([
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}`, schema: initiativeSchema }),
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/tasks`, schema: taskListSchema }),
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/scores`, schema: scoreHistorySchema }),
-    apiFetch({ path: '/areas', query: { limit: '200' }, schema: areaListSchema }),
+    apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({ path: '/focus', schema: focusSchema }),
     apiFetch({
       path: '/events',
       query: { entityKind: 'initiative', entityId: id, limit: '20' },
       schema: eventPageSchema,
+    }),
+    // W15: whether a page has been *asked for* and not yet made. Without it
+    // the button would read `external_page_id IS NULL` as "no page" and offer
+    // to create a second — creating is no longer synchronous, which is a
+    // state ADR-0011's two-state rule predates.
+    apiFetch({
+      path: '/creations',
+      query: { entityId: id, limit: '20' },
+      schema: creationListSchema,
     }),
   ]);
 
@@ -258,35 +269,10 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
         title="Narrative page"
         description="A page is optional and created on demand, so a page existing means something was written in it (ADR-0011)."
       >
-        {data.externalPageId === null ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {/*
-              Both creation paths are W15's. They are rendered as disabled
-              affordances rather than hidden, so the screen says what will be
-              possible here rather than silently lacking it.
-            */}
-            <Button size="sm" disabled>
-              <FileText aria-hidden />
-              Create page
-            </Button>
-            <Button size="sm" variant="secondary" disabled>
-              <Link2 aria-hidden />
-              Link an existing page
-            </Button>
-            <span className="text-xs text-ink-muted">Both arrive with the creation flows.</span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="secondary" disabled>
-              <ExternalLink aria-hidden />
-              Open page
-            </Button>
-            <span className="text-xs text-ink-muted">
-              A page is linked. Opening it needs the document tool&rsquo;s address, which is
-              instance configuration this application is not given yet.
-            </span>
-          </div>
-        )}
+        <PageButton
+          initiativeId={data.id}
+          state={pageStateOf(data.externalPageId, creations.ok ? creations.data.items : [])}
+        />
       </Section>
 
       <Section

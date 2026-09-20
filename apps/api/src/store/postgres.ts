@@ -412,6 +412,15 @@ export function createPostgresStore(client: Sql): ApiStore {
    * enqueueing a second creation. A slot that is already **satisfied** keeps
    * its id and its state; re-requesting a page that exists must not blank the
    * reference to it.
+   *
+   * **The draft is stringified explicitly**, as every other `jsonb` write in
+   * this file is. `sql.json()` works on a bare postgres.js client and fails
+   * on the one the API actually runs with: `createDatabase` wraps it in
+   * Drizzle, which replaces the driver's serializers, and the object reaches
+   * the socket writer as an object. The failure is a `TypeError` from inside
+   * the driver naming neither the column nor the statement — the same shape
+   * of trap W04 recorded for `timestamptz`, and invisible to the integration
+   * suite because its harness builds a *bare* client.
    */
   async function writeIntents(
     tx: Tx,
@@ -432,7 +441,7 @@ export function createPostgresStore(client: Sql): ApiStore {
         insert into creation_intent
           (entity_kind, entity_id, tool, object_kind, ordinal, draft, idempotency_key, requires)
         values (${entityKind}, ${entityId}::uuid, ${intent.tool}, ${intent.objectKind},
-                ${intent.ordinal}, ${tx.json(intent.draft as never)}, ${keyFor(slot)}::uuid,
+                ${intent.ordinal}, ${JSON.stringify(intent.draft)}::jsonb, ${keyFor(slot)}::uuid,
                 ${requires}::uuid)
         on conflict (entity_kind, entity_id, object_kind, ordinal) do update
           set draft = excluded.draft,
@@ -917,7 +926,10 @@ export function createPostgresStore(client: Sql): ApiStore {
           const created = rows[0];
           if (created === undefined) throw new Error('the capture insert returned no row');
 
-          await writeIntents(tx, 'capture', created.id, input.intents, input.keyFor);
+          // Planned here, inside the transaction, because the intents need
+          // the id the insert just produced — and because planning outside
+          // it is how a capture gets committed with no intent behind it.
+          await writeIntents(tx, 'capture', created.id, input.intentsFor(created.id), input.keyFor);
           return toCapture(created);
         });
       },
@@ -1052,6 +1064,19 @@ export function createPostgresStore(client: Sql): ApiStore {
         return { ok: true as const };
       },
 
+      /**
+       * The ledger, **in the order the work will actually happen**.
+       *
+       * Ordering by `created_at, ordinal` alone is not enough: a project and
+       * its sections are written in one transaction, so `now()` is identical
+       * across every row and the project ties with its own section 0 —
+       * leaving a random uuid to decide. The screen then listed a project
+       * after one of its own sections, which reads as an arbitrary list on
+       * the one surface whose job is to show how far an ordered process got.
+       *
+       * The ranks below match `apps/sync/src/create/order.ts`, so the plan
+       * and the screen describing it cannot disagree.
+       */
       async intents(filter, page: PageRequest): Promise<Paged<CreationIntentRecord>> {
         const rows = await client<(IntentRow & { total: string })[]>`
           select ${intentColumns}, count(*) over () as total
@@ -1059,7 +1084,11 @@ export function createPostgresStore(client: Sql): ApiStore {
           where true
             ${filter.state === undefined ? client`` : client`and c.state = ${filter.state}`}
             ${filter.entityId === undefined ? client`` : client`and c.entity_id = ${filter.entityId}::uuid`}
-          order by c.created_at, c.ordinal, c.id
+          order by c.created_at,
+                   case c.object_kind
+                     when 'project' then 0 when 'section' then 1
+                     when 'task' then 2 else 3 end,
+                   c.ordinal, c.id
           limit ${page.limit} offset ${page.offset}`;
         return {
           items: rows.map(toIntent),

@@ -317,6 +317,14 @@ async function main(): Promise<number> {
         logger.warn('converge stopped', { reason: outcome.result.stopped });
       }
 
+      if (outcome.result.refused !== undefined) {
+        // The write freeze is the configured, expected state of a fresh
+        // deployment, so it exits clean. Same judgement as a reconciler pass
+        // refused for the same reason.
+        logger.info('converge refused', { reason: outcome.result.refused });
+        return EXIT_OK;
+      }
+
       // A blocked intent is a finding, not a failure of the command. A
       // *failed* one is: something was attempted against a real workspace and
       // did not work, and a green pipeline would hide it.
