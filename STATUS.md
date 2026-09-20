@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-19 · **Current phase:** P0 **frozen** — W00–W09, W12 and W14 landed; **wave 3 is complete**, and **wave 4 is under way**: W09 merged ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 open as [#31](https://github.com/vchatela-org/prisme/pull/31)
+**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — W00–W10, W12 and W14 landed; **wave 3 is complete**, and **wave 4 is nearly so**: W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)) and W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)) merged, W11 open as [#32](https://github.com/vchatela-org/prisme/pull/32). Only **W13** remains in wave 4
 
 ---
 
@@ -38,7 +38,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W08](docs/40-workstreams/W08-ui-focus.md) | UI: Focus, Backlog, Inbox | W05, W07 | 3 | 🟢 | [#27](https://github.com/vchatela-org/prisme/pull/27) merged |
 | [W09](docs/40-workstreams/W09-ui-areas-kpi.md) | UI: Areas, Balance, KPI dashboard | W05, W07 | 4 | 🟢 | [#30](https://github.com/vchatela-org/prisme/pull/30) |
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | 🟢 | [#31](https://github.com/vchatela-org/prisme/pull/31) |
-| [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | ⚪ | — |
+| [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | 🟢 | [#32](https://github.com/vchatela-org/prisme/pull/32) |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) merged |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
 | [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
@@ -166,6 +166,28 @@ and the **left-edge mirror** of the axis-clipping bug W09 fixed on the right —
 not its mirror is the mistake worth remembering. The harness was built and thrown away for the
 fourth time, and the entry now carries the three details that cost the most time —
 [the entry](docs/50-journal/W10-2026-09-19-ui-timeline.md).
+
+**W11 is the third of wave 4** ([#32](https://github.com/vchatela-org/prisme/pull/32)): Objectives,
+key results and the four cadence reviews — the screens where decisions are actually made. The wizard
+encodes the cadence map's step *shapes* row for row and never a concrete checklist, which is instance
+data; each step renders the data it is about, because a checklist that merely lists steps is no
+better than the paper one. Resume is the **first unticked step**, not the furthest reached, and every
+tick is a read-merge-write: `PATCH /reviews/:id` replaces the checklist wholesale, so sending only
+the steps this build knows would delete an instance's own. Closing is its own action, because it
+takes the capacity snapshot and the API never retakes it.
+
+It found two defects older than itself. **`areaListSchema` has never parsed a real `/areas`
+response** — the endpoint is not paged and the schema has demanded `total`, `limit` and `offset`
+since W08 — so Focus, Backlog, Inbox, Adoption and initiative detail have all been showing the area
+*key* where they meant the name, quietly, because `health` instead of `Health` reads as a styling
+choice. And **`fixtures/objectives.json` was loaded by nothing**: listed in the fixtures README,
+written with coverage notes naming this workstream, and never once put in a database — so it had
+drifted to three statuses the schema's CHECK constraint forbids. `seedFixtures` now loads it. Both
+are fixed here. What is **not** fixed: `fixtures/` still carries no task mirror, so
+`progressComputed` is null on every key result from a plain seed and ADR-0013's divergence — the
+behaviour this workstream exists to surface — cannot be exercised without hand-seeding rows.
+The harness was built and thrown away for the **fifth** time —
+[the entry](docs/50-journal/W11-2026-09-20-ui-objectives-reviews.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and

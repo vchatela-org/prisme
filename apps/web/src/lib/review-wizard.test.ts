@@ -107,11 +107,7 @@ describe('progressOf', () => {
   it('resumes at the first gap, not at the furthest step reached', () => {
     // Ticked 1, 2 and 4. The unfinished step is 3, and landing on 5 would
     // skip it while the artefact claimed the review had covered it.
-    const checklist = ticked([
-      steps[0]?.id ?? '',
-      steps[1]?.id ?? '',
-      steps[3]?.id ?? '',
-    ]);
+    const checklist = ticked([steps[0]?.id ?? '', steps[1]?.id ?? '', steps[3]?.id ?? '']);
 
     const progress = progressOf(steps, checklist);
     expect(progress.done).toBe(3);
