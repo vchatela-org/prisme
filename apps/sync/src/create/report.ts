@@ -39,8 +39,15 @@ export function formatConvergePlan(plan: ConvergePlan, options: ConvergeReportOp
   if (!options.writeEnabled) {
     // The expected state of a fresh deployment, said plainly rather than as a
     // warning: an operator reading "0 created" needs to know whether that is
-    // an empty queue or a closed door.
-    lines.push('write freeze      ON — nothing will be created (SYNC_WRITE_ENABLED=false)');
+    // an empty queue or a closed door. Under `apply` it also says that
+    // nothing was *attempted* — a frozen pass records no failures, so an
+    // empty failure count here means the door was shut rather than that
+    // every write worked.
+    lines.push(
+      options.mode === 'apply'
+        ? 'write freeze      ON — nothing was attempted (SYNC_WRITE_ENABLED=false)'
+        : 'write freeze      ON — nothing will be created (SYNC_WRITE_ENABLED=false)',
+    );
   }
   lines.push('');
 

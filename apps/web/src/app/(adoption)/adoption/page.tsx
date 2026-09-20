@@ -43,7 +43,7 @@ export const metadata = {
 export default async function AdoptionPage() {
   const [queue, areas] = await Promise.all([
     apiFetch({ path: '/adoption/queue', query: { limit: '100' }, schema: adoptionQueueSchema }),
-    apiFetch({ path: '/areas', query: { limit: '200' }, schema: areaListSchema }),
+    apiFetch({ path: '/areas', schema: areaListSchema }),
   ]);
 
   if (!queue.ok) {

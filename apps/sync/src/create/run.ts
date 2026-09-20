@@ -66,6 +66,13 @@ export interface ConvergeResult {
   readonly outcomes: readonly StepOutcome[];
   /** Set when the pass stopped before draining what it could have. */
   readonly stopped?: string | undefined;
+  /**
+   * Set when the pass declined to attempt anything — today, only the write
+   * freeze. A refusal is **not** a failure: it is the configured, expected
+   * state of a deployment before docs/13-migration.md §5 step 8, and a caller
+   * exits clean on it.
+   */
+  readonly refused?: string | undefined;
 }
 
 /** The writer call for one resolved creation. Exhaustive by construction. */
@@ -112,17 +119,38 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
 
   const initial = orderConvergence({ intents, refsByEntity });
 
-  if (options.mode === 'plan') {
+  /*
+   * A frozen deployment does not *attempt* anything.
+   *
+   * The frozen writer would refuse each call, which is the structural
+   * backstop and stays. But letting the pass run into it is wrong in a way
+   * only a real frozen instance shows: every intent is recorded `failed`,
+   * every attempt counter climbs, and the ledger a person reads says
+   * "5 failed" about an instance that is behaving exactly as configured. The
+   * next pass then does it again, so the count grows forever and the CronJob
+   * is red every fifteen minutes.
+   *
+   * The write freeze is the expected state of a fresh deployment
+   * (docs/13-migration.md §5 step 8), so it is a **refusal** rather than a
+   * failure — the same distinction `apply` draws in `apply/apply.ts`, and the
+   * reason its caller exits clean while frozen.
+   */
+  const frozen = options.mode === 'apply' && !options.writeEnabled;
+
+  if (options.mode === 'plan' || frozen) {
     return {
       plan: initial,
       report: formatConvergePlan(initial, {
-        mode: 'plan',
+        mode: options.mode,
         writeEnabled: options.writeEnabled,
         maxPerPass: options.maxPerPass,
       }),
       created: 0,
       failed: 0,
       outcomes: [],
+      ...(frozen
+        ? { refused: 'the write freeze is on, so nothing was attempted (SYNC_WRITE_ENABLED=false)' }
+        : {}),
     };
   }
 

@@ -1,4 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { EMPTY_TEXT, type ExternalTask } from '@prisme/connectors';
+import {
+  createPostgresStore as createReconcilerStore,
+  DEFAULT_ANCHOR_LABEL,
+  DEFAULT_STATUS_REQUEST_PREFIX,
+  plan,
+} from '@prisme/sync';
 import {
   describeWithDatabase,
   openTestDatabase,
@@ -139,6 +146,27 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
       expect(intents[0]).toMatchObject({ objectKind: 'task', state: 'pending', externalId: null });
     });
 
+    /**
+     * A capture and its intents commit **together**.
+     *
+     * The first version of this service inserted the capture and then
+     * recorded its intents in a second transaction, because the intents
+     * carry a backlink containing the capture's own id. A real run left two
+     * captures committed with no intent at all — a capture that never
+     * becomes a task, with nothing anywhere to say so. The invariant is
+     * asserted rather than described: every capture has at least one intent.
+     */
+    it('never leaves a capture with no intent behind it', async () => {
+      await capture('One');
+      await capture('Two');
+
+      const orphans = await database.client<{ count: string }[]>`
+        select count(*) as count from capture c
+         where not exists (select 1 from creation_intent i where i.entity_id = c.id)`;
+
+      expect(Number(orphans[0]?.count)).toBe(0);
+    });
+
     it('refuses an area mapped nowhere, naming what would fix it', async () => {
       const response = await api().request('POST', url('/captures'), {
         title: 'Nowhere to put this',
@@ -270,6 +298,115 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
     });
   });
 
+  /**
+   * *All three flows create exactly one object per tool, verified by a
+   * follow-up `plan` showing `create: 0`.*
+   *
+   * The definition of done, executed rather than described: the **real
+   * planner** is run over the desired state the reconciler would load, with
+   * the promoted initiative's anchor present in the observed world. It must
+   * emit no create.
+   *
+   * A control runs beside it, because a test that only ever sees zero proves
+   * nothing about whether it could see one: the same planner, over the same
+   * corpus, with the anchor binding removed, *does* emit a create. Without
+   * the control this test would pass against a planner that had stopped
+   * emitting creates entirely.
+   */
+  describe('the no-duplicate guard, through the real planner', () => {
+    const PLANNER_CONFIG = {
+      anchorLabel: DEFAULT_ANCHOR_LABEL,
+      statusRequestPrefix: DEFAULT_STATUS_REQUEST_PREFIX,
+      baseUrl: 'https://prisme.invalid',
+    };
+
+    /**
+     * The anchor as the task tool would report it.
+     *
+     * Typed as `ExternalTask` on purpose. The first version was inferred, so
+     * a misspelled field and a missing one both passed the type check; and
+     * the second cast `''` into the `description` slot, which is not a string
+     * but a `SanitisedText` — the planner reads `.text` off it. A cast into a
+     * structured type is a type check switched off, and it cost two runs.
+     */
+    function anchorTask(externalId: string): ExternalTask {
+      return {
+        externalId,
+        projectId: MAPPED_PROJECT,
+        sectionId: MAPPED_SECTION,
+        content: 'Something small',
+        description: EMPTY_TEXT,
+        labels: [DEFAULT_ANCHOR_LABEL],
+        priority: 'medium',
+        completed: false,
+        order: 1,
+        urls: [],
+        contentHash: 'fixture-hash',
+      };
+    }
+
+    /** Every initiative the planner would make a task for. */
+    async function creates(observed: readonly ExternalTask[]): Promise<readonly string[]> {
+      const store = createReconcilerStore(database.client);
+      const [desired, lastApplied] = await Promise.all([
+        store.loadDesired(),
+        store.loadLastApplied(),
+      ]);
+      const result = plan(desired, { tasks: observed }, lastApplied, PLANNER_CONFIG);
+      return result.actions
+        .filter((action) => action.tag === 'create')
+        .map((action) => action.initiativeId ?? '');
+    }
+
+    /**
+     * Scoped to *this* initiative rather than to the whole plan's count. The
+     * fixture corpus contains initiatives that legitimately have no anchor
+     * yet, so a plan over it is expected to contain creates — asserting zero
+     * across the board would have been asserting something false, and the
+     * first version of this test did exactly that.
+     */
+    it('plans no create for a promoted capture, because its anchor already exists', async () => {
+      const created = await capture('Something small');
+      await bindCaptureTask(created.id, 'ext-task-promoted');
+      const promoted = await api().request('POST', url(`/captures/${created.id}/promote`), {
+        title: 'Something small, finished',
+        value: 3,
+        timeCriticality: 2,
+        risk: 2,
+        size: 3,
+      });
+      const initiativeId = (promoted.body as { id: string }).id;
+
+      expect(await creates([anchorTask('ext-task-promoted')])).not.toContain(initiativeId);
+    });
+
+    /**
+     * The control. Flip the one fact the guard reads — the anchor binding —
+     * and the same planner over the same corpus emits a create.
+     */
+    it('plans a create for the same initiative once its anchor is taken away', async () => {
+      const created = await capture('Something small');
+      await bindCaptureTask(created.id, 'ext-task-control');
+      const promoted = await api().request('POST', url(`/captures/${created.id}/promote`), {
+        title: 'Something small, finished',
+        value: 3,
+        timeCriticality: 2,
+        risk: 2,
+        size: 3,
+      });
+      const initiativeId = (promoted.body as { id: string }).id;
+
+      // `next` so the planner considers it at all, and no anchor.
+      await database.client`
+        update initiative set external_anchor_id = null, status = 'next'
+         where id = ${initiativeId}::uuid`;
+      await database.client`
+        delete from entity_external_ref where prisme_id = ${initiativeId}`;
+
+      expect(await creates([])).toContain(initiativeId);
+    });
+  });
+
   describe('the project flow', () => {
     async function project(body: Record<string, unknown>) {
       const response = await api().request('POST', url('/projects'), {
@@ -298,6 +435,30 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
 
       expect(sections.map((section) => section.ordinal)).toEqual([0, 1, 2]);
       expect(sections.every((section) => section.requires === projectIntent?.id)).toBe(true);
+    });
+
+    /**
+     * The order the work will happen in, not the order the rows landed in.
+     *
+     * A project and its sections commit in one transaction, so `now()` is
+     * identical across every row and a tie-break on `ordinal` alone leaves a
+     * random uuid deciding. The ledger listed a project *after* one of its
+     * own sections — arbitrary-looking, on the one screen whose job is to
+     * show how far an ordered process got.
+     */
+    it('lists a project before its own sections, despite one transaction timestamp', async () => {
+      const created = await project({ taskProject: { mode: 'create' } });
+      const intents = await intentsOf(created.id);
+
+      expect(intents.map((intent) => intent.objectKind)).toEqual([
+        'project',
+        'section',
+        'section',
+        'section',
+      ]);
+      expect(
+        intents.filter((intent) => intent.objectKind === 'section').map((s) => s.ordinal),
+      ).toEqual([0, 1, 2]);
     });
 
     /**
@@ -550,6 +711,29 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
       };
       expect(body.worthReading).toBe(true);
       expect(body.matches[0]).toMatchObject({ source: 'existing', suggests: 'open' });
+    });
+
+    /**
+     * The defect a real search found. `initiatives.list({ search })` is a
+     * substring match, and pre-filtering on it meant the fuzzy matcher only
+     * ever saw candidates that already contained the query verbatim — so a
+     * near-match, which is exactly what is *not* a substring, was filtered
+     * out before it could be ranked.
+     */
+    it('finds a near-match that contains the query nowhere', async () => {
+      await api().request('POST', url('/initiatives'), {
+        title: 'Passport renewed',
+        areaKey: MAPPED_AREA,
+        value: 3,
+        timeCriticality: 2,
+        risk: 2,
+        size: 3,
+      });
+
+      const response = await api().request('GET', url('/search?q=Renew%20the%20passport'));
+      const body = response.body as { matches: { title: string }[] };
+
+      expect(body.matches.map((match) => match.title)).toContain('Passport renewed');
     });
 
     it('offers an adoption rather than a create for something prisme does not hold', async () => {

@@ -217,6 +217,19 @@ export const areaSchema = z.object({
   key: areaKey,
   name: z.string(),
   kind: areaKind,
+  /**
+   * Where this area's work lives in the task tool (W15).
+   *
+   * Read by the capture flow and by nothing else: a capture becomes a task,
+   * and an area mapped nowhere has no honest place to put one. Offering it
+   * anyway would produce a `422` on submit, after the person had typed.
+   *
+   * Defaulted rather than required, because the API has sent it since W05 and
+   * every other screen ignores it — a required field here would make this
+   * schema the reason Focus stops rendering if the shape ever narrows. Rule 1
+   * at the head of this file, applied deliberately.
+   */
+  mappings: z.array(z.object({ externalProjectId: z.string() })).default([]),
 });
 
 export type Area = z.infer<typeof areaSchema>;
@@ -234,9 +247,15 @@ export type Area = z.infer<typeof areaSchema>;
  *
  * It stayed invisible because the fallback is a plausible string: a badge
  * reading `health` instead of `Health` looks like a styling choice rather than
- * a parse failure. The callers still send `limit`, which the route's `noQuery`
- * ignores; that is harmless and is left alone rather than touched across five
- * other workstreams' screens.
+ * a parse failure.
+ *
+ * **W11 also recorded that the callers sending `limit` was harmless, and it
+ * was not.** `noQuery` is `z.strictObject({})`, which *refuses* an
+ * unrecognised key rather than ignoring it — so `GET /areas?limit=200`
+ * answered `400`, and Focus, Backlog, Inbox, Adoption and initiative detail
+ * each took their area list's failure path on every single load. The same
+ * plausible-looking fallback hid it a second time. W15 removed the parameter
+ * from all five; nothing sends a query to this route now.
  */
 export const areaListSchema = z.object({ items: z.array(areaSchema) });
 
@@ -255,6 +274,101 @@ export const projectListSchema = z.object({
 });
 
 export type Project = z.infer<typeof projectSchema>;
+
+/**
+ * The creation flows (W15).
+ *
+ * ## A capture carries no estimate, and that is the contract
+ *
+ * There is no `value`, no `size`, no `status` here, because there is none on
+ * the wire: a capture stays a task, and the scored unit is the initiative
+ * (ADR-0004). A schema that quietly allowed them would be the first step
+ * towards a screen that collects them.
+ *
+ * ## The ledger row carries no draft
+ *
+ * The API does not send one, and this does not ask for one. The draft holds a
+ * real title and a real external location; the entity the row belongs to has
+ * the title already, and a field nobody renders cannot reach a screenshot
+ * (docs/17-privacy.md).
+ */
+export const captureSchema = z.object({
+  id,
+  title: z.string(),
+  areaKey,
+  externalProjectId: z.string().nullable(),
+  externalSectionId: z.string().nullable(),
+  /** Null until the converge pass has confirmed the task exists. */
+  externalTaskId: z.string().nullable(),
+  promotedTo: id.nullable(),
+  promotedAt: instant.nullable(),
+  createdAt: instant,
+});
+
+export const captureListSchema = z.object({
+  items: z.array(captureSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+export type Capture = z.infer<typeof captureSchema>;
+
+export const CREATION_STATES = ['pending', 'satisfied', 'failed'] as const;
+export type CreationState = (typeof CREATION_STATES)[number];
+
+export const creationIntentSchema = z.object({
+  id,
+  entityKind: z.enum(['capture', 'initiative', 'project']),
+  entityId: id,
+  tool: z.enum(['task', 'document']),
+  objectKind: z.enum(['task', 'project', 'section', 'page']),
+  ordinal: z.number().int(),
+  state: z.enum(CREATION_STATES),
+  externalId: z.string().nullable(),
+  attempts: z.number().int(),
+  lastError: z.string().nullable(),
+  requires: id.nullable(),
+  createdAt: instant,
+  updatedAt: instant,
+});
+
+export const creationListSchema = z.object({
+  items: z.array(creationIntentSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+export type CreationIntent = z.infer<typeof creationIntentSchema>;
+
+/**
+ * Search before create.
+ *
+ * `similarity` arrives computed. Nothing on this tier ranks anything: a second
+ * implementation of the matcher would disagree with the adoption queue's about
+ * the same pair of titles, and the two surfaces would then propose different
+ * things (`apps/web/CLAUDE.md` non-negotiable 1).
+ */
+export const searchMatchSchema = z.object({
+  source: z.enum(['existing', 'adoptable']),
+  kind: z.enum(['initiative', 'project', 'capture', 'task', 'page']),
+  prismeId: id.nullable(),
+  externalId: z.string().nullable(),
+  title: z.string(),
+  areaKey: areaKey.nullable(),
+  similarity: z.number(),
+  suggests: z.enum(['open', 'adopt']),
+});
+
+export const searchSchema = z.object({
+  query: z.string(),
+  worthReading: z.boolean(),
+  matches: z.array(searchMatchSchema),
+});
+
+export type SearchMatch = z.infer<typeof searchMatchSchema>;
+export type SearchResult = z.infer<typeof searchSchema>;
 
 /**
  * A mirrored task, read-only everywhere.

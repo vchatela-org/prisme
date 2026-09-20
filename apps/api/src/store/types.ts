@@ -483,13 +483,23 @@ export interface ApiStore {
       page: PageRequest,
     ): Promise<Paged<CaptureRecord>>;
     getCapture(id: string): Promise<CaptureRecord | undefined>;
-    /** The capture and its intents, in one transaction. */
+    /**
+     * The capture and its intents, in one transaction.
+     *
+     * `intentsFor` is a **function of the new id**, not a list, and that is
+     * load-bearing rather than awkward: a capture's task intent carries a
+     * backlink containing the capture's own id, so the intents cannot be
+     * planned until the row exists. Taking a list forced the caller to insert
+     * first and record second — two transactions — and a real run produced
+     * exactly what that allows: captures committed with no intent at all,
+     * which is a capture that never becomes a task and nothing ever notices.
+     */
     createCapture(input: {
       readonly title: string;
       readonly areaKey: string;
       readonly externalProjectId: string;
       readonly externalSectionId: string | undefined;
-      readonly intents: readonly CreationIntentInput[];
+      readonly intentsFor: (captureId: string) => readonly CreationIntentInput[];
       readonly keyFor: (slot: string) => string;
     }): Promise<CaptureRecord>;
     /**

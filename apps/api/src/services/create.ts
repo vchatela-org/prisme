@@ -248,30 +248,28 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
         );
       }
 
-      // Planned before the row exists, so the id has to be filled in after.
-      // The store writes both in one transaction; this only decides shape.
+      /*
+       * The plan is a *function* of the new id, run inside the store's
+       * transaction. The intents carry a backlink containing the capture's
+       * own id, so they cannot be planned before the row exists — and
+       * planning them after it commits is how a capture ends up with no
+       * intent behind it, which a real run produced twice before this was
+       * a closure.
+       */
       const record = await store.creations.createCapture({
         title: input.title,
         areaKey: input.areaKey,
         externalProjectId: location.externalProjectId,
         externalSectionId: location.externalSectionId,
-        intents: [],
-        keyFor,
-      });
-
-      const planned: readonly PlannedIntent[] = planCapture({
-        captureId: record.id,
-        title: input.title,
-        location,
-        baseUrl: config.baseUrl,
-        captureLabel: config.captureLabel,
-        page: input.page,
-      });
-
-      await store.creations.recordIntents({
-        entityKind: 'capture',
-        entityId: record.id,
-        intents: planned,
+        intentsFor: (captureId): readonly PlannedIntent[] =>
+          planCapture({
+            captureId,
+            title: input.title,
+            location,
+            baseUrl: config.baseUrl,
+            captureLabel: config.captureLabel,
+            page: input.page,
+          }),
         keyFor,
       });
 
@@ -375,10 +373,24 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
      * browser would mean two round trips and a second implementation of the
      * ranking — which would then disagree with the adoption queue's about the
      * same pair of titles, and the two surfaces would propose different things.
+     *
+     * ## Nothing is pre-filtered in SQL
+     *
+     * The first version passed the query to `initiatives.list({ search })`,
+     * which is a case-insensitive **substring** match. That quietly made the
+     * fuzzy matcher useless for the only source it was filtered on: typing
+     * `Passport renewed 2027` matched no substring, so the initiative called
+     * `Passport renewed` was never a candidate and the search returned
+     * nothing at all. A near-match is precisely what is *not* a substring,
+     * which is the whole reason the matcher exists.
+     *
+     * So every source is read whole and ranked in one place. It is a personal
+     * instance — hundreds of rows, not millions — and the other three lists
+     * were already read whole, so this also makes the four consistent.
      */
     async search(query: string) {
       const [initiatives, projects, captures, queue] = await Promise.all([
-        store.initiatives.list({ search: query }),
+        store.initiatives.list({}),
         store.projects.list(undefined, { limit: 200, offset: 0 }),
         store.creations.listCaptures({ promoted: false }, { limit: 200, offset: 0 }),
         store.ops.adoptionQueue({}, { limit: 200, offset: 0 }),

@@ -31,7 +31,7 @@ export const metadata = {
 export default async function InboxPage() {
   const [inbox, areas] = await Promise.all([
     apiFetch({ path: '/inbox', schema: inboxSchema }),
-    apiFetch({ path: '/areas', query: { limit: '200' }, schema: areaListSchema }),
+    apiFetch({ path: '/areas', schema: areaListSchema }),
   ]);
 
   if (!inbox.ok) {
