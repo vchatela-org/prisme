@@ -242,8 +242,19 @@ export function objectiveProgress(objective: Objective): ObjectiveProgress {
  * reason.
  */
 export function looksLikeAHabit(keyResult: KeyResult): boolean {
-  const unit = keyResult.unit.toLowerCase();
-  return /(\/|\bper\b|\ba\b)\s*(day|week|month|quarter|year)\b/.test(unit);
+  return unitLooksLikeARate(keyResult.unit);
+}
+
+/**
+ * The same question, asked of a unit on its own.
+ *
+ * The authoring form needs it while the unit is being typed, when there is no
+ * key result yet. Both callers go through one regular expression so the form
+ * cannot ask a subtly different question from the one the list page asks a
+ * month later.
+ */
+export function unitLooksLikeARate(unit: string): boolean {
+  return /(\/|\bper\b|\ba\b)\s*(day|week|month|quarter|year)\b/.test(unit.toLowerCase());
 }
 
 /**
