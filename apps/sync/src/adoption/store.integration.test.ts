@@ -54,6 +54,10 @@ const describeOrSkip: typeof describe | typeof describe.skip = (() => {
  */
 const TABLES = [
   'confirmation_token',
+  // W15's two (migration 0007). `creation_intent` references itself and
+  // `capture` references both `area` and `initiative`, so both come first.
+  'creation_intent',
+  'capture',
   // W13's three (migration 0006). `capacity_week` references `area`, so leaving
   // it out makes this `truncate` refuse the whole statement rather than merely
   // leaving rows behind.

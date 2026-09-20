@@ -12,6 +12,7 @@ import {
   projectStatus,
   taskPriority,
 } from './common.js';
+import { externalRequest } from './create.js';
 import {
   INITIATIVE_READ_ONLY,
   INITIATIVE_STATUS_READ_ONLY,
@@ -199,6 +200,21 @@ export const replaceDependenciesBody = defineWrite(
   z.strictObject({ dependsOn: z.array(entityId) }),
 );
 
+/**
+ * Creating a project, with the structure it wants in each tool (W15).
+ *
+ * `taskProject` and `page` are three-state requests rather than optional
+ * identifiers, and the raw `externalProjectId` / `externalPageId` fields stay
+ * refused below. Both statements are needed: the refusal says "this is not a
+ * field you set", and the union says "so tell me which of the three things you
+ * mean". An optional identifier alone would have made *forgetting* to mention
+ * a page and *asking for one* the same request (see `./create.ts`).
+ *
+ * Neither mode writes outward from this endpoint. `create` records an intent
+ * the converge pass drains; `link` binds an object that already exists and
+ * creates nothing, which is ADR-0010's distinction at the moment it is easiest
+ * to blur.
+ */
 export const createProjectBody = defineWrite(
   'CreateProject',
   z.strictObject({
@@ -207,6 +223,8 @@ export const createProjectBody = defineWrite(
     status: projectStatus.default('active'),
     deadline: calendarDate.optional(),
     sections: z.array(z.string().min(1).max(200)).default([]),
+    taskProject: externalRequest.default({ mode: 'none' }),
+    page: externalRequest.default({ mode: 'none' }),
   }),
   {
     origin: PROJECT_READ_ONLY.origin,

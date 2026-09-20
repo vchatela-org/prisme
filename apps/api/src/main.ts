@@ -56,6 +56,7 @@ const services = createServices({
     timezone: config.timezone,
     capacityWindowWeeks: config.capacity.windowWeeks,
     defaultTaskMinutes: config.capacity.defaultTaskMinutes,
+    baseUrl: config.baseUrl,
     limits: SERVICE_DEFAULTS.limits,
     concurrentInitiatives: SERVICE_DEFAULTS.concurrentInitiatives,
     workingWeekdays: SERVICE_DEFAULTS.workingWeekdays,

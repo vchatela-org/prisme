@@ -328,6 +328,63 @@ export type AdoptOutcome =
     }
   | { readonly ok: false; readonly reason: string };
 
+/**
+ * A capture: a small thing, which stays a task (W15).
+ *
+ * No estimates and no status, and their absence is the specification. The
+ * scored unit is the initiative (ADR-0004); promoting is a separate request,
+ * and it is the one that asks for the four numbers.
+ */
+export interface CaptureRecord {
+  readonly id: string;
+  readonly title: string;
+  readonly areaKey: string;
+  readonly externalProjectId: string | null;
+  readonly externalSectionId: string | null;
+  readonly externalTaskId: string | null;
+  readonly promotedTo: string | null;
+  readonly promotedAt: Date | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+export type IntentEntityKind = 'capture' | 'initiative' | 'project';
+export type IntentObjectKind = 'task' | 'project' | 'section' | 'page';
+export type IntentState = 'pending' | 'satisfied' | 'failed';
+
+export interface CreationIntentRecord {
+  readonly id: string;
+  readonly entityKind: IntentEntityKind;
+  readonly entityId: string;
+  readonly tool: 'task' | 'document';
+  readonly objectKind: IntentObjectKind;
+  readonly ordinal: number;
+  readonly draft: Readonly<Record<string, unknown>>;
+  readonly idempotencyKey: string;
+  readonly state: IntentState;
+  readonly externalId: string | null;
+  readonly requires: string | null;
+  readonly attempts: number;
+  readonly lastError: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+/**
+ * One row to write into the ledger, before it has an id.
+ *
+ * `requiresIndex` is positional, resolved to a foreign key by the store as it
+ * inserts the batch: a section waits for its project, and neither has an id
+ * until the transaction that writes both.
+ */
+export interface CreationIntentInput {
+  readonly tool: 'task' | 'document';
+  readonly objectKind: IntentObjectKind;
+  readonly ordinal: number;
+  readonly draft: Readonly<Record<string, unknown>>;
+  readonly requiresIndex?: number | undefined;
+}
+
 export interface ConflictRecord {
   readonly id: string;
   readonly entityId: string;
@@ -408,6 +465,100 @@ export interface ApiStore {
         sections?: readonly string[] | undefined;
       },
     ): Promise<ProjectRecord | undefined>;
+  };
+
+  /**
+   * Captures and the creation ledger (W15).
+   *
+   * Two methods here are transactions rather than statements, and both for the
+   * same reason: the thing being protected is the *pair*. `create` writes the
+   * capture and its intents together, so there is never a capture whose task
+   * nobody remembers to make; `promote` moves the external reference from the
+   * capture to the new initiative, so at no instant do two entities claim the
+   * same task and at no instant does neither.
+   */
+  readonly creations: {
+    listCaptures(
+      filter: { readonly promoted?: boolean | undefined },
+      page: PageRequest,
+    ): Promise<Paged<CaptureRecord>>;
+    getCapture(id: string): Promise<CaptureRecord | undefined>;
+    /** The capture and its intents, in one transaction. */
+    createCapture(input: {
+      readonly title: string;
+      readonly areaKey: string;
+      readonly externalProjectId: string;
+      readonly externalSectionId: string | undefined;
+      readonly intents: readonly CreationIntentInput[];
+      readonly keyFor: (slot: string) => string;
+    }): Promise<CaptureRecord>;
+    /**
+     * The capture becomes an initiative that **reuses its task as the anchor**.
+     *
+     * `externalAnchorId` is set on the new row at insert, which is what makes
+     * ADR-0010 guard 2 refuse a create for it — the planner emits one only for
+     * `origin = created_in_prisme AND external_ref IS NULL`. The guard is not
+     * re-implemented here; it is satisfied.
+     *
+     * `undefined` when the capture does not exist. A refusal with a reason
+     * when it cannot be promoted — already promoted, or its task has not been
+     * created yet, in which case there is no anchor to reuse.
+     */
+    promoteCapture(input: {
+      readonly captureId: string;
+      readonly title: string;
+      readonly areaKey: string | undefined;
+      readonly projectId: string | undefined;
+      readonly value: number;
+      readonly timeCriticality: number;
+      readonly risk: number;
+      readonly size: number;
+      readonly at: Date;
+    }): Promise<
+      | { readonly ok: true; readonly initiativeId: string }
+      | { readonly ok: false; readonly reason: string }
+      | undefined
+    >;
+
+    /**
+     * *Link existing*: bind an object that already exists, creating nothing.
+     *
+     * The third of ADR-0011's three states, and ADR-0019's. It writes
+     * `entity_external_ref` — where guard 1's unique index refuses an object
+     * already bound to something else — sets the entity's own reference
+     * column, and records the decision in `entity_link` as `manual`, because
+     * a human said these two are the same thing and the ledger should say who
+     * decided rather than implying a matcher did.
+     *
+     * A refusal is a value rather than a thrown error: "that object already
+     * belongs to something else" is an answer the caller shows to a person.
+     */
+    linkExternal(input: {
+      readonly entityKind: IntentEntityKind;
+      readonly entityId: string;
+      readonly objectKind: IntentObjectKind;
+      readonly externalId: string;
+      readonly at: Date;
+    }): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }>;
+
+    intents(
+      filter: { readonly state?: IntentState | undefined; readonly entityId?: string | undefined },
+      page: PageRequest,
+    ): Promise<Paged<CreationIntentRecord>>;
+    /**
+     * Record intents for an entity that already exists — the *create page*
+     * button, and the project flow's structure. Conflicting on the ledger's
+     * one-per-slot index updates the row rather than enqueueing a second
+     * creation, which is the no-duplicate guard at this level.
+     */
+    recordIntents(input: {
+      readonly entityKind: IntentEntityKind;
+      readonly entityId: string;
+      readonly intents: readonly CreationIntentInput[];
+      readonly keyFor: (slot: string) => string;
+    }): Promise<readonly CreationIntentRecord[]>;
+    /** Back to `pending`, clearing the error. Refused for one already satisfied. */
+    retryIntent(id: string): Promise<CreationIntentRecord | undefined>;
   };
 
   readonly okr: {
