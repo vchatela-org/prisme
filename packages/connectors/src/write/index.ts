@@ -34,3 +34,26 @@ export {
   type RecordingWriter,
   type RecordingWriterOptions,
 } from './recording.js';
+
+export {
+  createCommandSender,
+  createdId,
+  type CommandArgs,
+  type CommandSender,
+  type CommandSenderOptions,
+} from './command.js';
+
+/** The creating half (W15). `./create/index.ts` says why it is a directory. */
+export {
+  createFrozenCreationWriter,
+  createRecordingCreationWriter,
+  createTaskToolCreationWriter,
+  type CreationWriter,
+  type CreationWriterOptions,
+  type LooseTaskDraft,
+  type ProjectDraft,
+  type RecordedCreation,
+  type RecordingCreationWriter,
+  type RecordingCreationWriterOptions,
+  type SectionDraft,
+} from './create/index.js';
