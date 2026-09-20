@@ -7,6 +7,8 @@
  *   prisme-sync apply         the same plan, executed
  *   prisme-sync               apply, which is what the CronJob runs
  *   prisme-sync adopt --plan  the adoption scan: candidates, coverage, create audit
+ *   prisme-sync backfill --from <date>
+ *                             completion history → per-area capacity actuals
  * ```
  *
  * `plan` has no side effects and is free to run at any time, including outside
@@ -27,6 +29,9 @@ import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db
 import { createLogger, createMetrics, currentRunContext, withNewRun } from '@prisme/observability';
 import { adopt } from './adoption/run.js';
 import { createAdoptionStore } from './adoption/store.js';
+import { backfillFrom } from './backfill/cli.js';
+import { backfill } from './backfill/run.js';
+import { createBackfillStore } from './backfill/store.js';
 import { createPostgresStore } from './state/postgres.js';
 import { reconcile } from './run.js';
 import { shouldRunNow } from './window.js';
@@ -40,11 +45,12 @@ const config = loadConfigOrExit({ service: 'sync' });
 const logger = createLogger({ service: 'prisme-sync', level: config.logLevel });
 const metrics = createMetrics({ collectDefaults: false });
 
-function modeFrom(argv: readonly string[]): 'plan' | 'apply' | 'adopt' | undefined {
+function modeFrom(argv: readonly string[]): 'plan' | 'apply' | 'adopt' | 'backfill' | undefined {
   const [command] = argv.slice(2);
   if (command === undefined || command === 'apply') return 'apply';
   if (command === 'plan') return 'plan';
   if (command === 'adopt') return 'adopt';
+  if (command === 'backfill') return 'backfill';
   return undefined;
 }
 
@@ -64,7 +70,19 @@ function adoptIsPlanOnly(argv: readonly string[]): boolean {
 async function main(): Promise<number> {
   const mode = modeFrom(process.argv);
   if (mode === undefined) {
-    process.stderr.write('usage: prisme-sync [plan|apply|adopt --plan]\n');
+    process.stderr.write(
+      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD]\n',
+    );
+    return EXIT_FAILED;
+  }
+
+  const backfillStart = mode === 'backfill' ? backfillFrom(process.argv) : undefined;
+  if (mode === 'backfill' && backfillStart === undefined) {
+    process.stderr.write(
+      'usage: prisme-sync backfill --from YYYY-MM-DD\n' +
+        'The start date is required: no default is right. A short one reports a measured\n' +
+        'balance factor built on a fortnight, and a long one pages years off a rate-limited API.\n',
+    );
     return EXIT_FAILED;
   }
 
@@ -152,6 +170,63 @@ async function main(): Promise<number> {
       // A create risk is not a failure of this command — it is the finding the
       // command exists to produce, and it exits clean so that reading it is a
       // decision rather than a broken pipeline.
+      return EXIT_OK;
+    }
+
+    if (mode === 'backfill') {
+      // The same advisory lock as every other pass. Not for correctness — the
+      // backfill's writes are idempotent by primary key and a concurrent
+      // reconciler pass could not corrupt them — but because a multi-year
+      // backfill holds a rate-limited API open for minutes, and a reconciler
+      // pass queued behind it is a pass that runs late rather than one that
+      // fights it for quota.
+      const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
+        logger.info('backfill started');
+        return backfill({
+          store: createBackfillStore(database.client),
+          taskClient: createTaskToolClient({
+            token: config.tasktoolApiToken as string,
+            transport,
+            metrics: connectorMetrics,
+          }),
+          // No document-tool client, for the reason W12 recorded: nothing in
+          // this repository loads the role bindings, so the processes store is
+          // not addressable and the declared-duration tier is unavailable. The
+          // report says so rather than passing estimates off as measurements.
+          from: backfillStart as Date,
+          now: () => new Date(),
+          defaultMinutes: config.capacity.defaultTaskMinutes,
+          onSlice: (progress) => {
+            logger.info('window fetched', {
+              window: progress.index,
+              of: progress.total,
+              completions: progress.fetched,
+            });
+          },
+        });
+      });
+
+      if (!outcome.acquired) {
+        logger.info('another pass holds the lock; skipping rather than queueing');
+        return EXIT_LOCKED;
+      }
+      /* c8 ignore next -- the lock was acquired, so a result exists */
+      if (outcome.result === undefined) return EXIT_FAILED;
+
+      // Instance data — unmapped project ids and ritual names. Printed to a
+      // terminal, never pasted into the repository.
+      process.stdout.write(`${outcome.result.report}\n`);
+
+      logger.info('backfill complete', {
+        fetched: outcome.result.fetched,
+        attributed: outcome.result.attribution.attributed.length,
+        unattributableLocations: outcome.result.attribution.gaps.length,
+        weeks: outcome.result.weeks.length,
+        adherencePeriods: outcome.result.adherence.length,
+      });
+
+      // An unmapped project is a finding, not a failure: the command exits
+      // clean so that acting on it is a decision rather than a broken pipeline.
       return EXIT_OK;
     }
 
