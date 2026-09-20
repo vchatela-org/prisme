@@ -97,11 +97,26 @@ export function StepPanel({
 
 const LIMIT = 100;
 
+/**
+ * Area key to display name.
+ *
+ * Every panel that renders an `AreaBadge` needs it, and each passed the *key*
+ * as the name until these screens were driven — so a badge read `craft` on the
+ * wizard and `Craft` two clicks away on the objectives page. One panel renders
+ * per view, so this is one extra request per page rather than fifteen.
+ */
+async function areaNamer(): Promise<(key: string) => string> {
+  const areas = await apiFetch({ path: '/areas', schema: areaListSchema });
+  const names = new Map((areas.ok ? areas.data.items : []).map((area) => [area.key, area.name]));
+  return (key) => names.get(key) ?? key;
+}
+
 function PanelCard({ children }: { children: ReactNode }) {
   return <Card className="flex flex-col gap-3 p-4">{children}</Card>;
 }
 
 async function InboxPanel() {
+  const nameOf = await areaNamer();
   const inbox = await apiFetch({ path: '/inbox', schema: inboxSchema });
   if (!inbox.ok) return <ApiFailureState failure={inbox} surface="the inbox" />;
 
@@ -134,7 +149,7 @@ async function InboxPanel() {
               <Link href={`/initiative/${initiative.id}`} className="text-ink hover:underline">
                 {initiative.title}
               </Link>
-              <AreaBadge areaKey={initiative.areaKey} name={initiative.areaKey} />
+              <AreaBadge areaKey={initiative.areaKey} name={nameOf(initiative.areaKey)} />
             </li>
           ))}
         </ul>
@@ -149,6 +164,7 @@ async function InboxPanel() {
 }
 
 async function FinishedPanel() {
+  const nameOf = await areaNamer();
   const backlog = await apiFetch({
     path: '/backlog',
     query: { status: 'review', limit: String(LIMIT) },
@@ -173,7 +189,7 @@ async function FinishedPanel() {
             <Link href={`/initiative/${entry.initiative.id}`} className="text-ink hover:underline">
               {entry.initiative.title}
             </Link>
-            <AreaBadge areaKey={entry.initiative.areaKey} name={entry.initiative.areaKey} />
+            <AreaBadge areaKey={entry.initiative.areaKey} name={nameOf(entry.initiative.areaKey)} />
             <span className="text-xs text-ink-muted">
               {entry.initiative.rollup.totalTaskCount === 0
                 ? 'no tasks beneath it'
@@ -193,6 +209,7 @@ async function FinishedPanel() {
 }
 
 async function NowSetPanel() {
+  const nameOf = await areaNamer();
   const focus = await apiFetch({ path: '/focus', schema: focusSchema });
   if (!focus.ok) return <ApiFailureState failure={focus} surface="the now set" />;
 
@@ -239,7 +256,10 @@ async function NowSetPanel() {
               >
                 {entry.initiative.title}
               </Link>
-              <AreaBadge areaKey={entry.initiative.areaKey} name={entry.initiative.areaKey} />
+              <AreaBadge
+                areaKey={entry.initiative.areaKey}
+                name={nameOf(entry.initiative.areaKey)}
+              />
               {entry.blockedBy.length > 0 ? (
                 <span className="text-xs text-status-warning">
                   waiting on {String(entry.blockedBy.length)}
@@ -331,6 +351,7 @@ async function ConflictsPanel() {
 }
 
 async function DeadlinesPanel() {
+  const nameOf = await areaNamer();
   const health = await apiFetch({ path: '/timeline', schema: deadlineHealthSchema });
   if (!health.ok) return <ApiFailureState failure={health} surface="the deadlines" />;
 
@@ -363,7 +384,7 @@ async function DeadlinesPanel() {
             <Link href={`/initiative/${row.initiativeId}`} className="text-ink hover:underline">
               {row.initiativeId.slice(0, 8)}
             </Link>
-            <AreaBadge areaKey={row.areaKey} name={row.areaKey} />
+            <AreaBadge areaKey={row.areaKey} name={nameOf(row.areaKey)} />
             <span className="text-xs text-ink-muted tabular-nums">{row.deadline}</span>
             {infeasible.has(row.initiativeId) ? (
               <span className="text-xs text-status-critical">infeasible</span>
@@ -385,6 +406,7 @@ async function DeadlinesPanel() {
 }
 
 async function RescorePanel() {
+  const nameOf = await areaNamer();
   const backlog = await apiFetch({
     path: '/backlog',
     query: { status: 'next,now,later', sort: 'score', limit: '25' },
@@ -411,7 +433,7 @@ async function RescorePanel() {
             <Link href={`/initiative/${entry.initiative.id}`} className="text-ink hover:underline">
               {entry.initiative.title}
             </Link>
-            <AreaBadge areaKey={entry.initiative.areaKey} name={entry.initiative.areaKey} />
+            <AreaBadge areaKey={entry.initiative.areaKey} name={nameOf(entry.initiative.areaKey)} />
             <span className="text-xs text-ink-muted tabular-nums">
               {entry.score === null ? 'unscored' : entry.score.toFixed(2)}
             </span>
@@ -427,6 +449,7 @@ async function RescorePanel() {
 }
 
 async function RefillPanel() {
+  const nameOf = await areaNamer();
   const focus = await apiFetch({ path: '/focus', schema: focusSchema });
   if (!focus.ok) return <ApiFailureState failure={focus} surface="the free slots" />;
 
@@ -444,7 +467,7 @@ async function RefillPanel() {
           <ul className="flex flex-col gap-1">
             {free.map((slot) => (
               <li key={slot.areaKey} className="flex items-center gap-2 text-sm">
-                <AreaBadge areaKey={slot.areaKey} name={slot.areaKey} />
+                <AreaBadge areaKey={slot.areaKey} name={nameOf(slot.areaKey)} />
                 <span className="text-xs text-ink-muted">
                   {String(slot.limit - slot.used)} free of {String(slot.limit)}
                 </span>
@@ -468,7 +491,10 @@ async function RefillPanel() {
                   >
                     {entry.initiative.title}
                   </Link>
-                  <AreaBadge areaKey={entry.initiative.areaKey} name={entry.initiative.areaKey} />
+                  <AreaBadge
+                    areaKey={entry.initiative.areaKey}
+                    name={nameOf(entry.initiative.areaKey)}
+                  />
                   <span className="text-xs text-ink-muted">{entry.reason}</span>
                 </li>
               ))}
@@ -527,6 +553,7 @@ async function CapacityPanel() {
 }
 
 async function LanesPanel() {
+  const nameOf = await areaNamer();
   const rituals = await apiFetch({ path: '/rituals', schema: ritualListSchema });
   if (!rituals.ok) return <ApiFailureState failure={rituals} surface="the rituals" />;
 
@@ -553,7 +580,7 @@ async function LanesPanel() {
           {rituals.data.items.map((ritual) => (
             <li key={ritual.id} className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-ink">{ritual.name}</span>
-              <AreaBadge areaKey={ritual.areaKey} name={ritual.areaKey} />
+              <AreaBadge areaKey={ritual.areaKey} name={nameOf(ritual.areaKey)} />
               <span className="text-xs text-ink-muted">{ritual.cadence}</span>
               <span className="text-xs text-ink-muted tabular-nums">
                 {ritual.latestAdherencePct === null
@@ -578,6 +605,7 @@ async function LanesPanel() {
 }
 
 async function ObjectiveProgressPanel() {
+  const nameOf = await areaNamer();
   const today = new Date().toISOString().slice(0, 10);
   const objectives = await apiFetch({
     path: '/objectives',
@@ -615,7 +643,7 @@ async function ObjectiveProgressPanel() {
             <Link href={`/objectives/${objective.id}`} className="text-ink hover:underline">
               {objective.title}
             </Link>
-            <AreaBadge areaKey={objective.areaKey} name={objective.areaKey} />
+            <AreaBadge areaKey={objective.areaKey} name={nameOf(objective.areaKey)} />
             <span className="text-xs text-ink-muted">
               {objective.period} · {String(objective.keyResults.length)} key results
             </span>

@@ -89,7 +89,9 @@ const WEEKLY: readonly WizardStep[] = [
     id: 'confirm-finished',
     title: 'Confirm what finished',
     prompt:
-      'Initiatives sitting in `review` — finished but unverified. Confirming one moves it to `done`; anchor completion arrives from the task tool on its own.',
+      // No backticks: a prompt is rendered as text, not as Markdown, so they
+      // reach the screen as literal characters.
+      'Initiatives sitting in review — finished but unverified. Confirming one moves it to done; anchor completion arrives from the task tool on its own.',
     surface: '/backlog?status=review',
     panel: 'finished',
   },
