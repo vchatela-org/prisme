@@ -116,6 +116,17 @@ export interface Completion {
   readonly sectionId?: ExternalTaskId | undefined;
   readonly completedAt: Date;
   readonly recordedMinutes?: number | undefined;
+  /**
+   * The duration as the tool stated it, unit included.
+   *
+   * {@link ExternalTask.recordedDuration} carries the same value for an open
+   * task and says why the unit is kept. W13 reads it to count what it could not
+   * measure: a day-scale duration is a block-out rather than an effort, so it
+   * leaves `recordedMinutes` unset and falls through the preference order — and
+   * a backfill that silently treated it as absent would report the resulting
+   * estimates as if nothing had been known at all.
+   */
+  readonly recordedDuration?: ExternalDuration | undefined;
 }
 
 /**
@@ -129,5 +140,15 @@ export interface TaskToolClient {
   syncIncremental(token?: string): Promise<SyncResult>;
   /** The daily full pass. What answers "did the incremental path miss something?" */
   fetchAll(): Promise<TaskSnapshot>;
-  fetchCompletions(since: Date): Promise<Completion[]>;
+  /**
+   * Completion history in `[since, until)`.
+   *
+   * `until` is what makes a multi-year backfill possible at all (W13). Offset
+   * paging is bounded — a tool that keeps saying "there is more" must not spin
+   * inside a pass holding the advisory lock — so a history longer than that
+   * bound can only be read as a series of windows. Without `until`, each window
+   * would re-page everything after its start, which is quadratic in the number
+   * of windows and gives a resumed run nothing to resume *from*.
+   */
+  fetchCompletions(since: Date, until?: Date): Promise<Completion[]>;
 }

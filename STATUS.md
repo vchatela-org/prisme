@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — W00–W10, W12 and W14 landed; **wave 3 is complete**, and **wave 4 is nearly so**: W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)) and W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)) merged, W11 open as [#32](https://github.com/vchatela-org/prisme/pull/32). Only **W13** remains in wave 4
+**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — W00–W12 and W14 landed; **waves 3 and 4 are complete**: W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)) and W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) merged, and W13 closes the wave as [#33](https://github.com/vchatela-org/prisme/pull/33). Only **W15** (wave 5) is left unstarted, and nothing it depends on is open
 
 ---
 
@@ -40,7 +40,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W10](docs/40-workstreams/W10-ui-timeline.md) | UI: Timeline / Gantt | W02, W05, W07 | 4 | 🟢 | [#31](https://github.com/vchatela-org/prisme/pull/31) |
 | [W11](docs/40-workstreams/W11-ui-objectives-reviews.md) | UI: Objectives, KRs, Review wizard | W05, W07 | 4 | 🟢 | [#32](https://github.com/vchatela-org/prisme/pull/32) |
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) merged |
-| [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | ⚪ | — |
+| [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | 🟢 | [#33](https://github.com/vchatela-org/prisme/pull/33) |
 | [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
 | [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
 
@@ -188,6 +188,32 @@ are fixed here. What is **not** fixed: `fixtures/` still carries no task mirror,
 behaviour this workstream exists to surface — cannot be exercised without hand-seeding rows.
 The harness was built and thrown away for the **fifth** time —
 [the entry](docs/50-journal/W11-2026-09-20-ui-objectives-reviews.md).
+
+**W13 closes wave 4** ([#33](https://github.com/vchatela-org/prisme/pull/33)): completion history
+turned into per-area capacity actuals, ritual adherence and materialised weeks. Until now the only
+completions prisme held were in `task_mirror` — the *anchor subtree* — so the balance factor was
+computed from whatever fraction of a life happened to sit under an anchor in the last four weeks.
+
+The decision the rest of it hangs off is that **`completion_history` stores the external location
+and not an area**. Attribution is re-made from `area_mapping` on every pass, so adding a mapping for
+a project that has existed for years re-attributes years of history without fetching a page — proved
+live: one mapping row took a corpus from 68 unattributable completions to zero, with **zero windows
+fetched**. Idempotence is likewise structural rather than careful: `(external_task_id, completed_at)`
+is the identity of a completion, so a re-run cannot double-count whatever the caller does.
+
+One defect only a real second run could find, and it is the instructive kind. The materialised weeks
+and the covered instants are **not the same range** — bucketing is by Monday, so a backfill starting
+on a Sunday writes a row for the week before it — and the delete missed it while the insert did not.
+The in-memory store had the *identical* off-by-one, so the unit suite agreed with the SQL and both
+were wrong, and every fixture started on a Monday, which is the one case that cannot fail. A new
+table with a foreign key also turned **106 tests red in two suites nobody had touched**, which is
+the deliberate absence of `truncate … cascade` working as designed.
+
+What is **not** done: `capacity_week` has no reader yet — `/areas` and `/kpi` still aggregate
+`task_mirror` — and the **document tool is still not read**, so the declared-duration tier of the
+preference order is unavailable. That is W12's missing dependency, not a second one: nothing in this
+repository loads the role bindings, and the report says so rather than passing a two-tier estimate
+off as a three-tier one. [The entry](docs/50-journal/W13-2026-09-20-backfill.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and

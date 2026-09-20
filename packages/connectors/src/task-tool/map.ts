@@ -198,5 +198,6 @@ export function mapCompletion(item: WireCompletedItem, operation: string): Compl
     sectionId: item.section_id ?? undefined,
     completedAt: parseInstant(item.completed_at, 'completed_at', operation),
     recordedMinutes: minutesOf(duration),
+    recordedDuration: duration,
   };
 }
