@@ -91,6 +91,13 @@ export interface TestDatabase {
  */
 const TABLES = [
   'confirmation_token',
+  // W13's three (migration 0006). `capacity_week` references `area`, so
+  // omitting it does not merely leave stale rows — it makes `truncate` refuse
+  // the whole statement, which is the no-`cascade` rule above doing its job:
+  // adding a table to the schema is adding it here.
+  'capacity_week',
+  'completion_history',
+  'backfill_cursor',
   'adoption_candidate',
   // Append-only, with a trigger refusing DELETE — the same reason `event_log`
   // is on this list and the same reason `truncate` is what resets it.
