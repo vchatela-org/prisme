@@ -8,11 +8,15 @@ import type {
   AreaMappingRecord,
   AreaRecord,
   AreaWeightRecord,
+  CaptureRecord,
   CompletionRecord,
   ConflictRecord,
   CreateAreaInput,
   CreateInitiativeInput,
+  CreationIntentInput,
+  CreationIntentRecord,
   EventRecord,
+  IntentEntityKind,
   InitiativeFilter,
   InitiativeRecord,
   KeyResultRecord,
@@ -312,6 +316,153 @@ export function createPostgresStore(client: Sql): ApiStore {
     (select count(*) from task_mirror t
        join key_result_served_by s on s.initiative_id = t.anchor_for
       where s.key_result_id = k.id and not t.is_anchor and t.completed) as task_done`;
+
+  // -------------------------------------------------------------------------
+  // Captures and the creation ledger (W15)
+  // -------------------------------------------------------------------------
+
+  interface CaptureRow {
+    id: string;
+    title: string;
+    area_key: string;
+    external_project_id: string | null;
+    external_section_id: string | null;
+    external_task_id: string | null;
+    promoted_to: string | null;
+    promoted_at: Date | string | null;
+    created_at: Date | string;
+    updated_at: Date | string;
+  }
+
+  function toCapture(row: CaptureRow): CaptureRecord {
+    return {
+      id: row.id,
+      title: row.title,
+      areaKey: row.area_key,
+      externalProjectId: row.external_project_id,
+      externalSectionId: row.external_section_id,
+      externalTaskId: row.external_task_id,
+      promotedTo: row.promoted_to,
+      promotedAt: instant(row.promoted_at),
+      createdAt: required(row.created_at, 'capture.created_at'),
+      updatedAt: required(row.updated_at, 'capture.updated_at'),
+    };
+  }
+
+  interface IntentRow {
+    id: string;
+    entity_kind: IntentEntityKind;
+    entity_id: string;
+    tool: 'task' | 'document';
+    object_kind: CreationIntentRecord['objectKind'];
+    ordinal: number;
+    draft: unknown;
+    idempotency_key: string;
+    state: CreationIntentRecord['state'];
+    external_id: string | null;
+    requires: string | null;
+    attempts: number;
+    last_error: string | null;
+    created_at: Date | string;
+    updated_at: Date | string;
+  }
+
+  function toIntent(row: IntentRow): CreationIntentRecord {
+    return {
+      id: row.id,
+      entityKind: row.entity_kind,
+      entityId: row.entity_id,
+      tool: row.tool,
+      objectKind: row.object_kind,
+      ordinal: Number(row.ordinal),
+      draft: json<Record<string, unknown>>(row.draft, {}),
+      idempotencyKey: row.idempotency_key,
+      state: row.state,
+      externalId: row.external_id,
+      requires: row.requires,
+      attempts: Number(row.attempts),
+      lastError: row.last_error,
+      createdAt: required(row.created_at, 'creation_intent.created_at'),
+      updatedAt: required(row.updated_at, 'creation_intent.updated_at'),
+    };
+  }
+
+  const intentColumns = client`
+    c.id::text, c.entity_kind, c.entity_id::text, c.tool, c.object_kind, c.ordinal,
+    c.draft, c.idempotency_key::text, c.state, c.external_id, c.requires::text,
+    c.attempts, c.last_error, c.created_at, c.updated_at`;
+
+  /** The same list without the alias, for a `returning` clause, which has none. */
+  const intentReturning = client`
+    id::text, entity_kind, entity_id::text, tool, object_kind, ordinal,
+    draft, idempotency_key::text, state, external_id, requires::text,
+    attempts, last_error, created_at, updated_at`;
+
+  /**
+   * Write a batch of intents for one entity, resolving the positional
+   * `requiresIndex` into a real foreign key as it goes.
+   *
+   * Sequential rather than one multi-row insert, because a row's `requires`
+   * needs the id of a row inserted earlier in the same batch. The batches are
+   * a project's sections — single digits — so the round trips cost nothing
+   * next to being able to read what this does.
+   *
+   * `on conflict … do update` on the one-per-slot index is the no-duplicate
+   * guard: asking twice for the same object updates the row rather than
+   * enqueueing a second creation. A slot that is already **satisfied** keeps
+   * its id and its state; re-requesting a page that exists must not blank the
+   * reference to it.
+   */
+  async function writeIntents(
+    tx: Tx,
+    entityKind: IntentEntityKind,
+    entityId: string,
+    intents: readonly CreationIntentInput[],
+    keyFor: (slot: string) => string,
+  ): Promise<readonly CreationIntentRecord[]> {
+    const written: CreationIntentRecord[] = [];
+    const idByIndex = new Map<number, string>();
+
+    for (const [index, intent] of intents.entries()) {
+      const requires =
+        intent.requiresIndex === undefined ? null : (idByIndex.get(intent.requiresIndex) ?? null);
+      const slot = `${entityKind}:${entityId}:${intent.objectKind}:${String(intent.ordinal)}`;
+
+      const rows = await tx<IntentRow[]>`
+        insert into creation_intent
+          (entity_kind, entity_id, tool, object_kind, ordinal, draft, idempotency_key, requires)
+        values (${entityKind}, ${entityId}::uuid, ${intent.tool}, ${intent.objectKind},
+                ${intent.ordinal}, ${tx.json(intent.draft as never)}, ${keyFor(slot)}::uuid,
+                ${requires}::uuid)
+        on conflict (entity_kind, entity_id, object_kind, ordinal) do update
+          set draft = excluded.draft,
+              requires = excluded.requires,
+              updated_at = now()
+          where creation_intent.state <> 'satisfied'
+        returning ${intentReturning}`;
+
+      const row = rows[0];
+      if (row === undefined) {
+        // `do update … where` matched nothing: the slot is already satisfied,
+        // so read it back rather than reporting a write that did not happen.
+        const existing = await tx<IntentRow[]>`
+          select ${intentColumns} from creation_intent c
+          where c.entity_kind = ${entityKind} and c.entity_id = ${entityId}::uuid
+            and c.object_kind = ${intent.objectKind} and c.ordinal = ${intent.ordinal}`;
+        const found = existing[0];
+        if (found !== undefined) {
+          idByIndex.set(index, found.id);
+          written.push(toIntent(found));
+        }
+        continue;
+      }
+
+      idByIndex.set(index, row.id);
+      written.push(toIntent(row));
+    }
+
+    return written;
+  }
 
   return {
     areas: {
@@ -713,6 +864,228 @@ export function createPostgresStore(client: Sql): ApiStore {
           returning id::text`;
         if (rows[0] === undefined) return undefined;
         return readProject(id);
+      },
+    },
+
+    creations: {
+      async listCaptures(filter, page: PageRequest): Promise<Paged<CaptureRecord>> {
+        const rows = await client<(CaptureRow & { total: string })[]>`
+          select id::text, title, area_key, external_project_id, external_section_id,
+                 external_task_id, promoted_to::text, promoted_at, created_at, updated_at,
+                 count(*) over () as total
+          from capture
+          where true ${
+            filter.promoted === undefined
+              ? client``
+              : filter.promoted
+                ? client`and promoted_to is not null`
+                : client`and promoted_to is null`
+          }
+          order by created_at desc, id
+          limit ${page.limit} offset ${page.offset}`;
+        return {
+          items: rows.map(toCapture),
+          total: rows[0] === undefined ? 0 : Number(rows[0].total),
+        };
+      },
+
+      async getCapture(id: string): Promise<CaptureRecord | undefined> {
+        const rows = await client<CaptureRow[]>`
+          select id::text, title, area_key, external_project_id, external_section_id,
+                 external_task_id, promoted_to::text, promoted_at, created_at, updated_at
+          from capture where id = ${id}::uuid`;
+        const row = rows[0];
+        return row === undefined ? undefined : toCapture(row);
+      },
+
+      /**
+       * The capture and its intents commit together.
+       *
+       * Not tidiness: a capture with no task intent is a capture that never
+       * becomes a task, and nothing would ever notice — the ledger is how the
+       * converge pass learns there is work, so a capture missing from it is
+       * silently lost rather than loudly broken.
+       */
+      async createCapture(input): Promise<CaptureRecord> {
+        return client.begin(async (tx: Tx) => {
+          const rows = await tx<CaptureRow[]>`
+            insert into capture (title, area_key, external_project_id, external_section_id)
+            values (${input.title}, ${input.areaKey}, ${input.externalProjectId},
+                    ${input.externalSectionId ?? null})
+            returning id::text, title, area_key, external_project_id, external_section_id,
+                      external_task_id, promoted_to::text, promoted_at, created_at, updated_at`;
+          const created = rows[0];
+          if (created === undefined) throw new Error('the capture insert returned no row');
+
+          await writeIntents(tx, 'capture', created.id, input.intents, input.keyFor);
+          return toCapture(created);
+        });
+      },
+
+      async promoteCapture(input) {
+        return client.begin(async (tx: Tx) => {
+          const rows = await tx<CaptureRow[]>`
+            select id::text, title, area_key, external_project_id, external_section_id,
+                   external_task_id, promoted_to::text, promoted_at, created_at, updated_at
+            from capture where id = ${input.captureId}::uuid
+            for update`;
+          const capture = rows[0];
+          if (capture === undefined) return undefined;
+
+          if (capture.promoted_to !== null) {
+            return {
+              ok: false as const,
+              reason: 'this capture has already been promoted; open the initiative it became',
+            };
+          }
+
+          /*
+           * A capture whose task does not exist yet has no anchor to reuse,
+           * and creating the initiative anyway would leave the reconciler free
+           * to make a second task for it — which is precisely the duplicate
+           * the definition of done says must not appear. Refuse, and say that
+           * the converge pass has not run rather than inventing a state.
+           */
+          if (capture.external_task_id === null) {
+            return {
+              ok: false as const,
+              reason:
+                'this capture has no task yet, so there is no anchor to reuse — run the converge pass first',
+            };
+          }
+
+          const areaKey = input.areaKey ?? capture.area_key;
+          const inserted = await tx<{ id: string }[]>`
+            insert into initiative
+              (title, area_key, project_id, status, value, time_criticality, risk, size,
+               external_anchor_id, origin)
+            values (${input.title}, ${areaKey}, ${input.projectId ?? null}::uuid, 'inbox',
+                    ${input.value}, ${input.timeCriticality}, ${input.risk}, ${input.size},
+                    ${capture.external_task_id}, 'created_in_prisme')
+            returning id::text`;
+          const initiative = inserted[0];
+          if (initiative === undefined) throw new Error('the initiative insert returned no row');
+
+          /*
+           * The external reference **moves**. `entity_external_ref` refuses a
+           * second binding of one object (guard 1), so the capture's row is
+           * deleted and the initiative's inserted in the same statement pair —
+           * at no instant do two entities claim the task, and at no instant
+           * does neither.
+           */
+          await tx`
+            delete from entity_external_ref
+            where prisme_id = ${input.captureId} and prisme_kind = 'capture' and kind = 'task'`;
+          await tx`
+            insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+            values (${initiative.id}, 'initiative', 'task', ${capture.external_task_id})
+            on conflict (kind, external_id) do update set
+              prisme_id = excluded.prisme_id, prisme_kind = excluded.prisme_kind`;
+
+          await tx`
+            update capture
+               set promoted_to = ${initiative.id}::uuid,
+                   promoted_at = ${stamp(input.at)}::timestamptz,
+                   updated_at = now()
+             where id = ${input.captureId}::uuid`;
+
+          return { ok: true as const, initiativeId: initiative.id };
+        });
+      },
+
+      async linkExternal(input) {
+        /*
+         * Which column on which table the reference lives in. A lookup rather
+         * than a chain of ifs, so an unsupported pair is a missing key and not
+         * a silent fall-through that binds the ref and updates nothing.
+         */
+        const target: Readonly<Record<string, { table: string; column: string } | undefined>> = {
+          'initiative:page': { table: 'initiative', column: 'external_page_id' },
+          'initiative:task': { table: 'initiative', column: 'external_anchor_id' },
+          'project:page': { table: 'project', column: 'external_page_id' },
+          'project:project': { table: 'project', column: 'external_project_id' },
+          'capture:task': { table: 'capture', column: 'external_task_id' },
+          'capture:page': undefined,
+        };
+        const slot = target[`${input.entityKind}:${input.objectKind}`];
+        if (slot === undefined) {
+          return {
+            ok: false as const,
+            reason: `prisme holds no ${input.objectKind} reference for a ${input.entityKind}`,
+          };
+        }
+
+        try {
+          await client.begin(async (tx: Tx) => {
+            // Guard 1. No `on conflict`: an object already bound elsewhere
+            // must raise, because binding it twice is the duplicate.
+            await tx`
+              insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+              values (${input.entityId}, ${input.entityKind}, ${input.objectKind},
+                      ${input.externalId})`;
+
+            await tx`
+              update ${tx(slot.table)}
+                 set ${tx(slot.column)} = ${input.externalId}, updated_at = now()
+               where id = ${input.entityId}::uuid`;
+
+            await tx`
+              insert into entity_link
+                (prisme_id, external_kind, external_id, match_rule, confidence,
+                 decided_by, decided_at)
+              values (${input.entityId}, ${input.objectKind}, ${input.externalId},
+                      'manual', 'manual', 'human', ${stamp(input.at)}::timestamptz)
+              on conflict do nothing`;
+          });
+        } catch {
+          /*
+           * The message is prisme's, not the driver's: a constraint violation
+           * from postgres quotes the key, and the key here is an external
+           * identifier from a real workspace (docs/17-privacy.md).
+           */
+          return {
+            ok: false as const,
+            reason: 'that object is already bound to something else in prisme',
+          };
+        }
+
+        return { ok: true as const };
+      },
+
+      async intents(filter, page: PageRequest): Promise<Paged<CreationIntentRecord>> {
+        const rows = await client<(IntentRow & { total: string })[]>`
+          select ${intentColumns}, count(*) over () as total
+          from creation_intent c
+          where true
+            ${filter.state === undefined ? client`` : client`and c.state = ${filter.state}`}
+            ${filter.entityId === undefined ? client`` : client`and c.entity_id = ${filter.entityId}::uuid`}
+          order by c.created_at, c.ordinal, c.id
+          limit ${page.limit} offset ${page.offset}`;
+        return {
+          items: rows.map(toIntent),
+          total: rows[0] === undefined ? 0 : Number(rows[0].total),
+        };
+      },
+
+      async recordIntents(input): Promise<readonly CreationIntentRecord[]> {
+        return client.begin(async (tx: Tx) =>
+          writeIntents(tx, input.entityKind, input.entityId, input.intents, input.keyFor),
+        );
+      },
+
+      /**
+       * Back to `pending`, and the attempt counter is deliberately **not**
+       * reset. A human retrying a creation for the fifth time should be able
+       * to see that it is the fifth.
+       */
+      async retryIntent(id: string): Promise<CreationIntentRecord | undefined> {
+        const rows = await client<IntentRow[]>`
+          update creation_intent
+             set state = 'pending', last_error = null, updated_at = now()
+           where id = ${id}::uuid and state = 'failed'
+          returning ${intentReturning}`;
+        const row = rows[0];
+        return row === undefined ? undefined : toIntent(row);
       },
     },
 
