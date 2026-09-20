@@ -291,7 +291,13 @@ export default async function ObjectivesPage() {
           <ApiFailureState failure={areas} surface="the areas" />
         ) : (
           <AuthorObjectiveForm
-            areas={areas.data.items.map((area) => ({ key: area.key, name: area.name }))}
+            // Areas of the Change lane only. Run and Signals are lanes: Run is
+            // upkeep that is measured rather than aimed at, and Signals is
+            // volume to keep down. Neither carries an objective, and offering
+            // one is how a lane quietly acquires a target it should not have.
+            areas={areas.data.items
+              .filter((area) => area.kind === 'area')
+              .map((area) => ({ key: area.key, name: area.name }))}
             annualPeriod={currentPeriod('annual', today)}
             monthlyPeriod={nextMonthlyPeriod(today)}
           />

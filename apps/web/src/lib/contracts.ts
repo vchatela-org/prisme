@@ -221,12 +221,24 @@ export const areaSchema = z.object({
 
 export type Area = z.infer<typeof areaSchema>;
 
-export const areaListSchema = z.object({
-  items: z.array(areaSchema),
-  total: z.number().int(),
-  limit: z.number().int(),
-  offset: z.number().int(),
-});
+/**
+ * `GET /areas` returns `{ items }` and nothing else.
+ *
+ * It is not a paged endpoint: `AreaListDto` in `apps/api/src/dto/area.ts` is
+ * `z.object({ items })`, because there are a dozen areas and paging them would
+ * be a page size nobody ever reaches. This schema carried `total`, `limit` and
+ * `offset` from W08 until W11, so it **never parsed a real response** — every
+ * screen reading it fell back to its failure state or to the area *key* where
+ * it meant to show the name, quietly, on Focus, Backlog, Inbox, Adoption and
+ * initiative detail alike.
+ *
+ * It stayed invisible because the fallback is a plausible string: a badge
+ * reading `health` instead of `Health` looks like a styling choice rather than
+ * a parse failure. The callers still send `limit`, which the route's `noQuery`
+ * ignores; that is harmless and is left alone rather than touched across five
+ * other workstreams' screens.
+ */
+export const areaListSchema = z.object({ items: z.array(areaSchema) });
 
 export const projectSchema = z.object({
   id,

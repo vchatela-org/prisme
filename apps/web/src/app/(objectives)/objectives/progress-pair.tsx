@@ -36,10 +36,17 @@ export function ProgressPair({
   keyResult,
   objectiveId,
   elapsedPct,
+  /**
+   * True where the statement is already a heading above this — the detail
+   * page, where each key result gets its own section. Repeating it there put
+   * the same sentence on screen twice, one line apart.
+   */
+  statementShownAbove = false,
 }: {
   keyResult: KeyResult;
   objectiveId: string;
   elapsedPct: number;
+  statementShownAbove?: boolean;
 }) {
   const [draft, setDraft] = useState<string>(String(keyResult.progressSelf));
   const [pending, startTransition] = useTransition();
@@ -78,7 +85,9 @@ export function ProgressPair({
     <div className="flex flex-col gap-2 rounded-lg border border-border-hairline p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-ink">{keyResult.statement}</span>
+          {statementShownAbove ? null : (
+            <span className="text-sm text-ink">{keyResult.statement}</span>
+          )}
           <span className="text-xs text-ink-muted">
             Target {keyResult.target} {keyResult.unit}
             {keyResult.measurementCount > 0
@@ -167,12 +176,15 @@ export function ProgressPair({
         </p>
       ) : null}
 
-      <Link
-        href={`/objectives/${objectiveId}#kr-${keyResult.id}`}
-        className="text-xs text-ink-muted hover:underline"
-      >
-        Measurement history and the anchor
-      </Link>
+      {/* Pointless on the detail page: it links to the section this is in. */}
+      {statementShownAbove ? null : (
+        <Link
+          href={`/objectives/${objectiveId}#kr-${keyResult.id}`}
+          className="text-xs text-ink-muted hover:underline"
+        >
+          Measurement history and the anchor
+        </Link>
+      )}
     </div>
   );
 }

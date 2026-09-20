@@ -35,6 +35,25 @@ const PAGE_LIMIT = 200;
 const LINKABLE = 'inbox,later,next,now,waiting,review';
 
 /**
+ * The tab says which objective, not just "prisme".
+ *
+ * Without this the detail page inherits the root title, so every objective a
+ * reader opens in a second tab is indistinguishable from every other. The
+ * title is rendered per request from live data and is never committed
+ * anywhere.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const objective = await apiFetch({
+    path: `/objectives/${encodeURIComponent(id)}`,
+    schema: objectiveSchema,
+  });
+  return {
+    title: objective.ok ? `${objective.data.title} · prisme` : 'Objective · prisme',
+  };
+}
+
+/**
  * One objective, in the detail the monthly review needs.
  *
  * ## The measurement series is a trend, not a number
@@ -48,13 +67,18 @@ const LINKABLE = 'inbox,later,next,now,waiting,review';
  *
  * ## Why the breakdown shown is the serving initiatives'
  *
- * The brief asks for the anchor task and its subtasks. The API exposes tasks
- * per *initiative* (`/initiatives/:id/tasks`) and there is no endpoint that
- * returns the breakdown beneath a key result's anchor — so what is shown is
- * the rollup of every initiative in `servedBy`, which is the same work
- * approached from the side the API models. Where a key result has an anchor
- * but nothing serving it, that is stated rather than papered over: it is the
- * case where `progressComputed` exists and this screen cannot explain it.
+ * The brief asks for the anchor task and its subtasks, and the honest answer
+ * is that prisme does not compute a key result's progress that way.
+ * `progress_computed` is tasks closed beneath the **initiatives that serve
+ * it** (`apps/api/src/store/postgres.ts`): a key result's own anchor lives in
+ * `entity_external_ref`, while `task_mirror.anchor_for` references an
+ * initiative. So `servedBy` is both the denominator and the explanation, and
+ * a key result with nothing serving it has nothing to compute from — which is
+ * what its `null` says.
+ *
+ * Getting this backwards is not academic. Until these screens were driven,
+ * this panel announced "no anchor is linked, so nothing computes progress for
+ * this key result" directly above a computed 70%.
  *
  * Task *titles* are never rendered, because the API does not return them — the
  * task DTO carries ids, completion and timing only. That is deliberate
@@ -232,7 +256,12 @@ function KeyResultPanel({
         description={`Target ${String(keyResult.target)} ${keyResult.unit}.`}
       >
         <div className="flex flex-col gap-4">
-          <ProgressPair keyResult={keyResult} objectiveId={objectiveId} elapsedPct={elapsedPct} />
+          <ProgressPair
+            keyResult={keyResult}
+            objectiveId={objectiveId}
+            elapsedPct={elapsedPct}
+            statementShownAbove
+          />
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card className="flex flex-col gap-3 p-4">
@@ -284,17 +313,31 @@ function KeyResultPanel({
             <Card className="flex flex-col gap-3 p-4">
               <h4 className="text-sm font-medium text-ink">The work behind it</h4>
 
+              {/*
+                Computed progress comes from the **initiatives that serve this
+                key result**, not from a subtree beneath its own anchor
+                (`apps/api/src/store/postgres.ts`). Saying otherwise is what
+                this panel did until it was driven with a real breakdown: it
+                announced "no anchor is linked, so nothing computes progress"
+                directly above a computed 70%, which tells a reader the number
+                they are looking at cannot exist.
+
+                The anchor is the key result's link *outward*, and it is worth
+                stating separately for exactly that reason.
+              */}
               <p className="text-xs text-ink-muted">
                 {keyResult.externalAnchorId === null
-                  ? 'No anchor task is linked, so nothing computes progress for this key result.'
-                  : 'An anchor task is linked. What is computed comes from the tasks beneath it.'}
+                  ? 'No anchor task links this key result outward yet.'
+                  : 'An anchor task links this key result outward.'}{' '}
+                What is computed comes from the initiatives serving it, below — a key result with
+                nothing serving it has nothing to compute from.
               </p>
 
               {servingInitiatives.length === 0 ? (
                 <p className="text-sm text-ink-secondary">
-                  {keyResult.externalAnchorId === null
-                    ? 'Nothing serves this key result. That is the orphan case the monthly review looks for — it is not wrong, but it means no initiative is moving this number.'
-                    : 'An anchor is linked but no initiative serves this key result, so the computed number cannot be explained from this screen.'}
+                  Nothing serves this key result. That is the orphan case the monthly review looks
+                  for — it is not wrong, but it means no initiative is moving this number, and there
+                  is nothing for the computed figure to be derived from.
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
