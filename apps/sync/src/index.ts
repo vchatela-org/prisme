@@ -68,6 +68,35 @@ export { coverage, wouldProduceCreate } from './adoption/coverage.js';
 export type { AuditableEntity, CoverageReport, CreateRisk } from './adoption/coverage.js';
 export { formatAdoptionPlan } from './adoption/report.js';
 export { normalise, exactForm } from './adoption/normalise.js';
+
+/**
+ * The creation ledger's converge pass (W15).
+ *
+ * The API decides what should exist and writes intents; this is the only
+ * thing that turns one into an object. `plan` writes nothing at all, so it
+ * runs under the write freeze — which is exactly when somebody wants to know
+ * what is queued behind it.
+ */
+export { converge } from './create/run.js';
+export type { ConvergeOptions, ConvergeResult } from './create/run.js';
+export { createCreationStore } from './create/store.js';
+export type { CreationStore } from './create/ports.js';
+export {
+  orderConvergence,
+  resolveCreation,
+  applyOutcome,
+  PAGE_UNREACHABLE,
+} from './create/order.js';
+export { formatConvergePlan } from './create/report.js';
+export { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
+export type {
+  ConvergePlan,
+  Creation,
+  EntityRefs,
+  Intent,
+  Step,
+  StepOutcome,
+} from './create/types.js';
 export { fuzzyMatch, similarity, titlesAgree, FUZZY_THRESHOLD } from './adoption/similarity.js';
 export { externalKey, isAdoptable, ADOPTABLE_KINDS, CANDIDATE_KINDS } from './adoption/types.js';
 export type {

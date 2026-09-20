@@ -9,6 +9,7 @@ import {
 import type { ApiStore } from '../store/types.js';
 import type { SyncRunner } from '../sync/port.js';
 import { createCatalogueService, type CatalogueService } from './catalogue.js';
+import { createCreateService, type CreateService } from './create.js';
 import { createLaneService, type LaneService } from './lanes.js';
 import { createMeasureService, type MeasureService } from './measure.js';
 import { createObjectiveService, type ObjectiveService } from './okr.js';
@@ -33,6 +34,8 @@ export interface ServiceConfig {
   readonly timezone: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
+  /** `PRISME_BASE_URL`, for the backlink written into anything prisme creates. */
+  readonly baseUrl: string;
   readonly limits: SelectionLimits;
   readonly concurrentInitiatives: number;
   readonly workingWeekdays: readonly number[];
@@ -54,6 +57,17 @@ export interface ServiceConfig {
  * spread through the code so that closing OQ-2 is one edit and one journal
  * entry, not an archaeology exercise.
  */
+/**
+ * The label a capture's task carries in the task tool (W15).
+ *
+ * Distinct from `DEFAULT_ANCHOR_LABEL`, and that is the whole point: the
+ * anchor label is how the reconciler recognises an initiative's anchor, so a
+ * capture wearing it would be adopted as one on the next pass — turning "it
+ * stays a task" into a lie one cron interval later. Two labels, two meanings,
+ * and neither inferred from the other.
+ */
+export const CAPTURE_LABEL = 'prisme-capture';
+
 export const SERVICE_DEFAULTS = {
   limits: CANDIDATE_SELECTION_LIMITS,
   concurrentInitiatives: CANDIDATE_CONCURRENT_INITIATIVES,
@@ -62,6 +76,7 @@ export const SERVICE_DEFAULTS = {
 
 export interface Services {
   readonly catalogue: CatalogueService;
+  readonly create: CreateService;
   readonly work: WorkService;
   readonly measure: MeasureService;
   readonly objectives: ObjectiveService;
@@ -97,6 +112,10 @@ export function createServices(options: CreateServicesOptions): Services {
 
   return {
     catalogue: createCatalogueService(store),
+    create: createCreateService(store, {
+      baseUrl: config.baseUrl,
+      captureLabel: CAPTURE_LABEL,
+    }),
     work,
     measure,
     objectives: createObjectiveService(store),
@@ -115,6 +134,7 @@ export function createServices(options: CreateServicesOptions): Services {
 
 export type {
   CatalogueService,
+  CreateService,
   LaneService,
   MeasureService,
   ObjectiveService,

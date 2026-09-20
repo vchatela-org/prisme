@@ -49,6 +49,10 @@ const describeOrSkip: typeof describe | typeof describe.skip = (() => {
 /** Every table, children first — never `cascade`. The same list as the adoption suite, plus 0006's. */
 const TABLES = [
   'confirmation_token',
+  // W15's two (migration 0007). `creation_intent` references itself and
+  // `capture` references both `area` and `initiative`, so both come first.
+  'creation_intent',
+  'capture',
   'capacity_week',
   'completion_history',
   'backfill_cursor',

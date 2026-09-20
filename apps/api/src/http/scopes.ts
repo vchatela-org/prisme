@@ -31,6 +31,11 @@ export const SCOPES = {
   'read:meta': 'The OpenAPI description and the settings prisme is running under',
 
   'write:initiative': 'Create and change initiatives, their status and their dependencies',
+  // Separate from `write:initiative` on purpose (W15): a capture is unranked
+  // and unscored, so it cannot change what prisme says to work on. Something
+  // that should be able to drop a thought into the inbox in one call should
+  // not thereby be able to re-rank a backlog.
+  'write:capture': 'Capture a small thing. It stays a task; promoting it needs `write:initiative`',
   'write:project': 'Create and change projects',
   'write:objective': 'Author objectives, key results and measurements',
   'write:review': 'Open, annotate and close review sessions',

@@ -109,6 +109,7 @@ export function createTestApp(options: TestAppOptions): TestApp {
       timezone: 'UTC',
       capacityWindowWeeks: 4,
       defaultTaskMinutes: 25,
+      baseUrl: 'http://prisme.example',
       limits: SERVICE_DEFAULTS.limits,
       concurrentInitiatives: SERVICE_DEFAULTS.concurrentInitiatives,
       workingWeekdays: SERVICE_DEFAULTS.workingWeekdays,

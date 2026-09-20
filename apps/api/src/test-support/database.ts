@@ -91,6 +91,12 @@ export interface TestDatabase {
  */
 const TABLES = [
   'confirmation_token',
+  // W15's two (migration 0007). `creation_intent` references itself and
+  // `capture` references both `area` and `initiative`, so both come before
+  // either — the same rule as everything else on this list, and the same
+  // failure if it is forgotten.
+  'creation_intent',
+  'capture',
   // W13's three (migration 0006). `capacity_week` references `area`, so
   // omitting it does not merely leave stale rows — it makes `truncate` refuse
   // the whole statement, which is the no-`cascade` rule above doing its job:

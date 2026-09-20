@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — W00–W12 and W14 landed; **waves 3 and 4 are complete**: W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)) and W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) merged, and W13 closes the wave as [#33](https://github.com/vchatela-org/prisme/pull/33). Only **W15** (wave 5) is left unstarted, and nothing it depends on is open
+**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — **every workstream has landed.** Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
 
 ---
 
@@ -42,7 +42,7 @@ Detail and rationale: [`docs/30-roadmap.md`](docs/30-roadmap.md).
 | [W12](docs/40-workstreams/W12-adoption.md) | Adoption queue & migration, no-duplicate guards | W03, W04 | 3 | 🟢 | [#29](https://github.com/vchatela-org/prisme/pull/29) merged |
 | [W13](docs/40-workstreams/W13-backfill.md) | History backfill → capacity actuals | W03 | 4 | 🟢 | [#33](https://github.com/vchatela-org/prisme/pull/33) |
 | [W14](docs/40-workstreams/W14-security.md) | Security: assertion verifier, token store, CSP, CI gates | W00 | 2 | 🟢 | [#23](https://github.com/vchatela-org/prisme/pull/23) merged |
-| [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | ⚪ | — |
+| [W15](docs/40-workstreams/W15-creation-flows.md) | Creation flows: capture, initiative, project | W04, W05, W07 | 5 | 🟢 | [#34](https://github.com/vchatela-org/prisme/pull/34) |
 
 ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked · **PR** is the pull request carrying the
 workstream, `—` until one is open, and the one that landed it once the row is 🟢.
@@ -215,6 +215,39 @@ preference order is unavailable. That is W12's missing dependency, not a second 
 repository loads the role bindings, and the report says so rather than passing a two-tier estimate
 off as a three-tier one. [The entry](docs/50-journal/W13-2026-09-20-backfill.md).
 
+**W15 closes wave 5, and the project's sixteen workstreams**
+([#34](https://github.com/vchatela-org/prisme/pull/34)): quick capture, new initiative, new project,
+and the ledger that makes a multi-tool creation survivable. There is **no transaction spanning two
+SaaS APIs**, so the intention is committed before anything outward is attempted: a project is a
+prisme row, a task-tool project, one section per subtopic and perhaps a page, and a failure partway
+through leaves a screen saying which parts exist rather than a workspace to go and audit.
+
+Two things in it are worth knowing before reading the diff. **The idempotency key is stored on the
+row, not derived per pass** — the opposite of the reconciler's rule, and deliberately: a creation is
+one logical write that outlives a pass, so every retry carries the same key forever and the tool
+recognises the second send as the first. That is what closes the window the whole ledger exists for,
+the writer succeeding and the process dying before the id is recorded. And **promotion satisfies
+ADR-0010 guard 2 rather than re-implementing it**: the initiative is inserted with
+`external_anchor_id` already set, so the planner is structurally unable to emit a create for it —
+proved by running the *real* planner over the promoted initiative, with a control that removes the
+anchor and watches the same planner emit one.
+
+Six defects only running found, and one that is everybody's. **`GET /areas?limit=200` answers
+`400`** — `noQuery` is strict and refuses an unrecognised key rather than ignoring it — so Focus,
+Backlog, Inbox, Adoption and initiative detail have each been taking their area list's failure path
+on every load since W08. W11 recorded it as harmless; it was not. Fixed in all five. The other five
+include a route group that served every new screen at the wrong URL, `sql.json()` failing on the
+Drizzle-wrapped client the API actually runs with — **invisible to an integration suite that builds
+a bare one**, which is now a follow-up in its own right — and a frozen deployment recording every
+intent as failed, so a correctly-configured instance showed a red CronJob every fifteen minutes.
+
+What is **not** done, and it is a decision rather than a gap: **ADR-0011's *Create page* cannot be
+implemented.** No role key names where a narrative page would live, none is a template, and the
+least-privilege table grants the document-tool token no capability that would cover it —
+[ADR-0025](docs/20-decisions/0025-page-creation-needs-a-role-vocabulary.md) proposes the vocabulary
+and is **Proposed, not Accepted**. The intent is recorded, the converge pass blocks it with the
+reason on the line, and *Link existing page* works today. [The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
+
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and
 years of existing work. It is `plan`-only by shape rather than by a flag — `adopt` takes two *read*
@@ -271,7 +304,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**22 accepted** · **7 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
+**22 accepted** · **1 proposed** · **7 open** — index: [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0.
