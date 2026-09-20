@@ -221,12 +221,24 @@ export const areaSchema = z.object({
 
 export type Area = z.infer<typeof areaSchema>;
 
-export const areaListSchema = z.object({
-  items: z.array(areaSchema),
-  total: z.number().int(),
-  limit: z.number().int(),
-  offset: z.number().int(),
-});
+/**
+ * `GET /areas` returns `{ items }` and nothing else.
+ *
+ * It is not a paged endpoint: `AreaListDto` in `apps/api/src/dto/area.ts` is
+ * `z.object({ items })`, because there are a dozen areas and paging them would
+ * be a page size nobody ever reaches. This schema carried `total`, `limit` and
+ * `offset` from W08 until W11, so it **never parsed a real response** — every
+ * screen reading it fell back to its failure state or to the area *key* where
+ * it meant to show the name, quietly, on Focus, Backlog, Inbox, Adoption and
+ * initiative detail alike.
+ *
+ * It stayed invisible because the fallback is a plausible string: a badge
+ * reading `health` instead of `Health` looks like a styling choice rather than
+ * a parse failure. The callers still send `limit`, which the route's `noQuery`
+ * ignores; that is harmless and is left alone rather than touched across five
+ * other workstreams' screens.
+ */
+export const areaListSchema = z.object({ items: z.array(areaSchema) });
 
 export const projectSchema = z.object({
   id,
@@ -638,3 +650,173 @@ export const takeawayPageSchema = z.object({
   limit: z.number().int(),
   offset: z.number().int(),
 });
+
+/**
+ * A measurement on a key result: append-only, so a trend exists.
+ *
+ * There is no endpoint that edits or removes one, and this application offers
+ * no affordance that would imply otherwise. A series somebody can tidy up is a
+ * series that only ever agrees with the story being told about it.
+ */
+export const measurementSchema = z.object({
+  observedAt: instant,
+  value: z.number(),
+  note: z.string().nullable(),
+});
+
+export type Measurement = z.infer<typeof measurementSchema>;
+
+export const measurementListSchema = z.object({
+  keyResultId: id,
+  items: z.array(measurementSchema),
+});
+
+/**
+ * A key result, with both progress numbers side by side.
+ *
+ * `progressSelf` is writable and `progressComputed` is not, and that asymmetry
+ * is the feature rather than an omission (ADR-0013). `progressComputed` is
+ * **nullable, not zero**: no breakdown to compute from is a different fact
+ * from no progress, and rendering the first as `0%` would invent a divergence
+ * that does not exist.
+ */
+export const keyResultSchema = z.object({
+  id,
+  objectiveId: id,
+  statement: z.string(),
+  target: z.number(),
+  unit: z.string(),
+  progressSelf: z.number(),
+  progressComputed: z.number().nullable(),
+  externalAnchorId: z.string().nullable(),
+  /** Initiative ids. The only link between an objective and the work. */
+  servedBy: z.array(id),
+  measurementCount: z.number().int(),
+  createdAt: instant,
+});
+
+export type KeyResult = z.infer<typeof keyResultSchema>;
+
+export const OBJECTIVE_STATUSES = ['draft', 'active', 'met', 'missed', 'dropped'] as const;
+export const objectiveStatus = z.enum(OBJECTIVE_STATUSES);
+export type ObjectiveStatus = z.infer<typeof objectiveStatus>;
+
+export const OBJECTIVE_TYPES = ['annual', 'monthly'] as const;
+export const objectiveType = z.enum(OBJECTIVE_TYPES);
+export type ObjectiveType = z.infer<typeof objectiveType>;
+
+/**
+ * An objective.
+ *
+ * `period` is `YYYY` for an annual objective and `YYYY-MM` for a monthly one,
+ * and it is fixed at authoring: an objective that moves between months is a
+ * different objective, and letting one move would make attainment history
+ * meaningless. The API refuses the change; this application never offers it.
+ */
+export const objectiveSchema = z.object({
+  id,
+  title: z.string(),
+  type: objectiveType,
+  period: z.string().regex(/^\d{4}(-\d{2})?$/),
+  areaKey,
+  status: objectiveStatus,
+  externalPageId: z.string().nullable(),
+  keyResults: z.array(keyResultSchema),
+  createdAt: instant,
+});
+
+export type Objective = z.infer<typeof objectiveSchema>;
+
+export const objectivePageSchema = z.object({
+  items: z.array(objectiveSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+export type ObjectivePage = z.infer<typeof objectivePageSchema>;
+
+export const REVIEW_CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
+export const reviewCadence = z.enum(REVIEW_CADENCES);
+export type ReviewCadence = z.infer<typeof reviewCadence>;
+
+/**
+ * A review session — the record that makes a review a record.
+ *
+ * `checklist` maps a step id to whether it is done. The step *ids* come from
+ * the cadence map in `docs/10-model.md`, which freezes the shape of each step;
+ * the concrete checklist an instance works through is its own data and lives
+ * in the document tool. A session carrying a step id this build does not know
+ * is therefore expected, not corrupt — `review-wizard.ts` keeps it rather than
+ * dropping it.
+ *
+ * `capacitySnapshot` is taken when the session closes and never retaken: what
+ * the review saw is part of what the review decided.
+ */
+export const reviewSessionSchema = z.object({
+  id,
+  cadence: reviewCadence,
+  startedAt: instant,
+  completedAt: instant.nullable(),
+  checklist: z.record(z.string(), z.boolean()),
+  decisions: z.array(z.string()),
+  capacitySnapshot: z.record(z.string(), z.number()),
+  externalPageId: z.string().nullable(),
+});
+
+export type ReviewSession = z.infer<typeof reviewSessionSchema>;
+
+export const reviewSessionPageSchema = z.object({
+  items: z.array(reviewSessionSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+/**
+ * One row of the conflict ledger.
+ *
+ * Clearing it is a weekly review step (docs/10-model.md §10), which is the
+ * only reason this application reads it: resolving one is W04's surface and
+ * the wizard links out rather than re-implementing the decision.
+ */
+export const conflictSchema = z.object({
+  id: z.string(),
+  entityId: z.string(),
+  field: z.string(),
+  prismeValue: z.string().nullable(),
+  externalValue: z.string().nullable(),
+  detectedAt: instant,
+  resolution: z.enum(['prisme_wins', 'external_wins', 'unresolved']),
+  actor: z.enum(['sync', 'human']),
+});
+
+export type Conflict = z.infer<typeof conflictSchema>;
+
+export const conflictPageSchema = z.object({
+  items: z.array(conflictSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+/**
+ * A ritual, for the monthly review's lane check.
+ *
+ * `latestAdherencePct` is nullable and that nullability is load-bearing: no
+ * opportunity in the period is a different fact from having missed every one,
+ * and a ritual that has not come round yet must not read as 0% adherence.
+ */
+export const ritualSchema = z.object({
+  id,
+  name: z.string(),
+  areaKey,
+  cadence: z.enum(['daily', 'weekly', 'monthly']),
+  targetAdherencePct: z.number(),
+  externalPageId: z.string().nullable(),
+  latestAdherencePct: z.number().nullable(),
+});
+
+export type Ritual = z.infer<typeof ritualSchema>;
+
+export const ritualListSchema = z.object({ items: z.array(ritualSchema) });

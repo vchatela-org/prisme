@@ -1,5 +1,6 @@
 {
   "_comment": "Synthetic. Invented objectives and key results. See README.md.",
+  "_status_note": "An objective's status is one of draft, active, met, missed, dropped — the vocabulary frozen at P0 and enforced by a CHECK constraint in 0002_domain.sql. There is deliberately no at_risk: risk is derived from the two progress numbers and how much of the period is gone (ADR-0013), not declared. Being at risk does not change what an objective is.",
 
   "objectives": [
     {
@@ -8,7 +9,7 @@
       "type": "annual",
       "period": "2026",
       "areaKey": "health",
-      "status": "in_progress",
+      "status": "active",
       "keyResults": [
         {
           "id": "kr-001",
@@ -37,7 +38,7 @@
       "type": "annual",
       "period": "2026",
       "areaKey": "money",
-      "status": "in_progress",
+      "status": "active",
       "keyResults": [
         {
           "id": "kr-003",
@@ -66,7 +67,7 @@
       "type": "annual",
       "period": "2026",
       "areaKey": "relationships",
-      "status": "at_risk",
+      "status": "active",
       "keyResults": [
         {
           "id": "kr-005",
@@ -85,7 +86,7 @@
       "type": "monthly",
       "period": "2026-09",
       "areaKey": "craft",
-      "status": "in_progress",
+      "status": "active",
       "keyResults": [
         {
           "id": "kr-006",
@@ -102,9 +103,9 @@
       "type": "annual",
       "period": "2026",
       "areaKey": "community",
-      "status": "not_started",
+      "status": "active",
       "keyResults": [],
-      "_note": "No key results and no initiatives — exercises orphan detection in W11."
+      "_note": "No key results and no initiatives — exercises orphan detection in W11. It must stay *active*: the orphan question is asked of objectives that have been committed to, and a draft with nothing behind it is a draft rather than a finding."
     }
   ],
 

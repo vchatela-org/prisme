@@ -45,6 +45,32 @@ interface InitiativeFixture {
   droppedReason?: string;
 }
 
+interface MeasurementFixture {
+  at: string;
+  value: number;
+  note?: string;
+}
+
+interface KeyResultFixture {
+  id: string;
+  statement: string;
+  target: number;
+  unit: string;
+  progressSelf: number;
+  servedBy: string[];
+  measurements?: MeasurementFixture[];
+}
+
+interface ObjectiveFixture {
+  id: string;
+  title: string;
+  type: 'annual' | 'monthly';
+  period: string;
+  areaKey: string;
+  status: string;
+  keyResults: KeyResultFixture[];
+}
+
 /**
  * A fixture id as a uuid, by construction rather than by lookup.
  *
@@ -76,15 +102,26 @@ function readFixture<T>(name: string): T {
 export interface SeedResult {
   readonly areaKeys: readonly string[];
   readonly initiativeIds: ReadonlyMap<string, string>;
+  readonly objectiveIds: ReadonlyMap<string, string>;
+  readonly keyResultIds: ReadonlyMap<string, string>;
 }
 
 export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
   const areas = readFixture<{ areas: AreaFixture[]; areaWeights: WeightFixture[] }>('areas.json');
   const initiatives = readFixture<{ initiatives: InitiativeFixture[] }>('initiatives.json');
+  const objectives = readFixture<{ objectives: ObjectiveFixture[] }>('objectives.json');
 
   const ids = new Map<string, string>();
   for (const initiative of initiatives.initiatives)
     ids.set(initiative.id, fixtureId(initiative.id));
+
+  const objectiveIds = new Map<string, string>();
+  const keyResultIds = new Map<string, string>();
+  for (const objective of objectives.objectives) {
+    objectiveIds.set(objective.id, fixtureId(objective.id));
+    for (const keyResult of objective.keyResults)
+      keyResultIds.set(keyResult.id, fixtureId(keyResult.id));
+  }
 
   await client.begin(async (tx) => {
     for (const area of areas.areas) {
@@ -121,9 +158,61 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
           values (${ids.get(initiative.id) as string}::uuid, ${ids.get(dependency) as string}::uuid)`;
       }
     }
+
+    // Objectives last: a key result's `servedBy` references an initiative, so
+    // every initiative has to exist first.
+    //
+    // Until W11 nothing loaded `fixtures/objectives.json` at all, and the three
+    // statuses it carried — `in_progress`, `at_risk`, `not_started` — were none
+    // of the five the schema's CHECK constraint allows. A fixture no code path
+    // reads is a fixture that drifts from the model silently, which is what had
+    // happened.
+    for (const objective of objectives.objectives) {
+      await tx`
+        insert into objective (id, title, type, period, area_key, status)
+        values (${objectiveIds.get(objective.id) as string}::uuid, ${objective.title},
+                ${objective.type}, ${objective.period}, ${objective.areaKey},
+                ${objective.status})`;
+
+      for (const keyResult of objective.keyResults) {
+        await tx`
+          insert into key_result (id, objective_id, statement, target, unit, progress_self)
+          values (${keyResultIds.get(keyResult.id) as string}::uuid,
+                  ${objectiveIds.get(objective.id) as string}::uuid,
+                  ${keyResult.statement}, ${keyResult.target}, ${keyResult.unit},
+                  ${keyResult.progressSelf})`;
+
+        for (const initiativeKey of keyResult.servedBy) {
+          const initiativeId = ids.get(initiativeKey);
+          // A fixture that names an initiative which does not exist is a
+          // broken fixture, not a link to skip quietly.
+          if (initiativeId === undefined) {
+            throw new Error(
+              `fixtures/objectives.json: ${keyResult.id} is served by ${initiativeKey}, which is not in initiatives.json`,
+            );
+          }
+          await tx`
+            insert into key_result_served_by (key_result_id, initiative_id)
+            values (${keyResultIds.get(keyResult.id) as string}::uuid, ${initiativeId}::uuid)`;
+        }
+
+        for (const measurement of keyResult.measurements ?? []) {
+          await tx`
+            insert into key_result_measurement (key_result_id, observed_at, value, note)
+            values (${keyResultIds.get(keyResult.id) as string}::uuid,
+                    ${measurement.at}::timestamptz, ${measurement.value},
+                    ${measurement.note ?? null})`;
+        }
+      }
+    }
   });
 
-  return { areaKeys: areas.areas.map((area) => area.key), initiativeIds: ids };
+  return {
+    areaKeys: areas.areas.map((area) => area.key),
+    initiativeIds: ids,
+    objectiveIds,
+    keyResultIds,
+  };
 }
 
 /**
