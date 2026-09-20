@@ -10,8 +10,10 @@ import {
 } from '@prisme/ui';
 import {
   ChartNoAxesCombined,
+  ClipboardCheck,
   GanttChart,
   GitMerge,
+  Goal,
   Inbox,
   LayoutList,
   Scale,
@@ -36,16 +38,17 @@ import { useMemo, type ReactNode } from 'react';
  *
  * ## The navigation only lists what exists
  *
- * Objectives and the cadence reviews are still wave 4 and 5. They are absent
- * rather than disabled: a navigation item that goes nowhere is a 404 a reader
- * finds by clicking, and it teaches them the navigation is unreliable. The
- * *creation* entry points are the ones the brief asks to render as disabled
- * affordances, and those live on the screens that would create something —
- * where the affordance says what will eventually happen there.
+ * A navigation item that goes nowhere is a 404 a reader finds by clicking, and
+ * it teaches them the navigation is unreliable. So an item appears on the day
+ * its route lands, never before. The *creation* entry points are the ones the
+ * brief asks to render as disabled affordances, and those live on the screens
+ * that would create something — where the affordance says what will eventually
+ * happen there.
  *
- * Areas and KPI were added by W09, and the Timeline by W10, each on the day its
- * route landed — which is the rule this comment describes rather than an
- * exception to it.
+ * Areas and KPI were added by W09, the Timeline by W10, and Objectives and
+ * Reviews by W11, each on the day its route landed — which is the rule this
+ * comment describes rather than an exception to it. The creation flows (W15)
+ * are still absent.
  */
 
 const NAV: readonly NavGroup[] = [
@@ -62,6 +65,11 @@ const NAV: readonly NavGroup[] = [
       // is in question rather than daily, which is why it sits after the three
       // above and not among them.
       { label: 'Timeline', href: '/timeline', icon: <GanttChart aria-hidden /> },
+      // Objectives and Reviews are the decision surfaces: read monthly rather
+      // than daily. Objectives sits before Reviews because the monthly review
+      // reads it, not the other way round.
+      { label: 'Objectives', href: '/objectives', icon: <Goal aria-hidden /> },
+      { label: 'Reviews', href: '/review', icon: <ClipboardCheck aria-hidden /> },
       // Adoption is a migration surface, not a daily one: it is worked hard
       // once and then rarely, and it becomes empty on purpose. It sits here
       // rather than in a group of its own because it is reached the same way
@@ -152,6 +160,33 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         keywords: ['gantt', 'schedule', 'dates', 'critical path', 'dependencies', 'slack'],
         run: () => {
           router.push('/timeline');
+        },
+      },
+      {
+        id: 'go-objectives',
+        label: 'Go to Objectives',
+        group: 'Navigate',
+        keywords: ['okr', 'key results', 'progress', 'orphans', 'goals'],
+        run: () => {
+          router.push('/objectives');
+        },
+      },
+      {
+        id: 'go-reviews',
+        label: 'Go to Reviews',
+        group: 'Navigate',
+        keywords: ['ritual', 'checklist', 'weekly', 'monthly', 'quarterly'],
+        run: () => {
+          router.push('/review');
+        },
+      },
+      {
+        id: 'go-weekly-review',
+        label: 'Resume the weekly review',
+        group: 'Navigate',
+        keywords: ['weekly', 'ritual', 'resume'],
+        run: () => {
+          router.push('/review/weekly');
         },
       },
       {
