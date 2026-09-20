@@ -141,7 +141,7 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
       };
     },
 
-    async fetchCompletions(since: Date): Promise<Completion[]> {
+    async fetchCompletions(since: Date, until?: Date): Promise<Completion[]> {
       const operation = 'fetch completions';
       const completions: Completion[] = [];
 
@@ -150,6 +150,7 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
           since: since.toISOString(),
           limit: String(COMPLETION_PAGE_SIZE),
           offset: String(page * COMPLETION_PAGE_SIZE),
+          ...(until === undefined ? {} : { until: until.toISOString() }),
         });
         const body = await post('/sync/v9/completed/get_all', form, operation);
         const response = parseOrThrow(wireCompletedResponseSchema, body, {
@@ -164,7 +165,7 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
 
       throw new ConnectorError(
         'pagination',
-        `completion history did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass`,
+        `completion history did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass — narrow the window with "until"`,
         { tool: 'task', operation },
       );
     },
