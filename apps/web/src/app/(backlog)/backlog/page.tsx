@@ -42,7 +42,7 @@ export default async function BacklogPage({
 
   const [backlog, areas, focus] = await Promise.all([
     apiFetch({ path: '/backlog', query: toApiQuery(query), schema: backlogSchema }),
-    apiFetch({ path: '/areas', query: { limit: '200' }, schema: areaListSchema }),
+    apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({ path: '/focus', schema: focusSchema }),
   ]);
 

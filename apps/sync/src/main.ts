@@ -9,7 +9,15 @@
  *   prisme-sync adopt --plan  the adoption scan: candidates, coverage, create audit
  *   prisme-sync backfill --from <date>
  *                             completion history → per-area capacity actuals
+ *   prisme-sync create --plan | --apply
+ *                             drain the creation ledger: what the UI asked to
+ *                             exist outward, and does not yet
  * ```
+ *
+ * `apply` also drains the ledger before it reconciles, in the same lock. The
+ * order matters: a project created this pass has to have its external id
+ * before the anchors that live in it are planned, or the reconciler places
+ * them by the area mapping and the next pass moves them.
  *
  * `plan` has no side effects and is free to run at any time, including outside
  * the sync window: it is a human asking a question. `apply` honours the window
@@ -23,7 +31,12 @@
  * It runs no migration. Ever.
  */
 import { createFetchTransport, createTaskToolClient } from '@prisme/connectors';
-import { createFrozenWriter, createTaskToolWriter } from '@prisme/connectors/write';
+import {
+  createFrozenCreationWriter,
+  createFrozenWriter,
+  createTaskToolCreationWriter,
+  createTaskToolWriter,
+} from '@prisme/connectors/write';
 import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db';
 import { createLogger, createMetrics, currentRunContext, withNewRun } from '@prisme/observability';
@@ -32,6 +45,9 @@ import { createAdoptionStore } from './adoption/store.js';
 import { backfillFrom } from './backfill/cli.js';
 import { backfill } from './backfill/run.js';
 import { createBackfillStore } from './backfill/store.js';
+import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
+import { converge } from './create/run.js';
+import { createCreationStore } from './create/store.js';
 import { createPostgresStore } from './state/postgres.js';
 import { reconcile } from './run.js';
 import { shouldRunNow } from './window.js';
@@ -45,13 +61,32 @@ const config = loadConfigOrExit({ service: 'sync' });
 const logger = createLogger({ service: 'prisme-sync', level: config.logLevel });
 const metrics = createMetrics({ collectDefaults: false });
 
-function modeFrom(argv: readonly string[]): 'plan' | 'apply' | 'adopt' | 'backfill' | undefined {
+function modeFrom(
+  argv: readonly string[],
+): 'plan' | 'apply' | 'adopt' | 'backfill' | 'create' | undefined {
   const [command] = argv.slice(2);
   if (command === undefined || command === 'apply') return 'apply';
   if (command === 'plan') return 'plan';
   if (command === 'adopt') return 'adopt';
   if (command === 'backfill') return 'backfill';
+  if (command === 'create') return 'create';
   return undefined;
+}
+
+/** The creating writer, or the one that cannot reach an API. */
+function creationWriter(
+  transport: ReturnType<typeof createFetchTransport>,
+  metrics: {
+    recordRequest: (sample: { tool: string; status: string }) => void;
+  },
+) {
+  return config.sync.writeEnabled
+    ? createTaskToolCreationWriter({
+        token: config.tasktoolApiToken as string,
+        transport,
+        metrics,
+      })
+    : createFrozenCreationWriter();
 }
 
 /**
@@ -71,7 +106,17 @@ async function main(): Promise<number> {
   const mode = modeFrom(process.argv);
   if (mode === undefined) {
     process.stderr.write(
-      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD]\n',
+      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD|create --plan|--apply]\n',
+    );
+    return EXIT_FAILED;
+  }
+
+  const convergeMode = mode === 'create' ? createMode(process.argv) : undefined;
+  if (mode === 'create' && convergeMode === undefined) {
+    process.stderr.write(
+      'usage: prisme-sync create --plan | --apply\n' +
+        'The mode is required: `create` on its own reads like a verb that does something,\n' +
+        'and what it would do is add objects to a real workspace.\n',
     );
     return EXIT_FAILED;
   }
@@ -230,9 +275,94 @@ async function main(): Promise<number> {
       return EXIT_OK;
     }
 
+    if (mode === 'create') {
+      // The same advisory lock as a reconciler pass, and for a real reason
+      // rather than tidiness: this pass creates the projects and sections a
+      // reconciler pass then places anchors into. The two running together
+      // would have the reconciler decide a location from a project that is
+      // being made underneath it.
+      const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
+        logger.info('converge started', {
+          mode: convergeMode,
+          writeEnabled: config.sync.writeEnabled,
+        });
+        return converge({
+          mode: convergeMode as 'plan' | 'apply',
+          store: createCreationStore(database.client),
+          writer: creationWriter(transport, connectorMetrics),
+          writeEnabled: config.sync.writeEnabled,
+          maxPerPass: DEFAULT_MAX_PER_PASS,
+          now: () => new Date(),
+        });
+      });
+
+      if (!outcome.acquired) {
+        logger.info('another pass holds the lock; skipping rather than queueing');
+        return EXIT_LOCKED;
+      }
+      /* c8 ignore next -- the lock was acquired, so a result exists */
+      if (outcome.result === undefined) return EXIT_FAILED;
+
+      // Instance data — section names and capture content. Printed to a
+      // terminal, never pasted into the repository.
+      process.stdout.write(`${outcome.result.report}\n`);
+
+      logger.info('converge complete', {
+        created: outcome.result.created,
+        failed: outcome.result.failed,
+        blocked: outcome.result.plan.blocked,
+      });
+
+      if (outcome.result.stopped !== undefined) {
+        logger.warn('converge stopped', { reason: outcome.result.stopped });
+      }
+
+      if (outcome.result.refused !== undefined) {
+        // The write freeze is the configured, expected state of a fresh
+        // deployment, so it exits clean. Same judgement as a reconciler pass
+        // refused for the same reason.
+        logger.info('converge refused', { reason: outcome.result.refused });
+        return EXIT_OK;
+      }
+
+      // A blocked intent is a finding, not a failure of the command. A
+      // *failed* one is: something was attempted against a real workspace and
+      // did not work, and a green pipeline would hide it.
+      return outcome.result.failed > 0 ? EXIT_FAILED : EXIT_OK;
+    }
+
     const startedAt = Date.now();
     const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
       logger.info('pass started', { mode, writeEnabled: config.sync.writeEnabled });
+
+      /*
+       * Drain the creation ledger first, in this same lock.
+       *
+       * The order is load-bearing: a project created this pass must have its
+       * external id before the reconciler plans the anchors that live in it,
+       * or they are placed by the area mapping and the next pass moves them —
+       * which a person sees as prisme putting their work in the wrong place
+       * and then correcting itself fifteen minutes later.
+       *
+       * A `plan` converges nothing, because `plan` has no side effects.
+       */
+      if (mode === 'apply') {
+        const drained = await converge({
+          mode: 'apply',
+          store: createCreationStore(database.client),
+          writer: creationWriter(transport, connectorMetrics),
+          writeEnabled: config.sync.writeEnabled,
+          maxPerPass: DEFAULT_MAX_PER_PASS,
+          now: () => new Date(),
+        });
+        if (drained.created > 0 || drained.failed > 0) {
+          logger.info('creation ledger drained', {
+            created: drained.created,
+            failed: drained.failed,
+            blocked: drained.plan.blocked,
+          });
+        }
+      }
 
       return reconcile({
         mode,
