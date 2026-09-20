@@ -787,3 +787,24 @@ export const conflictPageSchema = z.object({
   limit: z.number().int(),
   offset: z.number().int(),
 });
+
+/**
+ * A ritual, for the monthly review's lane check.
+ *
+ * `latestAdherencePct` is nullable and that nullability is load-bearing: no
+ * opportunity in the period is a different fact from having missed every one,
+ * and a ritual that has not come round yet must not read as 0% adherence.
+ */
+export const ritualSchema = z.object({
+  id,
+  name: z.string(),
+  areaKey,
+  cadence: z.enum(['daily', 'weekly', 'monthly']),
+  targetAdherencePct: z.number(),
+  externalPageId: z.string().nullable(),
+  latestAdherencePct: z.number().nullable(),
+});
+
+export type Ritual = z.infer<typeof ritualSchema>;
+
+export const ritualListSchema = z.object({ items: z.array(ritualSchema) });
