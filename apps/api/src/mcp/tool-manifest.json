@@ -640,6 +640,24 @@
         "stale": {
           "type": "boolean"
         },
+        "observedSource": {
+          "type": "string",
+          "enum": [
+            "capacity_week",
+            "task_mirror"
+          ]
+        },
+        "observedThrough": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "areas": {
           "type": "array",
           "items": {
@@ -747,6 +765,8 @@
         "weightYear",
         "weightSourceYear",
         "stale",
+        "observedSource",
+        "observedThrough",
         "areas"
       ],
       "additionalProperties": false
@@ -809,6 +829,13 @@
           "enum": [
             "week",
             "month"
+          ]
+        },
+        "observedSource": {
+          "type": "string",
+          "enum": [
+            "capacity_week",
+            "task_mirror"
           ]
         },
         "throughput": {
@@ -1053,6 +1080,7 @@
         "from",
         "to",
         "bucket",
+        "observedSource",
         "throughput",
         "minutes",
         "runHours",

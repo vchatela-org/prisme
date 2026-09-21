@@ -30,6 +30,7 @@ import {
   labelsOf,
   measuredBuckets,
   minutesCaveat,
+  observedSourceCaveat,
   observedShareSeries,
   orderAreas,
   WINDOW_CAVEAT,
@@ -298,7 +299,7 @@ export default async function KpiPage({
           it. One copy, directly under the charts it governs, is read.
         */}
         <p className="max-w-prose text-xs text-ink-muted">
-          {WINDOW_CAVEAT} {minutesCaveat(estimated)}
+          {WINDOW_CAVEAT} {minutesCaveat(estimated)} {observedSourceCaveat(kpi.data)}
         </p>
       </Section>
 

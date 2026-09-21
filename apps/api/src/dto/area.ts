@@ -161,6 +161,25 @@ export const balanceDto = z.object({
   weightSourceYear: yearSchema.nullable(),
   /** True when the weights behind every target share were carried forward. */
   stale: z.boolean(),
+  /**
+   * Which record the observed side came from (W13).
+   *
+   * `capacity_week` is the backfill's materialised history — every completion
+   * it could reach, attributed through `area_mapping`. `task_mirror` is the
+   * anchor subtree, which is all prisme has until a backfill has run. The two
+   * give different numbers for the same week, so this is a field and not a
+   * footnote: a reader comparing two months deserves to know which they have.
+   */
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  /**
+   * How far the backfill's coverage reaches, when it is the source.
+   *
+   * The window above is the one *measured*; this is the one the fetch covered.
+   * They can differ — the backfill is a command a human runs, not a schedule —
+   * and a reading whose coverage ends before its window is a reading that
+   * under-reports, which the reader can only see if it is stated.
+   */
+  observedThrough: calendarDate.nullable(),
   areas: z.array(areaBalanceDto),
 });
 
