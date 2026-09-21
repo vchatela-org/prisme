@@ -1,12 +1,10 @@
-// Imported rather than read off the global, for the same reason
-// `apps/sync/src/adoption/store.integration.test.ts` does it: the repository
-// restricts the *global* `process` so configuration goes through
-// `@prisme/config`, and a test harness choosing its own database is not
-// application configuration.
-import process from 'node:process';
-import postgres from 'postgres';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadMigrations, runMigrations } from '@prisme/db';
+import {
+  describeWithDatabase,
+  openTestDatabase,
+  type SyncTestDatabase,
+} from '../test-support/database.js';
 
 import { createBackfillStore } from './store.js';
 import type { CapacityWeek, StoredCompletion } from './types.js';
@@ -23,28 +21,16 @@ import type { CapacityWeek, StoredCompletion } from './types.js';
  * stores a 114% week. W04, W05 and W14 each found bugs this way that no type
  * checker could see.
  *
+ * The connection comes from `test-support/database.ts`, which builds it
+ * through `createDatabase` — the same constructor `main.ts` uses — so a
+ * serializer difference between this suite and production is a failing test
+ * rather than a production surprise.
+ *
  * Skips loudly without a database, and throws in CI — a suite that skips itself
  * is a suite that has stopped running while still reporting green.
  */
 
-function envUrl(name: string): string | undefined {
-  const url = process.env[name];
-  return url === undefined || url.trim() === '' ? undefined : url;
-}
-
-const databaseUrl = envUrl('PRISME_TEST_DATABASE_URL');
-const migrationUrl = envUrl('PRISME_TEST_MIGRATION_DATABASE_URL') ?? databaseUrl;
-
-const describeOrSkip: typeof describe | typeof describe.skip = (() => {
-  if (databaseUrl !== undefined) return describe;
-  if (process.env['CI'] !== undefined && process.env['CI'] !== '') {
-    throw new Error(
-      'PRISME_TEST_DATABASE_URL is unset in CI: this suite would skip silently, ' +
-        'which reports green for tests that did not run',
-    );
-  }
-  return describe.skip;
-})();
+const describeOrSkip = describeWithDatabase === 'run' ? describe : describe.skip;
 
 /** Every table, children first — never `cascade`. The same list as the adoption suite, plus 0006's. */
 const TABLES = [
@@ -106,22 +92,20 @@ function week(overrides: Partial<CapacityWeek> = {}): CapacityWeek {
 }
 
 describeOrSkip('the backfill store against PostgreSQL', () => {
+  let database: SyncTestDatabase;
   let client: postgres.Sql;
-  let owner: postgres.Sql;
 
   beforeAll(async () => {
-    owner = postgres(migrationUrl as string, { max: 1, onnotice: () => undefined });
-    await runMigrations({ client: owner, migrations: loadMigrations(migrationsDir()) });
-    client = postgres(databaseUrl as string, { max: 2, onnotice: () => undefined });
+    database = await openTestDatabase();
+    client = database.client;
   }, 60_000);
 
   afterAll(async () => {
-    await client.end();
-    await owner.end();
+    await database.close();
   });
 
   beforeEach(async () => {
-    await owner.unsafe(`truncate table ${TABLES.join(', ')}`);
+    await database.truncate(TABLES);
     await client`
       insert into area (key, name, kind) values
         ('home', 'Home', 'area'),
@@ -495,8 +479,3 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
     });
   });
 });
-
-/** `packages/db/migrations`, from this file. */
-function migrationsDir(): string {
-  return new URL('../../../../packages/db/migrations', import.meta.url).pathname;
-}
