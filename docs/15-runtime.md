@@ -123,7 +123,17 @@ boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually 
 | `CAPACITY_DEFAULT_TASK_MINUTES` | `25` | Fallback when no duration is recorded |
 | `CAPACITY_WINDOW_WEEKS` | `4` | Rolling window for `actual_share` |
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
+| `AREA_COLOR_PINS` | `{}` | Area key → palette slot, JSON: `{"craft":3,"health":1}`. **Web tier only** |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
+
+`AREA_COLOR_PINS` is **instance data carried as configuration**, and it is the one optional variable
+whose *keys* are. The palette has eight categorical slots and that ceiling is fixed — a ninth
+generated hue is indistinguishable from an existing one under colour-vision deficiency — so an
+instance with more than a handful of areas will hash two of them into the same slot; six keys
+collide most of the time. The map pins each area to a slot of its own. A slot outside `1`–`8` stops
+the process with the key named, because a colour the palette cannot paint is otherwise discovered
+on a chart as a missing swatch. An area the map does not name keeps the key-derived fallback, so the
+map is a partial answer rather than a replacement.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.

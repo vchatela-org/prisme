@@ -291,7 +291,9 @@ journal entry rather than a unit of planned work.
 
 | Gap | Recorded by | State | PR |
 |---|---|---|---|
-| The integration suite builds a bare DB client, so a whole class of serializer defect is invisible to it | W15 (W11 predicted the shape) | 🟢 | this wave, `fix/integration-db-client` |
+| The integration suite builds a bare DB client, so a whole class of serializer defect is invisible to it | W15 (W11 predicted the shape) | 🟢 | this wave, [#35](https://github.com/vchatela-org/prisme/pull/35) merged |
+| `fixtures/` carries no task mirror, so `progressComputed` is null on every key result from a plain seed | W11 | 🟢 | [#36](https://github.com/vchatela-org/prisme/pull/36) |
+| Area colour collides on every screen — the pinning map exists and nothing mounts it | W09 (W10, W11 confirmed) | 🟢 | [#37](https://github.com/vchatela-org/prisme/pull/37) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 

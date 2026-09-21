@@ -14,6 +14,19 @@ const COMPLETE: Record<string, string> = {
   TASKTOOL_API_TOKEN: 'example-tasktool-token',
 };
 
+/**
+ * The web tier's own contract: the API's URL, the three auth values it must
+ * verify with, and **no database credential at all**
+ * (docs/14-threat-model.md §2).
+ */
+const WEB: Record<string, string> = {
+  PRISME_BASE_URL: 'https://prisme.example.com',
+  PRISME_API_URL: 'https://prisme.example.com/api',
+  AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme/',
+  AUTH_AUDIENCE: 'prisme-client-id',
+  AUTH_ALLOWED_SUBJECTS: 'subject-one,subject-two',
+};
+
 describe('loadConfig', () => {
   it('applies every documented default', () => {
     const config = loadConfig({ env: COMPLETE, service: 'api' });
@@ -117,6 +130,85 @@ describe('loadConfig', () => {
         service: 'api',
       }),
     ).toThrow(/SYNC_WINDOW_START/);
+  });
+
+  describe('AREA_COLOR_PINS', () => {
+    it('defaults to no pinning, which is the key-derived hash every screen has today', () => {
+      expect(loadConfig({ env: WEB, service: 'web' }).areaColorPins).toEqual({});
+    });
+
+    it('reads an area key to a palette slot, as a number', () => {
+      const config = loadConfig({
+        env: { ...WEB, AREA_COLOR_PINS: '{"craft":3,"health":1}' },
+        service: 'web',
+      });
+      // Numbers, not the strings a JSON parser is not being asked for: the
+      // value reaches `colorSlotClass`, whose table is keyed by integers.
+      expect(config.areaColorPins).toEqual({ craft: 3, health: 1 });
+      expect(typeof config.areaColorPins['craft']).toBe('number');
+    });
+
+    it('accepts an area key that is not an identifier, because keys are instance data', () => {
+      const config = loadConfig({
+        env: { ...WEB, AREA_COLOR_PINS: '{"a key with spaces":8}' },
+        service: 'web',
+      });
+      expect(config.areaColorPins).toEqual({ 'a key with spaces': 8 });
+    });
+
+    it.each([
+      ['0', '{"craft":0}', /1 to 8/],
+      ['9', '{"craft":9}', /1 to 8/],
+      ['a fraction', '{"craft":1.5}', /1 to 8/],
+      ['a string slot', '{"craft":"3"}', /1 to 8/],
+      ['an empty key', '{"  ":1}', /empty area key/],
+    ])('refuses %s', (_label, value, message: RegExp) => {
+      // A slot the palette cannot paint is a boot failure rather than a missing
+      // swatch discovered on a chart. The ceiling is eight because that is the
+      // palette's slot count, and it is fixed.
+      expect(() => loadConfig({ env: { ...WEB, AREA_COLOR_PINS: value }, service: 'web' })).toThrow(
+        message,
+      );
+    });
+
+    it.each([
+      ['not JSON at all', 'craft=3'],
+      ['an array', '["craft"]'],
+      ['a bare string', '"craft"'],
+    ])('refuses %s', (_label, value) => {
+      expect(() => loadConfig({ env: { ...WEB, AREA_COLOR_PINS: value }, service: 'web' })).toThrow(
+        /AREA_COLOR_PINS/,
+      );
+    });
+
+    it('names the offending area key but never a neighbouring slot', () => {
+      // An area key is instance data and this message reaches a log, so the
+      // message may name the key it is about — a caller needs that to fix it —
+      // and nothing about any other pin.
+      let message = '';
+      try {
+        loadConfig({
+          env: { ...WEB, AREA_COLOR_PINS: '{"craft":2,"health":99}' },
+          service: 'web',
+        });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain('health');
+      expect(message).not.toContain('craft');
+    });
+
+    it('is read by the web tier, which holds no database credential', () => {
+      // A key carrying instance data must not be the reason a database
+      // credential enters the web process: it is the one thing the web tier
+      // must never hold (docs/14-threat-model.md §2).
+      const config = loadConfig({
+        env: { ...WEB, AREA_COLOR_PINS: '{"health":1}' },
+        service: 'web',
+      });
+      expect(config.areaColorPins).toEqual({ health: 1 });
+      expect(config.databaseUrl).toBeUndefined();
+    });
   });
 
   describe('per-service requirements', () => {
