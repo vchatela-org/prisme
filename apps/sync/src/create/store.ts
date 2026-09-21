@@ -45,7 +45,16 @@ interface IntentRow {
   readonly attempts: number;
 }
 
-/** `jsonb` arrives as text from this driver — the bug W05 found twice. */
+/**
+ * A `jsonb` draft, read back.
+ *
+ * The read selects `draft::text` so the value is always raw JSON text, whatever
+ * the driver's own parser would have made of it — see the longer note on
+ * `json()` in `apps/api/src/store/postgres.ts`, where reading a `jsonb`
+ * **string** through the wrapped client was a `500` waiting to happen. A draft
+ * is always an object today; selecting it as text is what keeps that from
+ * mattering.
+ */
 function draftOf(value: unknown): Readonly<Record<string, unknown>> {
   if (value === null || value === undefined) return {};
   if (typeof value !== 'string') return value as Record<string, unknown>;
@@ -93,7 +102,7 @@ export function createCreationStore(client: postgres.Sql): CreationStore {
        */
       const rows = await client<IntentRow[]>`
         select id::text, entity_kind, entity_id::text, tool, object_kind, ordinal,
-               draft, idempotency_key::text, state, external_id, requires::text, attempts
+               draft::text, idempotency_key::text, state, external_id, requires::text, attempts
           from creation_intent
          where state <> 'satisfied'
             or id in (select requires from creation_intent
