@@ -59,6 +59,17 @@ it and the input takes its default size instead — safe here because the input 
 `pointer-events: none`, so the size was only ever for a click target that cannot be clicked, and the
 alternative was leaving a dynamic inline style in place.
 
+**The `images` check earned its place twice, and both findings were the kind nothing else
+catches.** `patches/` was not copied into the build context, so `pnpm install --frozen-lockfile` died
+with *"Failed to read patch file … No such file or directory"* — no test, no lint and no typecheck
+can see that, because none of them builds a container. And once that was fixed, `pnpm deploy` on the
+**API** image refused the patches as unused: `patchedDependencies` is workspace-wide, while the
+deploy is one application's subgraph, and the API and sync entrypoint contain no Radix at all.
+`PNPM_CONFIG_ALLOW_UNUSED_PATCHES=true` tells pnpm that is expected — not a suppression, since the
+patches *are* used by the image that has the dependency, and `prisme-web` still builds with them
+applied. Both images were then built locally, and the runtime assertions hold: `/healthz` 200 with an
+unreachable database, `/readyz` 503, running as nonroot.
+
 **A stale test database refused to migrate, correctly.** Running the suite after switching branches
 produced eight suite failures reading *"migration 0008 (bindings) is applied in the database but not
 shipped by this image — the database is ahead of the binary"*. That is the migration runner doing
@@ -102,6 +113,7 @@ Locally before pushing:
 | `eslint packages/ui/src` | clean |
 | `prettier --check .` | clean |
 | `pnpm build` | all packages and three apps |
+| `docker build` for both images | both succeed; `/healthz` 200, `/readyz` 503, `user=nonroot` |
 | `./scripts/privacy-scan.sh` | clean, 43 patterns |
 | Driven in the browser harness | 12 violations to 0, with the repair classes verified present in the markup |
 
