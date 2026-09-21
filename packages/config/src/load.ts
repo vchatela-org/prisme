@@ -67,6 +67,14 @@ export interface Config {
    * what makes the narrowing true: a slot outside 1–8 is a boot failure.
    */
   readonly areaColorPins: Readonly<Record<string, number>>;
+  /**
+   * The document tool's property name for a process page's declared duration.
+   *
+   * Absent on an instance that has not named one, which leaves the duration
+   * preference order two-tier — and `apps/sync`'s backfill reports that rather
+   * than presenting an estimate as a measurement.
+   */
+  readonly doctoolDurationProperty: string | undefined;
 }
 
 export interface ConfigProblem {
@@ -221,6 +229,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     },
     scoringActiveMethod: parsed['SCORING_ACTIVE_METHOD'] as string,
     areaColorPins: parsed['AREA_COLOR_PINS'] as Readonly<Record<string, number>>,
+    doctoolDurationProperty: parsed['DOCTOOL_DURATION_PROPERTY'] as string | undefined,
   };
 }
 

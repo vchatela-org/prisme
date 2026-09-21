@@ -295,6 +295,7 @@ journal entry rather than a unit of planned work.
 | `fixtures/` carries no task mirror, so `progressComputed` is null on every key result from a plain seed | W11 | 🟢 | [#36](https://github.com/vchatela-org/prisme/pull/36) |
 | Area colour collides on every screen — the pinning map exists and nothing mounts it | W09 (W10, W11 confirmed) | 🟢 | [#37](https://github.com/vchatela-org/prisme/pull/37) |
 | `capacity_week` has no reader: the dashboard still aggregates the anchor subtree | W13 | 🟢 | [#38](https://github.com/vchatela-org/prisme/pull/38) |
+| **The document tool is not read at all** — nothing loads the role bindings, gating W12, W13 and W15 | W12, W13, W15, W03 | 🟢 | [#39](https://github.com/vchatela-org/prisme/pull/39) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
