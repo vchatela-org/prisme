@@ -25,3 +25,10 @@ allowBuilds:
 overrides:
   postcss: '>=8.5.23'
   esbuild: '>=0.25.12'
+
+patchedDependencies:
+  '@radix-ui/react-radio-group@1.4.7': patches/@radix-ui__react-radio-group@1.4.7.patch
+  '@radix-ui/react-roving-focus@1.1.19': patches/@radix-ui__react-roving-focus@1.1.19.patch
+  '@radix-ui/react-select@2.3.7': patches/@radix-ui__react-select@2.3.7.patch
+  '@radix-ui/react-tabs@1.1.21': patches/@radix-ui__react-tabs@1.1.21.patch
+  '@radix-ui/react-toast@1.2.23': patches/@radix-ui__react-toast@1.2.23.patch
