@@ -46,6 +46,7 @@ const services = createServices({
   runner: createSyncRunner({
     client: database.client,
     taskToolToken: config.tasktoolApiToken as string,
+    taskToolBaseUrl: config.tasktoolBaseUrl,
     writeEnabled: config.sync.writeEnabled,
     createThreshold: config.sync.createThreshold,
     baseUrl: config.baseUrl,

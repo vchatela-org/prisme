@@ -75,6 +75,18 @@ export interface Config {
    * than presenting an estimate as a measurement.
    */
   readonly doctoolDurationProperty: string | undefined;
+  /**
+   * The **API host** each connector calls. Absent on an instance that has not
+   * overridden one, which is every instance by default: the client then uses its
+   * own vendor default (`packages/connectors`), so the hostname lives in exactly
+   * one place.
+   *
+   * Passed straight to the clients rather than resolved to a concrete string
+   * here, because resolving it would mean this package holding a copy of a
+   * hostname it has no business knowing (see `DOCTOOL_BASE_URL` in `schema.ts`).
+   */
+  readonly doctoolBaseUrl: string | undefined;
+  readonly tasktoolBaseUrl: string | undefined;
 }
 
 export interface ConfigProblem {
@@ -230,6 +242,8 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     scoringActiveMethod: parsed['SCORING_ACTIVE_METHOD'] as string,
     areaColorPins: parsed['AREA_COLOR_PINS'] as Readonly<Record<string, number>>,
     doctoolDurationProperty: parsed['DOCTOOL_DURATION_PROPERTY'] as string | undefined,
+    doctoolBaseUrl: parsed['DOCTOOL_BASE_URL'] as string | undefined,
+    tasktoolBaseUrl: parsed['TASKTOOL_BASE_URL'] as string | undefined,
   };
 }
 

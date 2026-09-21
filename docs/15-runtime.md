@@ -125,6 +125,8 @@ boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually 
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
 | `AREA_COLOR_PINS` | `{}` | Area key → palette slot, JSON: `{"craft":3,"health":1}`. **Web tier only** |
 | `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
+| `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
+| `TASKTOOL_BASE_URL` | *the vendor's public API* | The task tool's **API host**, for the same reason |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
 
 `AREA_COLOR_PINS` is **instance data carried as configuration**, and it is the one optional variable
@@ -142,6 +144,22 @@ map is a partial answer rather than a replacement.
 call them, and no instance's name may be compiled into this repository. Unset is not a broken
 deployment — the preference order simply has two tiers, and the backfill's report says so rather
 than passing a two-tier estimate off as a three-tier one.
+
+`DOCTOOL_BASE_URL` and `TASKTOOL_BASE_URL` are the **API hosts** the connectors call. They have no
+default *here* on purpose: the vendor hostname lives in [`packages/connectors`](../packages/connectors/CLAUDE.md),
+which is the only package that talks to either tool, and a second copy in the configuration schema
+would be a second place to change. Unset therefore reaches the client as `undefined` and it applies
+its own default — so naming the hostname twice is a mistake this shape cannot make.
+
+They exist because the default cannot cover every deployment: a self-hosted instance, a proxy, or a
+stub for driving the outward path locally all need the client pointed elsewhere. Before them, doing
+that meant editing a constant inside the connectors.
+
+**These are not the browser-facing hosts.** The host serving JSON is not a host a person can open a
+page at, and prisme reads no page URL from either tool for exactly that kind of reason — the URL a
+page carries identifies a workspace and is instance data
+([`17-privacy.md`](17-privacy.md#1-the-line)). Configuration naming an API host
+does not change that.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
