@@ -156,6 +156,8 @@ ${tailwindTheme()}
  * Motion is a courtesy, never a requirement. Everything the shell animates is
  * a fade or a short slide, and all of it stops here.
  */
+${radixCompat()}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -167,4 +169,78 @@ ${tailwindTheme()}
   }
 }
 `;
+}
+
+/**
+ * The classes Radix's own markup needs, because it ships them as `style`
+ * attributes and the policy the web tier sends refuses those.
+ *
+ * ## Why a patched dependency needs a stylesheet entry
+ *
+ * Radix is unstyled by design: every hiding rule it applies — the hidden
+ * `<select>` behind a `<Select>`, the hidden radio behind a `<RadioGroup.Item>`
+ * — arrives as an inline `style`. `style-src` without `unsafe-inline` (and a
+ * nonce cannot authorise a `style` *attribute*) means the browser drops them,
+ * so the hidden native controls are **visible**, and the toast viewport stops
+ * being click-through. That is W07's finding, and it is a real rendering defect
+ * rather than console noise.
+ *
+ * The three ways out were a patch, replacing the primitives, or accepting it.
+ * This is the first, and these are its other half: `patches/` moves the values
+ * from `style` to a class, and the class has to exist somewhere. Doing it here
+ * rather than in `apps/web/src/styles/globals.css` keeps one stylesheet in the
+ * repository, generated from this package, and keeps the pairing visible — a
+ * class name in a patch and a rule here are two halves of one thing, and a
+ * reader who finds one should find the other.
+ *
+ * ## These are not design decisions
+ *
+ * Every value below is copied verbatim from the Radix source it replaces, or
+ * from Tailwind's own utility of the same name. That is what makes them
+ * admissible in a file whose rule is "the token table is the only source of
+ * values": nothing here chooses a colour, a size or a duration. The names are
+ * prefixed `prisme-` so that they are greppable from either side.
+ *
+ * `no-inline-style.test.tsx` renders every component that used to carry one of
+ * these attributes and fails if it comes back — which is what makes a patch
+ * that stops applying after a dependency bump a **red test** rather than a
+ * silent regression.
+ */
+function radixCompat(): string {
+  return `/*
+ * Radix compatibility. See \`radixCompat\` in the generator for why these
+ * exist; every value is copied from the dependency it replaces.
+ */
+.prisme-visually-hidden {
+  position: absolute;
+  border: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  word-wrap: normal;
+}
+
+.prisme-hidden-input {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  margin: 0;
+  transform: translateX(-100%);
+}
+
+.prisme-pointer-events-none {
+  pointer-events: none;
+}
+
+.prisme-outline-none {
+  outline: none;
+}
+
+.prisme-instant {
+  animation-duration: 0s;
+}`;
 }

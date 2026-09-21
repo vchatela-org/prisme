@@ -1,0 +1,38 @@
+diff --git a/dist/index.js b/dist/index.js
+index 5fe7841d171a5c89094c136c1e2be626233c3e32..f2a73c74831bc7c9dfde90d3820a22eeab41b6b7 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -214,10 +214,10 @@ var TabsContent = /* @__PURE__ */ React.forwardRef(
+         tabIndex: 0,
+         ...contentProps,
+         ref: forwardedRef,
+-        style: {
+-          ...props.style,
+-          animationDuration: isMountAnimationPreventedRef.current ? "0s" : void 0
+-        },
++        className: [
++          contentProps.className,
++          isMountAnimationPreventedRef.current ? "prisme-instant" : undefined
++        ].filter(Boolean).join(" "),
+         children: present && children
+       }
+     ) });
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 722aa54045935b8523b76caa8ea2737987699465..6ab9e38e8a1e1ed8debdfade5b0dd55e7c19dc22 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -172,10 +172,10 @@ var TabsContent = /* @__PURE__ */ React.forwardRef(
+         tabIndex: 0,
+         ...contentProps,
+         ref: forwardedRef,
+-        style: {
+-          ...props.style,
+-          animationDuration: isMountAnimationPreventedRef.current ? "0s" : void 0
+-        },
++        className: [
++          contentProps.className,
++          isMountAnimationPreventedRef.current ? "prisme-instant" : undefined
++        ].filter(Boolean).join(" "),
+         children: present && children
+       }
+     ) });

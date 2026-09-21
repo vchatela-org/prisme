@@ -297,6 +297,7 @@ journal entry rather than a unit of planned work.
 | `capacity_week` has no reader: the dashboard still aggregates the anchor subtree | W13 | 🟢 | [#38](https://github.com/vchatela-org/prisme/pull/38) |
 | **The document tool is not read at all** — nothing loads the role bindings, gating W12, W13 and W15 | W12, W13, W15, W03 | 🟢 | [#39](https://github.com/vchatela-org/prisme/pull/39) |
 | ADR-0011's and ADR-0019's *Create page* is unimplementable: no role key names where a page would go | W15 | 🟢 | [#40](https://github.com/vchatela-org/prisme/pull/40) |
+| Twelve CSP violations from Radix's own markup | W07 | 🟢 | [#41](https://github.com/vchatela-org/prisme/pull/41) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 

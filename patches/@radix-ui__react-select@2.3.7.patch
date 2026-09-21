@@ -1,0 +1,44 @@
+diff --git a/dist/index.js b/dist/index.js
+index 06d9d5060b10358369b63a2843764be45be9abe9..30b6d8ce8a2203583123824e9cc796fcd450588e 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -318,7 +318,7 @@ var SelectValue = /* @__PURE__ */ React.forwardRef(
+         ...valueProps,
+         asChild: showPlaceholder ? false : valueProps.asChild,
+         ref: composedRefs,
+-        style: { pointerEvents: "none" },
++        className: [props.className, "prisme-pointer-events-none"].filter(Boolean).join(" "),
+         children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(React.Fragment, { children: showPlaceholder ? placeholder : children }, showPlaceholder ? "placeholder" : "value")
+       }
+     );
+@@ -1191,7 +1191,7 @@ var SelectBubbleInput = /* @__PURE__ */ React.forwardRef(
+         form,
+         onChange: (event) => onValueChange(event.target.value),
+         ...props,
+-        style: { ...import_react_visually_hidden.VISUALLY_HIDDEN_STYLES, ...props.style },
++        className: [props.className, "prisme-visually-hidden"].filter(Boolean).join(" "),
+         ref: composedRefs,
+         defaultValue: selectValue,
+         children: [
+diff --git a/dist/index.mjs b/dist/index.mjs
+index d3c861eeb58b610e8fed2eadf48a39a4de7efdac..77bd98382596b1653228cafbb926437ad8dcc26a 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -248,7 +248,7 @@ var SelectValue = /* @__PURE__ */ React.forwardRef(
+         ...valueProps,
+         asChild: showPlaceholder ? false : valueProps.asChild,
+         ref: composedRefs,
+-        style: { pointerEvents: "none" },
++        className: [props.className, "prisme-pointer-events-none"].filter(Boolean).join(" "),
+         children: /* @__PURE__ */ jsx(React.Fragment, { children: showPlaceholder ? placeholder : children }, showPlaceholder ? "placeholder" : "value")
+       }
+     );
+@@ -1121,7 +1121,7 @@ var SelectBubbleInput = /* @__PURE__ */ React.forwardRef(
+         form,
+         onChange: (event) => onValueChange(event.target.value),
+         ...props,
+-        style: { ...VISUALLY_HIDDEN_STYLES, ...props.style },
++        className: [props.className, "prisme-visually-hidden"].filter(Boolean).join(" "),
+         ref: composedRefs,
+         defaultValue: selectValue,
+         children: [
