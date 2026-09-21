@@ -51,6 +51,15 @@ Three things follow from the way the package is built, and all three bite if you
   rendering the components and
   [`src/tokens/no-inline-style-source.test.ts`](src/tokens/no-inline-style-source.test.ts) reading
   the source of this package and `apps/web`.
+- **Radix is patched, and this package owns the other half.** Radix hides its native controls with
+  inline styles, so a strict policy makes them *visible* — the real defect W07 recorded. `patches/`
+  at the repository root moves those values onto class names, and
+  [`src/tokens/theme-css.ts`](src/tokens/theme-css.ts)'s `radixCompat()` generates the classes they
+  name. The pair is deliberate: a class in a patch and a rule in this package are two halves of one
+  thing. **A dependency bump that invalidates a patch must be a red test**, which is why
+  `no-inline-style.test.tsx` renders `Select`, `FibonacciSelect`, `Tabs` and `ToastProvider` as well
+  as this package's own components — without those four cases, patching a dependency would be a
+  silent-regression risk rather than a checked one.
 - **`@prisme/ui/server` exists for a reason.** The main entry re-exports client components, so
   importing anything from it in a server component drags it across the client boundary and fails at
   *request* time. Tokens, contrast, chart geometry, sorting and the theme cookie are also exported
