@@ -23,9 +23,31 @@ someone to "just update it with the real numbers".
 | `areas.json` | Six areas plus the Run and Signals lanes, with weights for two years |
 | `initiatives.json` | Initiatives across every status, with dependencies and deadlines |
 | `objectives.json` | Annual and monthly objectives with key results |
+| `task-mirror.json` | The task tool's anchor subtrees, mirrored — what `progressComputed` is counted from |
 | `scoring/wsjf-balanced.golden.json` | Golden inputs → expected outputs for the shipped method |
 | `schedule/cpm-cases.json` | Four scheduling networks with **hand-computed** CPM results |
 | `connectors/` | Recorded external API responses — **redacted before saving** |
+
+## The task mirror is what makes computed progress reachable
+
+`progressComputed` ([ADR-0013](../docs/20-decisions/0013-self-assessed-progress.md)) is counted
+from `task_mirror` and from nothing else: `task_total` and `task_done` are subqueries joined
+through `key_result_served_by` on the key result's serving initiatives. Before
+`task-mirror.json` existed the fixture set carried no mirror, so **every key result from a plain
+seed reported a computed progress of `null`** and the self-versus-computed divergence — the
+behaviour the whole model exists to surface — could only be reached by hand-seeding rows inside a
+test.
+
+`task-mirror.json` states the counting rule where it is easy to check, and covers six cases: a
+finished key result, one ahead of its self-assessment, one behind, the large divergence, one whose
+initiative carries an anchor and no subtasks, and one with no serving initiative at all. The last
+two are `null` for different reasons, and a fixture that collapsed them would hide the difference.
+
+**It is not free.** `task_mirror` also feeds the four-week capacity window and the initiative
+detail's task list, so seeding it widens what every suite sees. That is the point rather than a
+side effect — a mirror a test could opt into would leave the divergence unreachable from a plain
+seed — and a suite that measures a window it builds itself is expected to start from an empty
+mirror rather than to assume there is no fixture data.
 
 ## The two-year span is intentional
 
