@@ -1,7 +1,8 @@
-import { ThemeProvider } from '@prisme/ui';
+import { AreaColorProvider, ThemeProvider } from '@prisme/ui';
 import { parseThemePreference, THEME_COOKIE } from '@prisme/ui/server';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
+import { areaColorPins } from '../lib/area-pins';
 import '../styles/globals.css';
 
 export const metadata = {
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 /**
- * The root layout: the stylesheet, the theme, and nothing else.
+ * The root layout: the stylesheet, the theme, and the area-colour pinning.
  *
  * The theme is read from a cookie **here, on the server**, and stamped onto
  * `<html>` before anything paints. The alternative — a blocking inline script
@@ -22,6 +23,21 @@ export const metadata = {
  *
  * `suppressHydrationWarning` on `<html>` covers the one attribute the client
  * may correct after a change made in another tab.
+ *
+ * ## Why the pinning is mounted here
+ *
+ * `AreaColorProvider` carries an instance's area → palette slot map down the
+ * tree, so no call site has to pass it and no two call sites can disagree.
+ * Since W07 it has existed in `packages/ui` and **nothing but the gallery
+ * mounted it**, which is why area colour collides on every other screen: the
+ * palette has eight slots, most area sets hash two of them together, and the
+ * map that resolves the collision was never in the tree. W09 recorded it, W10
+ * and W11 confirmed it, and this is the one mount it needed.
+ *
+ * It sits **outside** the route groups' own providers on purpose. The gallery
+ * mounts a provider of its own with the invented fixture keys, and an inner
+ * provider wins — which is what keeps the gallery showing its fixture colours
+ * while every other screen gets the instance's.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value);
@@ -33,7 +49,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       suppressHydrationWarning
     >
       <body>
-        <ThemeProvider initial={preference}>{children}</ThemeProvider>
+        <AreaColorProvider overrides={areaColorPins()}>
+          <ThemeProvider initial={preference}>{children}</ThemeProvider>
+        </AreaColorProvider>
       </body>
     </html>
   );
