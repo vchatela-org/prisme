@@ -1,0 +1,26 @@
+diff --git a/dist/index.js b/dist/index.js
+index 8d95cebbb86140f598c9e45ac056d126fb88a914..a7da152455c836fbf281ea4cda0868fcafc56176 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -131,7 +131,7 @@ var RovingFocusGroupImpl = /* @__PURE__ */ React.forwardRef(/* @__PURE__ */ __na
+           "data-orientation": orientation,
+           ...groupProps,
+           ref: composedRefs,
+-          style: { outline: "none", ...props.style },
++          className: [groupProps.className, "prisme-outline-none"].filter(Boolean).join(" "),
+           onMouseDown: (0, import_primitive.composeEventHandlers)(props.onMouseDown, () => {
+             isClickFocusRef.current = true;
+           }),
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 04679947af8ba61decbd6f3f743541ae8142c91c..cbf2fa875a87aaaee4dd21f1f6d9dfe7dc777b97 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -93,7 +93,7 @@ var RovingFocusGroupImpl = /* @__PURE__ */ React.forwardRef(/* @__PURE__ */ __na
+           "data-orientation": orientation,
+           ...groupProps,
+           ref: composedRefs,
+-          style: { outline: "none", ...props.style },
++          className: [groupProps.className, "prisme-outline-none"].filter(Boolean).join(" "),
+           onMouseDown: composeEventHandlers(props.onMouseDown, () => {
+             isClickFocusRef.current = true;
+           }),

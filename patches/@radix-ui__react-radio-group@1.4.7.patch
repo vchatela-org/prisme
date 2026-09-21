@@ -1,0 +1,48 @@
+diff --git a/dist/index.js b/dist/index.js
+index 9789b8644858661692d8c0eca320601b92607e24..183d9ac1a2376fb0b55aa85a31abe145e9c542dd 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -236,18 +236,7 @@ var RadioBubbleInput = /* @__PURE__ */ React.forwardRef(
+             event.stopPropagation();
+           }
+         }),
+-        style: {
+-          ...props.style,
+-          ...controlSize,
+-          position: "absolute",
+-          pointerEvents: "none",
+-          opacity: 0,
+-          margin: 0,
+-          // We transform because the input is absolutely positioned but we have
+-          // rendered it **after** the button. This pulls it back to sit on top
+-          // of the button.
+-          transform: "translateX(-100%)"
+-        }
++        className: [props.className, "prisme-hidden-input"].filter(Boolean).join(" ")
+       }
+     );
+   }, "RadioBubbleInput")
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 1fbcfb552b210cb5825f99fd9a2f453288ae5b04..c2f0f0b3308c8dc788bed6fa1d24fc0a6f141491 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -190,18 +190,7 @@ var RadioBubbleInput = /* @__PURE__ */ React.forwardRef(
+             event.stopPropagation();
+           }
+         }),
+-        style: {
+-          ...props.style,
+-          ...controlSize,
+-          position: "absolute",
+-          pointerEvents: "none",
+-          opacity: 0,
+-          margin: 0,
+-          // We transform because the input is absolutely positioned but we have
+-          // rendered it **after** the button. This pulls it back to sit on top
+-          // of the button.
+-          transform: "translateX(-100%)"
+-        }
++        className: [props.className, "prisme-hidden-input"].filter(Boolean).join(" ")
+       }
+     );
+   }, "RadioBubbleInput")
