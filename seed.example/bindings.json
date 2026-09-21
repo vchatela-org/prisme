@@ -1,5 +1,7 @@
 {
-  "_comment": "FORMAT EXAMPLE. Invented identifiers. Copy to seed/ (gitignored) and replace with the real ones. Never commit seed/.",
+  "_comment": "FORMAT EXAMPLE. Copy to seed/ (gitignored) and replace every REPLACE-ME with the real identifier. Never commit seed/.",
+  "_loaded_by": "prisme-sync bindings --from <path>. A REPLACE-ME left in place is refused by the loader rather than bound: a store addressed by the literal string \"REPLACE-ME\" fails at the first query, nowhere near this file.",
+  "_duration_property": "If a process page carries its declared duration in a property, name it in DOCTOOL_DURATION_PROPERTY rather than here. It is what makes the duration preference order three-tier instead of two (docs/12-scoring.md §4).",
 
   "documentTool": {
     "_comment": "Role key -> external database ID. prisme never refers to these databases by name; see docs/17-privacy.md. Access levels are enforced when sharing the integration, and are listed here so the intent is explicit.",
