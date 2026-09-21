@@ -28,6 +28,13 @@ WORKDIR /build
 # where pnpm's version comes from.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
+# `pnpm-workspace.yaml` names the patched dependencies and `patches/` holds the
+# patches themselves, so both are part of the install inputs. Without them
+# `--frozen-lockfile` fails with "Failed to read patch file … No such file or
+# directory" — which is what the `images` check is for: nothing else in this
+# repository builds a container.
+COPY patches/ patches/
+
 # Node stopped shipping corepack at v25 (ADR-0023), so pnpm is installed from
 # npm instead. The version is *derived* from `packageManager` in the root
 # manifest rather than written here, so the Dockerfile and the manifest cannot
@@ -60,7 +67,15 @@ RUN pnpm --filter "@prisme/api..." --filter "@prisme/sync..." run build
 
 # A self-contained tree with production dependencies only: no pnpm, no
 # TypeScript, no test runner, no source.
-RUN pnpm deploy --filter @prisme/api --prod --legacy /out \
+#
+# `allowUnusedPatches` because `patchedDependencies` is a *workspace-wide*
+# setting while this deploy is one application's subgraph: the API and the
+# sync entrypoint contain no Radix at all, so the patches `packages/ui` needs
+# are genuinely unused here, and pnpm refuses the deploy without being told
+# that is expected. It is not a suppression — the patches are used, by the
+# image that has the dependency (`prisme-web`) — and `images` is what proves
+# it: this build failed on exactly this step before the setting was added.
+RUN PNPM_CONFIG_ALLOW_UNUSED_PATCHES=true pnpm deploy --filter @prisme/api --prod --legacy /out \
  && cp -r apps/sync/dist /out/sync
 
 # ---------------------------------------------------------------------------
