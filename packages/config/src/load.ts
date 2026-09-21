@@ -57,6 +57,16 @@ export interface Config {
   readonly sync: SyncConfig;
   readonly capacity: CapacityConfig;
   readonly scoringActiveMethod: string;
+  /**
+   * An instance's area key → palette slot pinning (W09's defect, closed).
+   *
+   * Empty by default, which means the key-derived hash decides — and the hash
+   * collides for most six-area sets. **Only the web tier reads it**, and it is
+   * typed as plain numbers rather than as the design system's slot union so
+   * that `@prisme/config` keeps no dependency on `@prisme/ui`. The schema is
+   * what makes the narrowing true: a slot outside 1–8 is a boot failure.
+   */
+  readonly areaColorPins: Readonly<Record<string, number>>;
 }
 
 export interface ConfigProblem {
@@ -210,6 +220,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
       windowWeeks: parsed['CAPACITY_WINDOW_WEEKS'] as number,
     },
     scoringActiveMethod: parsed['SCORING_ACTIVE_METHOD'] as string,
+    areaColorPins: parsed['AREA_COLOR_PINS'] as Readonly<Record<string, number>>,
   };
 }
 
