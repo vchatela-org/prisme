@@ -507,6 +507,21 @@ describeOrSkip('the API against PostgreSQL', () => {
   });
 
   describe('balance', () => {
+    /*
+     * This suite measures a window it constructs itself, and asserts the
+     * absolute numbers it wrote. `fixtures/task-mirror.json` seeds a mirror of
+     * its own — deliberately, because `progressComputed` is counted from it —
+     * and those completions land in the same four weeks. Starting from an empty
+     * mirror keeps each assertion about what *this test* wrote.
+     *
+     * The alternative, reading a delta instead of a total, would hide the one
+     * thing this test is for: that a numeric share arrives as a number rather
+     * than as a string.
+     */
+    beforeEach(async () => {
+      await database.client`delete from task_mirror`;
+    });
+
     it('measures the four-week window and reads numeric shares back as numbers', async () => {
       const app = api();
       await seedCompletions(database.client, [
@@ -570,13 +585,33 @@ describeOrSkip('the API against PostgreSQL', () => {
         })
       ).body as { id: string };
 
+      /*
+       * An initiative this test made, not a fixture one.
+       *
+       * `fixtures/task-mirror.json` hangs tasks off the fixture initiatives that
+       * serve key results, so serving this key result from one of those would
+       * make the `null` below untrue — and serving it from a fixture initiative
+       * that happens to have none would make the assertion depend on which
+       * fixture rows exist, which is how a test starts asserting nothing.
+       */
+      const serving = (
+        await app.request('POST', url('/initiatives'), {
+          title: 'A long run',
+          areaKey: 'health',
+          value: 3,
+          timeCriticality: 3,
+          risk: 3,
+          size: 3,
+        })
+      ).body as { id: string };
+
       const keyResult = (
         await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
           statement: 'Long run distance',
           target: 21,
           unit: 'km',
           progressSelf: 40,
-          servedBy: [fixtureId('init-001')],
+          servedBy: [serving.id],
         })
       ).body as { id: string; progressSelf: number; progressComputed: number | null };
 
@@ -585,12 +620,12 @@ describeOrSkip('the API against PostgreSQL', () => {
 
       await seedCompletions(database.client, [
         {
-          initiativeId: fixtureId('init-001'),
+          initiativeId: serving.id,
           areaKey: 'health',
           completedAt: new Date('2026-09-10T09:00:00.000Z'),
         },
         {
-          initiativeId: fixtureId('init-001'),
+          initiativeId: serving.id,
           areaKey: 'health',
           completedAt: new Date('2026-09-11T09:00:00.000Z'),
           completed: false,
@@ -602,6 +637,45 @@ describeOrSkip('the API against PostgreSQL', () => {
       };
       expect(reread.keyResults[0]?.progressComputed).toBe(50);
       expect(reread.keyResults[0]?.progressSelf).toBe(40);
+    });
+
+    it('computes progress from the fixture task mirror, and shows the divergence', async () => {
+      /*
+       * The behaviour ADR-0013 exists to surface, exercisable from a plain seed.
+       *
+       * Before `fixtures/task-mirror.json` there was no mirror in the fixture
+       * set, so every one of these was `null` and the self-versus-computed
+       * divergence could only be reached by hand-seeding rows inside a test —
+       * which is a test of the hand-seeding, not of the divergence (W11's
+       * finding).
+       *
+       * Five cases, and the difference between the last two is the point: a
+       * key result whose initiative carries an anchor and no subtasks is null
+       * because there is nothing to count, and one with no serving initiative
+       * at all is null for a different reason. They must not be collapsed.
+       */
+      const app = api();
+
+      const cases = [
+        // [objective, key result, self, computed]
+        ['obj-001', 'kr-001', 60, 75], // 3 of 4 — ahead of the self-assessment
+        ['obj-002', 'kr-003', 40, 20], // 1 of 5 — behind it
+        ['obj-002', 'kr-004', 100, 100], // 3 of 3 — finished, and agrees
+        ['obj-003', 'kr-005', 15, 70], // 7 of 10 — the large divergence
+        ['obj-004', 'kr-006', 50, null], // an anchor and nothing under it
+        ['obj-001', 'kr-002', 35, null], // no serving initiative at all
+      ] as const;
+
+      for (const [objectiveKey, keyResultKey, self, computed] of cases) {
+        const body = (await app.request('GET', url(`/objectives/${fixtureId(objectiveKey)}`)))
+          .body as {
+          keyResults: { id: string; progressSelf: number; progressComputed: number | null }[];
+        };
+
+        const keyResult = body.keyResults.find((entry) => entry.id === fixtureId(keyResultKey));
+        expect(keyResult, `${keyResultKey} is missing from ${objectiveKey}`).toBeDefined();
+        expect([keyResult?.progressSelf, keyResult?.progressComputed]).toEqual([self, computed]);
+      }
     });
 
     it('refuses a write to the computed progress, naming the field', async () => {

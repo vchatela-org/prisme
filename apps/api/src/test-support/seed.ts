@@ -71,6 +71,16 @@ interface ObjectiveFixture {
   keyResults: KeyResultFixture[];
 }
 
+interface TaskMirrorFixture {
+  externalId: string;
+  initiativeId: string;
+  areaKey: string;
+  isAnchor?: boolean;
+  completed?: boolean;
+  completedAt?: string | null;
+  recordedMinutes?: number | null;
+}
+
 /**
  * A fixture id as a uuid, by construction rather than by lookup.
  *
@@ -110,6 +120,7 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
   const areas = readFixture<{ areas: AreaFixture[]; areaWeights: WeightFixture[] }>('areas.json');
   const initiatives = readFixture<{ initiatives: InitiativeFixture[] }>('initiatives.json');
   const objectives = readFixture<{ objectives: ObjectiveFixture[] }>('objectives.json');
+  const mirror = readFixture<{ tasks: TaskMirrorFixture[] }>('task-mirror.json');
 
   const ids = new Map<string, string>();
   for (const initiative of initiatives.initiatives)
@@ -157,6 +168,44 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
           insert into initiative_dependency (initiative_id, depends_on_id)
           values (${ids.get(initiative.id) as string}::uuid, ${ids.get(dependency) as string}::uuid)`;
       }
+    }
+
+    /*
+     * The task mirror, under the initiatives the key results are served by.
+     *
+     * `progressComputed` (ADR-0013) is counted from these rows and from nothing
+     * else — `task_total` and `task_done` are subqueries against `task_mirror`,
+     * joined through `key_result_served_by` on the anchor. Until this fixture
+     * existed, `fixtures/` carried no mirror at all, so **every key result from
+     * a plain seed reported a computed progress of null** and the
+     * self-versus-computed divergence the model exists to surface could only be
+     * exercised by hand-seeding rows in a test (W11's finding).
+     *
+     * The anchor rows are inserted too, deliberately: the counting rule
+     * excludes `is_anchor`, and a fixture that omitted them would never
+     * exercise that exclusion.
+     *
+     * **This widens what every suite sees**, which is the cost of the fixture
+     * and not a side effect of it: `task_mirror` also feeds the four-week
+     * capacity window and the initiative detail's task list. The alternative —
+     * a mirror a test could opt into — would leave the divergence unreachable
+     * from a plain seed, which is the whole finding.
+     */
+    for (const task of mirror.tasks) {
+      const initiativeId = ids.get(task.initiativeId);
+      // A fixture that names an initiative which does not exist is a broken
+      // fixture, not a row to skip quietly — the same rule as `servedBy`.
+      if (initiativeId === undefined) {
+        throw new Error(
+          `fixtures/task-mirror.json: ${task.externalId} hangs off ${task.initiativeId}, which is not in initiatives.json`,
+        );
+      }
+      await tx`
+        insert into task_mirror
+          (external_id, anchor_for, area_key, is_anchor, completed, completed_at, recorded_minutes)
+        values (${task.externalId}, ${initiativeId}::uuid, ${task.areaKey},
+                ${task.isAnchor ?? false}, ${task.completed ?? false},
+                ${task.completedAt ?? null}::timestamptz, ${task.recordedMinutes ?? null})`;
     }
 
     // Objectives last: a key result's `servedBy` references an initiative, so

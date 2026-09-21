@@ -292,6 +292,7 @@ journal entry rather than a unit of planned work.
 | Gap | Recorded by | State | PR |
 |---|---|---|---|
 | The integration suite builds a bare DB client, so a whole class of serializer defect is invisible to it | W15 (W11 predicted the shape) | 🟢 | this wave, `fix/integration-db-client` |
+| `fixtures/` carries no task mirror, so `progressComputed` is null on every key result from a plain seed | W11 | 🟢 | this wave, `fix/fixture-task-mirror` |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
