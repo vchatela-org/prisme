@@ -1,12 +1,11 @@
-// Imported rather than read off the global, for the same reason the adoption
-// and backfill suites do it: the repository restricts the *global* `process`
-// so configuration goes through `@prisme/config`, and a test harness choosing
-// its own database is not application configuration.
-import process from 'node:process';
-import postgres from 'postgres';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadMigrations, runMigrations } from '@prisme/db';
 import { idempotencyKey } from '@prisme/connectors/write';
+import {
+  describeWithDatabase,
+  openTestDatabase,
+  type SyncTestDatabase,
+} from '../test-support/database.js';
 
 import { createCreationStore } from './store.js';
 
@@ -27,27 +26,17 @@ import { createCreationStore } from './store.js';
  *   - `jsonb` either arrives parsed or arrives as text, which is the bug W05
  *     found twice and a type checker cannot see.
  *
+ * The connection comes from `test-support/database.ts`, which builds it
+ * through `createDatabase` — the same constructor `main.ts` uses. That change
+ * is why the seeding below writes `jsonb` with `JSON.stringify(…)::jsonb`
+ * rather than the driver's `client.json(…)`: the latter works on a bare
+ * postgres.js client and fails on the wrapped one the application runs, which
+ * is precisely the difference this suite was blind to.
+ *
  * Skips loudly without a database, and throws in CI.
  */
 
-function envUrl(name: string): string | undefined {
-  const url = process.env[name];
-  return url === undefined || url.trim() === '' ? undefined : url;
-}
-
-const databaseUrl = envUrl('PRISME_TEST_DATABASE_URL');
-const migrationUrl = envUrl('PRISME_TEST_MIGRATION_DATABASE_URL') ?? databaseUrl;
-
-const describeOrSkip: typeof describe | typeof describe.skip = (() => {
-  if (databaseUrl !== undefined) return describe;
-  if (process.env['CI'] !== undefined && process.env['CI'] !== '') {
-    throw new Error(
-      'PRISME_TEST_DATABASE_URL is unset in CI: this suite would skip silently, ' +
-        'which reports green for tests that did not run',
-    );
-  }
-  return describe.skip;
-})();
+const describeOrSkip = describeWithDatabase === 'run' ? describe : describe.skip;
 
 /** Every table, children first — never `cascade`. The same list as the sibling suites. */
 const TABLES = [
@@ -95,22 +84,20 @@ const keyFor = (slot: string): string =>
   idempotencyKey({ runId: 'creation-intent', operation: 'create', subject: slot });
 
 describeOrSkip('the creation store against PostgreSQL', () => {
+  let database: SyncTestDatabase;
   let client: postgres.Sql;
-  let owner: postgres.Sql;
 
   beforeAll(async () => {
-    owner = postgres(migrationUrl as string, { max: 1, onnotice: () => undefined });
-    await runMigrations({ client: owner, migrations: loadMigrations(migrationsDir()) });
-    client = postgres(databaseUrl as string, { max: 2, onnotice: () => undefined });
+    database = await openTestDatabase();
+    client = database.client;
   }, 60_000);
 
   afterAll(async () => {
-    await client.end();
-    await owner.end();
+    await database.close();
   });
 
   beforeEach(async () => {
-    await owner.unsafe(`truncate table ${TABLES.join(', ')}`);
+    await database.truncate(TABLES);
     await client`insert into area (key, name, kind) values ('home', 'Home', 'area')`;
   });
 
@@ -138,7 +125,7 @@ describeOrSkip('the creation store against PostgreSQL', () => {
         (entity_kind, entity_id, tool, object_kind, ordinal, draft, idempotency_key, requires)
       values (${input.entityKind}, ${input.entityId}::uuid, ${input.tool ?? 'task'},
               ${input.objectKind}, ${input.ordinal ?? 0},
-              ${client.json((input.draft ?? {}) as never)},
+              ${JSON.stringify(input.draft ?? {})}::jsonb,
               ${input.key ?? keyFor(`${input.entityId}:${input.objectKind}:${String(input.ordinal ?? 0)}`)}::uuid,
               ${input.requires ?? null}::uuid)
       returning id::text`;
@@ -390,11 +377,3 @@ describeOrSkip('the creation store against PostgreSQL', () => {
     });
   });
 });
-
-/**
- * Where the migrations are, from a test running out of `src`. The same helper
- * as the sibling suites, and the same reason for being explicit.
- */
-function migrationsDir(): string {
-  return new URL('../../../../packages/db/migrations', import.meta.url).pathname;
-}
