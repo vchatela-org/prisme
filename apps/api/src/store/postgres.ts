@@ -8,6 +8,8 @@ import type {
   AreaMappingRecord,
   AreaRecord,
   AreaWeightRecord,
+  BackfillCoverageRecord,
+  CapacityWeekRecord,
   CaptureRecord,
   CompletionRecord,
   ConflictRecord,
@@ -598,6 +600,53 @@ export function createPostgresStore(client: Sql): ApiStore {
           )
           select (select weight_pct from prior) as previous from upserted`;
         return number(rows[0]?.previous ?? null);
+      },
+    },
+
+    capacity: {
+      async weeks(from, to): Promise<readonly CapacityWeekRecord[]> {
+        const rows = await client<
+          {
+            week_start: string;
+            area_key: string;
+            completions: number;
+            minutes: number;
+            minutes_recorded: number;
+            minutes_declared: number;
+            minutes_default: number;
+          }[]
+        >`
+          select to_char(week_start, 'YYYY-MM-DD') as week_start, area_key, completions, minutes,
+                 minutes_recorded, minutes_declared, minutes_default
+          from capacity_week
+          where week_start >= ${from}::date and week_start < ${to}::date
+          order by week_start, area_key`;
+
+        return rows.map((row) => ({
+          weekStart: row.week_start,
+          areaKey: row.area_key,
+          completions: Number(row.completions),
+          minutes: Number(row.minutes),
+          minutesRecorded: Number(row.minutes_recorded),
+          minutesDeclared: Number(row.minutes_declared),
+          minutesDefault: Number(row.minutes_default),
+        }));
+      },
+
+      async coverage(): Promise<BackfillCoverageRecord | undefined> {
+        // One row, like `sync_cursor` — `backfill_cursor`'s CHECK enforces it.
+        const rows = await client<
+          { covered_from: Date | string; covered_through: Date | string }[]
+        >`
+          select covered_from, covered_through from backfill_cursor where id = 'singleton'`;
+
+        const row = rows[0];
+        return row === undefined
+          ? undefined
+          : {
+              coveredFrom: required(row.covered_from, 'backfill_cursor.covered_from'),
+              coveredThrough: required(row.covered_through, 'backfill_cursor.covered_through'),
+            };
       },
     },
 
