@@ -1,5 +1,5 @@
 import { ConnectorError } from '../../errors.js';
-import type { CreationWriter } from './types.js';
+import type { CreationWriter, DocumentCreationWriter } from './types.js';
 
 /**
  * A creating writer that refuses everything.
@@ -29,5 +29,28 @@ export function createFrozenCreationWriter(reason = 'the write freeze is on'): C
     createProject: () => refuse('create project'),
     createSection: () => refuse('create section'),
     createLooseTask: () => refuse('create capture task'),
+  };
+}
+
+/**
+ * The document tool's frozen writer: the same mechanism, the same reason.
+ *
+ * It matters even more here than for the task tool. A frozen creator that
+ * wrongly ran would add a task; this one would add a page to a knowledge base
+ * somebody reads, and the page it added would be a copy of a template — so the
+ * mistake is not one object but a document nobody asked for, in a place its
+ * author looks for their own writing.
+ */
+export function createFrozenDocumentCreationWriter(
+  reason = 'the write freeze is on',
+): DocumentCreationWriter {
+  return {
+    createPage: () =>
+      Promise.reject(
+        new ConnectorError('refused', `nothing was created: ${reason}`, {
+          tool: 'doc',
+          operation: 'create page',
+        }),
+      ),
   };
 }

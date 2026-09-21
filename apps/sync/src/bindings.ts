@@ -55,15 +55,15 @@ interface SeedFile {
 
 const KNOWN_ROLES: ReadonlySet<string> = new Set(ROLE_KEYS);
 
-/** Keys under `documentTool` that are prose or a non-store binding. */
-const NOT_A_STORE = new Set([
-  '_comment',
-  'projectTemplateId',
-  'durationProperty',
-  // ADR-0025's template bindings are page identifiers, not store identifiers.
-  'initiative_page_template',
-  'project_page_template',
-]);
+/**
+ * Keys under `documentTool` that are prose or bind something prisme does not
+ * address by role.
+ *
+ * Deliberately short. ADR-0025's four are **not** here: a page store is a
+ * binding and so is a template, both are addressed by role key, and a loader
+ * that skipped them would leave a bound instance looking unbound.
+ */
+const NOT_A_STORE = new Set(['_comment', 'projectTemplateId', 'durationProperty']);
 
 /**
  * Parse a seed file into bindings, refusing anything prisme cannot address.

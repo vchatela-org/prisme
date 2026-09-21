@@ -106,11 +106,18 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     await saveBindings(client, loaded.bindings);
 
     const bindings = await readBindings(client);
+    // Ten, not six: ADR-0025's two page stores and two templates are role
+    // bindings like any other, and a loader that skipped them would leave an
+    // instance that bound them looking unbound.
     expect(bindings.bound()).toEqual([
       'areas_db',
+      'initiative_page_template',
+      'initiative_pages_db',
       'media_db',
       'objectives_db',
       'processes_db',
+      'project_page_template',
+      'project_pages_db',
       'reviews_db',
       'takeaways_db',
     ]);
@@ -118,6 +125,9 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     // The identifier comes back exactly, which is the whole point: W12's scan
     // and W13's declared-duration tier both query a store by resolving one.
     expect(bindings.resolve('processes_db')).toBe('binding-processes-0005');
+    // And so does the creating path, which is what makes ADR-0025 addressable.
+    expect(bindings.resolve('project_pages_db')).toBe('binding-project-pages-0009');
+    expect(bindings.resolve('project_page_template')).toBe('binding-project-template-0011');
 
     // And a client built on it is addressable — the thing that did not exist
     // before this module. No transport, so any request would fail; what is

@@ -38,6 +38,8 @@ export type ConnectorFailure =
   | 'unbound_role'
   /** A role prisme holds no read capability for (docs/14-threat-model.md §5). */
   | 'role_not_readable'
+  /** A creation against a role that does not carry the `create` capability (ADR-0025). */
+  | 'role_not_creatable'
   /** Pagination that does not terminate: a repeated cursor, or too many pages. */
   | 'pagination';
 

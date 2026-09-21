@@ -134,10 +134,7 @@ export function planCapture(input: CapturePlanInput): readonly PlannedIntent[] {
       tool: 'document',
       objectKind: 'page',
       ordinal: 0,
-      draft: {
-        title: input.title,
-        backlink: backlinkFor(input.baseUrl, `/capture/${input.captureId}`),
-      },
+      draft: { title: input.title },
     });
   }
 
@@ -197,42 +194,42 @@ export function planProject(input: ProjectPlanInput): readonly PlannedIntent[] {
       tool: 'document',
       objectKind: 'page',
       ordinal: 0,
-      draft: {
-        title: input.name,
-        backlink: backlinkFor(input.baseUrl, `/project/${input.projectId}`),
-        fromTemplate: 'project',
-      },
+      draft: { title: input.name },
     });
   }
 
   return intents;
 }
 
+/**
+ * What a page creation needs from its caller: a title.
+ *
+ * Not the entity kind — the converge pass reads that from the ledger row it
+ * already has — and not the entity's id or the base URL, which were only ever
+ * there to build a backlink that ADR-0025 gives prisme nowhere to write.
+ */
 export interface PagePlanInput {
-  readonly entityKind: 'initiative' | 'project' | 'capture';
-  readonly entityId: string;
   readonly title: string;
-  readonly baseUrl: string;
 }
 
-/** ADR-0011's *create page*, on demand, for an entity that already exists. */
+/**
+ * ADR-0011's *create page*, on demand, for an entity that already exists.
+ *
+ * The draft is **a title and nothing else**, and that is ADR-0025 rather than
+ * an omission. A page's body is a copy of the bound template's top-level
+ * blocks, and the body belongs to the document tool the moment the page exists
+ * (docs/11-ownership.md §3) — so there is no backlink block and no marker for
+ * prisme to write. Which store the page goes in and which template it copies
+ * are decided by the *entity kind* in the converge pass, so a `fromTemplate`
+ * field here would be a second way to say the same thing, and a way for a
+ * caller to say it wrongly.
+ */
 export function planPage(input: PagePlanInput): PlannedIntent {
-  const path =
-    input.entityKind === 'initiative'
-      ? `/initiative/${input.entityId}`
-      : input.entityKind === 'project'
-        ? `/project/${input.entityId}`
-        : `/capture/${input.entityId}`;
-
   return {
     tool: 'document',
     objectKind: 'page',
     ordinal: 0,
-    draft: {
-      title: input.title,
-      backlink: backlinkFor(input.baseUrl, path),
-      fromTemplate: input.entityKind,
-    },
+    draft: { title: input.title },
   };
 }
 

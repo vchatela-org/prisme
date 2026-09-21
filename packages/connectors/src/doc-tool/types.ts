@@ -89,7 +89,34 @@ export interface DocPage {
  * `watermarkFloor`, so that the one place the two-minute rule is implemented is
  * the one place it can be tested.
  */
+/**
+ * ADR-0011's narrative page, as a creation asks for it.
+ *
+ * `role` names **where** the page goes and `templateRole` names **what it is a
+ * copy of** — two bindings, because an instance keeps initiative pages and
+ * project pages in different places with different templates, and prisme must
+ * not decide that for it (ADR-0025).
+ *
+ * There is no `backlink` and no body of prisme's own. The page's content is a
+ * copy of the template's top-level blocks and nothing else: the body belongs to
+ * the document tool the moment the page exists (docs/11-ownership.md §3), and a
+ * marker or a backlink prisme inserted would be exactly the ownership leak
+ * every other rule here prevents.
+ */
+export interface CreatePageInput {
+  readonly role: RoleKey;
+  readonly templateRole: RoleKey;
+  readonly title: string;
+}
+
 export interface DocToolClient {
   queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]>;
   fetchPage(id: string): Promise<DocPage>;
+  /**
+   * Creates a page under the role's bound parent, or returns the one that is
+   * already there. The only **writing** method on this client, and the reason
+   * it exists is ADR-0025 — see the implementation for why the operation is
+   * level-triggered rather than keyed.
+   */
+  createPage(input: CreatePageInput): Promise<DocPage>;
 }
