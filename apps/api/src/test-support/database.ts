@@ -130,6 +130,10 @@ const TABLES = [
   'area_mapping',
   'area_weight',
   'area',
+  // W16's one table. It references nothing and nothing references it, so
+  // omitting it would leave a binding behind rather than refusing the
+  // statement — which is the quieter failure of the two.
+  'role_binding',
   'sync_cursor',
 ] as const;
 

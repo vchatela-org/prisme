@@ -23,6 +23,7 @@ someone to "just update it with the real numbers".
 | `areas.json` | Six areas plus the Run and Signals lanes, with weights for two years |
 | `initiatives.json` | Initiatives across every status, with dependencies and deadlines |
 | `objectives.json` | Annual and monthly objectives with key results |
+| `bindings.json` | Role key → external store identifier, with **invented** identifiers |
 | `scoring/wsjf-balanced.golden.json` | Golden inputs → expected outputs for the shipped method |
 | `schedule/cpm-cases.json` | Four scheduling networks with **hand-computed** CPM results |
 | `connectors/` | Recorded external API responses — **redacted before saving** |
@@ -38,6 +39,14 @@ wrong in the KPI surface, and the fixture exists so it is caught by a test rathe
 `scoring/*.golden.json` pins scoring inputs to expected outputs. **A diff in a golden file requires
 a `version` bump on the scoring method** ([ADR-0006](../docs/20-decisions/0006-pluggable-scoring.md)).
 CI enforces the pairing — that check is what keeps method versioning honest rather than aspirational.
+
+## The bindings fixture is not the example file
+
+`seed.example/bindings.json` documents the format an instance copies, and every one of its
+identifiers is `REPLACE-ME`. The loader **refuses** a placeholder rather than binding to it — a store
+addressed by the literal string `REPLACE-ME` fails at the first query, which is nowhere near the file
+that caused it — so the example cannot double as a test fixture. `bindings.json` here is the same
+shape with invented identifiers, and it is what the loader's tests read.
 
 ## Recording connector fixtures
 
