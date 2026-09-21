@@ -12,7 +12,15 @@
  *   prisme-sync create --plan | --apply
  *                             drain the creation ledger: what the UI asked to
  *                             exist outward, and does not yet
+ *   prisme-sync bindings --from <path>
+ *                             load the role bindings: which external store each
+ *                             role key names
  * ```
+ *
+ * `bindings` is a migration step, not a pass: it is the one command that makes
+ * the document tool addressable at all, and until it has run the adoption scan
+ * reads the task tool alone and the backfill's declared-duration tier is
+ * unavailable. It writes prisme's own table and reaches no API.
  *
  * `apply` also drains the ledger before it reconciles, in the same lock. The
  * order matters: a project created this pass has to have its external id
@@ -30,7 +38,12 @@
  *
  * It runs no migration. Ever.
  */
-import { createFetchTransport, createTaskToolClient } from '@prisme/connectors';
+import {
+  createDocToolClient,
+  createFetchTransport,
+  createTaskToolClient,
+  ROLE_KEYS,
+} from '@prisme/connectors';
 import {
   createFrozenCreationWriter,
   createFrozenWriter,
@@ -43,6 +56,7 @@ import { createLogger, createMetrics, currentRunContext, withNewRun } from '@pri
 import { adopt } from './adoption/run.js';
 import { createAdoptionStore } from './adoption/store.js';
 import { backfillFrom } from './backfill/cli.js';
+import { loadBindingsFromFile, readBindings, saveBindings } from './bindings.js';
 import { backfill } from './backfill/run.js';
 import { createBackfillStore } from './backfill/store.js';
 import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
@@ -63,14 +77,30 @@ const metrics = createMetrics({ collectDefaults: false });
 
 function modeFrom(
   argv: readonly string[],
-): 'plan' | 'apply' | 'adopt' | 'backfill' | 'create' | undefined {
+): 'plan' | 'apply' | 'adopt' | 'backfill' | 'create' | 'bindings' | undefined {
   const [command] = argv.slice(2);
   if (command === undefined || command === 'apply') return 'apply';
   if (command === 'plan') return 'plan';
   if (command === 'adopt') return 'adopt';
   if (command === 'backfill') return 'backfill';
   if (command === 'create') return 'create';
+  if (command === 'bindings') return 'bindings';
   return undefined;
+}
+
+/**
+ * The seed file a `bindings` run should read.
+ *
+ * A path rather than a fixed location, for the reason `backfill --from` takes a
+ * date: no default is right. The seed directory is gitignored and its mount
+ * point is deployment detail ([`docs/17-privacy.md`](../../docs/17-privacy.md)),
+ * so this repository must not know one — and a command that silently read
+ * nothing from a path that does not exist would look like a success.
+ */
+function bindingsFrom(argv: readonly string[]): string | undefined {
+  const flags = argv.slice(3);
+  if (flags.length !== 2 || flags[0] !== '--from') return undefined;
+  return flags[1];
 }
 
 /** The creating writer, or the one that cannot reach an API. */
@@ -106,7 +136,7 @@ async function main(): Promise<number> {
   const mode = modeFrom(process.argv);
   if (mode === undefined) {
     process.stderr.write(
-      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD|create --plan|--apply]\n',
+      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD|create --plan|--apply|bindings --from PATH]\n',
     );
     return EXIT_FAILED;
   }
@@ -127,6 +157,16 @@ async function main(): Promise<number> {
       'usage: prisme-sync backfill --from YYYY-MM-DD\n' +
         'The start date is required: no default is right. A short one reports a measured\n' +
         'balance factor built on a fortnight, and a long one pages years off a rate-limited API.\n',
+    );
+    return EXIT_FAILED;
+  }
+
+  const bindingsPath = mode === 'bindings' ? bindingsFrom(process.argv) : undefined;
+  if (mode === 'bindings' && bindingsPath === undefined) {
+    process.stderr.write(
+      'usage: prisme-sync bindings --from PATH\n' +
+        'The path is required: the seed directory is gitignored and its mount point is\n' +
+        'deployment detail, so no default in this repository would be a real one.\n',
     );
     return EXIT_FAILED;
   }
@@ -171,6 +211,29 @@ async function main(): Promise<number> {
   };
 
   try {
+    if (mode === 'bindings') {
+      /*
+       * Writes prisme's own table and reaches no API, so no advisory lock: the
+       * lock exists to serialise passes that talk to the external tools, and
+       * this one talks to nothing. A pass reads the bindings once, at the start,
+       * so a load landing mid-pass changes the *next* pass and not this one —
+       * which is the behaviour a level-triggered design wants anyway.
+       */
+      const loaded = await loadBindingsFromFile(bindingsPath as string);
+      await saveBindings(database.client, loaded.bindings);
+
+      // Keys only. This line is printed to a terminal, and an identifier is
+      // instance data (docs/17-privacy.md).
+      logger.info('role bindings loaded', {
+        bound: loaded.roles,
+        unbound: ROLE_KEYS.filter((role) => !loaded.roles.includes(role)),
+      });
+      process.stdout.write(
+        `Bound ${String(loaded.roles.length)} of ${String(ROLE_KEYS.length)} roles: ${loaded.roles.join(', ')}\n`,
+      );
+      return EXIT_OK;
+    }
+
     if (mode === 'adopt') {
       // The same advisory lock as a reconciler pass, and for a reason beyond
       // tidiness: the scan reads what is unbound, and a pass binding things
@@ -185,10 +248,21 @@ async function main(): Promise<number> {
             transport,
             metrics: connectorMetrics,
           }),
-          // No document-tool client: nothing in this repository loads the role
-          // bindings yet, so the stores are not addressable. The scan runs on
-          // the task tool alone and says so in its header rather than pretending
-          // it read everything — see the W12 journal entry's follow-ups.
+          /*
+           * The document tool, now that the bindings are loadable.
+           *
+           * A store the bindings do not name throws `unbound_role` from the
+           * client, which `readRole` catches and reports as "not read" — so an
+           * instance that has bound only some of the six scans what it has and
+           * says so, rather than failing a pass over a store it never claimed
+           * (W12's finding, closed).
+           */
+          docClient: createDocToolClient({
+            token: config.doctoolApiToken as string,
+            bindings: await readBindings(database.client),
+            transport,
+            metrics: connectorMetrics,
+          }),
           now: () => new Date(),
           persist: true,
         });
@@ -234,10 +308,22 @@ async function main(): Promise<number> {
             transport,
             metrics: connectorMetrics,
           }),
-          // No document-tool client, for the reason W12 recorded: nothing in
-          // this repository loads the role bindings, so the processes store is
-          // not addressable and the declared-duration tier is unavailable. The
-          // report says so rather than passing estimates off as measurements.
+          /*
+           * The declared-duration tier's two inputs, both now real (W13's
+           * finding, closed): the client the bindings make addressable, and the
+           * property name from configuration. Either being absent leaves the
+           * preference order two-tier, and the report says so rather than
+           * passing a two-tier estimate off as a three-tier one.
+           */
+          docClient: createDocToolClient({
+            token: config.doctoolApiToken as string,
+            bindings: await readBindings(database.client),
+            transport,
+            metrics: connectorMetrics,
+          }),
+          ...(config.doctoolDurationProperty === undefined
+            ? {}
+            : { durationProperty: config.doctoolDurationProperty }),
           from: backfillStart as Date,
           now: () => new Date(),
           defaultMinutes: config.capacity.defaultTaskMinutes,
