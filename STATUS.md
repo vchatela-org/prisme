@@ -299,7 +299,7 @@ journal entry rather than a unit of planned work.
 | ADR-0011's and ADR-0019's *Create page* is unimplementable: no role key names where a page would go | W15 | 🟢 | [#40](https://github.com/vchatela-org/prisme/pull/40) |
 | Twelve CSP violations from Radix's own markup | W07 | 🟢 | [#41](https://github.com/vchatela-org/prisme/pull/41) |
 | W00 close-out: the publish path had never been exercised, and `v0.0.1`'s images do not exist | W00 | 🟢 (run; `v0.0.1` left alone) | [#42](https://github.com/vchatela-org/prisme/pull/42) |
-| `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | (this branch) |
+| `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | [#43](https://github.com/vchatela-org/prisme/pull/43) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
