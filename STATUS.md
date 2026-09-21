@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-20 · **Current phase:** P0 **frozen** — **every workstream has landed.** Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
+**Last updated:** 2026-09-21 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
 
 ---
 
@@ -282,6 +282,18 @@ including the Docker build fix its first publish found, and the re-tag that has 
 [the close-out entry](docs/50-journal/W00-2026-09-15-close-out.md). Scheduling guidance, and the one
 wave that will conflict:
 [`docs/30-roadmap.md#scheduling-the-agents`](docs/30-roadmap.md#scheduling-the-agents).
+
+## Follow-up wave
+
+The sixteen workstreams landed and each recorded what it deliberately did not do. This wave closes
+those gaps. It is not a workstream: there is no brief, and each row is a follow-up recorded in a
+journal entry rather than a unit of planned work.
+
+| Gap | Recorded by | State | PR |
+|---|---|---|---|
+| The integration suite builds a bare DB client, so a whole class of serializer defect is invisible to it | W15 (W11 predicted the shape) | 🟢 | this wave, `fix/integration-db-client` |
+
+Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
 ## P0 is frozen
 
