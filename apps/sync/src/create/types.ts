@@ -1,4 +1,9 @@
-import type { LooseTaskDraft, ProjectDraft, SectionDraft } from '@prisme/connectors/write';
+import type {
+  LooseTaskDraft,
+  PageDraft,
+  ProjectDraft,
+  SectionDraft,
+} from '@prisme/connectors/write';
 
 /**
  * The vocabulary of a converge pass (W15).
@@ -55,7 +60,13 @@ export interface EntityRefs {
 export type Creation =
   | { readonly kind: 'project'; readonly draft: ProjectDraft }
   | { readonly kind: 'section'; readonly draft: SectionDraft }
-  | { readonly kind: 'task'; readonly draft: LooseTaskDraft };
+  | { readonly kind: 'task'; readonly draft: LooseTaskDraft }
+  /**
+   * A narrative page in the document tool. Resolvable only since ADR-0025 was
+   * accepted and its role keys existed — before that every page intent was
+   * blocked with a reason, because no role key named where one would go.
+   */
+  | { readonly kind: 'page'; readonly draft: PageDraft };
 
 /**
  * One line of the pass's plan.

@@ -19,13 +19,76 @@ export const ROLE_KEYS = [
   'areas_db',
   'processes_db',
   'reviews_db',
+  /*
+   * ADR-0025's four, added when it was accepted.
+   *
+   * `ADR-0011` says an initiative's narrative page is created on demand and
+   * `ADR-0019` says the same for a project, and until these existed prisme
+   * could not address either target: none of the six above is where such a page
+   * lives, and none is a template. So *Create page* recorded an intention
+   * nothing could satisfy (W15).
+   *
+   * The two page stores name **where** a page is created; the two templates
+   * name **what it is a copy of**. An instance that keeps both kinds of page in
+   * one store binds the two to the same identifier — the distinction is
+   * prisme's, and binding is instance data.
+   */
+  'initiative_pages_db',
+  'project_pages_db',
+  'initiative_page_template',
+  'project_page_template',
 ] as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[number];
 
 export const roleKeySchema: z.ZodType<RoleKey> = z.enum(ROLE_KEYS);
 
-export type RoleAccess = 'read' | 'write' | 'read_write';
+/**
+ * The roles that name a **page rather than a store**, and so are read on
+ * purpose rather than scanned.
+ *
+ * A template is a page whose blocks get copied into a new page; the adoption
+ * scan walks stores looking for work somebody might want to adopt, and a
+ * template is neither work nor adoptable. Kept here rather than in the scan so
+ * that adding a role is a decision made in one place.
+ */
+export const PAGE_ROLES: readonly RoleKey[] = ['initiative_pages_db', 'project_pages_db'];
+export const TEMPLATE_ROLES: readonly RoleKey[] = [
+  'initiative_page_template',
+  'project_page_template',
+];
+
+export function isTemplateRole(role: RoleKey): boolean {
+  return TEMPLATE_ROLES.includes(role);
+}
+
+/** The two kinds of narrative page ADR-0011 and ADR-0019 ask for. */
+export type PageKind = 'initiative' | 'project';
+
+/**
+ * Which store each kind of page goes in, and which template it is a copy of.
+ *
+ * The *distinction* is prisme's; the *identifiers* are instance data. That is
+ * ADR-0025's rule 1 in one line: an instance that keeps both kinds of page in
+ * one place binds the two roles to the same identifier, and nothing here needs
+ * to know that it did.
+ *
+ * It lives beside the vocabulary rather than in the planner because it is a
+ * property of the vocabulary: a role added here without a kind, or a kind added
+ * without a role, is a compile error rather than a run that blocks with a
+ * reason nobody reads.
+ */
+export const PAGE_ROLE_FOR: Readonly<Record<PageKind, RoleKey>> = {
+  initiative: 'initiative_pages_db',
+  project: 'project_pages_db',
+};
+
+export const PAGE_TEMPLATE_FOR: Readonly<Record<PageKind, RoleKey>> = {
+  initiative: 'initiative_page_template',
+  project: 'project_page_template',
+};
+
+export type RoleAccess = 'read' | 'write' | 'read_write' | 'create';
 
 /**
  * Least privilege outbound, from docs/14-threat-model.md §5.
@@ -35,6 +98,14 @@ export type RoleAccess = 'read' | 'write' | 'read_write';
  * `reviews_db` is write-only — prisme pushes review summaries there and has no
  * business reading them back — so {@link assertReadable} refuses it, and the
  * read path cannot be pointed at it by mistake.
+ *
+ * `create` is ADR-0025's verb and it is **narrower than `write`**: it permits
+ * adding a page under the bound parent and permits nothing at all to content
+ * that already exists. The distinction is the point — a bug in the creating
+ * path adds a page, which a person deletes in a second, where a bug with
+ * `write` edits a page somebody has been writing in for months. It is
+ * deliberately *not* readable as well: prisme has no business reading the page
+ * store, and a verb that implied both would be `write` with a nicer name.
  */
 export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   objectives_db: 'read_write',
@@ -43,10 +114,21 @@ export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   areas_db: 'read',
   processes_db: 'read',
   reviews_db: 'write',
+  initiative_pages_db: 'create',
+  project_pages_db: 'create',
+  // A template is read: prisme copies its blocks and writes none of them.
+  initiative_page_template: 'read',
+  project_page_template: 'read',
 };
 
 export function isReadable(role: RoleKey): boolean {
-  return ROLE_ACCESS[role] !== 'write';
+  const access = ROLE_ACCESS[role];
+  return access === 'read' || access === 'read_write';
+}
+
+/** Whether prisme may add a page under this role's bound parent (ADR-0025). */
+export function canCreate(role: RoleKey): boolean {
+  return ROLE_ACCESS[role] === 'create';
 }
 
 export interface RoleBinding {
@@ -116,6 +198,24 @@ export function assertReadable(role: RoleKey, operation: string): void {
     throw new ConnectorError(
       'role_not_readable',
       `role ${role} is ${ROLE_ACCESS[role]}-only for prisme (docs/14-threat-model.md §5); the read path may not query it`,
+      { tool: 'doc', operation },
+    );
+  }
+}
+
+/**
+ * Refuses a creation against a role that does not carry the capability.
+ *
+ * The mirror of {@link assertReadable}, and the same argument: a bug that
+ * creates under a role prisme only reads is a bug that writes to somebody's
+ * archive, and the check is what makes the least-privilege table in
+ * docs/14-threat-model.md §5 a boundary rather than a description.
+ */
+export function assertCreatable(role: RoleKey, operation: string): void {
+  if (!canCreate(role)) {
+    throw new ConnectorError(
+      'role_not_creatable',
+      `role ${role} is ${ROLE_ACCESS[role]} for prisme (docs/14-threat-model.md §5, ADR-0025); the creating path may not add to it`,
       { tool: 'doc', operation },
     );
   }
