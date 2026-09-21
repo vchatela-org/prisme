@@ -2,12 +2,15 @@
 // suites do it: the repository restricts the *global* `process` so that
 // configuration goes through `@prisme/config`, and a test harness choosing its
 // own database is not application configuration.
-import process from 'node:process';
 import { readFileSync } from 'node:fs';
-import postgres from 'postgres';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadMigrations, runMigrations } from '@prisme/db';
 import { createDocToolClient, createRoleBindings, isConnectorError } from '@prisme/connectors';
+import {
+  describeWithDatabase,
+  openTestDatabase,
+  type SyncTestDatabase,
+} from './test-support/database.js';
 import { parseBindingsFile, readBindings, saveBindings } from './bindings.js';
 
 /**
@@ -25,27 +28,15 @@ import { parseBindingsFile, readBindings, saveBindings } from './bindings.js';
  * W13's declared-duration tier both depend on exactly that, and both were
  * unreachable for want of it.
  *
+ * The connection comes from `test-support/database.ts` — the shared helper,
+ * which builds the application client through `createDatabase`. This suite
+ * built its own bare client first, and the source-walk guard that refuses one
+ * is what caught it.
+ *
  * Fixture data only: `fixtures/bindings.json`'s identifiers are invented.
  */
 
-function envUrl(name: string): string | undefined {
-  const url = process.env[name];
-  return url === undefined || url.trim() === '' ? undefined : url;
-}
-
-const databaseUrl = envUrl('PRISME_TEST_DATABASE_URL');
-const migrationUrl = envUrl('PRISME_TEST_MIGRATION_DATABASE_URL') ?? databaseUrl;
-
-const describeOrSkip: typeof describe | typeof describe.skip = (() => {
-  if (databaseUrl !== undefined) return describe;
-  if (process.env['CI'] !== undefined && process.env['CI'] !== '') {
-    throw new Error(
-      'PRISME_TEST_DATABASE_URL is unset in CI: this suite would skip silently, ' +
-        'which reports green for tests that did not run',
-    );
-  }
-  return describe.skip;
-})();
+const describeOrSkip = describeWithDatabase === 'run' ? describe : describe.skip;
 
 const TABLES = [
   'confirmation_token',
@@ -85,22 +76,20 @@ const TABLES = [
 const FIXTURE = new URL('../../../fixtures/bindings.json', import.meta.url).pathname;
 
 describeOrSkip('the role bindings against PostgreSQL', () => {
+  let database: SyncTestDatabase;
   let client: postgres.Sql;
-  let owner: postgres.Sql;
 
   beforeAll(async () => {
-    owner = postgres(migrationUrl as string, { max: 1, onnotice: () => undefined });
-    await runMigrations({ client: owner, migrations: loadMigrations(migrationsDir()) });
-    client = postgres(databaseUrl as string, { max: 2, onnotice: () => undefined });
+    database = await openTestDatabase();
+    client = database.client;
   }, 60_000);
 
   afterAll(async () => {
-    await client.end();
-    await owner.end();
+    await database.close();
   });
 
   beforeEach(async () => {
-    await owner.unsafe(`truncate table ${TABLES.join(', ')}`);
+    await database.truncate(TABLES);
   });
 
   it('binds nothing at all on an instance that has never run the loader', async () => {
@@ -218,10 +207,3 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     }
   });
 });
-
-/** `packages/db/migrations`, from this file. */
-function migrationsDir(): string {
-  // Three levels, not the sibling suites' four: this file sits in `src/`, not in a
-  // subdirectory of it.
-  return new URL('../../../packages/db/migrations', import.meta.url).pathname;
-}
