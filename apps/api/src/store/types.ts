@@ -44,6 +44,30 @@ export interface AreaWeightRecord {
   readonly weightPct: number;
 }
 
+/**
+ * One area's week, as the backfill materialised it.
+ *
+ * `minutes` is the sum of the three sources by a table CHECK constraint, so the
+ * split is a partition rather than a second opinion — which is what lets the
+ * balance response state how much of a reading rests on estimates rather than
+ * on measurements (docs/12-scoring.md §4).
+ */
+export interface CapacityWeekRecord {
+  readonly weekStart: CalendarDateText;
+  readonly areaKey: string;
+  readonly completions: number;
+  readonly minutes: number;
+  readonly minutesRecorded: number;
+  readonly minutesDeclared: number;
+  readonly minutesDefault: number;
+}
+
+/** Where a backfill run's coverage begins and ends. Both exclusive-free ends. */
+export interface BackfillCoverageRecord {
+  readonly coveredFrom: Date;
+  readonly coveredThrough: Date;
+}
+
 export interface CreateAreaInput {
   readonly key: string;
   readonly name: string;
@@ -428,6 +452,22 @@ export interface ApiStore {
     ): Promise<readonly AreaMappingRecord[]>;
     weights(year?: number): Promise<readonly AreaWeightRecord[]>;
     putWeight(areaKey: string, year: number, weightPct: number): Promise<number | null>;
+  };
+
+  /**
+   * The materialised capacity weeks, and how far the backfill has reached (W13).
+   *
+   * `capacity_week` is derived and disposable: the backfill replaces it wholesale
+   * for every week it covers, from the **full** completion record rather than
+   * the anchor subtree. It is the only place the duration preference order and
+   * the re-attribution from `area_mapping` are applied, which is why the API
+   * reads its output rather than re-deriving anything.
+   */
+  readonly capacity: {
+    /** Rows whose week starts in `[from, to)`. Half-open, like every other range here. */
+    weeks(from: CalendarDateText, to: CalendarDateText): Promise<readonly CapacityWeekRecord[]>;
+    /** `undefined` when no backfill has ever run — a fresh instance. */
+    coverage(): Promise<BackfillCoverageRecord | undefined>;
   };
 
   readonly initiatives: {

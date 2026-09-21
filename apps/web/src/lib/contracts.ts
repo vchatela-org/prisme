@@ -575,6 +575,14 @@ export const balanceSchema = z.object({
   weightYear: z.number().int(),
   weightSourceYear: z.number().int().nullable(),
   stale: z.boolean(),
+  /**
+   * Which record the observed side came from (W13): the materialised history
+   * the backfill wrote, or the anchor subtree that is all prisme has until a
+   * backfill has run. The two give different numbers for the same week.
+   */
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  /** How far the backfill's coverage reaches, when it is the source. */
+  observedThrough: calendarDate.nullable(),
   areas: z.array(areaBalanceSchema),
 });
 
@@ -601,6 +609,8 @@ export const kpiSchema = z.object({
   from: calendarDate,
   to: calendarDate,
   bucket: z.enum(['week', 'month']),
+  /** Which record the measured series came from (W13). See `balanceSchema`. */
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
   throughput: z.array(areaSeriesSchema),
   minutes: z.array(areaSeriesSchema),
   runHours: z.object({

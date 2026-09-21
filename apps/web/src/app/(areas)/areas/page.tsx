@@ -13,7 +13,13 @@ import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import { areaWeightsSchema, balanceSchema, focusSchema, type AreaBalance } from '@/lib/contracts';
-import { estimatedMinutesPct, minutesCaveat, mostStarved, orderAreas } from '@/lib/kpi-view';
+import {
+  estimatedMinutesPct,
+  minutesCaveat,
+  mostStarved,
+  observedSourceCaveat,
+  orderAreas,
+} from '@/lib/kpi-view';
 
 export const metadata = {
   title: 'Areas · prisme',
@@ -167,7 +173,9 @@ export default async function AreasPage({
           </Card>
         )}
 
-        <p className="text-xs text-ink-muted">{minutesCaveat(estimated)}</p>
+        <p className="text-xs text-ink-muted">
+          {minutesCaveat(estimated)} {observedSourceCaveat(data)}
+        </p>
       </Section>
 
       {lanes.length > 0 ? (

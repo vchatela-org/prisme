@@ -194,6 +194,45 @@ export const WINDOW_CAVEAT =
   'Calendar buckets, not the rolling four-week window the balance factor is measured over — the two will not match exactly.';
 
 /**
+ * Which record the API measured the observed side from (W13).
+ *
+ * `observedThrough` is optional because only the balance reports it: the KPI's
+ * range is explicit, so "covered through" would restate the request rather than
+ * tell the reader anything.
+ */
+export type ObservedCoverage = {
+  readonly observedSource: 'capacity_week' | 'task_mirror';
+  readonly observedThrough?: string | null;
+};
+
+/**
+ * The sentence that says **which record** a reading came from.
+ *
+ * The two disagree, and not marginally. `capacity_week` is the backfill's
+ * materialised history: every completion the tool holds, attributed through
+ * `area_mapping`. `task_mirror` is the anchor subtree — work completed under an
+ * initiative prisme already knew about, which excludes everything outside an
+ * anchor and everything completed before prisme existed. A reader comparing
+ * this month with last month is comparing two numbers, and a number whose
+ * source is unstated is a number that cannot be compared with anything.
+ *
+ * Said under the chart rather than in a footnote, for the same reason
+ * `minutesCaveat` is: it is what a reader needs to interpret what they see.
+ * The uncovered case says what to do about it, because "prisme cannot see it"
+ * is only useful alongside "here is how to make it visible".
+ */
+export function observedSourceCaveat(coverage: ObservedCoverage): string {
+  if (coverage.observedSource === 'task_mirror') {
+    return 'Measured from the mirrored anchor subtrees only, because no completion history has been imported: work outside an anchor, and everything completed before prisme existed, is not in these numbers. `prisme-sync backfill` fetches it.';
+  }
+
+  const through = coverage.observedThrough ?? null;
+  return through === null
+    ? 'Measured from the imported completion history.'
+    : `Measured from the imported completion history, covered through ${through}.`;
+}
+
+/**
  * The most starved area, or a count when the answer is not one area.
  *
  * ## Why this is not just `max(balanceFactor)`
