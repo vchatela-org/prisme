@@ -65,13 +65,26 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
           // helper: `completed_at` is `timestamptz` and the driver hands
           // strings across, so the cast has to be somewhere. Here it is
           // visible, and it is also one round trip for the whole window.
+          //
+          // **The array crosses as `text[]`, and the cast to `timestamptz[]`
+          // happens in SQL** — `cast(… as timestamptz[])`, never `::timestamptz[]`
+          // on the parameter. `createDatabase` wraps the driver in Drizzle, and
+          // Drizzle replaces the shared client's serializers for `date[]` and
+          // `timestamptz[]` with the identity function; a JS array handed to
+          // one of those reaches the socket writer as an array and the driver
+          // raises a `TypeError` naming neither the column nor the statement.
+          // `text[]` and `integer[]` are untouched, which is why only this
+          // window insert and the two date-array writes below were affected.
+          //
+          // Found by running the integration suite against the client the
+          // application actually builds — see `test-support/database.ts`.
           await tx`
             insert into completion_history
               (external_task_id, completed_at, external_project_id, external_section_id,
                recorded_minutes, duration_scale)
             select * from unnest(
               ${completions.map((c) => c.externalTaskId)}::text[],
-              ${completions.map((c) => stamp(c.completedAt))}::timestamptz[],
+              cast(${completions.map((c) => stamp(c.completedAt))}::text[] as timestamptz[]),
               ${completions.map((c) => c.externalProjectId ?? null)}::text[],
               ${completions.map((c) => c.externalSectionId ?? null)}::text[],
               ${completions.map((c) => c.recordedMinutes ?? null)}::integer[],
@@ -203,7 +216,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
             (week_start, area_key, completions, minutes,
              minutes_recorded, minutes_declared, minutes_default)
           select * from unnest(
-            ${rows.map((row) => row.weekStart)}::date[],
+            cast(${rows.map((row) => row.weekStart)}::text[] as date[]),
             ${rows.map((row) => row.areaKey)}::text[],
             ${rows.map((row) => row.completions)}::integer[],
             ${rows.map((row) => row.minutes)}::integer[],
@@ -221,7 +234,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
         insert into ritual_adherence (ritual_id, period_start, opportunities, completions)
         select * from unnest(
           ${periods.map((period) => period.ritualId)}::uuid[],
-          ${periods.map((period) => period.periodStart)}::date[],
+          cast(${periods.map((period) => period.periodStart)}::text[] as date[]),
           ${periods.map((period) => period.opportunities)}::integer[],
           ${periods.map((period) => period.completions)}::integer[]
         )

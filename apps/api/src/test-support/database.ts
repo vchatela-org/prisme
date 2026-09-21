@@ -4,7 +4,7 @@
 // own database is not application configuration.
 import process from 'node:process';
 import postgres from 'postgres';
-import { loadMigrations, runMigrations } from '@prisme/db';
+import { createDatabase, loadMigrations, runMigrations } from '@prisme/db';
 
 /**
  * A real PostgreSQL, for the integration tests.
@@ -139,15 +139,37 @@ export async function openTestDatabase(): Promise<TestDatabase> {
     throw new Error('PRISME_TEST_DATABASE_URL is not set; the caller should have skipped');
   }
 
-  // DDL as the role that owns the schema. The connection is kept, because the
-  // reset needs it too — see below.
+  // bare-client-ok: this connection runs DDL and `truncate`, never a
+  // tagged-template write, so the serializers the application depends on do not
+  // apply to it. Every other connection in a test is built by `createDatabase`.
   const owner = postgres(testMigrationDatabaseUrl(), { max: 1, onnotice: () => undefined });
   await runMigrations({ client: owner, migrations: loadMigrations(migrationsDir()) });
 
-  const client = postgres(url, { max: 4, onnotice: () => undefined });
+  /*
+   * The **same constructor the application uses** (W16).
+   *
+   * This was `postgres(url, …)` — a bare driver client — and the difference is
+   * not cosmetic. `createDatabase` wraps the driver in Drizzle, and Drizzle
+   * replaces the shared client's serializers; a `jsonb` object handed to a
+   * tagged template then reaches the socket writer as an object rather than as
+   * text. Two defects were found in production and were **invisible here** for
+   * exactly this reason — W04's `timestamptz` and W15's `sql.json()`. Each was
+   * fixed at the call site and each left the class of defect standing: a suite
+   * that builds its own client is a suite that tests a different client.
+   *
+   * `createDatabase` is therefore used verbatim rather than approximated, so a
+   * serializer difference is a failing test rather than a production surprise.
+   * The migration connection below stays a bare client deliberately: it runs
+   * DDL and `truncate`, which are not tagged-template writes.
+   */
+  const handle = createDatabase({
+    connectionString: url,
+    maxConnections: 4,
+    applicationName: 'prisme-test',
+  });
 
   return {
-    client,
+    client: handle.client,
     async truncate(): Promise<void> {
       /*
        * `truncate`, as the schema owner — and both halves of that are the
@@ -185,7 +207,7 @@ export async function openTestDatabase(): Promise<TestDatabase> {
          WHERE id = 'singleton'`;
     },
     async close(): Promise<void> {
-      await client.end({ timeout: 5 });
+      await handle.close();
       await owner.end({ timeout: 5 });
     },
   };
