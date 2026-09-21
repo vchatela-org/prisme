@@ -9,7 +9,17 @@ import { AreaColorProvider } from './domain/area-color-context.js';
 import { BalanceMeter } from './domain/balance-meter.js';
 import { DataTable } from './domain/data-table.js';
 import { ScorePill } from './domain/score-pill.js';
+import { FibonacciSelect } from './domain/fibonacci-select.js';
 import { StatusChip } from './domain/status-chip.js';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './primitives/select.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './primitives/tabs.js';
+import { ToastProvider } from './primitives/toast.js';
 
 /**
  * **No server-rendered `style` attribute, anywhere in this package.**
@@ -142,6 +152,49 @@ const RENDERED: ReadonlyArray<readonly [string, () => React.ReactElement]> = [
     ),
   ],
   ['StatusChip', () => <StatusChip status="now" />],
+  /*
+   * The four below are not prisme's own markup — they are Radix's, reached
+   * through prisme's wrappers, and they are here because they used to be the
+   * twelve violations W07 could not fix.
+   *
+   * Radix is unstyled by design and hides its native controls with inline
+   * `style` attributes, which a policy without `unsafe-inline` refuses: the
+   * hidden `<select>` behind `<Select>` and the hidden radios behind
+   * `<FibonacciSelect>` became **visible**, and the toast viewport stopped
+   * being click-through. `patches/` moves those values onto the classes the
+   * token sheet defines, and these cases are what holds the patch in place:
+   * a dependency bump that invalidates a patch makes this **red**, which is
+   * the only reason patching a dependency is safe here at all.
+   *
+   * `ToastProvider` renders a viewport whether or not a toast is showing, so
+   * the case needs no toast to be useful.
+   */
+  [
+    'Select (Radix)',
+    () => (
+      <Select value="a">
+        <SelectTrigger>
+          <SelectValue placeholder="Pick" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="a">A</SelectItem>
+        </SelectContent>
+      </Select>
+    ),
+  ],
+  ['FibonacciSelect (Radix)', () => <FibonacciSelect label="Value" value={3} />],
+  [
+    'Tabs (Radix)',
+    () => (
+      <Tabs defaultValue="a">
+        <TabsList>
+          <TabsTrigger value="a">A</TabsTrigger>
+        </TabsList>
+        <TabsContent value="a">panel</TabsContent>
+      </Tabs>
+    ),
+  ],
+  ['ToastProvider (Radix)', () => <ToastProvider>x</ToastProvider>],
 ];
 
 describe('no component server-renders a style attribute', () => {

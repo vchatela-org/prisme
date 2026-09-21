@@ -64,6 +64,8 @@ see [`../17-privacy.md`](../17-privacy.md).
 
 | 2026-09-21 | FUP | [FUP-2026-09-21-page-creation.md](FUP-2026-09-21-page-creation.md) | **ADR-0025 Accepted and *Create page* works**: four role keys, a `create` capability narrower than `write` (and deliberately not readable), `assertCreatable`, a writing method on the document-tool client, a second creating port with a frozen twin, and a converge pass that plans and performs pages. The body is a copy of the template's top-level blocks and nothing of prisme's own — so the page intent's draft is now a title and nothing else. Idempotence is the existence check the tool's missing idempotency key forces: a page with this title under this parent is the page this call was going to make. **A capture's page stays blocked**, named as a gap rather than guessed at |
 
+| 2026-09-21 | FUP | [FUP-2026-09-21-radix-inline-styles.md](FUP-2026-09-21-radix-inline-styles.md) | The last twelve CSP violations, closed: **five `pnpm patch`es** move Radix's static inline styles onto class names and the token sheet generates the classes they name. **Verified by running** — `/gallery` goes from 12 `style` attributes to **0**, `/` `/areas` and `/kpi` from 1 to 0, with all five repair classes present in the markup where the inline styles used to be. The guard renders `Select`, `FibonacciSelect`, `Tabs` and `ToastProvider` so a patch invalidated by a dependency bump is a **named failing test** rather than a silent regression; it was watched fail |
+
 ## Format
 
 ```markdown
