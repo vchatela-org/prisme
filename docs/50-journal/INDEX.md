@@ -66,6 +66,8 @@ see [`../17-privacy.md`](../17-privacy.md).
 
 | 2026-09-21 | FUP | [FUP-2026-09-21-radix-inline-styles.md](FUP-2026-09-21-radix-inline-styles.md) | The last twelve CSP violations, closed: **five `pnpm patch`es** move Radix's static inline styles onto class names and the token sheet generates the classes they name. **Verified by running** — `/gallery` goes from 12 `style` attributes to **0**, `/` `/areas` and `/kpi` from 1 to 0, with all five repair classes present in the markup where the inline styles used to be. The guard renders `Select`, `FibonacciSelect`, `Tabs` and `ToastProvider` so a patch invalidated by a dependency bump is a **named failing test** rather than a silent regression; it was watched fail |
 
+| 2026-09-21 | FUP | [FUP-2026-09-21-publish-verified.md](FUP-2026-09-21-publish-verified.md) | **The publish path has been run, and it works** — the one gate W00 failed to watch. Both images built, attested and pushed from the cluster runner, digests read back rather than inferred. Publishes the `:main` tag, which sits awkwardly beside `publish.yml`'s own "a deliberate, named version" rule and is recorded rather than hidden. **A repository variable is not masked in a workflow log, and this repository is public** — a successful publish writes the registry host into a public log, which the previously-failing run never reached |
+
 ## Format
 
 ```markdown
