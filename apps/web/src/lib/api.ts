@@ -1,8 +1,8 @@
-import { loadConfig, type Config } from '@prisme/config';
-import { createLogger, type Logger } from '@prisme/observability';
+import type { Config } from '@prisme/config';
 import { headers } from 'next/headers';
 import type { z } from 'zod';
 import { classifyStatus, correlationIdOf, type ApiResult } from './api-result';
+import { webRuntime } from './runtime';
 
 /**
  * The one place this application talks to the API.
@@ -67,27 +67,9 @@ const API_BASE_PATH = '/api/v1';
  */
 const REQUEST_TIMEOUT_MS = 8_000;
 
-/**
- * Configuration is read on the first request, not when this module is imported.
- *
- * `next build` evaluates every route's module graph to collect page data, and
- * it does so in an environment that has no runtime configuration — so loading
- * at module scope makes the build demand production secrets to produce a static
- * manifest. The boot-time check that configuration is *present* is
- * `instrumentation.ts`'s job (docs/15-runtime.md §2); this is the same pattern
- * `app/readyz/route.ts` uses.
- */
-let runtime: { config: Config; logger: Logger } | undefined;
-
-function loaded(): { config: Config; logger: Logger } {
-  if (runtime === undefined) {
-    const config = loadConfig({ service: 'web' });
-    runtime = {
-      config,
-      logger: createLogger({ service: 'prisme-web', level: config.logLevel }),
-    };
-  }
-  return runtime;
+/** Configuration is read on the first request, not when this module is imported. */
+function loaded(): ReturnType<typeof webRuntime> {
+  return webRuntime();
 }
 
 function apiOrigin(config: Config): string {
