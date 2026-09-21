@@ -93,6 +93,32 @@ function attribute(
 }
 
 /**
+ * What one area was observed to have done over a window, already totalised.
+ *
+ * The shape exists so that the balance rule below is written **once** while the
+ * measuring has two sources. Live completions arrive from the anchor subtree;
+ * `capacity_week` arrives already attributed by the backfill, which is the only
+ * place that knows how to re-attribute a completion from `area_mapping` and how
+ * to apply the duration preference order (W13). Neither source should own the
+ * arithmetic that turns totals into shares and a balance factor.
+ */
+export interface AreaObservation {
+  readonly areaKey: AreaKey;
+  readonly completions: number;
+  readonly minutesBySource: Readonly<Record<DurationSource, number>>;
+}
+
+const NO_MINUTES: Readonly<Record<DurationSource, number>> = {
+  recorded: 0,
+  declared: 0,
+  default: 0,
+};
+
+function sumOfSources(bySource: Readonly<Record<DurationSource, number>>): number {
+  return bySource.recorded + bySource.declared + bySource.default;
+}
+
+/**
  * Per-area capacity actuals and balance factors over a rolling window.
  *
  * The window is half-open, `(now − weeks, now]`, so two consecutive windows
@@ -115,15 +141,13 @@ export function computeCapacity(
   for (const area of areas) areaByKey.set(area.key, area);
 
   const windowStart = subtractDays(now, window.weeks * 7);
-  const resolved = resolveWeights(window.weights, yearOfInstant(now));
 
-  const minutes = new Map<AreaKey, number>();
-  const counts = new Map<AreaKey, number>();
-  const bySource = new Map<AreaKey, Record<DurationSource, number>>();
+  const observations = new Map<
+    AreaKey,
+    { completions: number; minutes: Record<DurationSource, number> }
+  >();
   for (const area of areas) {
-    minutes.set(area.key, 0);
-    counts.set(area.key, 0);
-    bySource.set(area.key, { recorded: 0, declared: 0, default: 0 });
+    observations.set(area.key, { completions: 0, minutes: { ...NO_MINUTES } });
   }
 
   for (const completion of completions) {
@@ -136,16 +160,80 @@ export function computeCapacity(
     }
     if (completion.completedAt <= windowStart || completion.completedAt > now) continue;
 
-    counts.set(area.key, (counts.get(area.key) ?? 0) + 1);
+    const observed = observations.get(area.key);
+    if (observed === undefined) continue;
+    observed.completions += 1;
 
     // Signals are counted as volume and contribute no time: responding to an
     // alert is not a choice about how to spend a week.
     if (!countsTowardCapacity(area)) continue;
 
     const { minutes: attributed, source } = attribute(completion, window.defaultMinutes);
-    minutes.set(area.key, (minutes.get(area.key) ?? 0) + attributed);
-    const sources = bySource.get(area.key);
-    if (sources) sources[source] += attributed;
+    observed.minutes[source] += attributed;
+  }
+
+  return computeCapacityFrom(
+    [...observations].map(([areaKey, observed]) => ({
+      areaKey,
+      completions: observed.completions,
+      minutesBySource: observed.minutes,
+    })),
+    areas,
+    window,
+    now,
+  );
+}
+
+/**
+ * The same balance rule, from totals somebody else already measured.
+ *
+ * `capacity_week` is what this exists for: the backfill has attributed and
+ * duration-estimated every completion it could reach, and re-deriving any of
+ * that here would be the second implementation of a rule the domain package is
+ * supposed to own alone. What the two paths share is everything below the
+ * measuring — the share, the clamp, the lane rules and the Run budget.
+ */
+export function computeCapacityFrom(
+  observations: readonly AreaObservation[],
+  areas: readonly Area[],
+  window: CapacityWindow,
+  now: Date,
+): readonly AreaCapacity[] {
+  if (window.weeks <= 0) {
+    throw new InvariantError(
+      'invalid_share',
+      `the capacity window must be at least one week, not ${String(window.weeks)}`,
+    );
+  }
+
+  const areaByKey = new Map<AreaKey, Area>();
+  for (const area of areas) areaByKey.set(area.key, area);
+
+  const measured = new Map<AreaKey, AreaObservation>();
+  for (const observation of observations) {
+    if (!areaByKey.has(observation.areaKey)) {
+      throw new InvariantError(
+        'unknown_area',
+        `an observation names area "${observation.areaKey}", which is not in the area set`,
+      );
+    }
+    measured.set(observation.areaKey, observation);
+  }
+
+  const resolved = resolveWeights(window.weights, yearOfInstant(now));
+
+  const minutes = new Map<AreaKey, number>();
+  const counts = new Map<AreaKey, number>();
+  const bySource = new Map<AreaKey, Record<DurationSource, number>>();
+  for (const area of areas) {
+    const own = measured.get(area.key);
+    counts.set(area.key, own?.completions ?? 0);
+    // A lane that does not count toward capacity keeps its completions and no
+    // minutes at all — the rule is the area's kind, and it holds whichever
+    // source measured it.
+    const sources = countsTowardCapacity(area) ? (own?.minutesBySource ?? NO_MINUTES) : NO_MINUTES;
+    bySource.set(area.key, { ...sources });
+    minutes.set(area.key, countsTowardCapacity(area) ? sumOfSources(sources) : 0);
   }
 
   let totalMinutes = 0;
@@ -176,7 +264,7 @@ export function computeCapacity(
         targetSharePct,
         balanceFactor,
         stale: resolved.stale || (isRankable(area) && targetSharePct === undefined),
-        minutesBySource: bySource.get(area.key) ?? { recorded: 0, declared: 0, default: 0 },
+        minutesBySource: bySource.get(area.key) ?? { ...NO_MINUTES },
       };
 
       return area.kind === 'run'
