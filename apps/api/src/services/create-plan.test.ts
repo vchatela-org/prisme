@@ -221,19 +221,19 @@ describe('what a project intends', () => {
 });
 
 describe('a page on demand', () => {
-  it('backlinks to the entity it belongs to', () => {
-    expect(
-      planPage({
-        entityKind: 'initiative',
-        entityId: 'i-1',
-        title: 'Fence replaced',
-        baseUrl: BASE,
-      }),
-    ).toMatchObject({
+  it('carries a title and nothing else, because the body is the template’s', () => {
+    // ADR-0025: the body is a copy of the template's top-level blocks, and the
+    // body belongs to the document tool the moment the page exists — so there
+    // is no backlink for prisme to write, and the store, the template and the
+    // parent are all decided in the converge pass.
+    const planned = planPage({ title: 'Fence replaced' });
+
+    expect(planned).toMatchObject({
       tool: 'document',
       objectKind: 'page',
-      draft: { backlink: 'prisme: https://prisme.example/initiative/i-1' },
+      draft: { title: 'Fence replaced' },
     });
+    expect(Object.keys(planned.draft)).toEqual(['title']);
   });
 });
 

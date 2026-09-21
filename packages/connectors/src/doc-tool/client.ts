@@ -6,9 +6,9 @@ import { createRefusingTransport, type Transport } from '../http/transport.js';
 import { contentHash } from '../hash.js';
 import type { ConnectorMetrics } from '../metrics.js';
 import { parseOrThrow } from '../parse.js';
-import { assertReadable, type RoleBindings, type RoleKey } from '../role-key.js';
+import { assertCreatable, assertReadable, type RoleBindings, type RoleKey } from '../role-key.js';
 import { mapBlock, mapPage, mapPageContent } from './map.js';
-import type { DocBlock, DocPage, DocRecord, DocToolClient } from './types.js';
+import type { CreatePageInput, DocBlock, DocPage, DocRecord, DocToolClient } from './types.js';
 import { wireBlockListSchema, wirePageSchema, wireQueryResponseSchema } from './wire.js';
 
 /**
@@ -163,6 +163,147 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
     );
   }
 
+  /**
+   * A page read by id, in full.
+   *
+   * A named function rather than a method, because two paths need it: the
+   * public `fetchPage`, and the level-triggered existence check a creation
+   * makes before it sends anything. A match there has to come back *fully
+   * read*, because the caller records an external id and a creation that
+   * reported one it had not read is the orphan the ledger exists to prevent.
+   *
+   * No role is stamped on the result: a page fetched by id did not arrive
+   * through a role-keyed query, and inventing one would be a lie about where
+   * it came from.
+   */
+  async function readPageById(id: string, operation: string): Promise<DocPage> {
+    const body = await send('GET', `/v1/pages/${encodeURIComponent(id)}`, operation);
+    const wirePage = parseOrThrow(wirePageSchema, body, {
+      tool: 'doc',
+      operation,
+      shape: 'page',
+    });
+
+    const record = mapPageContent(wirePage, operation);
+    const { blocks, skipped } = await fetchBlocks(wirePage.id, 0, operation);
+
+    const text = blocks.map((block) => block.text.text).join('\n');
+    const urls = [...new Set(blocks.flatMap((block) => [...block.text.urls]))];
+
+    return {
+      externalId: record.externalId,
+      title: record.title,
+      lastEditedAt: record.lastEditedAt,
+      createdAt: record.createdAt,
+      archived: record.archived,
+      blocks,
+      text,
+      urls,
+      skippedBlockTypes: [...skipped].sort(),
+      contentHash: contentHash({ properties: record.contentHash, text }),
+    };
+  }
+
+  /**
+   * A page already under this parent with this title, if there is one.
+   *
+   * The document tool has no idempotency key and no custom field on a page
+   * under a page, so the identity of "the page this creation is about" cannot
+   * be attached to anything prisme sends. What it *can* be is a question about
+   * the world: the operation becomes "ensure a page with this title exists
+   * under this parent", which is the same shape every other pass in this
+   * application has (ADR-0009).
+   *
+   * The limitation is real and worth stating: two pages with one title under
+   * one parent are indistinguishable to this, so the second is treated as the
+   * first. A workspace where that matters is a workspace whose pages a person
+   * cannot tell apart either.
+   */
+  async function findChildPage(
+    parentId: string,
+    title: string,
+    operation: string,
+  ): Promise<DocPage | undefined> {
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const query = new URLSearchParams({ page_size: String(PAGE_SIZE) });
+      if (cursor !== undefined) query.set('start_cursor', cursor);
+
+      const body = await send(
+        'GET',
+        `/v1/blocks/${encodeURIComponent(parentId)}/children?${query.toString()}`,
+        operation,
+      );
+      const response = parseOrThrow(wireBlockListSchema, body, {
+        tool: 'doc',
+        operation,
+        shape: 'block list',
+      });
+
+      for (const block of response.results) {
+        if (block.type !== 'child_page') continue;
+        const payload = block['child_page'] as { title?: unknown } | undefined;
+        if (payload?.title !== title) continue;
+        // A match is fetched in full, because the caller records an external
+        // id and a creation that reported one it had not read would be the
+        // orphan the ledger exists to prevent.
+        return await readPageById(block.id, operation);
+      }
+
+      if (!response.has_more) return undefined;
+      cursor = guardCursor(seen, response.next_cursor, operation);
+      if (cursor === undefined) return undefined;
+    }
+
+    throw new ConnectorError(
+      'pagination',
+      `block list did not end after ${String(MAX_PAGES)} pages`,
+      {
+        tool: 'doc',
+        operation,
+      },
+    );
+  }
+
+  /**
+   * The template's top-level blocks, as objects the tool will accept back.
+   *
+   * Only the fields a creation may carry: a fetched block comes back with an
+   * `id`, timestamps and its own children, and sending those back would ask the
+   * tool to reproduce an object rather than to create one. `object`, `type` and
+   * the type's own payload are what a create accepts.
+   *
+   * `PAGE_SIZE` caps it, which is also the tool's own limit on a page's initial
+   * children — so a template deeper than a hundred top-level blocks is copied
+   * as far as the tool would take in one request, and no further.
+   */
+  async function fetchTemplateChildren(
+    templateId: string,
+    operation: string,
+  ): Promise<readonly unknown[]> {
+    const body = await send(
+      'GET',
+      `/v1/blocks/${encodeURIComponent(templateId)}/children?page_size=${String(PAGE_SIZE)}`,
+      operation,
+    );
+    const response = parseOrThrow(wireBlockListSchema, body, {
+      tool: 'doc',
+      operation,
+      shape: 'block list',
+    });
+
+    return response.results.slice(0, PAGE_SIZE).map((block) => {
+      const payload = block[block.type];
+      return {
+        object: 'block',
+        type: block.type,
+        ...(payload === undefined ? {} : { [block.type]: payload }),
+      };
+    });
+  }
+
   return {
     async queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]> {
       const operation = `query ${role}`;
@@ -219,22 +360,59 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       });
     },
 
-    async fetchPage(id: string): Promise<DocPage> {
-      const operation = 'fetch page';
-      const body = await send('GET', `/v1/pages/${encodeURIComponent(id)}`, operation);
+    /**
+     * ADR-0011's narrative page, created under the page store's bound parent.
+     *
+     * Three properties, and each is a decision ADR-0025 made:
+     *
+     *   - **The parent is the bound identifier.** The role key names *where* a
+     *     page is created, so the thing it resolves to is the parent. Nothing
+     *     here guesses a location, which is the whole reason the vocabulary had
+     *     to grow before this method could exist.
+     *   - **The body is a structural copy of the template's top-level blocks
+     *     and nothing deeper.** The document tool has no template-instantiation
+     *     operation, so "from the template" is a copy — and a copy of nested
+     *     children is a document-tool feature prisme would be reimplementing.
+     *     The page body belongs to the document tool the moment it exists
+     *     (docs/11-ownership.md §3), so prisme writes nothing of its own into
+     *     it: no backlink block, no marker, nothing.
+     *   - **It is level-triggered.** The document tool has no idempotency key,
+     *     so a retry after a timeout that had in fact succeeded cannot be
+     *     told apart from a first attempt — unless the question asked is "is
+     *     there already a page with this title under this parent", which is a
+     *     question about the world rather than about the request (ADR-0009).
+     *     That is what this does, and it is why the operation is safe to run
+     *     twice.
+     */
+    async createPage(input: CreatePageInput): Promise<DocPage> {
+      const operation = 'create page';
+      assertCreatable(input.role, operation);
+      // Read, so a template role that is write-only is refused for the right
+      // reason rather than by a 403 from the tool.
+      assertReadable(input.templateRole, operation);
+
+      const parentId = options.bindings.resolve(input.role);
+      const templateId = options.bindings.resolve(input.templateRole);
+
+      const existing = await findChildPage(parentId, input.title, operation);
+      if (existing !== undefined) return existing;
+
+      const blocks = await fetchTemplateChildren(templateId, operation);
+
+      const body = await send('POST', '/v1/pages', operation, {
+        parent: { type: 'page_id', page_id: parentId },
+        properties: {
+          title: { title: [{ type: 'text', text: { content: input.title } }] },
+        },
+        ...(blocks.length === 0 ? {} : { children: blocks }),
+      });
+
       const wirePage = parseOrThrow(wirePageSchema, body, {
         tool: 'doc',
         operation,
         shape: 'page',
       });
-
-      // No role: a page fetched by ID did not arrive through a role-keyed
-      // query, and stamping one on it would be an invention.
       const record = mapPageContent(wirePage, operation);
-      const { blocks, skipped } = await fetchBlocks(wirePage.id, 0, operation);
-
-      const text = blocks.map((block) => block.text.text).join('\n');
-      const urls = [...new Set(blocks.flatMap((block) => [...block.text.urls]))];
 
       return {
         externalId: record.externalId,
@@ -242,12 +420,16 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
         lastEditedAt: record.lastEditedAt,
         createdAt: record.createdAt,
         archived: record.archived,
-        blocks,
-        text,
-        urls,
-        skippedBlockTypes: [...skipped].sort(),
-        contentHash: contentHash({ properties: record.contentHash, text }),
+        blocks: [],
+        text: '',
+        urls: [],
+        skippedBlockTypes: [],
+        contentHash: record.contentHash,
       };
+    },
+
+    fetchPage(id: string): Promise<DocPage> {
+      return readPageById(id, 'fetch page');
     },
   };
 }

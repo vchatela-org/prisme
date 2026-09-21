@@ -298,7 +298,7 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
       const written = await store.creations.recordIntents({
         entityKind: kind,
         entityId,
-        intents: [planPage({ entityKind: kind, entityId, title, baseUrl: config.baseUrl })],
+        intents: [planPage({ title })],
         keyFor,
       });
       const intent = written[0];

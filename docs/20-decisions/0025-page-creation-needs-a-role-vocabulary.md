@@ -1,6 +1,6 @@
 # ADR-0025 · Creating a page needs role keys that do not exist yet
 
-**Status:** Proposed · 2026-09-20
+**Status:** Accepted · 2026-09-20, accepted 2026-09-21
 
 ## Context
 
@@ -32,11 +32,12 @@ Three unknowns, none of which a workstream should settle by picking one.
 
 ## Decision
 
-**Proposed, not taken.** W15 records the intention and refuses to execute it: a page's
-`creation_intent` row is written, and the converge pass reports it `blocked` with the reason, citing
-this record. Nothing guesses a parent.
+**Accepted 2026-09-21**, and implemented in the same pull request that accepted it. W15 had recorded
+the intention and refused to execute it — a page's `creation_intent` row written, the converge pass
+reporting it `blocked` with the reason — because nothing could guess a parent honestly. The four
+rules below are now the vocabulary:
 
-What this record proposes, for a human to accept or reject:
+The four rules:
 
 1. **Two new role keys** — `initiative_pages_db` and `project_pages_db` — naming where each kind of
    narrative page is created. They may be bound to the same identifier in an instance that keeps
@@ -53,14 +54,25 @@ What this record proposes, for a human to accept or reject:
    page body belongs to the document tool the moment it exists ([`11-ownership.md`](../11-ownership.md)
    §3).
 
-Until this is Accepted, *Create page* records an intent that cannot run, and **Link existing page**
-is the state of ADR-0011 that works — which is the one adoption needs anyway.
+**What acceptance changed, and what it did not.** *Create page* works for an initiative and for a
+project: the page is created under the bound store's identifier and its body is a copy of the bound
+template's top-level blocks. Two things remain outside it, and both are stated rather than absorbed:
+
+- **A capture's page is still blocked.** The vocabulary names an initiative's page and a project's
+  page, and a capture is neither. Guessing which of the two it meant is the class of guess this
+  repository refuses everywhere else, so the intent is recorded, the plan says which vocabulary is
+  short, and the gap is a follow-up rather than a silent approximation.
+- **An instance that has not bound the four roles is unaddressable.** That is a deployment step, not
+  a decision: `prisme-sync bindings --from <path>` binds them, and until it runs the plan blocks
+  each page with a sentence naming the command.
+
+**Link existing page** continues to work throughout, and it always did.
 
 ## Consequences
 
-- **ADR-0011 and ADR-0019 are partially unimplementable today**, and the code says so rather than
-  approximating. That is the cost of not guessing, and it is visible on a screen: the creation
-  ledger shows the blocked intent with its reason.
+- **ADR-0011 and ADR-0019 are implementable for an initiative and a project**, and the code did not
+  approximate a third case: a capture's page stays blocked with the reason, on a screen, in the
+  ledger.
 - **The document-tool token gains a capability it has never had.** It is the first outward write to
   the document tool in the project, and it is the reason this is an ADR rather than a commit. A bug
   in it adds pages to somebody's workspace; that is recoverable, unlike an edit, which is why

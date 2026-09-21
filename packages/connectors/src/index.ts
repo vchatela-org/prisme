@@ -31,14 +31,22 @@ export {
 } from './errors.js';
 
 export {
+  assertCreatable,
   assertReadable,
+  canCreate,
   createRoleBindings,
   isReadable,
+  isTemplateRole,
+  PAGE_ROLE_FOR,
+  PAGE_ROLES,
+  PAGE_TEMPLATE_FOR,
   ROLE_ACCESS,
   ROLE_KEYS,
   roleBindingSchema,
   roleBindingsSchema,
   roleKeySchema,
+  TEMPLATE_ROLES,
+  type PageKind,
   type RoleAccess,
   type RoleBinding,
   type RoleBindings,

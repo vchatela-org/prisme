@@ -1,5 +1,12 @@
 import type { IdempotencyKey } from '../types.js';
-import type { CreationWriter, LooseTaskDraft, ProjectDraft, SectionDraft } from './types.js';
+import type {
+  CreationWriter,
+  DocumentCreationWriter,
+  LooseTaskDraft,
+  PageDraft,
+  ProjectDraft,
+  SectionDraft,
+} from './types.js';
 
 /**
  * A creating writer that records what it was asked to make and makes nothing.
@@ -76,6 +83,87 @@ export function createRecordingCreationWriter(
       },
       createLooseTask(draft, key) {
         return Promise.resolve(record({ kind: 'task', draft, key }));
+      },
+    },
+  };
+}
+
+/**
+ * One page a recording writer was asked to make.
+ *
+ * Carries `kind: 'page'` so that a `failOn` predicate reads the same on both
+ * recorders, and so that a future union of the two recorded shapes is a change
+ * rather than a rewrite.
+ */
+export interface RecordedPageCreation {
+  readonly kind: 'page';
+  readonly draft: PageDraft;
+  readonly key: IdempotencyKey;
+}
+
+/**
+ * The document recorder's options.
+ *
+ * Its own type rather than {@link RecordingCreationWriterOptions}, because
+ * `failOn` there receives a `RecordedCreation` and a page is not one — the two
+ * recorders are for two different tools, and a predicate that had to narrow a
+ * union before it could look at a draft would be the wrong shape to write.
+ */
+export interface RecordingDocumentCreationWriterOptions {
+  /** Ids handed back, in order. Defaults to `made-page-1`, `made-page-2`, … */
+  readonly createdIds?: readonly string[] | undefined;
+  /** Rejects instead of recording. */
+  readonly failOn?: ((creation: RecordedPageCreation) => boolean) | undefined;
+  /** The id returned for a key already seen: the tool's own idempotency, modelled. */
+  readonly replayById?: boolean | undefined;
+}
+
+export interface RecordingDocumentCreationWriter {
+  readonly writer: DocumentCreationWriter;
+  readonly pages: readonly RecordedPageCreation[];
+}
+
+/**
+ * The document tool's recording writer.
+ *
+ * The same mechanism as the task tool's, and it models the same property the
+ * real thing has to have: **asked twice, made once**. The document tool has no
+ * idempotency key, so the real client asks the world instead — and a recorder
+ * whose `replayById` is on returns the first page for a repeated key, which is
+ * what lets a test show that a resumed pass does not add a second one.
+ *
+ * It is a separate recorder rather than a fourth branch of the one above
+ * because the two ports are separate: a test about pages should not have to
+ * build a task-tool writer, and a `RecordedCreation` union that mixed the two
+ * would make every existing assertion about a draft's shape narrower.
+ */
+export function createRecordingDocumentCreationWriter(
+  options: RecordingDocumentCreationWriterOptions = {},
+): RecordingDocumentCreationWriter {
+  const pages: RecordedPageCreation[] = [];
+  const byKey = new Map<IdempotencyKey, string>();
+  let made = 0;
+
+  return {
+    pages,
+    writer: {
+      createPage(draft, key) {
+        const creation: RecordedPageCreation = { kind: 'page', draft, key };
+        if (options.failOn?.(creation) === true) {
+          return Promise.reject(new Error('the recording writer was configured to fail here'));
+        }
+
+        const replayed = options.replayById === true ? byKey.get(key) : undefined;
+        if (replayed !== undefined) {
+          pages.push(creation);
+          return Promise.resolve({ externalId: replayed });
+        }
+
+        pages.push(creation);
+        made += 1;
+        const id = options.createdIds?.[made - 1] ?? `made-page-${String(made)}`;
+        byKey.set(key, id);
+        return Promise.resolve({ externalId: id });
       },
     },
   };

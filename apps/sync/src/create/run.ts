@@ -1,5 +1,6 @@
 import { isConnectorError } from '@prisme/connectors';
-import type { CreationWriter } from '@prisme/connectors/write';
+import type { CreationWriter, DocumentCreationWriter } from '@prisme/connectors/write';
+import type { PageKind } from '@prisme/connectors';
 import { applyOutcome, orderConvergence } from './order.js';
 import type { CreationStore } from './ports.js';
 import { formatConvergePlan } from './report.js';
@@ -43,6 +44,14 @@ export interface ConvergeOptions {
   readonly store: CreationStore;
   /** Frozen unless `SYNC_WRITE_ENABLED`; the freeze is the object, not a flag. */
   readonly writer: CreationWriter;
+  /** The document tool's creating port. Frozen on the same terms. */
+  readonly documents: DocumentCreationWriter;
+  /**
+   * The page kinds this instance has bound a store and a template for
+   * (ADR-0025). Empty until a `bindings` run has named them, which is the
+   * state the plan describes rather than fails on.
+   */
+  readonly addressablePageKinds: ReadonlySet<PageKind>;
   readonly writeEnabled: boolean;
   /**
    * The most creations one pass will attempt.
@@ -75,9 +84,18 @@ export interface ConvergeResult {
   readonly refused?: string | undefined;
 }
 
-/** The writer call for one resolved creation. Exhaustive by construction. */
+/**
+ * The writer call for one resolved creation. Exhaustive by construction.
+ *
+ * Two writers, because a creation reaches one of two tools: `writer` is the
+ * task tool's creating port and `documents` is the document tool's. Which one
+ * a step needs is a property of the creation, so the switch decides — and the
+ * absence of a `default` is what makes a fourth kind a compile error rather
+ * than a step that silently does nothing.
+ */
 async function perform(
   writer: CreationWriter,
+  documents: DocumentCreationWriter,
   step: Extract<Step, { kind: 'run' }>,
 ): Promise<string> {
   const key = step.intent.idempotencyKey;
@@ -92,6 +110,10 @@ async function perform(
     }
     case 'task': {
       const { externalId } = await writer.createLooseTask(step.creation.draft, key);
+      return externalId;
+    }
+    case 'page': {
+      const { externalId } = await documents.createPage(step.creation.draft, key);
       return externalId;
     }
   }
@@ -117,7 +139,11 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
     ...new Set(intents.map((intent) => intent.entityId)),
   ]);
 
-  const initial = orderConvergence({ intents, refsByEntity });
+  const initial = orderConvergence({
+    intents,
+    refsByEntity,
+    addressablePageKinds: options.addressablePageKinds,
+  });
 
   /*
    * A frozen deployment does not *attempt* anything.
@@ -168,7 +194,12 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
   let stopped: string | undefined;
 
   for (;;) {
-    const plan = orderConvergence({ intents, refsByEntity, attempted });
+    const plan = orderConvergence({
+      intents,
+      refsByEntity,
+      attempted,
+      addressablePageKinds: options.addressablePageKinds,
+    });
     const next = plan.steps.find((step) => step.kind === 'run');
     if (next === undefined) break;
 
@@ -181,7 +212,7 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
 
     let externalId: string;
     try {
-      externalId = await perform(options.writer, next);
+      externalId = await perform(options.writer, options.documents, next);
     } catch (error) {
       const reason = reasonOf(error);
       // Recorded before anything else happens. A failure the ledger does not
@@ -216,7 +247,11 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
 
   // The closing plan is computed *without* `attempted`, so it reports what is
   // genuinely still outstanding rather than what this pass has left to do.
-  const finalPlan = orderConvergence({ intents, refsByEntity });
+  const finalPlan = orderConvergence({
+    intents,
+    refsByEntity,
+    addressablePageKinds: options.addressablePageKinds,
+  });
 
   return {
     plan: finalPlan,

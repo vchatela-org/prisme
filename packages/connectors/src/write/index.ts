@@ -45,15 +45,24 @@ export {
 
 /** The creating half (W15). `./create/index.ts` says why it is a directory. */
 export {
+  createDocToolCreationWriter,
   createFrozenCreationWriter,
+  createFrozenDocumentCreationWriter,
   createRecordingCreationWriter,
+  createRecordingDocumentCreationWriter,
   createTaskToolCreationWriter,
   type CreationWriter,
   type CreationWriterOptions,
+  type DocToolCreationWriterOptions,
+  type DocumentCreationWriter,
   type LooseTaskDraft,
+  type PageDraft,
   type ProjectDraft,
   type RecordedCreation,
+  type RecordedPageCreation,
   type RecordingCreationWriter,
   type RecordingCreationWriterOptions,
+  type RecordingDocumentCreationWriter,
+  type RecordingDocumentCreationWriterOptions,
   type SectionDraft,
 } from './create/index.js';

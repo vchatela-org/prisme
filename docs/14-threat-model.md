@@ -158,9 +158,20 @@ capability each requires:
 | `takeaways_db` | read-only |
 | `objectives_db` | read/write — prisme owns specific fields |
 | `reviews_db` | write — review summaries |
+| `initiative_page_template`, `project_page_template` | read-only — prisme copies their blocks and writes none |
+| `initiative_pages_db`, `project_pages_db` | **`create`** — it may add a page under the bound parent and may not read or edit anything (ADR-0025) |
 
 Read-only wherever prisme owns nothing is not a formality: it is the difference between a bug
 corrupting a field and a bug corrupting an archive.
+
+**`create` is narrower than `write`, and the difference is the point.** A bug with `write` edits a
+page somebody has been writing in for months; a bug in the creating path adds a page, which a person
+deletes in a second. It is deliberately not readable either — prisme has no business reading the
+store it adds pages to, and a verb that implied both would be `write` with a nicer name. Both
+capabilities are enforced in `packages/connectors/src/role-key.ts` (`assertReadable`,
+`assertCreatable`) rather than trusted to the integration's sharing settings, which are instance
+configuration this repository cannot check.
+
 
 Both tokens are rotatable without a redeploy, and a kill switch disables outward writes entirely
 while leaving reads working.
