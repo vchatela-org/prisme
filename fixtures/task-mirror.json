@@ -1,0 +1,225 @@
+{
+  "_comment": "FORMAT EXAMPLE. Invented values. Copy to seed/ (gitignored) and replace with the real ones. Never commit seed/.",
+  "_what_this_is": "The task tool's anchor subtrees, mirrored \u2014 the prisme rows a sync would write. `fixtures/connectors/` records the task tool's *responses*; this is what those responses become once they are stored, and it is here because `progressComputed` (ADR-0013) is computed from these rows: without a mirror every key result reports a computed progress of null and the self-versus-computed divergence cannot be exercised from a plain seed.",
+  "_counting_rule": "`task_total` and `task_done` count rows where `is_anchor` is false, under an initiative that serves the key result. The anchor row is the initiative's own task in the task tool and is never counted, which is why every covered initiative carries one here.",
+  "_shape_rule": "One entry per key result, deliberately: a complete key result (3 of 3), one that is doing better than it is assessed (3 of 4 against a self-assessment of 60), one behind (1 of 5 against 40), the large divergence (7 of 10 against 15), and one served key result with an anchor and nothing under it, which stays null. `init-004` is that last case; a key result with no serving initiative at all is `kr-002` in objectives.json and is null for a different reason.",
+  "tasks": [
+    {
+      "externalId": "t-i001-anchor",
+      "initiativeId": "init-001",
+      "areaKey": "health",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i001-1",
+      "initiativeId": "init-001",
+      "areaKey": "health",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-06T09:00:00.000Z",
+      "recordedMinutes": 45
+    },
+    {
+      "externalId": "t-i001-2",
+      "initiativeId": "init-001",
+      "areaKey": "health",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-20T09:00:00.000Z",
+      "recordedMinutes": 50
+    },
+    {
+      "externalId": "t-i001-3",
+      "initiativeId": "init-001",
+      "areaKey": "health",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-08-03T09:00:00.000Z",
+      "recordedMinutes": 40
+    },
+    {
+      "externalId": "t-i001-4",
+      "initiativeId": "init-001",
+      "areaKey": "health",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i002-anchor",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i002-1",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-06-15T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-2",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-06-22T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-3",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-06T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-4",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-13T18:00:00.000Z",
+      "recordedMinutes": 35
+    },
+    {
+      "externalId": "t-i002-5",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-27T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-6",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-08-10T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-7",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-08-24T18:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i002-8",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i002-9",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i002-10",
+      "initiativeId": "init-002",
+      "areaKey": "relationships",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i003-anchor",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i003-1",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-12T11:00:00.000Z",
+      "recordedMinutes": 90
+    },
+    {
+      "externalId": "t-i003-2",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i003-3",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i003-4",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i003-5",
+      "initiativeId": "init-003",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i004-anchor",
+      "initiativeId": "init-004",
+      "areaKey": "craft",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i012-anchor",
+      "initiativeId": "init-012",
+      "areaKey": "money",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i012-1",
+      "initiativeId": "init-012",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-06-08T14:00:00.000Z",
+      "recordedMinutes": 60
+    },
+    {
+      "externalId": "t-i012-2",
+      "initiativeId": "init-012",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-06-29T14:00:00.000Z",
+      "recordedMinutes": 60
+    },
+    {
+      "externalId": "t-i012-3",
+      "initiativeId": "init-012",
+      "areaKey": "money",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-07-13T14:00:00.000Z",
+      "recordedMinutes": 60
+    }
+  ]
+}

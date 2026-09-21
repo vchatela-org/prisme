@@ -74,9 +74,8 @@
           "statement": "One uninterrupted evening together each week",
           "target": 52, "unit": "evenings",
           "progressSelf": 15,
-          "progressComputedHint": 70,
           "servedBy": ["init-002"],
-          "_note": "Large divergence: most tasks closed, little felt progress. The exact pattern ADR-0013 exists to surface."
+          "_note": "Large divergence: most tasks closed, little felt progress. The exact pattern ADR-0013 exists to surface. The computed side is not declared here — it is counted from fixtures/task-mirror.json, which hangs 7 of 10 closed subtasks off init-002."
         }
       ]
     },
@@ -111,7 +110,7 @@
 
   "_coverage": [
     "kr-002 is a habit that should become a Ritual.",
-    "kr-005 has a large self-vs-computed divergence.",
+    "kr-005 has a large self-vs-computed divergence, realised by fixtures/task-mirror.json rather than declared here.",
     "obj-005 is an orphan objective with nothing behind it.",
     "kr-004 is complete, so a finished key result renders correctly."
   ]
