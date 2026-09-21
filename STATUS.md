@@ -299,8 +299,17 @@ journal entry rather than a unit of planned work.
 | ADR-0011's and ADR-0019's *Create page* is unimplementable: no role key names where a page would go | W15 | 🟢 | [#40](https://github.com/vchatela-org/prisme/pull/40) |
 | Twelve CSP violations from Radix's own markup | W07 | 🟢 | [#41](https://github.com/vchatela-org/prisme/pull/41) |
 | W00 close-out: the publish path had never been exercised, and `v0.0.1`'s images do not exist | W00 | 🟢 (run; `v0.0.1` left alone) | [#42](https://github.com/vchatela-org/prisme/pull/42) |
+| `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | (this branch) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
+
+⚠ **Two journal entries say `DOCTOOL_BASE_URL` would unblock the initiative screen's *Open page*
+button. It does not, and nothing was closed for it.** That variable is the **API host** — the one
+that serves JSON — and a person cannot open a page at it. The button also needs a *browser-facing*
+base and whatever path shape turns a page id into a link, and the tool's own page URL cannot supply
+either: `packages/connectors/src/doc-tool` deliberately does not read it, because it identifies the
+workspace. That is a decision for a human, not a patch, and it is the first row of
+[the entry](docs/50-journal/FUP-2026-09-21-tool-base-urls.md).
 
 ## P0 is frozen
 
