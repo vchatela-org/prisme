@@ -296,6 +296,7 @@ journal entry rather than a unit of planned work.
 | Area colour collides on every screen — the pinning map exists and nothing mounts it | W09 (W10, W11 confirmed) | 🟢 | this wave, `fix/area-color-pinning` |
 | `capacity_week` has no reader: the dashboard still aggregates the anchor subtree | W13 | 🟢 | this wave, `fix/capacity-week-reader` |
 | **The document tool is not read at all** — nothing loads the role bindings, gating W12, W13 and W15 | W12, W13, W15, W03 | 🟢 | this wave, `fix/document-tool-read` |
+| ADR-0011's and ADR-0019's *Create page* is unimplementable: no role key names where a page would go | W15 | 🟢 | this wave, `feat/page-creation` |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 

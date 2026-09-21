@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { idempotencyKey } from '@prisme/connectors/write';
-import { applyOutcome, orderConvergence, PAGE_UNREACHABLE, resolveCreation } from './order.js';
+import {
+  applyOutcome,
+  orderConvergence,
+  PAGE_KIND_UNSUPPORTED,
+  PAGE_UNBOUND,
+  resolveCreation,
+} from './order.js';
 import type { EntityRefs, Intent } from './types.js';
 
 /**
@@ -29,6 +35,12 @@ function intent(overrides: Partial<Intent> & Pick<Intent, 'id' | 'objectKind'>):
 }
 
 const NO_REFS: ReadonlyMap<string, EntityRefs> = new Map();
+
+/**
+ * An instance that has bound none of ADR-0025's roles — the default for every
+ * test that is not about pages, and the state of every fresh installation.
+ */
+const NOTHING_ADDRESSABLE: ReadonlySet<'initiative' | 'project'> = new Set();
 
 describe('resolving a draft', () => {
   it('turns a project draft into a project creation', () => {
@@ -92,14 +104,76 @@ describe('resolving a draft', () => {
     ).toHaveProperty('error');
   });
 
-  it('never resolves a page, because there is nowhere to put one', () => {
+  it('resolves a page now that ADR-0025 gives it somewhere to go', () => {
+    // The draft carries a title and nothing else: the body is a copy of the
+    // template's blocks, and which store and which template are prisme's
+    // decisions rather than a caller's (`PAGE_ROLE_FOR`).
     expect(
       resolveCreation(
-        intent({ id: 'i-7', objectKind: 'page', tool: 'document', draft: { title: 'x' } }),
+        intent({
+          id: 'i-7',
+          entityKind: 'initiative',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'A page' },
+        }),
         undefined,
         {},
       ),
-    ).toEqual({ error: PAGE_UNREACHABLE });
+    ).toEqual({ kind: 'page', draft: { kind: 'initiative', title: 'A page' } });
+  });
+
+  it('takes the page kind from the entity, never from the draft', () => {
+    // A draft field would let a caller say an initiative's page is a project's,
+    // and the two have different parents and different templates.
+    expect(
+      resolveCreation(
+        intent({
+          id: 'i-8',
+          entityKind: 'project',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'A page', kind: 'initiative' },
+        }),
+        undefined,
+        {},
+      ),
+    ).toEqual({ kind: 'page', draft: { kind: 'project', title: 'A page' } });
+  });
+
+  it('does not resolve a capture\u2019s page, and says the vocabulary is the reason', () => {
+    // A gap rather than a decision: ADR-0025 names an initiative's page and a
+    // project's page and nothing between them, and guessing which of the two a
+    // capture meant is the class of guess this repository refuses everywhere.
+    expect(
+      resolveCreation(
+        intent({
+          id: 'i-9',
+          entityKind: 'capture',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'x' },
+        }),
+        undefined,
+        {},
+      ),
+    ).toEqual({ error: PAGE_KIND_UNSUPPORTED });
+  });
+
+  it('refuses a page intent that names the task tool', () => {
+    expect(
+      resolveCreation(
+        intent({ id: 'i-10', objectKind: 'page', tool: 'task', draft: { title: 'x' } }),
+        undefined,
+        {},
+      ),
+    ).toEqual({ error: expect.stringContaining('document-tool object') });
+  });
+
+  it('refuses a page with no title rather than creating an untitled one', () => {
+    expect(
+      resolveCreation(intent({ id: 'i-11', objectKind: 'page', tool: 'document' }), undefined, {}),
+    ).toEqual({ error: 'the draft names no page' });
   });
 });
 
@@ -116,6 +190,7 @@ describe('ordering a convergence', () => {
         }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     expect(plan.steps).toHaveLength(0);
@@ -141,6 +216,7 @@ describe('ordering a convergence', () => {
         intent({ id: 'p-1', objectKind: 'project', draft: { name: 'Effort' } }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     expect(plan.steps.map((step) => step.intent.id)).toEqual(['p-1', 's-1', 's-2']);
@@ -153,6 +229,7 @@ describe('ordering a convergence', () => {
         intent({ id: 's-1', objectKind: 'section', draft: { name: 'A' }, requires: 'p-1' }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     const section = plan.steps.find((step) => step.intent.id === 's-1');
@@ -172,6 +249,7 @@ describe('ordering a convergence', () => {
         intent({ id: 's-1', objectKind: 'section', draft: { name: 'A' }, requires: 'p-1' }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     expect(plan.runnable).toBe(1); // the project itself, on its next attempt
@@ -192,6 +270,7 @@ describe('ordering a convergence', () => {
         intent({ id: 's-1', objectKind: 'section', draft: { name: 'A' }, requires: 'p-1' }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     expect(plan.runnable).toBe(1);
@@ -201,16 +280,60 @@ describe('ordering a convergence', () => {
     });
   });
 
-  it('blocks every page, naming the vocabulary that does not exist', () => {
+  it('blocks a page when the instance has bound no store for it', () => {
+    // The state of every installation that has not run `bindings`, and the
+    // sentence names the command that fixes it rather than the ADR that
+    // explains it.
     const plan = orderConvergence({
       intents: [
         intent({ id: 'pg-1', objectKind: 'page', tool: 'document', draft: { title: 'x' } }),
       ],
       refsByEntity: NO_REFS,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
     });
 
     expect(plan.blocked).toBe(1);
-    expect(plan.steps[0]?.kind === 'blocked' && plan.steps[0].reason).toBe(PAGE_UNREACHABLE);
+    expect(plan.steps[0]?.kind === 'blocked' && plan.steps[0].reason).toBe(PAGE_UNBOUND);
+  });
+
+  it('runs a page once the instance has bound its store and its template', () => {
+    const plan = orderConvergence({
+      intents: [
+        intent({
+          id: 'pg-1',
+          entityKind: 'initiative',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'x' },
+        }),
+      ],
+      refsByEntity: NO_REFS,
+      addressablePageKinds: new Set(['initiative']),
+    });
+
+    expect(plan.runnable).toBe(1);
+    expect(plan.steps[0]?.kind).toBe('run');
+  });
+
+  it('blocks a capture\u2019s page with the vocabulary, not with the bindings', () => {
+    // Binding the roles would not help a capture: the plan must say the true
+    // reason, or an operator runs `bindings` twice and reports the same bug.
+    const plan = orderConvergence({
+      intents: [
+        intent({
+          id: 'pg-2',
+          entityKind: 'capture',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'x' },
+        }),
+      ],
+      refsByEntity: NO_REFS,
+      addressablePageKinds: new Set(['initiative', 'project']),
+    });
+
+    expect(plan.blocked).toBe(1);
+    expect(plan.steps[0]?.kind === 'blocked' && plan.steps[0].reason).toBe(PAGE_KIND_UNSUPPORTED);
   });
 
   it('plans the same order twice, whatever order the rows arrived in', () => {

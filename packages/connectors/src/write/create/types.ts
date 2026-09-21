@@ -1,3 +1,4 @@
+import type { PageKind } from '../../role-key.js';
 import type { IdempotencyKey } from '../types.js';
 
 /**
@@ -63,6 +64,49 @@ export interface LooseTaskDraft {
   readonly description: string;
   /** Never the anchor label — see above. */
   readonly labels: readonly string[];
+}
+
+/**
+ * A narrative page in the document tool (ADR-0011, ADR-0019, ADR-0025).
+ *
+ * `kind` rather than a role key: which store a page goes in and which template
+ * it copies are prisme's decisions, and a draft carrying role keys would let a
+ * caller choose them. The mapping is `PAGE_ROLE_FOR` in `../../role-key.ts`.
+ *
+ * There is no body here, and that is the design. The page's content is a copy
+ * of the template's top-level blocks; a marker, a backlink or a heading of
+ * prisme's own would be prisme writing into a body the document tool owns
+ * outright (docs/11-ownership.md §3).
+ */
+export interface PageDraft {
+  readonly kind: PageKind;
+  /** prisme owns the title of a thing it created. */
+  readonly title: string;
+}
+
+/**
+ * The document tool's creating port.
+ *
+ * Separate from {@link CreationWriter} rather than a fourth method on it,
+ * because the two address different tools with different tokens and different
+ * capabilities — and because a single port would force the task-tool writer to
+ * implement an operation it cannot perform, which is exactly the shape that
+ * ends in a method that throws at run time.
+ *
+ * One method, and none returning `void`: a creation whose id is lost is the
+ * orphan the ledger exists to prevent.
+ */
+export interface DocumentCreationWriter {
+  /**
+   * Creates a page, or returns the one that is already there.
+   *
+   * `key` is carried for the ledger's sake and **is not sent** — the document
+   * tool has no idempotency key. The operation is level-triggered instead: it
+   * asks whether a page with this title already exists under the parent, which
+   * is a question about the world and therefore safe to ask twice (ADR-0009).
+   * See `doc-tool/client.ts` for the limitation that carries.
+   */
+  createPage(draft: PageDraft, key: IdempotencyKey): Promise<{ readonly externalId: string }>;
 }
 
 export interface CreationWriter {

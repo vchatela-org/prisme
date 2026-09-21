@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { isConnectorError } from './errors.js';
 import {
+  assertCreatable,
   assertReadable,
+  canCreate,
   createRoleBindings,
   isReadable,
+  isTemplateRole,
   ROLE_ACCESS,
   ROLE_KEYS,
   roleBindingsSchema,
+  TEMPLATE_ROLES,
 } from './role-key.js';
 
 /**
@@ -83,10 +87,15 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
     expect(() => assertReadable('reviews_db', 'query reviews_db')).toThrow(/write-only/);
   });
 
-  it('allows the five roles prisme reads', () => {
-    for (const role of ROLE_KEYS.filter((key) => key !== 'reviews_db')) {
-      expect(isReadable(role)).toBe(true);
-      expect(() => assertReadable(role, `query ${role}`)).not.toThrow();
+  it('allows every readable role and refuses every other', () => {
+    // Driven by the table rather than by a list spelled out again: a role added
+    // with an access level nobody thought about is caught here.
+    for (const role of ROLE_KEYS) {
+      if (isReadable(role)) {
+        expect(() => assertReadable(role, `query ${role}`)).not.toThrow();
+      } else {
+        expect(() => assertReadable(role, `query ${role}`)).toThrow(/may not query it/);
+      }
     }
   });
 
@@ -94,5 +103,44 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
     expect(ROLE_ACCESS.objectives_db).toBe('read_write');
     expect(ROLE_ACCESS.takeaways_db).toBe('read');
     expect(ROLE_ACCESS.processes_db).toBe('read');
+  });
+
+  describe('the create capability (ADR-0025)', () => {
+    it('is held by the two page stores and by nothing else', () => {
+      expect(ROLE_KEYS.filter(canCreate)).toEqual(['initiative_pages_db', 'project_pages_db']);
+    });
+
+    it('is narrower than write: a creating role may not be read', () => {
+      // The whole argument for the verb. If `create` implied reading, it would
+      // be `write` with a nicer name — and prisme has no business reading the
+      // store it adds pages to.
+      for (const role of ROLE_KEYS.filter(canCreate)) {
+        expect(isReadable(role)).toBe(false);
+        expect(() => assertReadable(role, `query ${role}`)).toThrow(/may not query it/);
+      }
+    });
+
+    it('refuses a creation against a role prisme only reads', () => {
+      // The mirror of the read guard: a bug that creates under `areas_db` is a
+      // bug that writes to an archive prisme was granted no capability over.
+      expect(() => assertCreatable('areas_db', 'create page')).toThrow(/may not add to it/);
+      expect(() => assertCreatable('reviews_db', 'create page')).toThrow(/may not add to it/);
+      expect(() => assertCreatable('initiative_pages_db', 'create page')).not.toThrow();
+    });
+
+    it('reads the templates, because it copies their blocks and writes none', () => {
+      for (const role of TEMPLATE_ROLES) {
+        expect(isReadable(role)).toBe(true);
+        expect(canCreate(role)).toBe(false);
+      }
+    });
+
+    it('marks the templates as roles the adoption scan must not walk', () => {
+      // A template is a page whose blocks get copied; it is neither work nor
+      // adoptable, and a scan that queued it would propose adopting a document
+      // nobody wrote.
+      expect(TEMPLATE_ROLES.every(isTemplateRole)).toBe(true);
+      expect(isTemplateRole('initiative_pages_db')).toBe(false);
+    });
   });
 });

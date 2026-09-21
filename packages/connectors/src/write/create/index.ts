@@ -11,15 +11,28 @@
  * would suggest there is a way to create without holding the write path.
  */
 
-export type { CreationWriter, LooseTaskDraft, ProjectDraft, SectionDraft } from './types.js';
+export type {
+  CreationWriter,
+  DocumentCreationWriter,
+  LooseTaskDraft,
+  PageDraft,
+  ProjectDraft,
+  SectionDraft,
+} from './types.js';
 
 export { createTaskToolCreationWriter, type CreationWriterOptions } from './task-tool.js';
 
-export { createFrozenCreationWriter } from './frozen.js';
+export { createFrozenCreationWriter, createFrozenDocumentCreationWriter } from './frozen.js';
+
+export { createDocToolCreationWriter, type DocToolCreationWriterOptions } from './doc-tool.js';
 
 export {
   createRecordingCreationWriter,
+  createRecordingDocumentCreationWriter,
   type RecordedCreation,
+  type RecordedPageCreation,
   type RecordingCreationWriter,
   type RecordingCreationWriterOptions,
+  type RecordingDocumentCreationWriter,
+  type RecordingDocumentCreationWriterOptions,
 } from './recording.js';
