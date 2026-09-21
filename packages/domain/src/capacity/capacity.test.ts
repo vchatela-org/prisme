@@ -6,7 +6,9 @@ import { anArea } from '../test-support/builders.js';
 import {
   CAPACITY_WINDOW_DEFAULTS,
   computeCapacity,
+  computeCapacityFrom,
   toScoringContexts,
+  type AreaObservation,
   type CapacityWindow,
   type Completion,
 } from './index.js';
@@ -308,5 +310,115 @@ describe('capacity is deterministic and refuses to guess', () => {
         NOW,
       );
     expect(run()).toEqual(run());
+  });
+});
+
+/**
+ * The second source of the same measurement.
+ *
+ * `computeCapacityFrom` exists because `capacity_week` arrives already
+ * attributed and duration-estimated by the backfill (W13), and re-deriving any
+ * of that in the API would be a second implementation of a rule this package
+ * owns. What the two entry points must therefore agree on is everything below
+ * the measuring — and these tests are that agreement, written as a comparison
+ * rather than as two sets of expected numbers, because two sets of numbers can
+ * both be edited to match a regression.
+ */
+describe('computing from materialised totals', () => {
+  const observations = (overrides: Partial<AreaObservation>[] = []): readonly AreaObservation[] => {
+    const base: AreaObservation[] = [
+      {
+        areaKey: 'alpha',
+        completions: 3,
+        minutesBySource: { recorded: 120, declared: 0, default: 0 },
+      },
+      {
+        areaKey: 'beta',
+        completions: 3,
+        minutesBySource: { recorded: 0, declared: 40, default: 20 },
+      },
+      {
+        areaKey: 'upkeep',
+        completions: 4,
+        minutesBySource: { recorded: 360, declared: 0, default: 0 },
+      },
+      {
+        areaKey: 'noise',
+        completions: 9,
+        minutesBySource: { recorded: 0, declared: 0, default: 0 },
+      },
+    ];
+    return base.map((entry, index) => ({ ...entry, ...(overrides[index] ?? {}) }));
+  };
+
+  it('produces the same reading as the live path, for the same totals', () => {
+    // The completions that add up to exactly the observations above.
+    const completions: Completion[] = [
+      { id: 'a1', areaKey: 'alpha', completedAt: NOW, recordedMinutes: 40 },
+      { id: 'a2', areaKey: 'alpha', completedAt: NOW, recordedMinutes: 40 },
+      { id: 'a3', areaKey: 'alpha', completedAt: NOW, recordedMinutes: 40 },
+      { id: 'b1', areaKey: 'beta', completedAt: NOW, declaredMinutes: 20 },
+      { id: 'b2', areaKey: 'beta', completedAt: NOW, declaredMinutes: 20 },
+      // beta's third has no duration at all, so the default applies.
+      { id: 'b3', areaKey: 'beta', completedAt: NOW },
+      { id: 'u1', areaKey: 'upkeep', completedAt: NOW, recordedMinutes: 360 },
+      // A recorded duration of zero is still a measurement, not an absence:
+      // the preference order stops at the first source that has a value.
+      ...Array.from({ length: 3 }, (_, index): Completion => ({
+        id: `u${String(index + 2)}`,
+        areaKey: 'upkeep',
+        completedAt: NOW,
+        recordedMinutes: 0,
+      })),
+      ...Array.from({ length: 9 }, (_, index): Completion => ({
+        id: `n${String(index + 1)}`,
+        areaKey: 'noise',
+        completedAt: NOW,
+      })),
+    ];
+
+    const live = computeCapacity(completions, AREAS, window({ defaultMinutes: 20 }), NOW);
+    const materialised = computeCapacityFrom(
+      observations(),
+      AREAS,
+      window({ defaultMinutes: 20 }),
+      NOW,
+    );
+
+    expect(materialised).toEqual(live);
+  });
+
+  it('gives a lane its completions and no minutes, whichever source measured it', () => {
+    const noise = computeCapacityFrom(observations(), AREAS, window(), NOW).find(
+      (entry) => entry.areaKey === 'noise',
+    );
+    expect(noise?.completions).toBe(9);
+    expect(noise?.minutes).toBe(0);
+    expect(noise?.countsTowardCapacity).toBe(false);
+  });
+
+  it('refuses a total for an area that is not in the area set', () => {
+    expect(() =>
+      computeCapacityFrom(
+        [
+          {
+            areaKey: 'nowhere',
+            completions: 1,
+            minutesBySource: { recorded: 1, declared: 0, default: 0 },
+          },
+        ],
+        AREAS,
+        window(),
+        NOW,
+      ),
+    ).toThrow(/nowhere/);
+  });
+
+  it('reports an area nothing was observed in as zero rather than omitting it', () => {
+    // A missing row and a week with no completions must read the same, or a
+    // quiet area disappears from the chart instead of showing as quiet.
+    const capacity = computeCapacityFrom([], AREAS, window(), NOW);
+    expect(capacity).toHaveLength(AREAS.length);
+    expect(capacity.every((entry) => entry.minutes === 0 && entry.completions === 0)).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   labelsOf,
   measuredBuckets,
   minutesCaveat,
+  observedSourceCaveat,
   monthsBefore,
   mostStarved,
   observedShareSeries,
@@ -295,5 +296,36 @@ describe('minutesCaveat', () => {
     // docs/12-scoring.md §4 says this out loud where it is implemented; the
     // brief says to say it on the chart rather than in a footnote.
     expect(minutesCaveat(0)).toContain('not hours lived');
+  });
+});
+
+describe('observedSourceCaveat', () => {
+  it('names the imported history and how far it reaches', () => {
+    const sentence = observedSourceCaveat({
+      observedSource: 'capacity_week',
+      observedThrough: '2026-09-20',
+    });
+    expect(sentence).toContain('imported completion history');
+    expect(sentence).toContain('2026-09-20');
+  });
+
+  it('does not invent a coverage date when the API did not report one', () => {
+    // The KPI range is explicit, so it reports no coverage; "covered through"
+    // would restate the request rather than tell the reader anything.
+    const sentence = observedSourceCaveat({ observedSource: 'capacity_week' });
+    expect(sentence).toContain('imported completion history');
+    expect(sentence).not.toContain('covered through');
+  });
+
+  it('says what is missing when the numbers are the anchor subtree only', () => {
+    // The two sources disagree, so a reader must be able to tell which one they
+    // have — and a reader told prisme cannot see something should be told how
+    // to make it visible.
+    const sentence = observedSourceCaveat({
+      observedSource: 'task_mirror',
+      observedThrough: null,
+    });
+    expect(sentence).toContain('anchor subtrees');
+    expect(sentence).toContain('backfill');
   });
 });

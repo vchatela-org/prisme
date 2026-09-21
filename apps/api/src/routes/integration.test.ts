@@ -555,6 +555,135 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(home?.balanceFactor).toBe(0.5);
       expect(money?.minutes).toBe(0);
     });
+
+    /**
+     * The behaviour W13 recorded as "not yet on screen".
+     *
+     * `task_mirror` is the **anchor subtree** — everything completed under an
+     * initiative prisme already knows about, and nothing before prisme existed.
+     * The backfill reads the tool's whole completion record and materialises it
+     * into `capacity_week`, which is what the dashboard should measure from.
+     *
+     * The fixture below is built so the two *disagree*, deliberately: the
+     * anchor subtree sees one completion, the materialised record sees four
+     * with a different duration split. A test where they agreed would pass
+     * whichever source was read, which is the whole class of test this
+     * repository keeps finding.
+     */
+    async function backfillHealth(): Promise<void> {
+      await database.client`
+        insert into capacity_week
+          (week_start, area_key, completions, minutes,
+           minutes_recorded, minutes_declared, minutes_default)
+        values ('2026-09-14', 'health', 4, 240, 200, 40, 0)`;
+      await database.client`
+        insert into backfill_cursor (id, covered_from, covered_through)
+        values ('singleton', '2026-01-05T00:00:00Z', '2026-09-20T00:00:00Z')`;
+    }
+
+    it('falls back to the anchor subtree, and says so, before any backfill has run', async () => {
+      const app = api();
+      await seedCompletions(database.client, [
+        {
+          initiativeId: fixtureId('init-001'),
+          areaKey: 'health',
+          completedAt: new Date('2026-09-10T09:00:00.000Z'),
+          minutes: 60,
+        },
+      ]);
+
+      const body = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+        observedSource: string;
+        observedThrough: string | null;
+        areas: { areaKey: string; minutes: number; minutesBySource: Record<string, number> }[];
+      };
+
+      expect(body.observedSource).toBe('task_mirror');
+      expect(body.observedThrough).toBeNull();
+      expect(body.areas.find((area) => area.areaKey === 'health')?.minutes).toBe(60);
+      // The day-precise window, which is what the fallback filters by.
+      expect(body.from).toBe('2026-08-20');
+    });
+
+    it('measures from the materialised weeks once a backfill has run', async () => {
+      const app = api();
+      await seedCompletions(database.client, [
+        {
+          initiativeId: fixtureId('init-001'),
+          areaKey: 'health',
+          completedAt: new Date('2026-09-10T09:00:00.000Z'),
+          minutes: 60,
+        },
+      ]);
+      await backfillHealth();
+
+      const body = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+        observedSource: string;
+        observedThrough: string | null;
+        areas: {
+          areaKey: string;
+          minutes: number;
+          completions: number;
+          minutesBySource: Record<string, number>;
+        }[];
+      };
+
+      expect(body.observedSource).toBe('capacity_week');
+      expect(body.observedThrough).toBe('2026-09-20');
+
+      const health = body.areas.find((area) => area.areaKey === 'health');
+      // The materialised numbers, not the anchor subtree's 60.
+      expect(health?.minutes).toBe(240);
+      expect(health?.completions).toBe(4);
+      // And the estimate-versus-measurement split survives the round trip,
+      // which is what lets a chart label how much of a reading is estimated.
+      expect(health?.minutesBySource).toEqual({ recorded: 200, declared: 40, default: 0 });
+
+      // A week-granular window: the Monday of the week covering `asOf`, four
+      // weeks back. `capacity_week` has no sub-week detail, so the window is
+      // snapped to the rows rather than the rows to the window.
+      expect(body.from).toBe('2026-08-24');
+    });
+  });
+
+  describe('kpi', () => {
+    it('has no integration coverage of its own before this, and reads the same source the balance does', async () => {
+      const app = api();
+      await database.client`
+        insert into capacity_week
+          (week_start, area_key, completions, minutes,
+           minutes_recorded, minutes_declared, minutes_default)
+        values ('2026-09-14', 'health', 3, 90, 90, 0, 0)`;
+      await database.client`
+        insert into backfill_cursor (id, covered_from, covered_through)
+        values ('singleton', '2026-01-05T00:00:00Z', '2026-09-20T00:00:00Z')`;
+
+      const body = (await app.request('GET', url('/kpi?from=2026-09-01&to=2026-09-30&bucket=week')))
+        .body as {
+        observedSource: string;
+        throughput: { areaKey: string; points: { periodStart: string; value: number }[] }[];
+        minutes: { areaKey: string; points: { periodStart: string; value: number }[] }[];
+      };
+
+      expect(body.observedSource).toBe('capacity_week');
+
+      const week = '2026-09-14';
+      const health = body.throughput.find((series) => series.areaKey === 'health');
+      expect(health?.points.find((point) => point.periodStart === week)?.value).toBe(3);
+
+      const minutes = body.minutes.find((series) => series.areaKey === 'health');
+      expect(minutes?.points.find((point) => point.periodStart === week)?.value).toBe(90);
+    });
+
+    it('reports the anchor subtree when the range has no materialised weeks', async () => {
+      const app = api();
+      const body = (await app.request('GET', url('/kpi?from=2026-09-01&to=2026-09-30&bucket=week')))
+        .body as { observedSource: string };
+
+      expect(body.observedSource).toBe('task_mirror');
+    });
   });
 
   describe('objectives', () => {

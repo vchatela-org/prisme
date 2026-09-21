@@ -215,6 +215,13 @@ export const kpiDto = z.object({
   from: calendarDate,
   to: calendarDate,
   bucket: z.enum(['week', 'month']),
+  /**
+   * Which record `throughput`, `minutes`, `runHours` and `signalsVolume` were
+   * measured from — the materialised history the backfill wrote, or the anchor
+   * subtree that is all prisme has until a backfill has run (W13). The
+   * adherence and attainment series are unaffected and read elsewhere.
+   */
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
   /** Completions per bucket, per area. The throughput chart. */
   throughput: z.array(z.object({ areaKey, kind: areaKind, points: z.array(bucketPointDto) })),
   /** Attributed minutes per bucket, per area. What the balance chart is drawn from. */
