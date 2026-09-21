@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   createFrozenCreationWriter,
+  createFrozenDocumentCreationWriter,
   createRecordingCreationWriter,
+  createRecordingDocumentCreationWriter,
   idempotencyKey,
   type RecordedCreation,
+  type RecordingDocumentCreationWriter,
 } from '@prisme/connectors/write';
 import type { CreationStore } from './ports.js';
 import { converge } from './run.js';
@@ -36,6 +39,20 @@ function intent(overrides: Partial<Intent> & Pick<Intent, 'id' | 'objectKind'>):
     attempts: 0,
     ...overrides,
   };
+}
+
+/**
+ * A document recorder, and the page kinds an instance has bound (ADR-0025).
+ *
+ * Every pass needs both, so they are made once here rather than at fourteen
+ * call sites. `NOTHING_ADDRESSABLE` is the default because it is the truthful
+ * default: an installation that has not run `bindings` has bound nothing, and
+ * a test that is not about pages should be running the pass in that state.
+ */
+const NOTHING_ADDRESSABLE: ReadonlySet<'initiative' | 'project'> = new Set();
+
+function pages(): RecordingDocumentCreationWriter {
+  return createRecordingDocumentCreationWriter();
 }
 
 /** An in-memory ledger that behaves as the SQL one does for these purposes. */
@@ -104,6 +121,8 @@ describe('planning a convergence', () => {
       mode: 'plan',
       store,
       writer: recording.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -135,6 +154,8 @@ describe('the write freeze', () => {
       mode: 'apply',
       store,
       writer: createFrozenCreationWriter(),
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -153,6 +174,8 @@ describe('the write freeze', () => {
       mode: 'apply',
       store: fakeStore(PROJECT_WITH_THREE_SECTIONS),
       writer: createFrozenCreationWriter(),
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -173,6 +196,8 @@ describe('a whole project, in one pass', () => {
       mode: 'apply',
       store,
       writer: recording.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -200,6 +225,8 @@ describe('a whole project, in one pass', () => {
       mode: 'apply',
       store,
       writer: first.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -210,6 +237,8 @@ describe('a whole project, in one pass', () => {
       mode: 'apply',
       store,
       writer: second.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -242,6 +271,8 @@ describe('a failure partway through', () => {
       mode: 'apply',
       store,
       writer: recording.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -284,6 +315,8 @@ describe('a failure partway through', () => {
       mode: 'apply',
       store,
       writer: retry.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -312,6 +345,8 @@ describe('a failure partway through', () => {
       mode: 'apply',
       store,
       writer: tool.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -337,6 +372,8 @@ describe('a failure partway through', () => {
       mode: 'apply',
       store,
       writer: refusing,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -364,6 +401,8 @@ describe('the per-pass cap', () => {
       mode: 'apply',
       store,
       writer: recording.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 2,
       now: NOW,
@@ -398,6 +437,8 @@ describe('a capture’s task', () => {
       mode: 'apply',
       store,
       writer: recording.writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -411,31 +452,112 @@ describe('a capture’s task', () => {
 });
 
 describe('a page', () => {
-  it('is never attempted, and the report says why', async () => {
-    const store = fakeStore([
-      intent({
-        id: 'pg-01',
-        objectKind: 'page',
-        tool: 'document',
-        draft: { title: 'A narrative' },
-      }),
-    ]);
+  const pageIntent = () =>
+    intent({
+      id: 'pg-01',
+      entityKind: 'project',
+      objectKind: 'page',
+      tool: 'document',
+      draft: { title: 'A narrative' },
+    });
+
+  it('is not attempted on an instance that has bound nothing, and the report says why', async () => {
+    const store = fakeStore([pageIntent()]);
     const recording = createRecordingCreationWriter();
+    const docPages = pages();
 
     const result = await converge({
       mode: 'apply',
       store,
       writer: recording.writer,
+      documents: docPages.writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
     });
 
     expect(recording.creations).toHaveLength(0);
+    expect(docPages.pages).toHaveLength(0);
     expect(result.created).toBe(0);
     // Blocked, not failed: nothing was attempted, so nothing can be retried
-    // into working. The ADR is what unblocks it.
+    // into working, and the ledger row stays pending rather than claiming an
+    // attempt that never happened.
     expect(store.rows.get('pg-01')?.state).toBe('pending');
-    expect(result.report).toContain('ADR-0025');
+    // The reason names the command that fixes it, not the ADR that explains it.
+    expect(result.report).toContain('bindings --from');
+  });
+
+  it('is created once the store and the template are bound', async () => {
+    const store = fakeStore([pageIntent()]);
+    const recording = createRecordingCreationWriter();
+    const docPages = pages();
+
+    const result = await converge({
+      mode: 'apply',
+      store,
+      writer: recording.writer,
+      documents: docPages.writer,
+      addressablePageKinds: new Set(['project']),
+      writeEnabled: true,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(docPages.pages).toHaveLength(1);
+    // The draft carries a kind and a title and nothing else: the store and the
+    // template are prisme's decision, made in `PAGE_ROLE_FOR`.
+    expect(docPages.pages[0]?.draft).toEqual({ kind: 'project', title: 'A narrative' });
+    // The task-tool writer was not asked to make anything.
+    expect(recording.creations).toHaveLength(0);
+    // And the ledger records what was made, which is what stops a second page.
+    expect(store.rows.get('pg-01')?.state).toBe('satisfied');
+    expect(store.rows.get('pg-01')?.externalId).toBe('made-page-1');
+  });
+
+  it('does not make a second page when the pass resumes over a satisfied row', async () => {
+    // The document tool has no idempotency key, so this is the property the
+    // whole creation is safe on: the ledger says a page was made, and the next
+    // pass does not ask again.
+    const store = fakeStore([pageIntent()]);
+    const docPages = pages();
+    const options = {
+      mode: 'apply' as const,
+      store,
+      writer: createRecordingCreationWriter().writer,
+      documents: docPages.writer,
+      addressablePageKinds: new Set(['project'] as const),
+      writeEnabled: true,
+      maxPerPass: 20,
+      now: NOW,
+    };
+
+    await converge(options);
+    await converge(options);
+
+    expect(docPages.pages).toHaveLength(1);
+  });
+
+  it('is frozen with everything else, so a misconfigured pass cannot add one', async () => {
+    const store = fakeStore([pageIntent()]);
+    const recording = createRecordingDocumentCreationWriter();
+
+    const result = await converge({
+      mode: 'apply',
+      store,
+      writer: createRecordingCreationWriter().writer,
+      documents: createFrozenDocumentCreationWriter(),
+      addressablePageKinds: new Set(['project']),
+      writeEnabled: false,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(recording.pages).toHaveLength(0);
+    // Frozen is a refusal, not a failure: the ledger row is untouched.
+    expect(result.refused).toContain('write freeze');
+    expect(store.rows.get('pg-01')?.state).toBe('pending');
   });
 });
