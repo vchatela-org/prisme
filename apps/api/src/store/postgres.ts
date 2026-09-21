@@ -103,15 +103,23 @@ function required(value: Date | string | null | undefined, column: string): Date
 /**
  * A `jsonb` column, read back.
  *
- * The driver hands `jsonb` over as **text**, not as a parsed value — so a
- * `factors` object arrives as the string `'{"costOfDelay":13}'` and every
- * property access on it silently yields `undefined`. Nothing in a type checker
- * sees it, because the row type says `Record<string, number>` and the driver
- * says `any`; it took a query against a real database to notice, which is the
- * same way apps/sync found its two date bugs.
+ * **Every read of a `jsonb` column selects it as `::text`**, and this is the
+ * only place it is parsed. That is not decoration: it makes the reader
+ * deterministic across the two clients this codebase has built against.
  *
- * Accepting an already-parsed value too keeps this correct if a future driver
- * setting changes its mind.
+ * The driver parses `jsonb` on the way out, so what arrives here depends on
+ * what the column holds. An *object* arrives as an object and this returns it.
+ * A jsonb **string** — which is what `event_log.before`/`after` hold when a
+ * field changes from `'next'` to `'done'` — arrives as a `string`, and a
+ * string is indistinguishable from raw JSON text. `JSON.parse('done')` throws,
+ * so `GET /events` answered `500` on the client the application actually runs
+ * while passing on the bare one the integration suite used to build. Selecting
+ * `::text` removes the ambiguity at the source: `jsonb::text` is always valid
+ * JSON, and it is always text.
+ *
+ * It was previously documented here as "the driver hands `jsonb` over as
+ * **text**". That was true of the bare client and false of the wrapped one,
+ * which is the whole of W16's finding.
  */
 function json<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined) return fallback;
@@ -389,13 +397,13 @@ export function createPostgresStore(client: Sql): ApiStore {
 
   const intentColumns = client`
     c.id::text, c.entity_kind, c.entity_id::text, c.tool, c.object_kind, c.ordinal,
-    c.draft, c.idempotency_key::text, c.state, c.external_id, c.requires::text,
+    c.draft::text, c.idempotency_key::text, c.state, c.external_id, c.requires::text,
     c.attempts, c.last_error, c.created_at, c.updated_at`;
 
   /** The same list without the alias, for a `returning` clause, which has none. */
   const intentReturning = client`
     id::text, entity_kind, entity_id::text, tool, object_kind, ordinal,
-    draft, idempotency_key::text, state, external_id, requires::text,
+    draft::text, idempotency_key::text, state, external_id, requires::text,
     attempts, last_error, created_at, updated_at`;
 
   /**
@@ -727,7 +735,8 @@ export function createPostgresStore(client: Sql): ApiStore {
       async latestScores(): Promise<readonly ScoreRecord[]> {
         const rows = await client<ScoreRow[]>`
           select distinct on (initiative_id)
-                 initiative_id::text, method_id, method_version, score, factors, explain, computed_at
+                 initiative_id::text, method_id, method_version, score, factors::text, explain,
+                 computed_at
           from initiative_score
           where is_active_method
           order by initiative_id, computed_at desc`;
@@ -736,7 +745,8 @@ export function createPostgresStore(client: Sql): ApiStore {
 
       async scoreHistory(id: string, limit: number): Promise<readonly ScoreRecord[]> {
         const rows = await client<ScoreRow[]>`
-          select initiative_id::text, method_id, method_version, score, factors, explain, computed_at
+          select initiative_id::text, method_id, method_version, score, factors::text, explain,
+                 computed_at
           from initiative_score
           where initiative_id = ${id}::uuid
           order by computed_at desc
@@ -1380,8 +1390,8 @@ export function createPostgresStore(client: Sql): ApiStore {
     ops: {
       async reviews(cadence, page: PageRequest): Promise<Paged<ReviewRecord>> {
         const rows = await client<(ReviewRow & { total: string })[]>`
-          select id::text, cadence, started_at, completed_at, checklist, decisions,
-                 capacity_snapshot, external_page_id, count(*) over () as total
+          select id::text, cadence, started_at, completed_at, checklist::text, decisions,
+                 capacity_snapshot::text, external_page_id, count(*) over () as total
           from review_session
           where true ${cadence === undefined ? client`` : client`and cadence = ${cadence}`}
           order by started_at desc, id
@@ -1394,8 +1404,8 @@ export function createPostgresStore(client: Sql): ApiStore {
 
       async getReview(id: string): Promise<ReviewRecord | undefined> {
         const rows = await client<ReviewRow[]>`
-          select id::text, cadence, started_at, completed_at, checklist, decisions,
-                 capacity_snapshot, external_page_id
+          select id::text, cadence, started_at, completed_at, checklist::text, decisions,
+                 capacity_snapshot::text, external_page_id
           from review_session where id = ${id}::uuid`;
         const row = rows[0];
         return row === undefined ? undefined : toReview(row);
@@ -1405,8 +1415,8 @@ export function createPostgresStore(client: Sql): ApiStore {
         const rows = await client<ReviewRow[]>`
           insert into review_session (cadence, started_at)
           values (${cadence}, ${stamp(startedAt)}::timestamptz)
-          returning id::text, cadence, started_at, completed_at, checklist, decisions,
-                    capacity_snapshot, external_page_id`;
+          returning id::text, cadence, started_at, completed_at, checklist::text, decisions,
+                    capacity_snapshot::text, external_page_id`;
         const row = rows[0];
         if (row === undefined) throw new Error('the review insert returned no row');
         return toReview(row);
@@ -1426,16 +1436,16 @@ export function createPostgresStore(client: Sql): ApiStore {
                                 then external_page_id else ${input.externalPageId ?? null} end,
             completed_at = coalesce(${stamp(input.completedAt)}::timestamptz, completed_at)
           where id = ${id}::uuid
-          returning id::text, cadence, started_at, completed_at, checklist, decisions,
-                    capacity_snapshot, external_page_id`;
+          returning id::text, cadence, started_at, completed_at, checklist::text, decisions,
+                    capacity_snapshot::text, external_page_id`;
         const row = rows[0];
         return row === undefined ? undefined : toReview(row);
       },
 
       async events(filter, page: PageRequest): Promise<Paged<EventRecord>> {
         const rows = await client<(EventRow & { total: string })[]>`
-          select id::text, kind, entity_kind, entity_id, field, before, after, actor, occurred_at,
-                 count(*) over () as total
+          select id::text, kind, entity_kind, entity_id, field, before::text, after::text, actor,
+                 occurred_at, count(*) over () as total
           from event_log
           where true
             ${filter.kind === undefined ? client`` : client`and kind = ${filter.kind}`}
