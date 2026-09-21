@@ -22,6 +22,13 @@ WORKDIR /build
 # where pnpm's version comes from.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
+# `pnpm-workspace.yaml` names the patched dependencies and `patches/` holds the
+# patches themselves, so both are part of the install inputs. Without them
+# `--frozen-lockfile` fails with "Failed to read patch file … No such file or
+# directory" — which is what the `images` check is for: nothing else in this
+# repository builds a container.
+COPY patches/ patches/
+
 # Node stopped shipping corepack at v25 (ADR-0023), so pnpm is installed from
 # npm instead. The version is *derived* from `packageManager` in the root
 # manifest rather than written here, so the Dockerfile and the manifest cannot
