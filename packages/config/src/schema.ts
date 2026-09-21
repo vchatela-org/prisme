@@ -198,6 +198,18 @@ export const VARIABLES = {
     required: [],
     default: '4',
   },
+  /*
+   * The name of the property a document-tool process page carries its declared
+   * duration in — the middle tier of the preference order (W13).
+   *
+   * **Instance data**, and in configuration for the same reason
+   * `AUTH_ALLOWED_SUBJECTS` is: the document tool keys its properties by
+   * whatever an instance happens to call them, and no instance's name may be
+   * compiled into this repository (docs/17-privacy.md). Unset means the tier is
+   * unavailable, and the backfill reports a two-tier estimate rather than
+   * passing one off as three-tier.
+   */
+  DOCTOOL_DURATION_PROPERTY: { schema: nonEmpty('DOCTOOL_DURATION_PROPERTY'), required: [] },
   SCORING_ACTIVE_METHOD: {
     schema: nonEmpty('SCORING_ACTIVE_METHOD'),
     required: [],

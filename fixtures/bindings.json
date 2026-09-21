@@ -1,0 +1,20 @@
+{
+  "_comment": "FORMAT EXAMPLE with invented identifiers, for the loader's tests. `seed.example/bindings.json` is the documentation of the format an instance copies; its identifiers are `REPLACE-ME` and are refused, deliberately, because a store addressed by the literal string \"REPLACE-ME\" fails at the first query rather than at the file that caused it.",
+  "_what_this_is": "Role key -> external data-source identifier. The keys are prisme's vocabulary and are the same in every instance; the identifiers are instance data and this file's are invented. Nothing here names a real workspace (docs/17-privacy.md).",
+  "documentTool": {
+    "objectives_db": { "id": "binding-objectives-0001", "access": "read-write" },
+    "takeaways_db": { "id": "binding-takeaways-0002", "access": "read-only" },
+    "media_db": { "id": "binding-media-0003", "access": "read-only" },
+    "areas_db": { "id": "binding-areas-0004", "access": "read-only" },
+    "processes_db": { "id": "binding-processes-0005", "access": "read-only" },
+    "reviews_db": { "id": "binding-reviews-0006", "access": "write" },
+    "projectTemplateId": "binding-template-0007"
+  },
+  "taskTool": {
+    "anchorLabel": "initiative"
+  },
+  "areaMappings": [
+    { "areaKey": "alpha", "externalProjectId": "binding-project-0001" },
+    { "areaKey": "beta", "externalProjectId": "binding-project-0002" }
+  ]
+}

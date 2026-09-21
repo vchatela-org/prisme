@@ -123,7 +123,15 @@ boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually 
 | `CAPACITY_DEFAULT_TASK_MINUTES` | `25` | Fallback when no duration is recorded |
 | `CAPACITY_WINDOW_WEEKS` | `4` | Rolling window for `actual_share` |
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
+| `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
+
+`DOCTOOL_DURATION_PROPERTY` is the middle tier of the duration preference order
+([`12-scoring.md`](12-scoring.md) §4). It is configuration rather than seed data for the same reason
+`AUTH_ALLOWED_SUBJECTS` is: the document tool keys its properties by whatever an instance happens to
+call them, and no instance's name may be compiled into this repository. Unset is not a broken
+deployment — the preference order simply has two tiers, and the backfill's report says so rather
+than passing a two-tier estimate off as a three-tier one.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
@@ -171,6 +179,23 @@ process exits rather than starting without its secrets.
 The identifiers of external databases are **instance data**, not configuration in git. They load
 from the seed path into the database, keyed by role: `objectives_db`, `takeaways_db`, `media_db`,
 `areas_db`, `processes_db`, `reviews_db`. See [`17-privacy.md`](17-privacy.md).
+
+```
+prisme-sync bindings --from <path>     load seed/bindings.json
+```
+
+The path is required rather than defaulted: the seed directory is gitignored, its mount point is
+deployment detail, and a command that silently read nothing from a path that does not exist would
+look like a success. The file's format is [`seed.example/bindings.json`](../seed.example/bindings.json).
+
+**A role with no binding is not addressable**, and the connectors report it rather than guessing: a
+scan says `document tool   not read`, and the backfill reports the declared-duration tier as
+unavailable. That is the state of every instance that has not run the command, and it is a state
+the passes handle rather than fail on.
+
+**The command replaces the whole table.** Removing a role from the file unbinds it. A merge would
+leave a role bound to a store the file no longer mentions, with no way to unbind one short of
+truncating the table by hand.
 
 ---
 

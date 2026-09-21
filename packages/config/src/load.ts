@@ -57,6 +57,14 @@ export interface Config {
   readonly sync: SyncConfig;
   readonly capacity: CapacityConfig;
   readonly scoringActiveMethod: string;
+  /**
+   * The document tool's property name for a process page's declared duration.
+   *
+   * Absent on an instance that has not named one, which leaves the duration
+   * preference order two-tier — and `apps/sync`'s backfill reports that rather
+   * than presenting an estimate as a measurement.
+   */
+  readonly doctoolDurationProperty: string | undefined;
 }
 
 export interface ConfigProblem {
@@ -210,6 +218,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
       windowWeeks: parsed['CAPACITY_WINDOW_WEEKS'] as number,
     },
     scoringActiveMethod: parsed['SCORING_ACTIVE_METHOD'] as string,
+    doctoolDurationProperty: parsed['DOCTOOL_DURATION_PROPERTY'] as string | undefined,
   };
 }
 
