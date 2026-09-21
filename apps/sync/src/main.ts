@@ -42,13 +42,20 @@ import {
   createDocToolClient,
   createFetchTransport,
   createTaskToolClient,
+  PAGE_ROLE_FOR,
+  PAGE_TEMPLATE_FOR,
   ROLE_KEYS,
+  type PageKind,
+  type RoleBindings,
 } from '@prisme/connectors';
 import {
+  createDocToolCreationWriter,
   createFrozenCreationWriter,
+  createFrozenDocumentCreationWriter,
   createFrozenWriter,
   createTaskToolCreationWriter,
   createTaskToolWriter,
+  type DocumentCreationWriter,
 } from '@prisme/connectors/write';
 import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db';
@@ -117,6 +124,52 @@ function creationWriter(
         metrics,
       })
     : createFrozenCreationWriter();
+}
+
+/**
+ * The page kinds this instance can actually create (ADR-0025).
+ *
+ * A kind is addressable when **both** its store and its template are bound.
+ * One without the other is not a half-working feature: a page with no parent
+ * has nowhere to go, and a page with no template is an empty page, which
+ * ADR-0011 says is worse than no page — "a workspace full of empty pages makes
+ * the ones that matter harder to find". So the pair is the unit, and a half-
+ * bound kind blocks with a reason rather than creating something nobody wants.
+ */
+function addressablePageKinds(bindings: RoleBindings): ReadonlySet<PageKind> {
+  const kinds = new Set<PageKind>();
+  for (const kind of ['initiative', 'project'] as const) {
+    if (bindings.has(PAGE_ROLE_FOR[kind]) && bindings.has(PAGE_TEMPLATE_FOR[kind])) {
+      kinds.add(kind);
+    }
+  }
+  return kinds;
+}
+
+/**
+ * The document tool's creating port, frozen unless writes are enabled.
+ *
+ * The freeze is the *object*, not a flag, exactly as it is for the task tool —
+ * and it matters at least as much here, because a page is a document somebody
+ * reads rather than a row in a list.
+ */
+function documentCreationWriter(
+  bindings: RoleBindings,
+  transport: ReturnType<typeof createFetchTransport>,
+  metrics: {
+    recordRequest: (sample: { tool: string; status: string }) => void;
+  },
+): DocumentCreationWriter {
+  if (!config.sync.writeEnabled) return createFrozenDocumentCreationWriter();
+
+  return createDocToolCreationWriter({
+    client: createDocToolClient({
+      token: config.doctoolApiToken as string,
+      bindings,
+      transport,
+      metrics,
+    }),
+  });
 }
 
 /**
@@ -372,10 +425,13 @@ async function main(): Promise<number> {
           mode: convergeMode,
           writeEnabled: config.sync.writeEnabled,
         });
+        const bindings = await readBindings(database.client);
         return converge({
           mode: convergeMode as 'plan' | 'apply',
           store: createCreationStore(database.client),
           writer: creationWriter(transport, connectorMetrics),
+          documents: documentCreationWriter(bindings, transport, connectorMetrics),
+          addressablePageKinds: addressablePageKinds(bindings),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
           now: () => new Date(),
@@ -433,10 +489,13 @@ async function main(): Promise<number> {
        * A `plan` converges nothing, because `plan` has no side effects.
        */
       if (mode === 'apply') {
+        const bindings = await readBindings(database.client);
         const drained = await converge({
           mode: 'apply',
           store: createCreationStore(database.client),
           writer: creationWriter(transport, connectorMetrics),
+          documents: documentCreationWriter(bindings, transport, connectorMetrics),
+          addressablePageKinds: addressablePageKinds(bindings),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
           now: () => new Date(),

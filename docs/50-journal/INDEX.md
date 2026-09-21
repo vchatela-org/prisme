@@ -61,6 +61,9 @@ see [`../17-privacy.md`](../17-privacy.md).
 
 
 
+
+| 2026-09-21 | FUP | [FUP-2026-09-21-page-creation.md](FUP-2026-09-21-page-creation.md) | **ADR-0025 Accepted and *Create page* works**: four role keys, a `create` capability narrower than `write` (and deliberately not readable), `assertCreatable`, a writing method on the document-tool client, a second creating port with a frozen twin, and a converge pass that plans and performs pages. The body is a copy of the template's top-level blocks and nothing of prisme's own — so the page intent's draft is now a title and nothing else. Idempotence is the existence check the tool's missing idempotency key forces: a page with this title under this parent is the page this call was going to make. **A capture's page stays blocked**, named as a gap rather than guessed at |
+
 ## Format
 
 ```markdown

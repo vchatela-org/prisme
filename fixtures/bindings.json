@@ -8,6 +8,10 @@
     "areas_db": { "id": "binding-areas-0004", "access": "read-only" },
     "processes_db": { "id": "binding-processes-0005", "access": "read-only" },
     "reviews_db": { "id": "binding-reviews-0006", "access": "write" },
+    "initiative_pages_db": { "id": "binding-initiative-pages-0008", "access": "create" },
+    "project_pages_db": { "id": "binding-project-pages-0009", "access": "create" },
+    "initiative_page_template": { "id": "binding-initiative-template-0010", "access": "read-only" },
+    "project_page_template": { "id": "binding-project-template-0011", "access": "read-only" },
     "projectTemplateId": "binding-template-0007"
   },
   "taskTool": {

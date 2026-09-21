@@ -1,5 +1,5 @@
 import type { DocToolClient, RoleKey, TaskToolClient } from '@prisme/connectors';
-import { isReadable, ROLE_KEYS } from '@prisme/connectors';
+import { isReadable, isTemplateRole, ROLE_KEYS } from '@prisme/connectors';
 import { adaptDocRecords, adaptProjects, adaptTasks, type AdaptOptions } from './adapt.js';
 import { coverage, type CoverageReport } from './coverage.js';
 import type { AdoptionStore } from './ports.js';
@@ -49,12 +49,17 @@ export interface AdoptResult {
  * The document-tool stores worth scanning.
  *
  * `reviews_db` is write-only and `assertReadable` refuses it; `media_db` holds
- * readings, which are a lane rather than backlog candidates. Everything else is
- * read, and the classifier decides what — if anything — each store's records
- * become.
+ * readings, which are a lane rather than backlog candidates; the page stores
+ * are not readable at all — ADR-0025 grants them `create` and nothing else —
+ * so they fall out on the first condition.
+ *
+ * The **templates** are the one exclusion worth stating: they are readable, and
+ * a scan that walked them would propose adopting a document nobody wrote as a
+ * backlog candidate. A template is a page whose blocks get copied; it is
+ * neither work nor adoptable.
  */
 const SCANNED_ROLES: readonly RoleKey[] = ROLE_KEYS.filter(
-  (role) => isReadable(role) && role !== 'media_db',
+  (role) => isReadable(role) && role !== 'media_db' && !isTemplateRole(role),
 );
 
 export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
