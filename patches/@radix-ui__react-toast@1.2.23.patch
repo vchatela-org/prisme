@@ -1,0 +1,26 @@
+diff --git a/dist/index.js b/dist/index.js
+index c70ff01754da9d28764b37b81d869d9cfe9db729..ff2981bab6e8e2f513cd5684fe51851a4b0e0b6b 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -225,7 +225,7 @@ var ToastViewport = /* @__PURE__ */ React.forwardRef(
+         role: "region",
+         "aria-label": label.replace("{hotkey}", hotkeyLabel),
+         tabIndex: -1,
+-        style: { pointerEvents: hasToasts ? void 0 : "none" },
++        className: hasToasts ? void 0 : "prisme-pointer-events-none",
+         children: [
+           hasToasts && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+             FocusProxy,
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 608afbad2dcd62cf2501372be220e84416f8afaf..5efc45e6c87ba659fe09d03fc0a23203b5620581 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -177,7 +177,7 @@ var ToastViewport = /* @__PURE__ */ React.forwardRef(
+         role: "region",
+         "aria-label": label.replace("{hotkey}", hotkeyLabel),
+         tabIndex: -1,
+-        style: { pointerEvents: hasToasts ? void 0 : "none" },
++        className: hasToasts ? void 0 : "prisme-pointer-events-none",
+         children: [
+           hasToasts && /* @__PURE__ */ jsx(
+             FocusProxy,

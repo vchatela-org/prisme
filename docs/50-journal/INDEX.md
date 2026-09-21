@@ -56,6 +56,8 @@ see [`../17-privacy.md`](../17-privacy.md).
 
 | 2026-09-21 | FUP | [FUP-2026-09-21-integration-client.md](FUP-2026-09-21-integration-client.md) | The integration suite now builds the client the application builds (W15's follow-up). Switching `openTestDatabase` to `createDatabase` exposed **three more instances of the same class**, two of them live production defects: `GET /events` answered `500` on a jsonb **string** (`JSON.parse('done')`), and `prisme-sync backfill` failed outright on its `date[]`/`timestamptz[]` window writes because Drizzle replaces those serializers with the identity function. `jsonb` is now read as `::text` and parsed in one place; date arrays cross as `text[]` and cast in SQL. A source-walk guard over all three applications refuses a bare client construction, with one spelled-out escape for the schema-owner connection — **watched fail** before it was trusted |
 
+| 2026-09-21 | FUP | [FUP-2026-09-21-radix-inline-styles.md](FUP-2026-09-21-radix-inline-styles.md) | The last twelve CSP violations, closed: **five `pnpm patch`es** move Radix's static inline styles onto class names and the token sheet generates the classes they name. **Verified by running** — `/gallery` goes from 12 `style` attributes to **0**, `/` `/areas` and `/kpi` from 1 to 0, with all five repair classes present in the markup where the inline styles used to be. The guard renders `Select`, `FibonacciSelect`, `Tabs` and `ToastProvider` so a patch invalidated by a dependency bump is a **named failing test** rather than a silent regression; it was watched fail |
+
 ## Format
 
 ```markdown

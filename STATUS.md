@@ -295,6 +295,24 @@ journal entry rather than a unit of planned work.
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
+## Follow-up wave
+
+The sixteen workstreams landed and each recorded what it deliberately did not do. This wave closes
+those gaps. It is not a workstream: there is no brief, and each row is a follow-up recorded in a
+journal entry rather than a unit of planned work.
+
+| Gap | Recorded by | State | PR |
+|---|---|---|---|
+| The integration suite builds a bare DB client, so a whole class of serializer defect is invisible to it | W15 (W11 predicted the shape) | 🟢 | this wave, `fix/integration-db-client` |
+| `fixtures/` carries no task mirror, so `progressComputed` is null on every key result from a plain seed | W11 | 🟢 | this wave, `fix/fixture-task-mirror` |
+| Area colour collides on every screen — the pinning map exists and nothing mounts it | W09 (W10, W11 confirmed) | 🟢 | this wave, `fix/area-color-pinning` |
+| `capacity_week` has no reader: the dashboard still aggregates the anchor subtree | W13 | 🟢 | this wave, `fix/capacity-week-reader` |
+| **The document tool is not read at all** — nothing loads the role bindings, gating W12, W13 and W15 | W12, W13, W15, W03 | 🟢 | this wave, `fix/document-tool-read` |
+| ADR-0011's and ADR-0019's *Create page* is unimplementable: no role key names where a page would go | W15 | 🟢 | this wave, `feat/page-creation` |
+| Twelve CSP violations from Radix's own markup | W07 | 🟢 | this wave, `fix/radix-inline-styles` |
+
+Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
+
 ## P0 is frozen
 
 Checked on 2026-09-15, against the exit criteria in
