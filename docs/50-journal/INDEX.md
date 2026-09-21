@@ -56,6 +56,8 @@ see [`../17-privacy.md`](../17-privacy.md).
 
 | 2026-09-21 | FUP | [FUP-2026-09-21-integration-client.md](FUP-2026-09-21-integration-client.md) | The integration suite now builds the client the application builds (W15's follow-up). Switching `openTestDatabase` to `createDatabase` exposed **three more instances of the same class**, two of them live production defects: `GET /events` answered `500` on a jsonb **string** (`JSON.parse('done')`), and `prisme-sync backfill` failed outright on its `date[]`/`timestamptz[]` window writes because Drizzle replaces those serializers with the identity function. `jsonb` is now read as `::text` and parsed in one place; date arrays cross as `text[]` and cast in SQL. A source-walk guard over all three applications refuses a bare client construction, with one spelled-out escape for the schema-owner connection — **watched fail** before it was trusted |
 
+| 2026-09-21 | FUP | [FUP-2026-09-21-publish-verified.md](FUP-2026-09-21-publish-verified.md) | **The publish path has been run, and it works** — the one gate W00 failed to watch. Both images built, attested and pushed from the cluster runner, digests read back rather than inferred. Publishes the `:main` tag, which sits awkwardly beside `publish.yml`'s own "a deliberate, named version" rule and is recorded rather than hidden. **A repository variable is not masked in a workflow log, and this repository is public** — a successful publish writes the registry host into a public log, which the previously-failing run never reached |
+
 ## Format
 
 ```markdown
