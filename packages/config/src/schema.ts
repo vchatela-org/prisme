@@ -96,6 +96,70 @@ const csv = (label: string) =>
     });
 
 /**
+ * Area key → palette slot, as a JSON object: `{"craft":3,"health":1}`.
+ *
+ * The keys are an instance's area keys, which makes this **instance data** in
+ * the strictest sense: this repository is public and may not contain one
+ * (docs/17-privacy.md). That is why the pinning arrives as configuration rather
+ * than as a table in `packages/ui`.
+ *
+ * It exists because the palette has eight categorical slots and that ceiling is
+ * fixed — a ninth generated hue is indistinguishable from an existing one under
+ * colour-vision deficiency. Six areas hashed into eight slots collide most of
+ * the time; that is the birthday problem, not a bad hash. Without a pinning map
+ * two areas render in the same colour, which is exactly the defect W09 recorded
+ * and this key closes.
+ *
+ * A slot outside `1`–`8` is a **boot failure** rather than a colour nobody
+ * chose: a value the palette cannot paint would otherwise be discovered on a
+ * chart, by a reader, as a missing swatch.
+ */
+const areaColorPins = () =>
+  z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      // Every message below reads as the continuation of `<VARIABLE>: `, which
+      // is how `ConfigError` renders a problem — so none of them repeats the
+      // variable name.
+      const fail = (message: string): typeof z.NEVER => {
+        ctx.addIssue({ code: 'custom', message });
+        return z.NEVER;
+      };
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(value === '' ? '{}' : value);
+      } catch {
+        return fail(
+          'must be a JSON object mapping an area key to a palette slot, e.g. {"craft":3}',
+        );
+      }
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return fail(
+          `must be a JSON object, not ${Array.isArray(parsed) ? 'an array' : typeof parsed}`,
+        );
+      }
+
+      const pins: Record<string, number> = {};
+      for (const [key, slot] of Object.entries(parsed as Record<string, unknown>)) {
+        if (key.trim() === '') {
+          return fail('has an entry with an empty area key');
+        }
+        if (typeof slot !== 'number' || !Number.isInteger(slot) || slot < 1 || slot > 8) {
+          // Names the key it is about, because a caller needs that to fix it,
+          // and nothing about any other pin. An area key is instance data, and
+          // this message reaches a log.
+          return fail(
+            `pins "${key}" to a slot that is not a whole number from 1 to 8, the palette's slot count`,
+          );
+        }
+        pins[key] = slot;
+      }
+      return pins;
+    });
+
+/**
  * Asymmetric algorithms only. `none` and every HMAC variant are rejected here
  * regardless of what the environment asks for — docs/15-runtime.md §2.
  */
@@ -198,6 +262,12 @@ export const VARIABLES = {
     required: [],
     default: '4',
   },
+  /*
+   * Read by the **web tier only**: it is the tier that paints an area's colour.
+   * Not required anywhere, and the default is `{}` — an instance that pins
+   * nothing gets the key-derived fallback, which is what every screen has today.
+   */
+  AREA_COLOR_PINS: { schema: areaColorPins(), required: [], default: '{}' },
   SCORING_ACTIVE_METHOD: {
     schema: nonEmpty('SCORING_ACTIVE_METHOD'),
     required: [],
