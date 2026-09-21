@@ -33,6 +33,16 @@ import type { SyncRunRequest, SyncRunResult, SyncRunner } from './port.js';
 export interface SyncRunnerOptions {
   readonly client: postgres.Sql;
   readonly taskToolToken: string;
+  /**
+   * The task tool's **API host**, from `TASKTOOL_BASE_URL`. Absent means the
+   * connector's own vendor default, which is every deployment that has not
+   * overridden one — see `TASKTOOL_BASE_URL` in `@prisme/config`.
+   *
+   * It reaches the *writer* as well as the reader: both build request URLs, and
+   * a deployment that redirected one but not the other would read from the
+   * instance it meant to write to and write to the vendor's.
+   */
+  readonly taskToolBaseUrl: string | undefined;
   readonly writeEnabled: boolean;
   readonly createThreshold: number;
   readonly baseUrl: string;
@@ -53,9 +63,17 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
           mode: request.mode,
           full: request.full,
           store: createPostgresStore(options.client),
-          taskClient: createTaskToolClient({ token: options.taskToolToken, transport }),
+          taskClient: createTaskToolClient({
+            token: options.taskToolToken,
+            baseUrl: options.taskToolBaseUrl,
+            transport,
+          }),
           writer: options.writeEnabled
-            ? createTaskToolWriter({ token: options.taskToolToken, transport })
+            ? createTaskToolWriter({
+                token: options.taskToolToken,
+                baseUrl: options.taskToolBaseUrl,
+                transport,
+              })
             : createFrozenWriter(),
           writeEnabled: options.writeEnabled,
           createThreshold: options.createThreshold,

@@ -64,9 +64,11 @@ export interface AttributionContext {
   /**
    * External task id → the declared duration of its matching process page.
    *
-   * Empty whenever the document tool is not read, which is every run today —
-   * see `run.ts`. The preference order then skips its middle tier, and the
-   * report says how much of capacity that cost.
+   * Empty whenever the document tool is not read — an instance whose bindings
+   * do not name `processes_db`, or one with no `DOCTOOL_DURATION_PROPERTY`; see
+   * `processes.ts`. The preference order then skips its middle tier, and the
+   * report says how much of capacity that cost rather than presenting a
+   * two-tier estimate as a measurement.
    */
   readonly declaredMinutesByTask: ReadonlyMap<string, number>;
   readonly defaultMinutes: number;

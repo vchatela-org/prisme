@@ -120,6 +120,7 @@ function creationWriter(
   return config.sync.writeEnabled
     ? createTaskToolCreationWriter({
         token: config.tasktoolApiToken as string,
+        baseUrl: config.tasktoolBaseUrl,
         transport,
         metrics,
       })
@@ -165,6 +166,7 @@ function documentCreationWriter(
   return createDocToolCreationWriter({
     client: createDocToolClient({
       token: config.doctoolApiToken as string,
+      baseUrl: config.doctoolBaseUrl,
       bindings,
       transport,
       metrics,
@@ -298,6 +300,7 @@ async function main(): Promise<number> {
           store: createAdoptionStore(database.client),
           taskClient: createTaskToolClient({
             token: config.tasktoolApiToken as string,
+            baseUrl: config.tasktoolBaseUrl,
             transport,
             metrics: connectorMetrics,
           }),
@@ -312,6 +315,7 @@ async function main(): Promise<number> {
            */
           docClient: createDocToolClient({
             token: config.doctoolApiToken as string,
+            baseUrl: config.doctoolBaseUrl,
             bindings: await readBindings(database.client),
             transport,
             metrics: connectorMetrics,
@@ -358,6 +362,7 @@ async function main(): Promise<number> {
           store: createBackfillStore(database.client),
           taskClient: createTaskToolClient({
             token: config.tasktoolApiToken as string,
+            baseUrl: config.tasktoolBaseUrl,
             transport,
             metrics: connectorMetrics,
           }),
@@ -370,6 +375,7 @@ async function main(): Promise<number> {
            */
           docClient: createDocToolClient({
             token: config.doctoolApiToken as string,
+            baseUrl: config.doctoolBaseUrl,
             bindings: await readBindings(database.client),
             transport,
             metrics: connectorMetrics,
@@ -514,6 +520,7 @@ async function main(): Promise<number> {
         store: createPostgresStore(database.client),
         taskClient: createTaskToolClient({
           token: config.tasktoolApiToken as string,
+          baseUrl: config.tasktoolBaseUrl,
           transport,
           metrics: connectorMetrics,
         }),
@@ -522,6 +529,7 @@ async function main(): Promise<number> {
         writer: config.sync.writeEnabled
           ? createTaskToolWriter({
               token: config.tasktoolApiToken as string,
+              baseUrl: config.tasktoolBaseUrl,
               transport,
               metrics: connectorMetrics,
             })

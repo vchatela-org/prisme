@@ -211,6 +211,61 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('the outward API hosts', () => {
+    it('defaults to nothing, so the vendor hostname lives in the connectors alone', () => {
+      // The point of leaving these unset rather than defaulting them here: a
+      // default in this package would be a second copy of a hostname that
+      // `packages/connectors` already owns, and two copies drift.
+      const config = loadConfig({ env: COMPLETE, service: 'api' });
+      expect(config.doctoolBaseUrl).toBeUndefined();
+      expect(config.tasktoolBaseUrl).toBeUndefined();
+    });
+
+    it('overrides either API host when an instance names one', () => {
+      const config = loadConfig({
+        env: {
+          ...COMPLETE,
+          DOCTOOL_BASE_URL: 'https://doctool.internal.example.com',
+          TASKTOOL_BASE_URL: 'https://tasktool.internal.example.com',
+        },
+        service: 'api',
+      });
+      expect(config.doctoolBaseUrl).toBe('https://doctool.internal.example.com');
+      expect(config.tasktoolBaseUrl).toBe('https://tasktool.internal.example.com');
+    });
+
+    it.each([
+      ['a bare hostname', 'doctool.internal.example.com'],
+      ['a non-http scheme', 'ftp://doctool.example.com'],
+      ['a scheme and nothing else', 'https://'],
+    ])('refuses %s', (_label, value) => {
+      expect(() =>
+        loadConfig({ env: { ...COMPLETE, DOCTOOL_BASE_URL: value }, service: 'api' }),
+      ).toThrow(/DOCTOOL_BASE_URL/);
+    });
+
+    it('reads an empty value as unset rather than as a malformed host', () => {
+      // The schema's rule for every optional variable: a Vault template that
+      // emits `DOCTOOL_BASE_URL=` for an instance that has not overridden one
+      // must not stop the boot. Reaching the client as `undefined` is what puts
+      // the vendor default back, which is the behaviour intended.
+      const config = loadConfig({
+        env: { ...COMPLETE, DOCTOOL_BASE_URL: '', TASKTOOL_BASE_URL: '  ' },
+        service: 'api',
+      });
+      expect(config.doctoolBaseUrl).toBeUndefined();
+      expect(config.tasktoolBaseUrl).toBeUndefined();
+    });
+
+    it('is required of no service, because the client default covers every instance', () => {
+      // Marking one `required` would make it mandatory for a deployment that is
+      // perfectly configured without it — which is every deployment today.
+      expect(requiredFor('api')).not.toContain('DOCTOOL_BASE_URL');
+      expect(requiredFor('sync')).not.toContain('TASKTOOL_BASE_URL');
+      expect(requiredFor('web')).not.toContain('DOCTOOL_BASE_URL');
+    });
+  });
+
   describe('per-service requirements', () => {
     it('the web tier needs no database credential', () => {
       expect(requiredFor('web')).not.toContain('DATABASE_URL');

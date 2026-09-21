@@ -280,6 +280,24 @@ export const VARIABLES = {
    * passing one off as three-tier.
    */
   DOCTOOL_DURATION_PROPERTY: { schema: nonEmpty('DOCTOOL_DURATION_PROPERTY'), required: [] },
+  /*
+   * The **API host** each connector calls — not the browser-facing host, and
+   * the distinction matters: `https://api.notion.com` serves JSON and a person
+   * cannot open a page at it.
+   *
+   * Unset is the normal case, and it means the client's own vendor default
+   * (`packages/connectors`), which is where that hostname belongs — this package
+   * depends on nothing but zod, so a second copy here would be a second place to
+   * change. What these exist for is the case the defaults cannot cover: pointing
+   * a tool at a self-hosted deployment, a proxy, or a stub. Without them,
+   * driving the outward path locally means editing a constant inside the
+   * connectors and remembering to revert it before committing.
+   *
+   * Not a credential, but it is deployment detail, so it is configuration rather
+   * than anything compiled in (docs/17-privacy.md §1).
+   */
+  DOCTOOL_BASE_URL: { schema: httpUrl('DOCTOOL_BASE_URL'), required: [] },
+  TASKTOOL_BASE_URL: { schema: httpUrl('TASKTOOL_BASE_URL'), required: [] },
   SCORING_ACTIVE_METHOD: {
     schema: nonEmpty('SCORING_ACTIVE_METHOD'),
     required: [],

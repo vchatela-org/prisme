@@ -18,13 +18,27 @@ import type { RitualRecord } from './types.js';
  * page, and falls through to the configured default. That is a real limit, and
  * the run reports the resulting share rather than hiding it.
  *
- * ### The document tool is not read today
+ * ### Two ways the tier still comes back empty
  *
- * Nothing in this repository loads the role bindings, so `createDocToolClient`
- * has no caller — W12 found the same thing and said so in its header rather
- * than pretending otherwise. This module is built, tested and unreachable by
- * the same gap: with no client, `read` is false, the map is empty, and the
- * preference order has two tiers instead of three.
+ * The gap this module was written inside — nothing loaded the role bindings, so
+ * it had no client and could never reach three tiers — is closed (`bindings.ts`;
+ * the loader `main.ts` calls). What remains is not the same thing, and the
+ * difference is the point:
+ *
+ *   - **A client whose bindings do not name `processes_db`.** A role with no
+ *     binding is not addressable, the client throws `unbound_role`, and the
+ *     caller reports "not read". An instance that has bound only some roles
+ *     scans what it has rather than failing a pass over a store it never
+ *     claimed (W12's finding).
+ *   - **No `DOCTOOL_DURATION_PROPERTY`.** Reading the property is the whole
+ *     tier; without the name there is nothing to ask the page for. Unset is not
+ *     a broken deployment, and the report says so rather than passing a
+ *     two-tier estimate off as a three-tier one.
+ *
+ * Either one leaves `read` false, the map empty and the preference order
+ * two-tier — which is why the result carries the flag rather than the caller
+ * inferring it from an empty map, where "not read" and "read, found nothing"
+ * would be indistinguishable.
  *
  * prisme **writes nothing here**. The document tool owns process pages outright
  * (ADR-0016) and this is a read of two properties.
