@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 # Builder — the only stage with a toolchain. Nothing here reaches the runtime.
 # ---------------------------------------------------------------------------
-FROM node:26.8-trixie-slim@sha256:14bf3eac4bf209d906d3c41256597d3ab1f926b2e93a79e9bdfe1efd32454239 AS builder
+FROM node:26.9-trixie-slim@sha256:3a771f83944bb763050c23c0225c260638c4b7899e7a72485ef75e5e570499e5 AS builder
 
 ENV CI=true
 WORKDIR /build
