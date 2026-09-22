@@ -154,6 +154,15 @@ export interface FakeTaskClient {
  * Windowing is applied here rather than ignored, because a client that returned
  * everything regardless of `until` would make the slicing look correct while
  * the real one double-counted at every boundary.
+ *
+ * The bounds are **inclusive at both ends**, which is what the live endpoint
+ * does — measured, not assumed. The first draft of this fake used a half-open
+ * `[since, until)` to match how the backfill slices, which meant the fake and
+ * the caller agreed with each other and both disagreed with the tool: a
+ * completion sitting exactly on a slice boundary is returned by *both* adjacent
+ * windows. Nothing here compensates for that, deliberately — the dedupe that
+ * makes it harmless is `(externalTaskId, completedAt)` in the store, and a fake
+ * that hid the overlap would stop that being tested.
  */
 export function createFakeTaskClient(
   completions: readonly Completion[],
@@ -172,7 +181,7 @@ export function createFakeTaskClient(
         completions.filter(
           (completion) =>
             completion.completedAt >= since &&
-            (until === undefined || completion.completedAt < until),
+            (until === undefined || completion.completedAt <= until),
         ),
       );
     },

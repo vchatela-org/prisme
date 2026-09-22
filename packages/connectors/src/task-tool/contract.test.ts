@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isConnectorError } from '../errors.js';
 import { loadFixture } from '../test-support/fixtures.js';
 import { createRecordedTaskToolClient } from '../testing/recorded.js';
+import { createTaskToolClient } from './client.js';
 import { collectSubtree, indexByParent, rootsOf } from './tree.js';
 import type { ExternalTask } from './types.js';
 
@@ -18,9 +19,14 @@ import type { ExternalTask } from './types.js';
 const fullSync = loadFixture('task-tool.sync-full.json');
 const incrementalSync = loadFixture('task-tool.sync-incremental.json');
 const completions = loadFixture('task-tool.completions.json');
+const completionsPage2 = loadFixture('task-tool.completions-page2.json');
 
 function client() {
-  return createRecordedTaskToolClient({ fullSync, incrementalSync, completions: [completions] });
+  return createRecordedTaskToolClient({
+    fullSync,
+    incrementalSync,
+    completions: [completions, completionsPage2],
+  });
 }
 
 function taskById(tasks: readonly ExternalTask[], id: string): ExternalTask {
@@ -203,10 +209,54 @@ describe('completion history', () => {
     expect(result[0]?.completedAt.toISOString()).toBe('2026-09-14T09:12:00.000Z');
   });
 
-  it('stops at the first short page rather than paging for ever', async () => {
+  it('follows the cursor even when the page was shorter than the page size', async () => {
+    // The defect this pins: the endpoint may hand back fewer items than `limit`
+    // **and** a `next_cursor`. Ending on "short page" instead of "no cursor"
+    // truncates completion history, and capacity actuals are built from it.
+    const recorded = client();
+    const result = await recorded.client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+    expect(result).toHaveLength(4);
+    expect(recorded.transport.requests).toHaveLength(2);
+  });
+
+  it('passes the cursor back, and asks for the next page by it rather than by an offset', async () => {
     const recorded = client();
     await recorded.client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
-    expect(recorded.transport.requests).toHaveLength(1);
+    const [first, second] = recorded.transport.requests;
+    expect(new URL(first?.url ?? '').searchParams.get('cursor')).toBeNull();
+    expect(new URL(second?.url ?? '').searchParams.get('cursor')).toBe('completion-cursor-0002');
+    // An offset survived the v9 reader and means nothing to this endpoint; a
+    // request carrying one would be paging a parameter the tool ignores.
+    for (const request of recorded.transport.requests) {
+      expect(new URL(request.url).searchParams.get('offset')).toBeNull();
+    }
+  });
+
+  it('reads the window off the query string, as a GET, with `since` and `until` both set', async () => {
+    const recorded = client();
+    await recorded.client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+    const request = recorded.transport.requests[0];
+    const url = new URL(request?.url ?? '');
+    expect(request?.method).toBe('GET');
+    expect(url.pathname).toBe('/api/v1/tasks/completed/by_completion_date');
+    expect(url.searchParams.get('since')).toBe('2026-09-14T00:00:00.000Z');
+    // `until` is required by the endpoint — omitting it is a 400, not a default.
+    expect(url.searchParams.get('until')).not.toBeNull();
+  });
+
+  it('bounds an open-ended window at now, so a caller that omits `until` still sends one', async () => {
+    const recorded = client();
+    const bounded = createTaskToolClient({
+      token: 'recorded-fixture-token',
+      transport: recorded.transport.transport,
+      now: () => new Date('2026-09-21T12:00:00.000Z'),
+    });
+
+    await bounded.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+
+    expect(new URL(recorded.transport.requests[0]?.url ?? '').searchParams.get('until')).toBe(
+      '2026-09-21T12:00:00.000Z',
+    );
   });
 });
 
@@ -232,5 +282,21 @@ describe('a response that does not match', () => {
 
   it('fails on a missing sync token, rather than silently re-reading the world', async () => {
     await failing('malformed/task-tool.no-sync-token.json', /sync_token/);
+  });
+
+  it("fails on a completion still carrying v9's `task_id`, rather than losing the task it names", async () => {
+    // The replacement endpoint returns the task, so the id field is `id`. A
+    // reader that had not been moved would fail every page; this pins the move.
+    const recorded = createRecordedTaskToolClient({
+      fullSync,
+      completions: [loadFixture('malformed/task-tool.completion-v9-shape.json')],
+    });
+    try {
+      await recorded.client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+      expect.unreachable('the run should have failed');
+    } catch (error) {
+      expect(isConnectorError(error) && error.failure).toBe('invalid_shape');
+      expect((error as Error).message).toMatch(/\bid\b/);
+    }
   });
 });

@@ -31,6 +31,21 @@ const FULL_SYNC_TOKEN = '*';
 
 const RESOURCE_TYPES = ['items', 'projects', 'sections', 'labels'] as const;
 
+/**
+ * The two paths prisme reads, both under the tool's `v1` API.
+ *
+ * v9's `POST /sync/v9/sync` and `POST /sync/v9/completed/get_all` were removed
+ * and answer **410 Gone** — every read, every completion and every write. The
+ * tool's own deprecation notice names the replacements below, and the contract
+ * test pins them so a future move fails loudly here rather than in a deployment.
+ *
+ * The split is not cosmetic: sync kept v9's form-encoded body and its response
+ * shape, while completion history became a `GET` with query-string parameters
+ * and cursor paging.
+ */
+const SYNC_PATH = '/api/v1/sync';
+const COMPLETIONS_PATH = '/api/v1/tasks/completed/by_completion_date';
+
 /** One page of completion history. The tool's own maximum. */
 const COMPLETION_PAGE_SIZE = 200;
 
@@ -81,12 +96,31 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
       requestOptions(operation),
     );
 
+  /**
+   * A read, as a `GET` on the query string.
+   *
+   * Completion history takes its window in the URL rather than a form body. The
+   * parameters still go through `URLSearchParams`, so an instant cannot be
+   * re-interpreted as a second parameter on the way out.
+   */
+  const get = async (path: string, query: URLSearchParams, operation: string): Promise<unknown> =>
+    executeJson(
+      {
+        method: 'GET',
+        url: `${baseUrl}${path}?${query.toString()}`,
+        headers: { authorization: `Bearer ${options.token}` },
+      },
+      requestOptions(operation),
+    );
+
+  const now = options.now ?? ((): Date => new Date());
+
   const sync = async (token: string, operation: string) => {
     const form = new URLSearchParams({
       sync_token: token,
       resource_types: JSON.stringify(RESOURCE_TYPES),
     });
-    const body = await post('/sync/v9/sync', form, operation);
+    const body = await post(SYNC_PATH, form, operation);
     return parseOrThrow(wireSyncResponseSchema, body, {
       tool: 'task',
       operation,
@@ -145,14 +179,27 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
       const operation = 'fetch completions';
       const completions: Completion[] = [];
 
+      // `until` is **required** by the endpoint now: omitting it is a 400, not a
+      // default. A caller that leaves it out (W13's single-window read) means
+      // "up to now", so that is what is sent rather than an unbounded window.
+      const windowEnd = until ?? now();
+
+      // Cursor paging, not offset paging. `next_cursor` is what says there is
+      // another page — **not** a short page: the tool may return fewer than
+      // `limit` items and still hold more, and treating that as the end
+      // silently truncates completion history, which is what capacity actuals
+      // are built from.
+      let cursor: string | undefined;
+
       for (let page = 0; page < MAX_COMPLETION_PAGES; page += 1) {
-        const form = new URLSearchParams({
+        const query = new URLSearchParams({
           since: since.toISOString(),
+          until: windowEnd.toISOString(),
           limit: String(COMPLETION_PAGE_SIZE),
-          offset: String(page * COMPLETION_PAGE_SIZE),
-          ...(until === undefined ? {} : { until: until.toISOString() }),
         });
-        const body = await post('/sync/v9/completed/get_all', form, operation);
+        if (cursor !== undefined) query.set('cursor', cursor);
+
+        const body = await get(COMPLETIONS_PATH, query, operation);
         const response = parseOrThrow(wireCompletedResponseSchema, body, {
           tool: 'task',
           operation,
@@ -160,12 +207,14 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
         });
 
         for (const item of response.items) completions.push(mapCompletion(item, operation));
-        if (response.items.length < COMPLETION_PAGE_SIZE) return completions;
+
+        if (response.next_cursor == null) return completions;
+        cursor = response.next_cursor;
       }
 
       throw new ConnectorError(
         'pagination',
-        `completion history did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass — narrow the window with "until"`,
+        `completion history did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass — narrow the window by slicing it more finely`,
         { tool: 'task', operation },
       );
     },

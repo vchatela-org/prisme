@@ -13,7 +13,8 @@ instance data into git ([`../../docs/17-privacy.md`](../../docs/17-privacy.md)).
 |---|---|
 | `task-tool.sync-full.json` | A full sync: projects, sections, labels, tasks nested three deep |
 | `task-tool.sync-incremental.json` | An incremental sync, including a deletion and a completion |
-| `task-tool.completions.json` | Completion history, with and without recorded durations |
+| `task-tool.completions.json` | Completion history page 1 of 2 — short, with a `next_cursor`, and with and without recorded durations |
+| `task-tool.completions-page2.json` | Page 2, reached by `next_cursor`, with no cursor of its own: the only thing that ends paging |
 | `doc-tool.query-objectives.json` | A paged query response, page 1 of 2 |
 | `doc-tool.query-objectives-page2.json` | Page 2, reached by `next_cursor` |
 | `doc-tool.page.json` | A single page, as `fetchPage` reads it |
