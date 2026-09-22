@@ -18,6 +18,15 @@ export interface HealthDependencies {
   /** Readiness only. Never called by `/healthz`. */
   readonly readiness: () => Promise<ReadinessReport>;
   readonly metrics: Metrics;
+  /**
+   * Called on `/metrics` only, to republish what the reconciler recorded in
+   * PostgreSQL (`apps/api/src/sync/metrics.ts`).
+   *
+   * **Never `/healthz`.** The liveness probe's contract is that it depends on
+   * nothing, and this depends on the database. Absent on an instance with no
+   * database, which then serves the process and registry metrics alone.
+   */
+  readonly refreshMetrics?: (() => Promise<void>) | undefined;
   /** Flipped by the shutdown handler so a draining pod stops being routed to. */
   readonly isShuttingDown: () => boolean;
 }
@@ -42,6 +51,28 @@ export function healthRoutes(dependencies: HealthDependencies): Hono {
   });
 
   app.get('/metrics', async (c) => {
+    /*
+     * Republish the reconciler's gauges, and **degrade rather than fail**.
+     *
+     * The reconciler is a CronJob pod Prometheus never scrapes, so the only way
+     * `prisme_sync_last_success_timestamp` and `prisme_sync_drift_objects` are
+     * observable at all is this process reading what the pass recorded
+     * (docs/15-runtime.md §5, ADR-0018).
+     *
+     * The refresher already bounds itself and swallows its own errors. The
+     * guard here is the second half of the same promise, and it is not
+     * redundant: a metrics endpoint that returns 500 when the database is down
+     * blinds an operator at exactly the moment they are looking, and losing two
+     * gauges is a far smaller loss than losing the heap, the event-loop lag and
+     * every counter with them.
+     */
+    try {
+      await dependencies.refreshMetrics?.();
+    } catch {
+      // Deliberately silent and deliberately detail-free: the refresher owns
+      // the logging, and an error from the driver can carry a connection string.
+    }
+
     const body = await dependencies.metrics.registry.metrics();
     return c.text(body, 200, {
       'content-type': dependencies.metrics.registry.contentType,

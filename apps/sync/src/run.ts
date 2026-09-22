@@ -146,6 +146,28 @@ export async function reconcile(options: ReconcileOptions): Promise<ReconcileRes
     });
   }
 
+  /*
+   * Record the outcome where something scrapeable can find it.
+   *
+   * This lives in the library rather than in either entrypoint on purpose. The
+   * CronJob pod is never scraped — no Service, seconds of life — so the two
+   * metrics docs/15-runtime.md §5 specifies were invisible in production, and
+   * the API republishes them from this row. Putting the write in `main.ts`
+   * beside the in-process gauges would have left the force-sync path recording
+   * nothing, which is precisely the "two implementations that drift" this
+   * module exists to prevent.
+   *
+   * A `plan` never reaches this line: recording is a side effect and `plan` has
+   * none. A refused pass does, because the drift it measured is still a real
+   * measurement — `succeeded` is what tells the two apart.
+   */
+  await options.store.recordPassOutcome({
+    at: options.now(),
+    succeeded: applied.refused === undefined && applied.stopped === undefined,
+    drift,
+    full,
+  });
+
   return {
     plan: result,
     report: formatPlan(result, {

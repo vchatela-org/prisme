@@ -39,7 +39,7 @@ export function createMetrics(options: MetricsOptions = {}): Metrics {
     collectDefaultMetrics({ register: registry, prefix: options.prefix ?? '' });
   }
 
-  return {
+  const metrics: Metrics = {
     registry,
     syncLastSuccessTimestamp: new Gauge({
       name: 'prisme_sync_last_success_timestamp',
@@ -81,4 +81,33 @@ export function createMetrics(options: MetricsOptions = {}): Metrics {
       registers: [registry],
     }),
   };
+
+  /*
+   * The two sync gauges start **unset**, not at zero.
+   *
+   * prom-client renders a registered, never-set, unlabelled `Gauge` as a sample
+   * with the value `0`. For a counter that is right; for these two it is a lie
+   * with operational consequences, and both were measured against a live
+   * cluster:
+   *
+   *   - `time() - prisme_sync_last_success_timestamp > threshold` is true
+   *     against a zero, so the staleness alert fires permanently and is muted.
+   *   - `min_over_time(prisme_sync_drift_objects[48h]) > 0` is `0 > 0` against a
+   *     zero, so the alert on "the one that actually matters"
+   *     (docs/15-runtime.md §5) can never fire — and an alert that cannot fire
+   *     looks exactly like coverage.
+   *
+   * `remove()` on an unlabelled gauge drops its single timeseries, so the
+   * exposition carries the `HELP` and `TYPE` lines and no sample until
+   * something sets a value. Prometheus then has *no data* rather than wrong
+   * data, an expression over it yields no result instead of a false one, and
+   * `absent()` is available to alert on the difference deliberately.
+   *
+   * Every other metric here is a counter or a histogram, where zero is the
+   * truth on a process that has not done the thing yet.
+   */
+  metrics.syncLastSuccessTimestamp.remove();
+  metrics.syncDriftObjects.remove();
+
+  return metrics;
 }

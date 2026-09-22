@@ -118,4 +118,49 @@ describe('/metrics', () => {
       expect(body).toContain(name);
     }
   });
+
+  /**
+   * The reconciler's gauges are republished here, and nowhere else can do it.
+   *
+   * The scheduled pass runs in a CronJob pod with no Service and a lifetime of
+   * seconds, so Prometheus never scrapes the process that measured them
+   * (docs/15-runtime.md §5). This endpoint reads what the pass recorded.
+   */
+  it('refreshes the republished sync gauges before rendering', async () => {
+    const refreshMetrics = vi.fn(() => Promise.resolve());
+    const { app } = build({ refreshMetrics });
+
+    const response = await app.request('/metrics');
+
+    expect(response.status).toBe(200);
+    expect(refreshMetrics).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * The load-bearing test of this endpoint.
+   *
+   * A metrics endpoint that goes down with the database blinds an operator at
+   * exactly the moment they are looking at it. Losing two republished gauges is
+   * a far smaller loss than losing the heap, the event-loop lag and every
+   * counter along with them.
+   */
+  it('still serves the metrics it has when the refresh fails', async () => {
+    const refreshMetrics = vi.fn(() => Promise.reject(new Error('database is unreachable')));
+    const { app } = build({ refreshMetrics });
+
+    const response = await app.request('/metrics');
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('prisme_sync_actions_total');
+  });
+
+  it('is not refreshed by either health probe', async () => {
+    const refreshMetrics = vi.fn(() => Promise.resolve());
+    const { app } = build({ refreshMetrics });
+
+    await app.request('/healthz');
+    await app.request('/readyz');
+
+    expect(refreshMetrics).not.toHaveBeenCalled();
+  });
 });
