@@ -29,7 +29,10 @@ export interface RecordedTaskToolFixture {
   readonly fullSync: unknown;
   /** The response to any other token. Falls back to `fullSync`. */
   readonly incrementalSync?: unknown;
-  /** Pages of completion history, served in order. */
+  /**
+   * Pages of completion history, reached by following `next_cursor`. Each page
+   * but the last must carry one; the last must not.
+   */
   readonly completions?: readonly unknown[];
 }
 
@@ -41,15 +44,32 @@ export interface RecordedClient<T> {
 export function createRecordedTaskToolClient(
   fixture: RecordedTaskToolFixture,
 ): RecordedClient<TaskToolClient> {
-  let completionPage = 0;
+  const pages = fixture.completions ?? [{ items: [] }];
+
+  /**
+   * Which page a cursor handed out by an earlier page selects.
+   *
+   * The pages are reached *through their cursors*, not by counting requests.
+   * That distinction is the test: a client that ignores `next_cursor` is served
+   * page one again — and, with `limit` bounded, page one for ever — instead of
+   * being handed the next page and looking correct.
+   */
+  const nextByCursor = new Map<string, number>();
 
   const transport = createFixtureTransport([
     {
-      matches: (request) => request.url.includes('/completed/get_all'),
-      respond: () => {
-        const pages = fixture.completions ?? [{ items: [] }];
-        const body = pages[Math.min(completionPage, pages.length - 1)] ?? { items: [] };
-        completionPage += 1;
+      matches: (request) => request.url.includes('/tasks/completed/by_completion_date'),
+      respond: (request) => {
+        const cursor = new URL(request.url).searchParams.get('cursor');
+        // An unknown cursor lands past the last page, so the run ends rather
+        // than paging the same page until the bound trips.
+        const index = cursor === null ? 0 : (nextByCursor.get(cursor) ?? pages.length);
+        const body: unknown = pages[index] ?? { items: [] };
+        const emitted =
+          typeof body === 'object' && body !== null
+            ? (body as { next_cursor?: unknown }).next_cursor
+            : undefined;
+        if (typeof emitted === 'string') nextByCursor.set(emitted, index + 1);
         return { body: JSON.stringify(body) };
       },
     },

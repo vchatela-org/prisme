@@ -1,0 +1,13 @@
+{
+  "_comment": "Synthetic. Page two of the completion history, reached by handing page one's `next_cursor` back. The absence of a cursor — not a short page — is the only thing that ends paging. Its single entry carries a day-scale duration, which is a block-out rather than an effort and must reach `recordedDuration` with `recordedMinutes` unset.",
+  "items": [
+    {
+      "id": "task-0013",
+      "project_id": "project-0001",
+      "section_id": null,
+      "completed_at": "2026-09-16T07:30:00.000000Z",
+      "content": "Stretching session",
+      "duration": { "amount": 1, "unit": "day" }
+    }
+  ]
+}

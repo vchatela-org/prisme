@@ -21,8 +21,19 @@ collection://
 formulaCode://
 collectionProperty://
 
-# Todoist-style numeric object IDs in a task/project context.
+# Todoist-style numeric object IDs in a task/project context. This is the v9
+# shape; `id` and `parent_id` were always missing from it, and the task tool's
+# `v1` API (see packages/connectors) replaced the numeric ids with opaque
+# 16-character alphanumeric ones — so this pattern alone stopped covering the
+# very identifiers it exists for. Both are kept: numeric ids still appear on
+# labels, and in anything recorded before the migration.
 (task_id|project_id|section_id)["'= :]+[0-9]{8,}
+
+# The v1 shape, in the positions an identifier is written. The leading `\b` is
+# load-bearing: without it this matches `operationId: 'createInitiative'`
+# (`Id` plus an exactly-16-character camelCase value). It covers the wire's
+# snake_case keys only, which is where third-party data would be pasted.
+\b(id|task_id|project_id|section_id|parent_id)["'= :]+[0-9A-Za-z]{16}\b
 
 # --- Personal identifiers ----------------------------------------------------
 # Generic shapes only. Specific names and addresses belong in
