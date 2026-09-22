@@ -1,6 +1,7 @@
 # FUP · 2026-09-22 · Humans log in over OIDC now, in-app
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session ·
+**PR** [#56](https://github.com/vchatela-org/prisme/pull/56) · **Outcome:** complete
 
 Implements [ADR-0026](../20-decisions/0026-human-auth-via-oidc.md), which was Proposed in
 [#55](https://github.com/vchatela-org/prisme/pull/55) and is **Accepted** on this branch. The decision
