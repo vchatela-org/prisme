@@ -26,6 +26,23 @@ import { wireCommandResponseSchema, type WireCommandResponse } from './wire.js';
 
 export const DEFAULT_TASK_TOOL_BASE_URL = 'https://api.todoist.com';
 
+/**
+ * Where a command is sent.
+ *
+ * `POST /sync/v9/sync` was removed and answers **410 Gone**, which breaks every
+ * write silently from the deployment's point of view — a refused write is
+ * loud, but a path that no longer exists fails the whole command rather than
+ * applying it. The replacement keeps v9's form-encoded `commands` body exactly,
+ * including `sync_status` and `temp_id_mapping`, so only the path moved.
+ *
+ * One thing did *not* survive: v9's numeric object ids are rejected under v1
+ * (`V1_ID_CANNOT_BE_USED`, error 557). Ids are read back from the same `v1`
+ * API and are opaque 16-character strings, so a read and its write agree — but
+ * an id held over from a pre-migration sync does not, and must be refreshed by
+ * a read before it is written to.
+ */
+const SYNC_PATH = '/api/v1/sync';
+
 export interface CommandSenderOptions {
   /** The integration token. Held here, logged nowhere. */
   readonly token: string;
@@ -81,7 +98,7 @@ export function createCommandSender(options: CommandSenderOptions): CommandSende
     const body = await executeJson(
       {
         method: 'POST',
-        url: `${baseUrl}/sync/v9/sync`,
+        url: `${baseUrl}${SYNC_PATH}`,
         headers: {
           authorization: `Bearer ${options.token}`,
           'content-type': 'application/x-www-form-urlencoded',

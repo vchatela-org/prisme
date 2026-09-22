@@ -102,8 +102,16 @@ export const wireSyncResponseSchema = z.object({
   labels: z.array(wireLabelSchema).optional(),
 });
 
+/**
+ * One completion.
+ *
+ * This is **not** v9's `completed/get_all` record. That endpoint is gone
+ * (410), and its replacement returns a *task* rather than a completion: the
+ * task's own id arrives as `id`, where v9 sent `task_id`. Nothing else about
+ * the item moved, so the mapping changed in one place and nowhere else.
+ */
 export const wireCompletedItemSchema = z.object({
-  task_id: externalId,
+  id: externalId,
   project_id: nullableId,
   section_id: nullableId,
   completed_at: z.string().min(1),
@@ -111,8 +119,17 @@ export const wireCompletedItemSchema = z.object({
   duration: wireDurationSchema.nullable().optional(),
 });
 
+/**
+ * The completion-history envelope.
+ *
+ * `next_cursor` is the whole of the paging contract: present while there is
+ * more to read, absent (or null) on the last page. There is deliberately no
+ * `offset` here — the endpoint ignores one, and a reader that paged by offset
+ * would spin on page one for ever while looking healthy.
+ */
 export const wireCompletedResponseSchema = z.object({
   items: z.array(wireCompletedItemSchema),
+  next_cursor: z.string().min(1).nullable().optional(),
 });
 
 export type WireItem = z.infer<typeof wireItemSchema>;

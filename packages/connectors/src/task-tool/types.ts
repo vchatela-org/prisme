@@ -141,14 +141,25 @@ export interface TaskToolClient {
   /** The daily full pass. What answers "did the incremental path miss something?" */
   fetchAll(): Promise<TaskSnapshot>;
   /**
-   * Completion history in `[since, until)`.
+   * Completion history over the window `[since, until]` — **inclusive at both
+   * ends**, which is the endpoint's own semantics and not a choice made here.
    *
-   * `until` is what makes a multi-year backfill possible at all (W13). Offset
-   * paging is bounded — a tool that keeps saying "there is more" must not spin
-   * inside a pass holding the advisory lock — so a history longer than that
-   * bound can only be read as a series of windows. Without `until`, each window
-   * would re-page everything after its start, which is quadratic in the number
-   * of windows and gives a resumed run nothing to resume *from*.
+   * Two consequences worth stating rather than rediscovering. Adjacent slices
+   * that meet on an instant both return a completion sitting exactly on it, so
+   * the caller's dedupe (W13's `(task, completed_at)`) is what makes a sliced
+   * backfill correct — not the window arithmetic. And `until` is now
+   * **required** by the endpoint: omitting it is a 400, not an open window, so
+   * a caller that leaves it out gets "up to now" rather than everything.
+   *
+   * `until` is what makes a multi-year backfill possible at all (W13). Paging
+   * is bounded — a tool that keeps saying "there is more" must not spin inside
+   * a pass holding the advisory lock — so a history longer than that bound can
+   * only be read as a series of windows. Without `until`, each window would
+   * re-page everything after its start, which is quadratic in the number of
+   * windows and gives a resumed run nothing to resume *from*.
+   *
+   * Paging itself is by the tool's cursor, and it ends when the tool stops
+   * handing one out — never when a page comes back shorter than the page size.
    */
   fetchCompletions(since: Date, until?: Date): Promise<Completion[]>;
 }

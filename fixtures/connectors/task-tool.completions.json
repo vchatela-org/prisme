@@ -1,8 +1,8 @@
 {
-  "_comment": "Synthetic. Completion history: the raw material for per-area capacity actuals. Note the third entry, which has no recorded duration at all — the common case, and the reason CAPACITY_DEFAULT_TASK_MINUTES exists.",
+  "_comment": "Synthetic. Completion history — the raw material for per-area capacity actuals. This is PAGE ONE of two, and it is deliberately SHORTER THAN THE PAGE SIZE while still carrying a `next_cursor`: a reader that stopped at 'fewer items than I asked for' would silently truncate the history here, and completion history is what capacity actuals are built from. Note the third entry, which has no recorded duration at all — the common case, and the reason CAPACITY_DEFAULT_TASK_MINUTES exists. The item shape is the v1 endpoint's, which returns the task itself: the id arrives as `id`, not v9's `task_id`.",
   "items": [
     {
-      "task_id": "task-0003",
+      "id": "task-0003",
       "project_id": "project-0001",
       "section_id": "section-0001",
       "completed_at": "2026-09-14T09:12:00.000000Z",
@@ -10,7 +10,7 @@
       "duration": { "amount": 10, "unit": "minute" }
     },
     {
-      "task_id": "task-0011",
+      "id": "task-0011",
       "project_id": "project-0002",
       "section_id": "section-0002",
       "completed_at": "2026-09-15T17:40:00.000000Z",
@@ -18,20 +18,13 @@
       "duration": { "amount": 90, "unit": "minute" }
     },
     {
-      "task_id": "task-0012",
+      "id": "task-0012",
       "project_id": "project-0002",
       "section_id": null,
       "completed_at": "2026-09-15T18:05:00.000000Z",
       "content": "Tidy the clamps",
       "duration": null
-    },
-    {
-      "task_id": "task-0013",
-      "project_id": "project-0001",
-      "section_id": null,
-      "completed_at": "2026-09-16T07:30:00.000000Z",
-      "content": "Stretching session",
-      "duration": { "amount": 1, "unit": "day" }
     }
-  ]
+  ],
+  "next_cursor": "completion-cursor-0002"
 }
