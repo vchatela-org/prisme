@@ -1,6 +1,6 @@
 # FUP · 2026-09-22 · The document tool's API version predated the endpoints prisme calls
 
-**Agent:** Claude · **Duration:** one session · **PR** [#46](https://github.com/vchatela-org/prisme/pull/46) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#54](https://github.com/vchatela-org/prisme/pull/54) · **Outcome:** complete
 
 The document-tool client pinned `2022-06-28` and called `POST /v1/data_sources/<id>/query`. The
 version and the call came from two different eras of the vendor's API, and the version header wins:
