@@ -83,7 +83,7 @@ RUN rm -rf apps/web/.next/standalone/node_modules/typescript \
 # different major than the one the code was compiled and type-checked against is
 # a difference nothing in CI would catch.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ea845027bc638317c4b14a8969cc931efc7546ecabb2de1e4dfb2fee835cca2c AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:bf3d7b068299d84941df498b4b2f9bbb6a48d3135001399531bb4048311575de AS runtime
 
 WORKDIR /app
 
