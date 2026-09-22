@@ -112,6 +112,11 @@ jobs:
           docker logs api-probe
           docker rm -f api-probe
 
+      # The web tier's whole contract, and it is longer than the API's in one
+      # respect the API cannot show: it is the only service required to hold the
+      # OIDC client (ADR-0026). Leaving the four `OIDC_*` values out is not a
+      # smaller test — it is a container that exits 78 before it listens, which
+      # is exactly what this probe caught when they were added.
       - name: prisme-web answers /healthz
         run: |
           docker run -d --name web-probe --read-only --tmpfs /tmp -p 3001:3000 \
@@ -120,6 +125,10 @@ jobs:
             -e AUTH_ISSUER_URL='https://idp.example.com/application/o/prisme/' \
             -e AUTH_AUDIENCE='prisme-client-id' \
             -e AUTH_ALLOWED_SUBJECTS='subject-one' \
+            -e OIDC_CLIENT_ID='prisme-client-id' \
+            -e OIDC_REDIRECT_URI='https://prisme.example.com/auth/callback' \
+            -e OIDC_AUTHORIZATION_ENDPOINT='https://idp.example.com/application/o/authorize/' \
+            -e OIDC_TOKEN_ENDPOINT='https://idp.example.com/application/o/token/' \
             prisme-web:ci
           for _ in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3001/healthz && break || sleep 1
@@ -139,6 +148,28 @@ jobs:
           echo "$output"
           test "$code" -ne 0
           echo "$output" | grep -q 'DATABASE_URL'
+
+      # The same contract, for the one variable that is required of the web
+      # tier alone. Without this, "the web tier holds the OIDC client and no
+      # other service does" is asserted in `packages/config` only — the
+      # container would be free to disagree, and it did: when the four values
+      # were added, this image stopped booting and the *only* thing that said so
+      # was the probe above.
+      - name: The web tier cannot boot without its OIDC client
+        run: |
+          set +e
+          output=$(docker run --rm \
+            -e PRISME_BASE_URL='https://prisme.example.com' \
+            -e PRISME_API_URL='http://no-such-host:3000' \
+            -e AUTH_ISSUER_URL='https://idp.example.com/application/o/prisme/' \
+            -e AUTH_AUDIENCE='prisme-client-id' \
+            -e AUTH_ALLOWED_SUBJECTS='subject-one' \
+            prisme-web:ci 2>&1)
+          code=$?
+          set -e
+          echo "$output"
+          test "$code" -ne 0
+          echo "$output" | grep -q 'OIDC_CLIENT_ID'
 
       - name: Trivy — prisme-api
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

@@ -1,21 +1,49 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { loadConfig } from '@prisme/config';
-import {
-  AssertionRejection,
-  assertPolicyUsable,
-  assertSameOrigin,
-  originPolicyFor,
-  OriginRejected,
-  resolveKeySet,
-  verifyAssertion,
-  type AssertionPolicy,
-} from '@prisme/auth';
+import { assertSameOrigin, originPolicyFor, OriginRejected } from '@prisme/auth';
+import { assertionPolicy, authSettings, keys, sessionToken, webConfig } from './lib/assertion';
+import { gate, type GateOutcome } from './lib/auth-gate';
+import { SESSION_COOKIE, withoutCookie } from './lib/oidc';
 
 /**
- * The web tier's half of W14: verify, check the origin, and set the headers a
- * browser needs before it will refuse to execute anything.
+ * The web tier's half of W14, plus the login flow ADR-0026 put in front of it.
  *
- * ### Where this file lives
+ * ### What changed, and what deliberately did not
+ *
+ * ADR-0021 had this tier verify a **forward-auth assertion** the proxy injected
+ * on the way in. ADR-0026 kept every part of that and moved one thing: the
+ * token is now obtained here, by an authorization-code flow the browser drives
+ * against the provider (`/auth/login` → provider → `/auth/callback`), and the
+ * **session cookie** holds it. So the middleware reads the ID token out of the
+ * cookie instead of out of a header, and everything after that is the same code
+ * it always was: `verifyAssertion` from `@prisme/auth`, over a key set resolved
+ * from configuration, against a fixed asymmetric algorithm allow-list.
+ *
+ * **The assertion header is no longer read on the way in.** That is ADR-0026
+ * rule 3 — *"the assertion header disappears from the request path"* — and it
+ * has to disappear rather than merely stop being required. A header path that
+ * is still honoured is a second way to be authenticated, and it is the one an
+ * attacker inside the perimeter would prefer: the application namespace has no
+ * default-deny policy, so anything that can reach this pod could otherwise
+ * present its own token. The header survives in the other direction only, where
+ * this tier sets it for the API to verify (ADR-0026 rule 5).
+ *
+ * ### Why the web tier verifies at all
+ *
+ * The API verifies every request regardless, so this is not the gate — the gate
+ * is one hop further in, and an attacker who skips the web tier entirely gains
+ * nothing. What this buys is that an unauthenticated browser gets an honest
+ * answer here rather than a page shell that discovers, one fetch later, that it
+ * has nothing to render. It uses the *same* verifier the API uses
+ * (`@prisme/auth`), because two implementations of a signature check are two
+ * things to keep in agreement and one of them will lose — and it is a package
+ * rather than an import from `apps/api` so that verifying costs this tier no
+ * database driver it has no business holding.
+ *
+ * The reverse of the rule is the load-bearing half, and it lives in the API:
+ * the web tier forwards what it verified, and the API **verifies it again**.
+ * This tier holds no ambient authority over that one.
+ *
+ * ### Where the file lives
  *
  * W14's brief names it `apps/web/middleware.ts`. Next.js looks for middleware
  * beside the application root, and this application uses a `src/` layout — so
@@ -23,22 +51,6 @@ import {
  * manifest and every header below was silently absent. A CSP that is not sent
  * is worse than no CSP, because the build is green either way. Same tree, same
  * file, the one path the framework loads.
- *
- * ### Why the web tier verifies at all
- *
- * ADR-0021 rule 6. The API verifies every request regardless, so this is not
- * the gate — the gate is one hop further in, and an attacker who skips the web
- * tier entirely gains nothing. What this buys is that an unauthenticated
- * browser gets an honest answer here rather than a page shell that discovers,
- * one fetch later, that it has nothing to render. It uses the *same* verifier
- * the API uses (`@prisme/auth`), because two implementations of a signature
- * check are two things to keep in agreement and one of them will lose — and it
- * is a package rather than an import from `apps/api` so that verifying costs
- * this tier no database driver it has no business holding.
- *
- * The reverse of the rule is the load-bearing half, and it lives in the API:
- * the web tier forwards what it verified, and the API **verifies it again**.
- * This tier holds no ambient authority over that one.
  *
  * ### The nonce, and why `unsafe-inline` is not here
  *
@@ -54,12 +66,16 @@ import {
  * `'self'` in `script-src`; both are listed anyway for older engines, which is
  * the documented way to write this and not an oversight.
  *
- * ### CSRF, which is live despite there being no prisme cookie
+ * ### CSRF, which a session cookie makes more load-bearing rather than less
  *
- * See `apps/api/src/auth/origin.ts` for the full reasoning. In short: the
- * gateway's session cookie is ambient in the browser, so a cross-site
- * state-changing request arrives authenticated whatever prisme does about
- * cookies of its own. The origin check is what refuses it, on both tiers.
+ * See `apps/api/src/auth/origin.ts` for the full reasoning. In short: a cookie
+ * is ambient in the browser, so a cross-site state-changing request arrives
+ * authenticated whatever prisme does about cookies of its own. Under ADR-0021
+ * that was the *gateway's* cookie and the point was that the absence of a
+ * prisme one bought nothing; prisme now issues the cookie itself, and
+ * ADR-0026 says the consequence plainly — the origin checks stop being
+ * belt-and-braces and become the control. They run here, on every
+ * state-changing method, including on the `/auth/*` routes below the gate.
  */
 
 /** Node, not Edge: the configuration loader reads a rendered env file at boot. */
@@ -75,68 +91,6 @@ export const config = {
    */
   matcher: ['/((?!_next/static|_next/image|favicon.ico|healthz|readyz).*)'],
 };
-
-const settings = loadConfig({ service: 'web' });
-
-/**
- * No fallbacks, deliberately.
- *
- * An earlier version defaulted each field when `config.auth` was absent, and
- * that hid a real wiring bug behind a plausible error message: the variables
- * were set, the object was not being built for this service, and what the
- * process reported was "AUTH_ALLOWED_SUBJECTS is empty". A default that stands
- * in for missing configuration turns a five-second fix into an afternoon.
- */
-function requireAuthConfig(): NonNullable<typeof settings.auth> {
-  // A function rather than an `if` beside the `const`: narrowing a
-  // module-scoped binding does not follow it into the closures below, and the
-  // first version of this failed to type-check inside `keys()` for exactly that
-  // reason.
-  if (settings.auth === undefined) {
-    throw new Error(
-      'prisme-web: AUTH_* configuration is absent, so no assertion could be verified. ' +
-        'Every variable is documented in docs/15-runtime.md §2',
-    );
-  }
-  return settings.auth;
-}
-
-const auth = requireAuthConfig();
-
-const assertionPolicy: AssertionPolicy = {
-  issuer: auth.issuerUrl,
-  audience: auth.audience,
-  allowedAlgs: auth.allowedAlgs,
-  allowedSubjects: auth.allowedSubjects,
-  clockSkewSeconds: auth.clockSkewSeconds,
-  maxLifetimeSeconds: auth.assertionMaxLifetimeSeconds,
-};
-assertPolicyUsable(assertionPolicy);
-
-const ASSERTION_HEADER = auth.assertionHeader;
-const ORIGIN_POLICY = originPolicyFor(settings.baseUrl);
-
-/**
- * The key set, resolved once and reused.
- *
- * A promise rather than a value: middleware has no boot hook, and resolving on
- * every request would refetch discovery each time. The rejection is not cached
- * as a permanent failure — a `catch` clears it so a provider that was briefly
- * unreachable is retried rather than poisoning the process.
- */
-let keySet: Promise<Awaited<ReturnType<typeof resolveKeySet>>> | undefined;
-
-function keys(): Promise<Awaited<ReturnType<typeof resolveKeySet>>> {
-  keySet ??= resolveKeySet({
-    issuerUrl: assertionPolicy.issuer,
-    jwksUrl: auth.jwksUrl,
-    cacheTtlSeconds: auth.jwksCacheTtlSeconds,
-  }).catch((error: unknown) => {
-    keySet = undefined;
-    throw error;
-  });
-  return keySet;
-}
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -161,6 +115,12 @@ function securityHeaders(nonce: string): Record<string, string> {
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",
+    // The login flow leaves this origin exactly twice — to the provider's
+    // authorization endpoint and, on logout, to its end-session endpoint — and
+    // `form-action` is what stops an injected form from posting a callback
+    // somewhere else. `'self'` alone is still the rule; the flow is a
+    // *navigation* (`window.location`/302), and navigations are not governed by
+    // `form-action`, so nothing here needs widening for OIDC.
     "form-action 'self'",
     "frame-src 'none'",
     "frame-ancestors 'none'",
@@ -204,6 +164,26 @@ function refuse(status: number, message: string, nonce: string): NextResponse {
   });
 }
 
+/**
+ * The login flow, for a browser that has nothing to present.
+ *
+ * Built against `PRISME_BASE_URL` rather than against the request's own host: a
+ * redirect target taken from a header is a redirect target an attacker chooses,
+ * and every other URL this tier constructs comes from configuration for the
+ * same reason. The two agree by construction — the configuration schema
+ * requires the redirect URI's origin to equal the base URL's.
+ */
+function redirectTo(location: string, nonce: string): NextResponse {
+  // 303 explicitly. `NextResponse.redirect` defaults to 307, which preserves
+  // the method — indistinguishable for the GET navigations this is reached
+  // with, and a trap for whoever first reaches it with something else.
+  const response = NextResponse.redirect(new URL(location, webConfig().baseUrl), 303);
+  for (const [name, value] of Object.entries(securityHeaders(nonce))) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
@@ -215,7 +195,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           origin: request.headers.get('origin') ?? undefined,
           referer: request.headers.get('referer') ?? undefined,
         },
-        ORIGIN_POLICY,
+        originPolicyFor(webConfig().baseUrl),
       );
     } catch (error) {
       if (error instanceof OriginRejected) return refuse(403, 'forbidden', nonce);
@@ -223,37 +203,48 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  const assertion = request.headers.get(ASSERTION_HEADER);
-  if (assertion === null || assertion.trim() === '') {
-    // Nothing to verify. The identity headers sitting beside it are not read —
-    // not here and not in the API (ADR-0021 rule 1).
-    return refuse(401, 'not authenticated', nonce);
-  }
+  const outcome: GateOutcome = await gate(
+    {
+      pathname: request.nextUrl.pathname,
+      search: request.nextUrl.search,
+      method: request.method,
+      accept: request.headers.get('accept') ?? undefined,
+      sessionToken: sessionToken(request.headers.get('cookie')),
+    },
+    { policy: assertionPolicy(), keySource: async () => (await keys()).keys },
+  );
 
-  try {
-    await verifyAssertion(assertion, new Date(), {
-      policy: assertionPolicy,
-      keys: (await keys()).keys,
-    });
-  } catch (error) {
-    if (error instanceof AssertionRejection) return refuse(401, 'not authenticated', nonce);
-    // The key set could not be fetched. That is an availability problem rather
-    // than a forged token, and answering 401 would send somebody looking at
-    // permissions for an outage.
-    return refuse(503, 'authentication is temporarily unavailable', nonce);
-  }
+  if (outcome.kind === 'public') return passThrough(request, nonce, undefined);
+  if (outcome.kind === 'redirect') return redirectTo(outcome.location, nonce);
+  if (outcome.kind === 'refused') return refuse(outcome.status, outcome.message, nonce);
 
   /*
    * Forwarded, not vouched for.
    *
-   * The assertion goes upstream exactly as it arrived and the API verifies it
+   * The ID token goes upstream in the assertion header and the API verifies it
    * again. What is deliberately *not* sent is any header saying "the web tier
    * checked this" — such a header would be the trusted hop ADR-0021 refuses,
    * and the API ignores unknown headers anyway, so inventing one would only
    * create something for a future reader to start believing.
+   *
+   * The session cookie itself is removed from the forwarded request. It is a
+   * browser credential for this origin, the API reads no cookie at all, and
+   * sending it would put the same token on the wire twice in a header nothing
+   * consumes — which is how a header nothing consumes acquires a consumer.
    */
+  return passThrough(request, nonce, outcome.token);
+}
+
+function passThrough(request: NextRequest, nonce: string, token: string | undefined): NextResponse {
   const headers = new Headers(request.headers);
   headers.set('x-nonce', nonce);
+
+  if (token !== undefined) {
+    headers.set(authSettings().assertionHeader, token);
+    const cookie = withoutCookie(headers.get('cookie'), SESSION_COOKIE);
+    if (cookie === undefined) headers.delete('cookie');
+    else headers.set('cookie', cookie);
+  }
 
   const response = NextResponse.next({ request: { headers } });
   for (const [name, value] of Object.entries(securityHeaders(nonce))) {

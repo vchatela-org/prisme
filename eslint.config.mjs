@@ -56,6 +56,13 @@ export default tseslint.config(
       // the place local-only things go (docs/17-privacy.md); a `pnpm lint` that
       // goes red the moment somebody uses it teaches them to stop running it.
       'seed/**',
+      // …and the same scratch at the repository root, where the local drive
+      // harnesses have lived since W08. `*.local.*` is the `.gitignore`
+      // pattern: gitignored, never in CI, and in no tsconfig — so the only
+      // thing linting one produces is a parsing error that says so. Written as
+      // the pattern rather than as the three names that exist today, because
+      // the next harness gets a fourth.
+      '**/*.local.*',
     ],
   },
 
