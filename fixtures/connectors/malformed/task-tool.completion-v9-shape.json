@@ -1,0 +1,13 @@
+{
+  "_comment": "Synthetic, and deliberately malformed. This is a completion in v9's `completed/get_all` shape — `task_id` where the v1 endpoint sends `id`. It exists because the two endpoints are easy to confuse: the replacement returns the *task*, so the field renamed, and a reader that still expected `task_id` would fail on every page. The run must fail naming `id` rather than mapping the completion to no task at all.",
+  "items": [
+    {
+      "task_id": "task-0003",
+      "project_id": "project-0001",
+      "section_id": "section-0001",
+      "completed_at": "2026-09-14T09:12:00.000000Z",
+      "content": "Check the shoe mileage",
+      "duration": { "amount": 10, "unit": "minute" }
+    }
+  ]
+}
