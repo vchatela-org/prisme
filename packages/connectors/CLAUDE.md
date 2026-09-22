@@ -51,6 +51,22 @@ can write is worth being able to find.
   token — retrying a bad credential risks lockout.
 - Collect URLs found in third-party content; never fetch one without an allow-list.
 
+## The pinned API version
+
+Document-tool requests carry a **pinned** version header, held in `doc-tool/client.ts`. It stays
+pinned — the tool dates its breaking changes, and an unpinned version is a silent upgrade — and the
+*value* has to be a version that exists: the tool rejects a string it does not recognise, so a
+guessed date is not a way to move forward.
+
+A version accompanies **breaking** changes, so a bump is not a one-line edit. Every endpoint this
+package calls is checked against the new version before the bump lands, and the wire schemas are
+part of that check — a field can be renamed while the schema still parses, and then the mapping
+reads a default instead of the truth.
+
+A wrong pin is not loud. The read paths report a refused query as **"not read"**
+(`apps/sync/src/adoption/run.ts` swallows the error deliberately, because the message would carry
+the role binding), so a version/endpoint mismatch looks like an instance that has bound nothing.
+
 ## The watermark trap
 
 Change timestamps in the document tool round **down** to the minute, so querying `>= last_run`

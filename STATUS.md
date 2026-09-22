@@ -302,6 +302,7 @@ journal entry rather than a unit of planned work.
 | `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | [#43](https://github.com/vchatela-org/prisme/pull/43) |
 | **The reconciler's own metrics are invisible in a deployment** — a CronJob pod is never scraped, so the API serves both sync gauges as a constant `0`: the staleness alert fires permanently and the drift alert can never fire | Found while deploying (nobody had recorded it) | 🟢 | [#44](https://github.com/vchatela-org/prisme/pull/44) |
 | **The task tool's entire API was removed** — every read, completion and write returned `410 Gone`, and no test in this repository may call a real API, so nothing here could have seen it | found while preparing the deployment (nobody had recorded it) | 🟢 | [#45](https://github.com/vchatela-org/prisme/pull/45) |
+| **The document tool's API version predated the endpoints prisme calls** — the client pinned `2022-06-28` (the era of `/v1/databases/`) while calling `/v1/data_sources/query`, so every query returned `400 invalid_request_url` and the scan printed "document tool not read" | found while preparing the deployment (nobody had recorded it) | 🟢 | [#54](https://github.com/vchatela-org/prisme/pull/54) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
