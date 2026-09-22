@@ -73,6 +73,9 @@ describe('a `plan` pass', () => {
     expect(writer.writes).toHaveLength(0);
     expect(store.cursors).toHaveLength(0);
     expect(store.lastAppliedWrites).toHaveLength(0);
+    // Including the outcome row the API republishes on `/metrics`: recording is
+    // a side effect, and `plan` has none.
+    expect(store.outcomes).toHaveLength(0);
   });
 
   it('does not advance the tool’s cursor either, because that is a side effect', async () => {
@@ -112,6 +115,41 @@ describe('an `apply` pass', () => {
 
     expect(result.applied?.refused).toMatch(/SYNC_WRITE_ENABLED/);
     expect(store.cursors).toHaveLength(0);
+  });
+
+  /**
+   * The pass records what it did, because nothing else can.
+   *
+   * The CronJob pod is never scraped — no Service, seconds of life — so the two
+   * metrics docs/15-runtime.md §5 specifies are only observable if the pass
+   * leaves them in PostgreSQL for the API to republish. Recording it here
+   * rather than in either entrypoint is what makes the scheduled pass and the
+   * force-sync button record identically.
+   */
+  it('records its own outcome for the API to republish', async () => {
+    const { options, store } = optionsFor({ mode: 'apply' });
+
+    await reconcile(options);
+
+    expect(store.outcomes).toEqual([{ at: NOW, succeeded: true, drift: 0, full: true }]);
+  });
+
+  it('records a refused pass as a measurement without a success', async () => {
+    // The write freeze is the shipped default, so this is the state a fresh
+    // deployment is in for as long as it takes to lift it. The drift it
+    // measured is still a real measurement; the pass is still not a success,
+    // and an absent `prisme_sync_last_success_timestamp` says so honestly
+    // where a zero would fire the staleness alert for ever.
+    const { options, store } = optionsFor({
+      mode: 'apply',
+      writeEnabled: false,
+      writer: createFrozenWriter(),
+    });
+
+    await reconcile(options);
+
+    expect(store.outcomes).toHaveLength(1);
+    expect(store.outcomes[0]?.succeeded).toBe(false);
   });
 
   it('counts what the incremental view missed as drift', async () => {
