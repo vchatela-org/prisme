@@ -135,6 +135,10 @@ const TABLES = [
   // statement — which is the quieter failure of the two.
   'role_binding',
   'sync_cursor',
+  // The follow-up wave's one table (migration 0009). Like `sync_cursor` it is a
+  // singleton the application upserts rather than a row the migration inserts,
+  // so truncating it is the whole reset: the next pass recreates it.
+  'sync_run_state',
 ] as const;
 
 export async function openTestDatabase(): Promise<TestDatabase> {

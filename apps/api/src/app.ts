@@ -34,6 +34,13 @@ export interface AppDependencies {
   readonly logger: Logger;
   readonly metrics: Metrics;
   readonly readiness: () => Promise<ReadinessReport>;
+  /**
+   * Republishes the reconciler's gauges on `/metrics` from the row the pass
+   * wrote (`sync/metrics.ts`). Absent on an instance with no database: the
+   * endpoint then serves the process and registry metrics alone, which is the
+   * honest state of a process that cannot know what a pass did.
+   */
+  readonly refreshMetrics?: (() => Promise<void>) | undefined;
   readonly isShuttingDown: () => boolean;
   /**
    * Absent on an instance with no database — the operational endpoints still
@@ -94,6 +101,7 @@ export function createApp(dependencies: AppDependencies): Hono {
       service: 'prisme-api',
       readiness: dependencies.readiness,
       metrics: dependencies.metrics,
+      refreshMetrics: dependencies.refreshMetrics,
       isShuttingDown: dependencies.isShuttingDown,
     }),
   );

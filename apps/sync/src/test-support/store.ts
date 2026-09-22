@@ -2,6 +2,7 @@ import type { InitiativeId } from '@prisme/domain';
 import type {
   BindRefInput,
   CaptureInput,
+  PassOutcome,
   ReconcilerStore,
   SyncCursor,
   SyncEvent,
@@ -31,6 +32,7 @@ export interface RecordingStore extends ReconcilerStore {
   readonly conflicts: readonly ConflictRecord[];
   readonly events: readonly SyncEvent[];
   readonly cursors: readonly SyncCursor[];
+  readonly outcomes: readonly PassOutcome[];
 }
 
 export function createRecordingStore(
@@ -46,6 +48,7 @@ export function createRecordingStore(
   const conflicts: ConflictRecord[] = [];
   const events: SyncEvent[] = [];
   const cursors: SyncCursor[] = [];
+  const outcomes: PassOutcome[] = [];
 
   return {
     binds,
@@ -56,6 +59,7 @@ export function createRecordingStore(
     conflicts,
     events,
     cursors,
+    outcomes,
 
     loadDesired: () => Promise.resolve(desired),
     loadLastApplied: () => Promise.resolve(lastApplied),
@@ -90,6 +94,10 @@ export function createRecordingStore(
     },
     recordEvent: (event) => {
       events.push(event);
+      return Promise.resolve();
+    },
+    recordPassOutcome: (outcome) => {
+      outcomes.push(outcome);
       return Promise.resolve();
     },
   };

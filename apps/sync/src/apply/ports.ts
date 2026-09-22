@@ -27,6 +27,35 @@ export interface SyncCursor {
   readonly lastFullPassAt?: Date | undefined;
 }
 
+/**
+ * What a pass did, kept so that something scrapeable can say so.
+ *
+ * The reconciler runs as a CronJob pod: no Service, no ServiceMonitor, alive
+ * for seconds. Prometheus never scrapes it, so a gauge it sets in its own
+ * process is a number nobody ever reads. The pass therefore records its outcome
+ * in PostgreSQL — where ADR-0018 already puts every other piece of sync state —
+ * and the long-lived API republishes it on `/metrics`.
+ *
+ * Written by `apply` passes only. A `plan` has no side effects, and recording
+ * is one.
+ */
+export interface PassOutcome {
+  /** When the pass finished. */
+  readonly at: Date;
+  /**
+   * The pass was neither refused nor stopped part-way.
+   *
+   * The same definition `apps/sync/src/main.ts` already used for its in-process
+   * gauge, kept deliberately: with the write freeze on, every pass is refused
+   * and none is a success. An absent `prisme_sync_last_success_timestamp` is
+   * the truthful reading of that, and a far better one than a zero.
+   */
+  readonly succeeded: boolean;
+  /** Objects the full view found changed that the incremental stream missed. */
+  readonly drift: number;
+  readonly full: boolean;
+}
+
 export interface SyncEvent {
   readonly kind: 'sync_action' | 'status_changed' | 'adoption_decision';
   readonly entityKind: string;
@@ -89,4 +118,6 @@ export interface ReconcilerStore {
   recordLastApplied(writes: readonly LastAppliedWrite[], at: Date): Promise<void>;
   recordConflict(conflict: ConflictRecord, at: Date): Promise<void>;
   recordEvent(event: SyncEvent): Promise<void>;
+  /** The pass's own outcome, so `/metrics` on the API can republish it. */
+  recordPassOutcome(outcome: PassOutcome): Promise<void>;
 }
