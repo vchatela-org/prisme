@@ -115,6 +115,14 @@ findings, four of which no unit test would have produced:
    agent-token reads were unaffected. That is the designed behaviour, and it is worth having watched.
 6. **`next start` warns under `output: 'standalone'`** and serves correctly anyway. Local-only; the
    images still use the standalone server.
+7. **The `images` check went red, correctly — and it is the only thing that would have caught it.**
+   Four variables became required of `web`, and the workflow that boots the built image supplied only
+   the `AUTH_*` ones. The container exited `78` before it listened and the health probe failed. The
+   fix is the four values in the probe — not a relaxed check — and the same commit **adds** a negative
+   control beside it: the web image must refuse to boot with `OIDC_CLIENT_ID` named when they are
+   missing, which is the web-tier half of a contract the workflow previously asserted for the API
+   only. `packages/config` says which service needs what; until now nothing checked that the
+   *container* agreed, and this is the finding that shows why that mattered.
 
 The drive itself asserts 40-odd things, including three that are the point of the decision:
 
