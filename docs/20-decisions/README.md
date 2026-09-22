@@ -33,12 +33,12 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0018](0018-state-in-postgres.md) | All state lives in PostgreSQL | Accepted |
 | [0019](0019-project-as-optional-container.md) | Project is an optional container | Accepted |
 | [0020](0020-sync-cadence.md) | Sync every 15 minutes, daytime window, force button | Accepted |
-| [0021](0021-verified-forward-auth-assertion.md) | Trust a verified assertion, never an identity header | Accepted |
+| [0021](0021-verified-forward-auth-assertion.md) | Trust a verified assertion, never an identity header | **Superseded by [0026](0026-human-auth-via-oidc.md)** 2026-09-22 |
 | [0022](0022-backups-belong-to-the-deployment-repository.md) | Database backups belong to the deployment repository | Accepted |
 | [0023](0023-node-26-toolchain-baseline.md) | Node 26 is the toolchain baseline, pnpm installed from npm | Accepted |
 | [0024](0024-mcp-without-the-sdk.md) | The MCP surface is written against the specification, not the SDK | Accepted |
 | [0025](0025-page-creation-needs-a-role-vocabulary.md) | Creating a page needs role keys that do not exist yet | **Accepted** 2026-09-21 |
-| [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Proposed** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
+| [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Accepted** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
 
 ## Format
 

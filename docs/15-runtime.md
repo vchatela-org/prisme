@@ -83,6 +83,10 @@ contract at all.
 | `AUTH_ISSUER_URL` | ● | ● | | | Identity provider issuer, as it appears in the `iss` claim |
 | `AUTH_AUDIENCE` | ● | ● | | | Expected `aud` — the provider client the assertion was issued for |
 | `AUTH_ALLOWED_SUBJECTS` | ● | ● | | | Comma-separated allow-list of `sub` values. Empty is a boot failure, not "allow everyone" |
+| `OIDC_CLIENT_ID` | ● | | | | The OIDC client the web tier logs humans in with. Also the expected `aud` of the ID token, so it must equal `AUTH_AUDIENCE` |
+| `OIDC_REDIRECT_URI` | ● | | | | Absolute public URL of `/auth/callback`. Its origin must equal `PRISME_BASE_URL`'s |
+| `OIDC_AUTHORIZATION_ENDPOINT` | ● | | | | Where the browser is sent to authenticate. **Configuration, never discovery** — below |
+| `OIDC_TOKEN_ENDPOINT` | ● | | | | Where the code is exchanged. Configuration, for the same reason |
 | `TOKEN_PEPPER` | | ● | | | Additional secret mixed into API-token hashing |
 | `DOCTOOL_API_TOKEN` | | ● | ● | | Document-tool integration token |
 | `TASKTOOL_API_TOKEN` | | ● | ● | | Task-tool API token |
@@ -104,6 +108,35 @@ verification without them. This does not widen what the web process holds in any
 holds no secret at all, and `DATABASE_URL` is still absent from the web contract, which is the
 boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually draws.
 
+**The four `OIDC_*` rows above gained a `W` in [ADR-0026](20-decisions/0026-human-auth-via-oidc.md)**,
+and they are required of **no other service**. The decision moved the human login into the web tier
+— it now performs the authorization-code flow rather than inheriting an assertion from a proxy — so
+the client registration belongs to the tier that runs the flow. The API still verifies a JWT it is
+handed, with the same implementation and the same `AUTH_*` values (ADR-0026 rule 5), and it is
+refused a client id, a callback URL and a token endpoint, because a tier that never exchanges a code
+has no business holding the means to.
+
+**The flow's two endpoints are configuration and deliberately not discovered.** OIDC normally reads
+them from the issuer's `/…/openid-configuration`. prisme takes them as settings instead, and the
+reason is the same one ADR-0021 rule 2 gives for the key set: a discovery document is a response
+body from an external service, and
+[`14-threat-model.md`](14-threat-model.md#5-application-controls) §5 classifies those as untrusted
+input. Pointing a code exchange at a URL that arrived over the network is the mistake the key-set
+URL is refused for, one hop along. Two URLs copied from the provider's console are validated at
+boot, so a typo is a failed start rather than a failed login. **The key set is unaffected**: it is
+still discovered from `AUTH_ISSUER_URL` when `AUTH_JWKS_URL` is unset, through `@prisme/auth`'s own
+origin-allow-listed fetch, and the trust anchor is exactly where it was.
+
+Two combinations are refused at boot rather than at the first login, because each is silent at the
+provider and produces a login that cannot work:
+
+- **`OIDC_REDIRECT_URI` must share an origin with `PRISME_BASE_URL`.** The session cookie is scoped
+  to that origin, so a callback elsewhere would be a browser that never sends it back — a login loop
+  with no error anywhere.
+- **`AUTH_AUDIENCE` must equal `OIDC_CLIENT_ID` for the web tier.** An ID token's `aud` *is* the
+  client id (OIDC Core §2) and prisme verifies `aud`, so a mismatch means a login that succeeds at
+  the provider and is refused here, one hop from either variable, as an unexplained 401.
+
 ### Optional, with defaults
 
 | Variable | Default | Purpose |
@@ -111,11 +144,13 @@ boundary [`14-threat-model.md`](14-threat-model.md#2-trust-boundaries) actually 
 | `PORT` | `3000` | |
 | `LOG_LEVEL` | `info` | |
 | `AUTH_JWKS_URL` | *discovered from the issuer* | Where signing keys are fetched. **Never taken from a request header**, whatever the proxy offers |
-| `AUTH_ASSERTION_HEADER` | `X-authentik-jwt` | Header carrying the signed assertion. The default is the target proxy's name for it; prisme assumes no particular provider |
+| `AUTH_ASSERTION_HEADER` | `X-authentik-jwt` | The header the ID token travels in **between the two tiers** — web sets it, API reads it. The default dates from the proxy that used to inject the assertion and is kept rather than renamed; nothing outside prisme writes this header any more |
 | `AUTH_ALLOWED_ALGS` | `RS256,ES256` | Asymmetric only. `none` and every HMAC variant are rejected regardless of this value |
 | `AUTH_CLOCK_SKEW_SECONDS` | `60` | Tolerance on `exp` and `nbf` |
 | `AUTH_ASSERTION_MAX_LIFETIME` | `24h` | Reject an assertion whose `exp - iat` exceeds this — catches a provider configured to issue long-lived tokens |
 | `AUTH_JWKS_CACHE_TTL` | `10m` | Refetched early on an unknown `kid`, so key rotation does not need a restart |
+| `OIDC_SCOPES` | `openid profile email` | Space- or comma-separated. **`openid` is required** — without it the provider returns no ID token, so there would be nothing to verify |
+| `OIDC_END_SESSION_ENDPOINT` | *unset* | Where a logout also ends the provider's session. Unset is a working configuration; see §6 |
 | `SYNC_ENABLED` | `true` | Master switch for the reconciler |
 | `SYNC_WRITE_ENABLED` | `false` | **Write freeze. Ships off** — see [`13-migration.md`](13-migration.md) |
 | `SYNC_CREATE_THRESHOLD` | `0` | `apply` refuses a plan exceeding this many creates |
@@ -164,12 +199,28 @@ does not change that.
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
 
-**The human authentication path holds no secret.** [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md)
-resolved it as forward-auth with a *verified* assertion: prisme validates a signature with public
-keys and issues no session of its own, so the earlier `OIDC_CLIENT_SECRET` and `SESSION_SECRET` are
-gone rather than renamed. Nothing above needs them; if either turns up in a deployment, it is a
-leftover. `AUTH_*` values are configuration, not credentials — which does not make them public, only
-harmless if the process leaks them.
+**The human authentication path holds no secret — and after ADR-0026 that sentence needs stating
+precisely rather than repeating.** [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md)
+resolved it as forward-auth with a *verified* assertion, and the two variables that would have been
+secret — `OIDC_CLIENT_SECRET` and `SESSION_SECRET` — were removed rather than renamed.
+[ADR-0026](20-decisions/0026-human-auth-via-oidc.md) puts an OIDC client back in the web tier and
+**keeps that property, by using PKCE**: the code exchange sends a `code_verifier` and no client
+secret, so the client is public and the process holds nothing that could mint a token at the
+provider. What the provider mints, prisme verifies with public keys. Neither variable returns; if
+either turns up in a deployment, it is a leftover.
+
+Three corrections to the older sentence, because it was written when prisme had no session:
+
+- **prisme issues a session cookie now.** The ID token the provider signed *is* the session, held in
+  an `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-`-prefixed cookie and verified on every request.
+  It is a credential in the browser, and it is the reason the origin checks below became the control
+  rather than belt-and-braces (ADR-0026 consequences).
+- **There is no server-side session.** The web tier holds no database credential
+  ([`14-threat-model.md`](14-threat-model.md#2-trust-boundaries)), and a process-local session store
+  would be one that disappears when a pod restarts — so clearing the cookie *is* ending the session,
+  with nothing left to invalidate (§6, logout).
+- **`AUTH_*` and `OIDC_*` values are configuration, not credentials** — which does not make them
+  public, only harmless if the process leaks them.
 
 ### Secret delivery
 
@@ -375,19 +426,51 @@ backup's credential.
 
 ### Identity integration
 
-Settled by [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md): **forward-auth, with
-prisme verifying the provider's signed assertion** rather than trusting the identity headers beside
-it. That puts four obligations on the deployment, and three of them are silent if missed.
+Settled by [ADR-0026](20-decisions/0026-human-auth-via-oidc.md), which supersedes
+[ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md) on one point. **prisme authenticates
+humans in-app over OIDC**: the web tier redirects the browser to the provider, receives a code on
+`/auth/callback`, exchanges it with PKCE and verifies the ID token it gets back — with the verifier
+that was already there, against the same configured JWKS and the same fixed asymmetric allow-list.
+What did **not** change is the part that matters: identity comes from a signature verified against a
+key fetched from a configured URL, never from a header, and `none`/HMAC stay rejected.
+
+The shape, so the deployment knows what it is standing up:
+
+| | |
+|---|---|
+| **What runs** | The login flow is in `prisme-web`. `prisme-api` keeps verifying a JWT and gains nothing |
+| **Routes** | `/auth/login`, `/auth/callback`, `/auth/logout` — all on the web tier, none on the API |
+| **Session** | The ID token, in a `__Host-prisme_session` cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, path `/`. **No server-side session and no refresh path**, so the session cannot outlive the token's own `exp` |
+| **What the API sees** | The same token in the assertion header, verified again by the API (ADR-0026 rule 5). The session cookie is stripped from the forwarded request |
+| **What prisme holds** | No client secret. PKCE means the client is public (§2) |
+
+That moves the deployment's obligations from four to five, and **obligation 1 is a different kind of
+thing from what it replaced** — it is ordinary registration rather than a provider setting that may
+be undeliverable:
 
 | # | Obligation | What happens if it is missed |
 |---|---|---|
-| 1 | The proxy provider for prisme has an **asymmetric signing keypair** assigned | The provider falls back to signing with the client secret and publishes an **empty JWKS** — the default, and not an error anywhere. prisme cannot verify anything and fails closed at boot |
-| 2 | Its **token validity is short** — an hour is plenty, the outpost refreshes transparently | The replay window for a stolen assertion becomes the provider's default, which is a day |
-| 3 | The forward-auth middleware is attached to the **UI route only**. The API and MCP route must not carry it | The outpost intercepts inbound `Authorization` headers by default and consumes the bearer token agents send, so every machine caller breaks. Human traffic loses nothing: the assertion is verified, not trusted, so an unprotected route is just as safe |
-| 4 | A **default-deny network policy** on the namespace | Nothing immediately — this is defence in depth now rather than the control. Worth having; no longer load-bearing |
+| 1 | An **OIDC client is registered** for prisme, with the redirect URI `<PRISME_BASE_URL>/auth/callback`, and **a signing keypair exists on that application's provider** | The keypair half is the one that does not fail loudly at the provider: without it the JWKS is empty, prisme cannot verify anything, and it fails closed with a message naming the issuer (`@prisme/auth`'s boot check). The registration half is loud — the provider refuses the redirect |
+| 2 | The client's **ID-token validity is short** — an hour is plenty | The replay window for a stolen token becomes the provider's default, which is a day. The session cookie has no lifetime of its own, so this **is** the session's lifetime |
+| 3 | **No forward-auth middleware on the API or MCP route.** Ingress goes through the proxy's own route object as before | Under ADR-0021 the outpost consumed the `Authorization` header agents send; that obligation is unchanged in kind. What is gone is the requirement that the UI route carry the middleware at all — the browser now authenticates against the provider directly, so the UI route needs only ordinary ingress |
+| 4 | The **issuer, audience and subject allow-list** are configured, plus the four `OIDC_*` values (§2) | The audience must equal the client id, and the configuration schema refuses the pair at boot rather than after a successful login |
+| 5 | A **default-deny network policy** on the namespace | Nothing immediately — defence in depth rather than the control. Worth having; not load-bearing |
 
-prisme needs the issuer, the audience and the subject allow-list as configuration (§2). It needs no
-client secret and no credential of any kind for this path.
+prisme needs no client secret and no credential of any kind for this path (§2).
+
+### Logout, and what it does not do
+
+`POST /auth/logout` clears the session cookie and ends prisme's session completely — the cookie *is*
+the session, so there is no server-side row to leave behind and nothing to invalidate. It is
+origin-checked like every other state change, and it is reachable without a session on purpose, so a
+user whose cookie no longer verifies can throw it away.
+
+**It does not end the provider's session unless `OIDC_END_SESSION_ENDPOINT` is set.** Without that
+setting, prisme clears its own session and says so; because the provider's session is still alive,
+the next visit walks the login flow and returns without a prompt. That is a real difference and worth
+configuring for: **set `OIDC_END_SESSION_ENDPOINT`** if the point of logging out is to be logged
+out. The login flow is driven server-side, so the endpoint is also the only place a user is sent off
+this origin.
 
 ### Verified, and still to verify
 
@@ -400,7 +483,16 @@ Two corrections to an earlier reading of the cluster, both measured:
   distribution ships them — but nothing routes through them. Assume the proxy's route object.
 - **The forward-auth middleware already forwards the provider's signed ID token** alongside the
   plaintext identity headers, and a companion header carrying the **URL** of the key set, not the
-  keys. ADR-0021 depends on the first and deliberately ignores the second.
+  keys. ADR-0021 depended on the first and deliberately ignored the second; ADR-0026 makes both
+  irrelevant, because the token now arrives through a flow prisme runs itself. The measurement is
+  kept because it is what the two superseded alternatives were weighed against.
+
+**Not yet verified against the live cluster — the client registration.** No OIDC client exists for
+prisme on the deployment's identity provider, deliberately: registering one is the operator's step,
+and this repository must not point at a real provider's endpoints
+([`17-privacy.md`](17-privacy.md)). The flow itself is verified end to end against a locally running
+fake provider (`seed/harness/`, gitignored) — real redirects, real cookies, a real PKCE exchange and
+a real signature check — so what remains is the registration, not the code.
 
 **Closed by W00 — the rendered env-file path and format.** It turned out not to need confirming:
 prisme reads whatever path `PRISME_ENV_FILE` names and hardcodes none, so the cluster's mount point
