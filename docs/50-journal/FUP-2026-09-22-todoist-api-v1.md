@@ -1,6 +1,6 @@
 # FUP · 2026-09-22 · The task tool's v9 API is gone; prisme now speaks v1
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#45](https://github.com/vchatela-org/prisme/pull/45) · **Outcome:** complete
 
 Found while preparing the deployment, and it is not a follow-up in the usual sense: **the entire
 task-tool path was dead**. Every call returned `410 Gone` —
