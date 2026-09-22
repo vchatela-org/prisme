@@ -80,9 +80,30 @@ export const wirePageSchema = z.object({
   id: z.string().min(1),
   created_time: z.string().min(1),
   last_edited_time: z.string().min(1),
+  /*
+   * Both spellings of "not live", because the tool renamed the field.
+   *
+   * `archived` was the tool's alias for `in_trash`, and the version this client
+   * pins dropped it from every response — a page now returns `in_trash` where an
+   * older one returned `archived`. Neither is required here, so a response
+   * carrying only the new name parses either way; what keeps the *meaning* is
+   * `mapPageContent` reading both (see the note there). They are optional
+   * together rather than one-of, because a version may send both and the two
+   * are documented to agree.
+   */
   archived: z.boolean().optional(),
   in_trash: z.boolean().optional(),
-  // Deliberately not read: `url` and `public_url` identify the workspace.
+  /*
+   * Deliberately not read: `url` and `public_url` identify the workspace.
+   *
+   * Also unread, and for a different reason: `is_archived` and `is_locked`,
+   * which the tool returns on every page but does not document. A boolean whose
+   * meaning is not written down is not a mapping — it is a guess, and this
+   * package refuses those (packages/connectors/CLAUDE.md, *Never guess a
+   * mapping*). They are additive fields, present under every version, so
+   * ignoring them is not a version problem; it is an open question, recorded
+   * rather than answered.
+   */
   properties: z.record(z.string(), z.unknown()),
 });
 
