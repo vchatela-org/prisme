@@ -109,19 +109,22 @@ that "not read" is not evidence that nothing is bound.
 
 | Check | Where it ran | Result |
 |---|---|---|
-| `privacy deny-list` | local | see the pull request |
-| `gitleaks` | CI | see the rollup on the pull request |
-| `security gate self-test` | CI | see the rollup on the pull request |
-| `internal links` | CI | see the rollup on the pull request |
-| `dependency review` | CI | see the rollup on the pull request |
-| `typecheck` | local + CI | `tsc -b` clean |
-| `lint` | local (per package, CI runs it whole) | see the rollup on the pull request |
-| `test` | local + CI | see the rollup on the pull request |
-| `build` | local + CI | `pnpm -r --filter "./packages/*" --filter "./apps/sync" run build` clean |
-| `golden fixtures` | CI | see the rollup on the pull request |
-| `dependency audit` | CI | see the rollup on the pull request |
-| `images` | CI | see the rollup on the pull request |
-| `CodeQL` | CI | see the rollup on the pull request |
+| `privacy deny-list` | local + CI | **pass** — locally clean at 44 patterns, worktree **and** staged, local supplement active |
+| `gitleaks` | local pre-commit + CI | **pass** — "no leaks found" |
+| `security gate self-test` | CI | **pass** |
+| `internal links` | CI | **pass** |
+| `dependency review` | CI | **pass** |
+| `typecheck` | local + CI | **pass** — `tsc -b` clean |
+| `lint` | local (per package) + CI | **pass** — `eslint packages/connectors` and `prettier --check` on every changed file. CI runs it whole |
+| `test` | local + CI | **pass** — locally 119 files / 2 036 tests with `PRISME_TEST_DATABASE_URL`, 109 files / 1 843 without it (the ten integration files skip) |
+| `build` | local + CI | **pass** — `pnpm -r --filter "./packages/*" --filter "./apps/sync" run build` |
+| `golden fixtures` | CI | **pass** |
+| `dependency audit` | CI | **pass** |
+| `images` | CI | **pass** |
+| `CodeQL (actions)` / `(javascript-typescript)` / `(python)` | CI | **pass** |
+
+Read back from the pull request at the head of this branch after the last push — every check above
+`pass`, none queued, none missing from the rollup.
 
 **Before and after, against the live API, with the real client over a live transport.** The old pin
 turned `queryByRole('objectives_db')` into a `ConnectorError` at `status 400`, which the adoption
