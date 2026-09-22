@@ -20,12 +20,24 @@ export type { ApplyFailure, ApplyOptions, ApplyResult } from './apply/apply.js';
 export type {
   BindRefInput,
   CaptureInput,
+  PassOutcome,
   ReconcilerStore,
   SyncCursor,
   SyncEvent,
 } from './apply/ports.js';
 
 export { createPostgresStore } from './state/postgres.js';
+
+/**
+ * The pass's outcome, as a row.
+ *
+ * The API imports the *reader* so that `/metrics` can republish what the
+ * CronJob measured — a pod Prometheus never scrapes. Writer and reader are one
+ * file (`state/run-state.ts`) because the table is a contract between two
+ * processes.
+ */
+export { readSyncRunState, recordPassOutcome } from './state/run-state.js';
+export type { SyncRunState } from './state/run-state.js';
 
 export { plan } from './reconcile/plan.js';
 export { formatPlan } from './reconcile/format.js';

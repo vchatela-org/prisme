@@ -300,6 +300,7 @@ journal entry rather than a unit of planned work.
 | Twelve CSP violations from Radix's own markup | W07 | 🟢 | [#41](https://github.com/vchatela-org/prisme/pull/41) |
 | W00 close-out: the publish path had never been exercised, and `v0.0.1`'s images do not exist | W00 | 🟢 (run; `v0.0.1` left alone) | [#42](https://github.com/vchatela-org/prisme/pull/42) |
 | `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | [#43](https://github.com/vchatela-org/prisme/pull/43) |
+| **The reconciler's own metrics are invisible in a deployment** — a CronJob pod is never scraped, so the API serves both sync gauges as a constant `0`: the staleness alert fires permanently and the drift alert can never fire | Found while deploying (nobody had recorded it) | 🟢 | [#44](https://github.com/vchatela-org/prisme/pull/44) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 

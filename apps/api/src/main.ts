@@ -20,6 +20,7 @@ import { createApp } from './app.js';
 import { createAuth } from './auth/index.js';
 import { createServices, SERVICE_DEFAULTS } from './services/index.js';
 import { createPostgresStore } from './store/postgres.js';
+import { createSyncMetricsRefresher } from './sync/metrics.js';
 import { createSyncRunner } from './sync/runner.js';
 
 const config = loadConfigOrExit({ service: 'api' });
@@ -111,6 +112,16 @@ const app = createApp({
   confirmations: auth.confirmations,
   isShuttingDown: () => shuttingDown,
   readiness: () => checkReadiness({ client: database.client, expected: schemaVersion }),
+  /**
+   * The reconciler's two gauges, republished on every scrape.
+   *
+   * The scheduled pass runs in a CronJob pod that Prometheus never scrapes, so
+   * this process is the only one that can publish what the pass measured. It
+   * reads the row the pass wrote (ADR-0018 — all state is in PostgreSQL) and it
+   * cannot make `/metrics` fail: on a database that is not answering, the
+   * endpoint still serves everything else.
+   */
+  refreshMetrics: createSyncMetricsRefresher({ client: database.client, metrics, logger }),
 });
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {

@@ -15,10 +15,12 @@ import {
 import type {
   BindRefInput,
   CaptureInput,
+  PassOutcome,
   ReconcilerStore,
   SyncCursor,
   SyncEvent,
 } from '../apply/ports.js';
+import { recordPassOutcome } from './run-state.js';
 
 /**
  * The {@link ReconcilerStore} backed by PostgreSQL.
@@ -428,6 +430,15 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
                 ${JSON.stringify(event.before ?? null)}::jsonb,
                 ${JSON.stringify(event.after ?? null)}::jsonb,
                 'sync', ${stamp(event.occurredAt)}::timestamptz)`;
+    },
+
+    /**
+     * The pass's own outcome. See `./run-state.ts` for why it is written at
+     * all: a CronJob pod is never scraped, so the only way these two numbers
+     * reach Prometheus is the API republishing them from here.
+     */
+    async recordPassOutcome(outcome: PassOutcome): Promise<void> {
+      await recordPassOutcome(client, outcome);
     },
   };
 }
