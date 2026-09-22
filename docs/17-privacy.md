@@ -70,8 +70,11 @@ personal content.
 ### 2.4 The privacy deny-list scan
 
 `.github/privacy-denylist.txt` lists patterns that must never appear: real names, workspace
-domains, and the ID shapes used by the external tools (32-hex Notion IDs, Todoist numeric IDs).
-CI fails on a hit; it also runs as a pre-commit hook, so the common case is caught locally.
+domains, and the ID shapes used by the external tools (32-hex Notion IDs; task-tool ids, which are
+16-character alphanumeric strings since that tool moved to its `v1` API, and were long numeric
+strings before it — both shapes are listed, because the older one survives in anything recorded
+earlier). CI fails on a hit; it also runs as a pre-commit hook, so the common case is caught
+locally.
 
 The deny-list is itself public, so it contains **patterns, not secrets** — ID *shapes* rather than
 real IDs, and it references personal names indirectly where it must.

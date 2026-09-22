@@ -5,12 +5,13 @@
  * is wrong in interesting ways, and it should be possible to prove it right
  * without a network.
  *
- * Two things make the slicing necessary rather than tidy. Offset paging into
- * completion history is deliberately bounded (`MAX_COMPLETION_PAGES`), so a
- * history longer than that bound cannot be read at all in one call. And a
- * multi-year backfill will hit a rate limit somewhere in the middle — the brief
- * says so — after which a run that restarts from the beginning is a run that
- * never finishes.
+ * Two things make the slicing necessary rather than tidy. The tool refuses a
+ * completion window wider than **three months** (measured: a longer range is a
+ * `400`, `range must not exceed 3 months`), and a multi-year backfill will hit a
+ * rate limit somewhere in the middle — the brief says so — after which a run
+ * that restarts from the beginning is a run that never finishes. `SLICE_DAYS` is
+ * well inside that cap, so the limit is a bound on the whole request rather than
+ * on each slice.
  */
 
 const MS_PER_DAY = 86_400_000;
@@ -19,20 +20,34 @@ const MS_PER_DAY = 86_400_000;
  * Days per window.
  *
  * Wide enough that a decade is a few dozen requests rather than hundreds;
- * narrow enough that 200-per-page offset paging is nowhere near its bound for
- * any plausible number of completions in four weeks.
+ * narrow enough that one slice stays inside the tool's three-month cap with room
+ * to spare, and that a slice is nowhere near the 200-item page ceiling for any
+ * plausible number of completions in four weeks.
  */
 export const SLICE_DAYS = 28;
 
 export interface Slice {
-  /** Inclusive. */
+  /**
+   * Inclusive — **measured, not assumed**. The tool's `since`/`until` are
+   * inclusive at *both* ends.
+   */
   readonly since: Date;
-  /** Exclusive, so two adjacent slices never fetch the same completion twice. */
+  /** Inclusive. See {@link since}; the two ends behave the same way. */
   readonly until: Date;
 }
 
 /**
- * Half-open windows covering `[from, to)`, oldest first.
+ * Closed windows covering `[from, to]`, oldest first.
+ *
+ * **Adjacent slices overlap by one instant, and that is not a bug to fix here.**
+ * Because both ends are inclusive, a completion landing exactly on the boundary
+ * between two slices is returned by both. The earlier "exclusive, so two
+ * adjacent slices never fetch the same completion twice" claim was wrong about
+ * the tool. The overlap is absorbed downstream rather than here: a completion's
+ * identity is `(external_task_id, completed_at)`, so `completion_history`'s
+ * upsert cannot double-count one however many slices returned it. Do not
+ * "fix" this by nudging a boundary by a millisecond — that trades a harmless
+ * duplicate for a possible hole, which is the worse of the two.
  *
  * Oldest first is the direction that makes a partial run useful: the cursor
  * advances through history, so an interrupted run has covered a *prefix* of the
