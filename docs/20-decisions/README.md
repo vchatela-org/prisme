@@ -38,6 +38,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0023](0023-node-26-toolchain-baseline.md) | Node 26 is the toolchain baseline, pnpm installed from npm | Accepted |
 | [0024](0024-mcp-without-the-sdk.md) | The MCP surface is written against the specification, not the SDK | Accepted |
 | [0025](0025-page-creation-needs-a-role-vocabulary.md) | Creating a page needs role keys that do not exist yet | **Accepted** 2026-09-21 |
+| [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Proposed** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
 
 ## Format
 

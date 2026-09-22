@@ -2,6 +2,13 @@
 
 **Status:** Accepted · 2026-09-15 · Completes [ADR-0015](0015-auth-split-by-caller.md), closes **OQ-9**
 
+> ⚠ **Proposed for supersession by [ADR-0026](0026-human-auth-via-oidc.md)** (2026-09-22). The
+> decision below is sound about *what to trust* — a verified signature, never a header — and
+> ADR-0026 keeps that. What it got wrong is *where the signature comes from*: its obligation 1 (an
+> asymmetric signing keypair on the forward-auth proxy provider) turns out to be undeliverable on the
+> target identity provider, by that provider's design rather than by misconfiguration. Read 0026
+> before acting on the four obligations at the bottom of this file.
+
 ## Context
 
 ADR-0015 settled *who* authenticates how — humans through the identity provider, agents through
