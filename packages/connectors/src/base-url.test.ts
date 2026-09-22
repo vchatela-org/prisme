@@ -64,7 +64,7 @@ describe('a client given a base URL', () => {
 
     await ignoringOutcome(client.syncIncremental());
 
-    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/sync/v9/sync`);
+    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/api/v1/sync`);
   });
 
   it('sends a task-tool write to it, so a read and its write cannot land on different hosts', async () => {
@@ -93,7 +93,7 @@ describe('a client given a base URL', () => {
       ),
     );
 
-    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/sync/v9/sync`);
+    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/api/v1/sync`);
   });
 
   it('trims a trailing slash, so a host written with one is not a double slash in the path', async () => {
@@ -112,6 +112,6 @@ describe('a client given a base URL', () => {
 
     await ignoringOutcome(client.syncIncremental());
 
-    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/sync/v9/sync`);
+    expect(transport.requests[0]?.url).toBe(`${OVERRIDE}/api/v1/sync`);
   });
 });

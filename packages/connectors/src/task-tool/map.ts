@@ -193,7 +193,9 @@ export function mapLabel(label: WireLabel): ExternalLabel {
 export function mapCompletion(item: WireCompletedItem, operation: string): Completion {
   const duration = mapDuration(item.duration);
   return {
-    externalTaskId: item.task_id,
+    // The completion endpoint returns the task itself, so its id is `id` —
+    // v9's `task_id` field no longer exists on the wire (see `wire.ts`).
+    externalTaskId: item.id,
     projectId: item.project_id ?? undefined,
     sectionId: item.section_id ?? undefined,
     completedAt: parseInstant(item.completed_at, 'completed_at', operation),
