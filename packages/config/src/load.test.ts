@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './load.js';
-import { requiredFor } from './schema.js';
+import { requiredFor, VARIABLES } from './schema.js';
 
 /** A complete, synthetic environment. Fixture values only — this repository is public. */
 const COMPLETE: Record<string, string> = {
@@ -16,8 +16,12 @@ const COMPLETE: Record<string, string> = {
 
 /**
  * The web tier's own contract: the API's URL, the three auth values it must
- * verify with, and **no database credential at all**
- * (docs/14-threat-model.md §2).
+ * verify with, the OIDC client it logs people in with (ADR-0026), and **no
+ * database credential at all** (docs/14-threat-model.md §2).
+ *
+ * `AUTH_AUDIENCE` and `OIDC_CLIENT_ID` are the same value on purpose: the ID
+ * token's `aud` is the client id by specification, and `load.ts` refuses a pair
+ * that disagrees.
  */
 const WEB: Record<string, string> = {
   PRISME_BASE_URL: 'https://prisme.example.com',
@@ -25,6 +29,10 @@ const WEB: Record<string, string> = {
   AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme/',
   AUTH_AUDIENCE: 'prisme-client-id',
   AUTH_ALLOWED_SUBJECTS: 'subject-one,subject-two',
+  OIDC_CLIENT_ID: 'prisme-client-id',
+  OIDC_REDIRECT_URI: 'https://prisme.example.com/auth/callback',
+  OIDC_AUTHORIZATION_ENDPOINT: 'https://idp.example.com/application/o/authorize/',
+  OIDC_TOKEN_ENDPOINT: 'https://idp.example.com/application/o/token/',
 };
 
 describe('loadConfig', () => {
@@ -266,6 +274,164 @@ describe('loadConfig', () => {
     });
   });
 
+  /*
+   * ADR-0026 rule 4, as a set of assertions.
+   *
+   * The decision's stated price is a login flow in exchange for keeping
+   * verification where it is, and one half of that bargain is that the human
+   * path still **holds no secret**. A `OIDC_CLIENT_SECRET` added later would
+   * look like ordinary configuration and would silently falsify the property
+   * docs/15-runtime.md §2 states — so the absence is checked here rather than
+   * left to a reader's memory.
+   */
+  describe('the OIDC client', () => {
+    it('is assembled for the web tier, which is the only tier that logs anybody in', () => {
+      const config = loadConfig({ env: WEB, service: 'web' });
+      expect(config.oidc).toEqual({
+        clientId: 'prisme-client-id',
+        redirectUri: 'https://prisme.example.com/auth/callback',
+        authorizationEndpoint: 'https://idp.example.com/application/o/authorize/',
+        tokenEndpoint: 'https://idp.example.com/application/o/token/',
+        endSessionEndpoint: undefined,
+        scopes: ['openid', 'profile', 'email'],
+      });
+    });
+
+    it('is absent for the API, the reconciler and the migration job', () => {
+      // ADR-0026 rule 5: the API tier is unchanged. It verifies a JWT it is
+      // handed and never exchanges a code, so it is not given the means to.
+      expect(loadConfig({ env: COMPLETE, service: 'api' }).oidc).toBeUndefined();
+      expect(loadConfig({ env: COMPLETE, service: 'sync' }).oidc).toBeUndefined();
+
+      for (const service of ['api', 'sync', 'migrate'] as const) {
+        for (const name of requiredFor(service)) {
+          expect(name.startsWith('OIDC_')).toBe(false);
+        }
+      }
+    });
+
+    it('has no client secret to leak, because there is no such variable', () => {
+      const names = Object.keys(VARIABLES).filter((name) => name.startsWith('OIDC_'));
+      expect(names.sort()).toEqual([
+        'OIDC_AUTHORIZATION_ENDPOINT',
+        'OIDC_CLIENT_ID',
+        'OIDC_END_SESSION_ENDPOINT',
+        'OIDC_REDIRECT_URI',
+        'OIDC_SCOPES',
+        'OIDC_TOKEN_ENDPOINT',
+      ]);
+      // Not merely "no SECRET in the name": the one OIDC variable that has a
+      // default is a scope list, and nothing that decides *where a credential
+      // goes* — or is one — is defaulted at all.
+      const defaulted = names.filter(
+        (name) => VARIABLES[name as keyof typeof VARIABLES].default !== undefined,
+      );
+      expect(defaulted).toEqual(['OIDC_SCOPES']);
+    });
+
+    it('never defaults the values that decide where a code is sent', () => {
+      // A defaulted client id, callback URL or endpoint is a deployment that
+      // believes it is configured and sends a code somewhere it chose.
+      for (const name of [
+        'OIDC_CLIENT_ID',
+        'OIDC_REDIRECT_URI',
+        'OIDC_AUTHORIZATION_ENDPOINT',
+        'OIDC_TOKEN_ENDPOINT',
+      ] as const) {
+        const { [name]: _omitted, ...rest } = WEB;
+        expect(() => loadConfig({ env: rest, service: 'web' })).toThrow(new RegExp(name));
+      }
+    });
+
+    it.each([
+      ['a relative callback', 'auth/callback'],
+      ['a scheme and nothing else', 'https://'],
+      ['a non-http scheme', 'ftp://prisme.example.com/auth/callback'],
+    ])('refuses %s', (_label, value) => {
+      expect(() =>
+        loadConfig({ env: { ...WEB, OIDC_REDIRECT_URI: value }, service: 'web' }),
+      ).toThrow(/OIDC_REDIRECT_URI/);
+    });
+
+    describe('OIDC_SCOPES', () => {
+      it.each([
+        ['whitespace-separated, as providers document it', 'openid profile email'],
+        ['comma-separated, as half the deployment repositories write it', 'openid,profile,email'],
+        ['both, and repeated spaces', 'openid   profile,email'],
+      ])('accepts %s', (_label, value) => {
+        const config = loadConfig({ env: { ...WEB, OIDC_SCOPES: value }, service: 'web' });
+        expect(config.oidc?.scopes).toEqual(['openid', 'profile', 'email']);
+      });
+
+      it('refuses a scope list with no openid in it', () => {
+        // Without `openid` the provider returns no ID token, so there would be
+        // nothing to verify and the failure would surface one hop later as a
+        // missing claim rather than a missing scope.
+        expect(() =>
+          loadConfig({ env: { ...WEB, OIDC_SCOPES: 'profile email' }, service: 'web' }),
+        ).toThrow(/openid/);
+      });
+
+      it('refuses an empty list rather than reading it as "the defaults"', () => {
+        expect(() => loadConfig({ env: { ...WEB, OIDC_SCOPES: ' , ' }, service: 'web' })).toThrow(
+          /OIDC_SCOPES/,
+        );
+      });
+    });
+
+    describe('the pairs that are each valid alone', () => {
+      it('refuses a callback on another origin than PRISME_BASE_URL', () => {
+        // The session cookie is scoped to the base URL's origin, so a callback
+        // elsewhere would be a browser that never sends it back — a login loop
+        // with no error anywhere.
+        let thrown: ConfigError | undefined;
+        try {
+          loadConfig({
+            env: { ...WEB, OIDC_REDIRECT_URI: 'https://other.example.com/auth/callback' },
+            service: 'web',
+          });
+        } catch (error) {
+          thrown = error as ConfigError;
+        }
+        expect(thrown).toBeInstanceOf(ConfigError);
+        expect(thrown!.problems.map((problem) => problem.variable)).toContain('OIDC_REDIRECT_URI');
+        // Values are never echoed: a URL is deployment detail (docs/17-privacy.md §1).
+        expect(thrown!.message).not.toContain('other.example.com');
+      });
+
+      it('accepts a callback on the same origin even when PRISME_BASE_URL carries a path', () => {
+        // `PRISME_BASE_URL` may legitimately carry a path; the comparison is
+        // by origin, not by string.
+        const config = loadConfig({
+          env: { ...WEB, PRISME_BASE_URL: 'https://prisme.example.com/anything' },
+          service: 'web',
+        });
+        expect(config.oidc?.redirectUri).toBe('https://prisme.example.com/auth/callback');
+      });
+
+      it('refuses an audience that is not the client id', () => {
+        // The ID token's `aud` *is* the client id (OIDC Core §2). Disagreeing
+        // means a login that succeeds at the provider and is then refused here,
+        // as an unexplained 401, one hop from either variable.
+        let thrown: ConfigError | undefined;
+        try {
+          loadConfig({ env: { ...WEB, AUTH_AUDIENCE: 'something-else' }, service: 'web' });
+        } catch (error) {
+          thrown = error as ConfigError;
+        }
+        expect(thrown).toBeInstanceOf(ConfigError);
+        expect(thrown!.problems.map((problem) => problem.variable)).toContain('AUTH_AUDIENCE');
+      });
+
+      it('does not apply either check to a service that has no login flow', () => {
+        // The API's audience is its own business: it never sees an ID token.
+        expect(() =>
+          loadConfig({ env: { ...COMPLETE, AUTH_AUDIENCE: 'the-api-audience' }, service: 'api' }),
+        ).not.toThrow();
+      });
+    });
+  });
+
   describe('per-service requirements', () => {
     it('the web tier needs no database credential', () => {
       expect(requiredFor('web')).not.toContain('DATABASE_URL');
@@ -279,6 +445,12 @@ describe('loadConfig', () => {
           AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme',
           AUTH_AUDIENCE: 'prisme',
           AUTH_ALLOWED_SUBJECTS: 'abc123',
+          // …and as of ADR-0026 it runs the login flow too, which is why the
+          // OIDC client is required of this service and of no other.
+          OIDC_CLIENT_ID: 'prisme',
+          OIDC_REDIRECT_URI: 'https://prisme.example.com/auth/callback',
+          OIDC_AUTHORIZATION_ENDPOINT: 'https://idp.example.com/application/o/authorize/',
+          OIDC_TOKEN_ENDPOINT: 'https://idp.example.com/application/o/token/',
         },
         service: 'web',
       });
@@ -298,6 +470,10 @@ describe('loadConfig', () => {
           AUTH_ISSUER_URL: 'https://idp.example.com/application/o/prisme',
           AUTH_AUDIENCE: 'prisme',
           AUTH_ALLOWED_SUBJECTS: 'abc123, def456',
+          OIDC_CLIENT_ID: 'prisme',
+          OIDC_REDIRECT_URI: 'https://prisme.example.com/auth/callback',
+          OIDC_AUTHORIZATION_ENDPOINT: 'https://idp.example.com/application/o/authorize/',
+          OIDC_TOKEN_ENDPOINT: 'https://idp.example.com/application/o/token/',
         },
         service: 'web',
       });

@@ -1,6 +1,13 @@
 # ADR-0026 · Authenticate humans in-app, over OIDC, because the proxy cannot sign asymmetrically
 
-**Status:** Proposed · 2026-09-22 · Supersedes [ADR-0021](0021-verified-forward-auth-assertion.md)
+**Status:** Accepted · 2026-09-22 · Supersedes [ADR-0021](0021-verified-forward-auth-assertion.md)
+
+> **Implemented in the same wave, 2026-09-22.** The login flow, the session cookie, the
+> configuration and the `docs/15-runtime.md` §2/§6 corrections this decision deferred are all in
+> place; [`50-journal/FUP-2026-09-22-oidc-human-auth.md`](../50-journal/FUP-2026-09-22-oidc-human-auth.md)
+> records what running it exposed. The obligations in *Consequences* were paid rather than noted —
+> including the one that is easy to skip, fixation resistance, which holds structurally: no session
+> identifier is ever issued or adopted by prisme, so there is nothing to fixate.
 
 ## Context
 
