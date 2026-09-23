@@ -1,6 +1,6 @@
 # FUP · 2026-09-23 · The deny-list covers the camelCase id, and the control that proves it does
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#58](https://github.com/vchatela-org/prisme/pull/58) · **Outcome:** complete
 
 Closes the follow-up [FUP-2026-09-22-todoist-api-v1.md](FUP-2026-09-22-todoist-api-v1.md) recorded:
 *"camelCase id positions (`projectId: "…"`) are still uncovered — the deny-list is line-based and
