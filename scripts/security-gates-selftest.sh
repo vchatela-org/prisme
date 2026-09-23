@@ -69,6 +69,34 @@ git -C "$WORKTREE" add planted-privacy.md
 
 check "privacy deny-list" env -C "$WORKTREE" ./scripts/privacy-scan.sh --staged
 
+# The UUID plant is withdrawn before the next one is staged, and the reason is a
+# mistake this script made the first time it grew a second plant: the check scans
+# **every staged file**, so a second plant left beside the first is refused by the
+# first plant's pattern, and the second check passes without its own pattern
+# mattering at all. It looked like a control and was a re-run of the one above.
+git -C "$WORKTREE" rm --quiet --force planted-privacy.md
+
+# A second plant, for the camelCase id shape, which is a *separate* pattern — and
+# the one whose failure mode is the quiet one. It requires the value to be
+# quoted, so the cheapest way for it to be wrong is to be too narrow and match
+# nothing, which is a green scan over the exact content it exists to refuse.
+#
+# The id is generated rather than written out so that the plant does not itself
+# become a deny-list hit in this file: the scanner reads `projectId: "` followed
+# by a literal `${…}`, which is not sixteen alphanumerics.
+planted_task_id="$(
+  python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; print("".join(secrets.choice(a) for _ in range(16)))'
+)"
+
+{
+  echo "# planted by security-gates-selftest.sh — never committed"
+  echo "projectId: \"${planted_task_id}\""
+} > "$WORKTREE/planted-camelcase.md"
+
+git -C "$WORKTREE" add planted-camelcase.md
+
+check "privacy deny-list (camelCase id)" env -C "$WORKTREE" ./scripts/privacy-scan.sh --staged
+
 # --- 2. gitleaks ---------------------------------------------------------------
 #
 # A private-key block, and the choice of rule is the whole lesson of this
@@ -117,7 +145,11 @@ fi
 # — a corrupt deny-list compiling to a pattern that matches any line, say —
 # would look like two healthy gates.
 
-git -C "$WORKTREE" rm --quiet --force planted-privacy.md planted-secret.txt
+# `--ignore-unmatch`, because the UUID plant was already withdrawn above and a
+# cleanup that fails on a file that is not there takes the whole script down with
+# it — `set -e` — *after* the checks ran but *before* the summary that says how
+# they went. That is how a control reports nothing while looking like it ran.
+git -C "$WORKTREE" rm --quiet --force --ignore-unmatch planted-privacy.md planted-camelcase.md planted-secret.txt
 echo "a file with nothing interesting in it" > "$WORKTREE/harmless.txt"
 git -C "$WORKTREE" add harmless.txt
 

@@ -3,6 +3,16 @@
 **Depends on:** W00 · **Wave:** 2
 **Files you may touch:** `apps/api/auth/**`, `apps/web/middleware.ts`, `.github/workflows/**`, security configuration
 
+> **Correction (2026-09-22) — the transport below is historical; the workstream's content is not.**
+> [ADR-0026](../20-decisions/0026-human-auth-via-oidc.md) supersedes
+> [ADR-0021](../20-decisions/0021-verified-forward-auth-assertion.md) on one point: the login happens
+> **in-app over OIDC** rather than at a forward-auth proxy, because that provider cannot durably hold
+> an asymmetric signing keypair. Everything this brief asks for — the verifier, deny-by-default, the
+> token store, CSP, the CI gates, origin checks — landed and is unchanged, and ADR-0021's rules 1–4
+> and 6–9 are still the specification the code implements. Read ADR-0021 through that lens: rule 5
+> ("no prisme session cookie") no longer holds, and `apps/web/src/app/auth/**` is where the flow
+> ADR-0026 added lives.
+
 ## Why
 
 prisme holds tokens to an entire personal workspace across two external services, and the repository

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { isConnectorError } from '../errors.js';
 import { contentHash } from '../hash.js';
+import type { HttpRequest } from '../http/transport.js';
 import { loadFixture } from '../test-support/fixtures.js';
-import { createRecordedDocToolClient } from '../testing/recorded.js';
+import { createRecordedBindings, createRecordedDocToolClient } from '../testing/recorded.js';
 import { suppressUnchanged, watermarkFloor } from '../watermark.js';
+import { createDocToolClient, DEFAULT_DOC_TOOL_API_VERSION } from './client.js';
 import type { DocPropertyValue, DocRecord } from './types.js';
 
 /**
@@ -117,6 +119,19 @@ describe('property mapping', () => {
       externalType: 'people',
       count: 1,
     });
+  });
+
+  it('treats a page as not live when the version spells the field the old way', async () => {
+    // The pinned version returns `in_trash` and never `archived`; a version
+    // older than it sends the opposite. One of the two is always absent, so a
+    // reader that consulted either alone would call every trashed page live on
+    // the version that spells it the other way — and a page that looks live
+    // when it is not is drift the full pass can never see.
+    const legacy = createRecordedDocToolClient({
+      queryPages: [loadFixture('doc-tool.query-legacy-archived.json')],
+    });
+    const [record] = await legacy.client.queryByRole('objectives_db');
+    expect(record?.archived).toBe(true);
   });
 
   it('records a type it has never seen rather than guessing at it', async () => {
@@ -235,6 +250,50 @@ describe('fetching one page', () => {
       "Pasted from the web: <script>alert('xss')</script> and a flipped run.the reference",
     );
     expect(paragraph?.text.text).not.toContain('\u202e');
+  });
+});
+
+describe('the pinned API version', () => {
+  /**
+   * The earliest version in which the surface this client calls exists.
+   *
+   * Below it, `POST /v1/data_sources/<id>/query` answers
+   * `400 invalid_request_url` — measured against the live API, not inferred —
+   * and the tool rejects a version string it does not recognise outright, so a
+   * guessed date is not a way to move forward either. The client once pinned a
+   * version from the era of `/v1/databases/` while calling this surface, and
+   * every query failed; the defect was invisible because the one caller reports
+   * a refused read as "not read" rather than as an error.
+   */
+  const SURFACE_FLOOR = '2025-09-03';
+
+  it('sends the pin on every request, rather than leaving the version to the tool', async () => {
+    const sent: HttpRequest[] = [];
+    const client = createDocToolClient({
+      token: 'example-token',
+      bindings: createRecordedBindings(),
+      transport: (request) => {
+        sent.push(request);
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          body: JSON.stringify({ object: 'list', results: [], next_cursor: null, has_more: false }),
+        });
+      },
+    });
+
+    await client.queryByRole('objectives_db');
+
+    // A version the tool dates its breaking changes by is only a pin if it is
+    // sent; an absent header is the silent upgrade the constant exists to stop.
+    expect(sent[0]?.headers['notion-version']).toBe(DEFAULT_DOC_TOOL_API_VERSION);
+  });
+
+  it('keeps the pin at or after the version the surface it calls arrived in', () => {
+    // A date-shaped version string compares as a date. This is the cheap half of
+    // the guard: it fails the moment someone pins back to a pre-data-sources
+    // version, which is the mistake that made every document-tool read fail.
+    expect(DEFAULT_DOC_TOOL_API_VERSION >= SURFACE_FLOOR).toBe(true);
   });
 });
 
