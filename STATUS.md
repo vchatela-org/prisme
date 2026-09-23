@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-23 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, the OIDC client registration, and the open decisions below
+**Last updated:** 2026-09-23 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
 
 ---
 
@@ -302,7 +302,7 @@ journal entry rather than a unit of planned work.
 | `DOCTOOL_BASE_URL` / `TASKTOOL_BASE_URL` in `@prisme/config`: the outward path could not be pointed anywhere without patching a constant by hand | W15, repeated by W03's and W15's follow-ups | 🟢 (does **not** unblock *Open page* — see below) | [#43](https://github.com/vchatela-org/prisme/pull/43) |
 | **The reconciler's own metrics are invisible in a deployment** — a CronJob pod is never scraped, so the API serves both sync gauges as a constant `0`: the staleness alert fires permanently and the drift alert can never fire | Found while deploying (nobody had recorded it) | 🟢 | [#44](https://github.com/vchatela-org/prisme/pull/44) |
 | **The task tool's entire API was removed** — every read, completion and write returned `410 Gone`, and no test in this repository may call a real API, so nothing here could have seen it | found while preparing the deployment (nobody had recorded it) | 🟢 | [#45](https://github.com/vchatela-org/prisme/pull/45) |
-| **ADR-0021's first deployment obligation is undeliverable** — the proxy provider cannot be given a durable asymmetric signing keypair, by the identity provider's design, so a verified-assertion forward-auth path cannot be stood up | found while deploying (nobody had recorded it) | 🟢 [ADR-0026](docs/20-decisions/0026-human-auth-via-oidc.md) **Accepted**, login flow implemented and driven end to end | [#55](https://github.com/vchatela-org/prisme/pull/55), [#56](https://github.com/vchatela-org/prisme/pull/56) |
+| **ADR-0021's first deployment obligation is undeliverable** — the proxy provider cannot be given a durable asymmetric signing keypair, by the identity provider's design, so a verified-assertion forward-auth path cannot be stood up | found while deploying (nobody had recorded it) | 🟢 [ADR-0026](docs/20-decisions/0026-human-auth-via-oidc.md) **Accepted**; login flow implemented, the client **registered and deployed**, and the forward-auth arrangement it replaced removed — [the entry](docs/50-journal/FUP-2026-09-23-oidc-in-the-cluster.md) | [#55](https://github.com/vchatela-org/prisme/pull/55), [#56](https://github.com/vchatela-org/prisme/pull/56), [#60](https://github.com/vchatela-org/prisme/pull/60) |
 | **Opening a Radix `Select` logs two CSP violations** — its popper applies an inline style computed from a measurement at runtime, which no class can carry and which the server-render guard in `packages/ui` cannot see | the OIDC follow-up, found by driving a write in a real browser | 🟡 recorded, not fixed | [#56](https://github.com/vchatela-org/prisme/pull/56) |
 | **The document tool's API version predated the endpoints prisme calls** — the client pinned `2022-06-28` (the era of `/v1/databases/`) while calling `/v1/data_sources/query`, so every query returned `400 invalid_request_url` and the scan printed "document tool not read" | found while preparing the deployment (nobody had recorded it) | 🟢 | [#54](https://github.com/vchatela-org/prisme/pull/54) |
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
@@ -352,10 +352,18 @@ against the same key set as before. What moved is where the login happens — th
 assertion could not be given a durable signing keypair (below). **W14 is unblocked**, and no open
 question now blocks a workstream. OQ-1 and OQ-2 block P2; the rest are deferred by choice.
 
-⚠ **One deployment step is open, and it is a human's**: no OIDC client is registered for prisme on
-the identity provider. The code is verified end to end against a local fake provider; registering the
-client and pointing the four `OIDC_*` values at it is what turns that into a working login in the
-cluster.
+✅ **The OIDC client is registered, and the login is wired up in the cluster.** The code was verified
+end to end against a local fake provider; the registration on the deployment's provider, the
+configuration, and the removal of the forward-auth arrangement it replaces are **done and checked
+against the live provider** — the authorize endpoint accepts the exact callback with an `S256`
+challenge and refuses a near-miss, and the key set went from empty to one asymmetric key, which is
+the check that would have caught the arrangement this replaced
+([the entry](docs/50-journal/FUP-2026-09-23-oidc-in-the-cluster.md)). The deployment repository's
+half — the image pin, the forward-auth middleware removal and the callback-route deletion — merged
+and applied, so both tiers run the version that logs humans in, and a browser follows the app into
+the provider's sign-in form correctly scoped to this client. **What is left is one sign-in:** the
+round trip is verified *to* the credential boundary and no further, and completing it needs a real
+account.
 
 ✅ **Database backups are not a prisme task** —
 [ADR-0022](docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md): a dump CronJob in

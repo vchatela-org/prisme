@@ -79,3 +79,26 @@ goal, project, task, weight or workspace.
 
 None. No spec mentioned the `eslint` key or the cache file, so none was wrong — this is the W00
 close-out's category of debt, which lives in configuration and is covered by no document.
+`STATUS.md` is corrected, which is a dashboard rather than a spec; see below.
+
+## Landing: the registry conflict, and a citation that contradicted itself
+
+`main` moved while this stack waited. #60 merged and — like every pull request here — added its own
+row to both files this repository keeps a row per pull request in. All three pull requests in the
+stack therefore conflicted on `STATUS.md` and `docs/50-journal/INDEX.md` and none could be merged.
+**No code was in conflict**: every conflicted hunk was an appended row.
+
+Resolved by merging `main` in and keeping **both** sets of rows, in the order they landed —
+`oidc-in-the-cluster` (#60) before this entry. Worth recording, because the stack was built to avoid
+exactly this collision: stacking avoids it **only while `main` stands still**, and a stack that waits
+for review is a stack whose base moves. Merging the three in order, promptly, is the cheap fix; the
+expensive one is resolving the same two files three times.
+
+Two rows on `main` named the wrong pull request — the text `#58` pointing at
+`https://github.com/vchatela-org/prisme/pull/56`, text and URL disagreeing,
+introduced by #56 and carried into the OIDC rows. Both rows are about the ADR-0026 work, which is
+**#56**; #58 is the deny-list change in this same stack, which is not related to them at all. The
+texts are corrected to match their own URLs, and the row that now says the client is *registered and
+deployed* also cites **#60**, which is where that happened. The link checker does not follow a
+GitHub pull-request number, so nothing was failing: a citation that names the wrong change is
+invisible to every gate and misleading to the person who follows it.
