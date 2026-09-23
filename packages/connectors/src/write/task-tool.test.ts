@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TASK_PRIORITIES, type TaskPriority } from '@prisme/domain';
+import { parseCalendarDate, TASK_PRIORITIES, type TaskPriority } from '@prisme/domain';
 import { createFixtureTransport } from '../testing/fixture-transport.js';
 import { mapTask } from '../task-tool/map.js';
 import type { WireItem } from '../task-tool/wire.js';
@@ -18,7 +18,7 @@ const DRAFT: AnchorDraft = {
   description: 'prisme: http://prisme.example/i/init-001',
   labels: ['prisme'],
   priority: 'high',
-  deadline: '2026-10-01',
+  deadline: parseCalendarDate('2026-10-01'),
 };
 
 function commandsOf(body: string | undefined): { type: string; uuid: string; args: CommandArgs }[] {
@@ -169,7 +169,9 @@ describe('the task-tool writer', () => {
   it('never sends a due date, whatever it is asked to write', async () => {
     const { fixture, writer } = writerOver(respondOk({ temp_id_mapping: {} }));
 
-    await writer.updateTask('task-1', { deadline: '2026-10-01' }, KEY).catch(() => undefined);
+    await writer
+      .updateTask('task-1', { deadline: parseCalendarDate('2026-10-01') }, KEY)
+      .catch(() => undefined);
     await writer.createTask(DRAFT, KEY).catch(() => undefined);
     await writer.moveTask('task-1', { projectId: 'p' }, KEY).catch(() => undefined);
 
