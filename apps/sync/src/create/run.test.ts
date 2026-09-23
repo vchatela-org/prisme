@@ -305,6 +305,8 @@ describe('a failure partway through', () => {
       writer: createRecordingCreationWriter({
         failOn: (creation) => creation.kind === 'section' && creation.draft.name === 'Second',
       }).writer,
+      documents: pages().writer,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,

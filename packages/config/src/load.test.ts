@@ -323,9 +323,16 @@ describe('loadConfig', () => {
       // Not merely "no SECRET in the name": the one OIDC variable that has a
       // default is a scope list, and nothing that decides *where a credential
       // goes* — or is one — is defaulted at all.
-      const defaulted = names.filter(
-        (name) => VARIABLES[name as keyof typeof VARIABLES].default !== undefined,
-      );
+      //
+      // `'default' in entry` rather than reading the property directly: the
+      // table is a union of row shapes, only some of which declare a default,
+      // so reading it off the union is a type error — and the `in` check is
+      // also the honest reading of the question, which is *which rows have
+      // one*, not which rows have a non-undefined value.
+      const defaulted = names.filter((name) => {
+        const entry = VARIABLES[name as keyof typeof VARIABLES];
+        return 'default' in entry && entry.default !== undefined;
+      });
       expect(defaulted).toEqual(['OIDC_SCOPES']);
     });
 
