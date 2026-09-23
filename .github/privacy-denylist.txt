@@ -31,9 +31,29 @@ collectionProperty://
 
 # The v1 shape, in the positions an identifier is written. The leading `\b` is
 # load-bearing: without it this matches `operationId: 'createInitiative'`
-# (`Id` plus an exactly-16-character camelCase value). It covers the wire's
-# snake_case keys only, which is where third-party data would be pasted.
+# (`Id` plus an exactly-16-character camelCase value).
 \b(id|task_id|project_id|section_id|parent_id)["'= :]+[0-9A-Za-z]{16}\b
+
+# The same shape under a camelCase key, which the pattern above does not cover:
+# `projectId` has no word boundary before its `Id`, so `\bid` never reaches it.
+# This is the shape TypeScript and JSON use, which is where a third-party
+# response would be pasted.
+#
+# It requires the value to be **quoted**, and that is the whole of the design.
+# The separator alone cannot tell a value from an expression: `projectId:
+# parentExternalId` is a sixteen-character camelCase token in an id position,
+# and so is a destructuring rename — both are code, not data, and matching
+# either is a false positive that would make the pattern useless. A quoted
+# string literal is the tell, and it is the only one available here: this
+# scanner is `grep -E`, which has no lookahead to express "and not an
+# identifier".
+#
+# What it therefore does **not** cover, stated rather than discovered: an
+# unquoted camelCase value (`projectId: 6X7fH2kQ9pLmN3rT` in YAML or JSON5), and
+# a quoted value that happens to be an all-letters sixteen-character word. The
+# snake_case pattern above covers the unquoted case wherever the key is
+# snake_case, which is what those formats normally use.
+\b(id|taskId|projectId|sectionId|parentId)["']?[[:space:]]*[:=][[:space:]]*["'][0-9A-Za-z]{16}\b
 
 # --- Personal identifiers ----------------------------------------------------
 # Generic shapes only. Specific names and addresses belong in
