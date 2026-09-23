@@ -18,7 +18,7 @@ Ordered by what an attacker would want most.
 |---|---|---|---|
 | A1 | **External API tokens** (document tool, task tool) | Full read/write over the user's entire planning workspace, outside prisme's control | Severe, and not contained by shutting prisme down |
 | A2 | **prisme API / MCP tokens** | Programmatic access to everything prisme holds and can write outward | High |
-| A3 | **Human session credentials** — the gateway's session cookie and the signed assertion derived from it | Impersonation in the UI | High |
+| A3 | **Human session credentials** — prisme's session cookie, which holds the identity provider's ID token | Impersonation in the UI | High |
 | A4 | **The personal data itself** | Goals, health and relationship context, finances, schedule. Highly sensitive in aggregate | High, irreversible — disclosure cannot be undone |
 | A5 | **The event log** | A behavioural time series: when the user works, what they avoid | Moderate; uniquely revealing |
 | A6 | **Database credentials** | Everything above, at rest | High |
@@ -63,28 +63,37 @@ Split by caller, because the two have genuinely different constraints.
 
 | Caller | Mechanism |
 |---|---|
-| Human, in a browser | The self-hosted identity provider, in front of prisme. prisme **verifies the provider's signed assertion on every request** — signature, issuer, audience, expiry, lifetime and subject allow-list — and trusts no identity header. No prisme session cookie ([ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md)) |
+| Human, in a browser | The self-hosted identity provider, with prisme running the OIDC authorization-code flow itself ([ADR-0026](20-decisions/0026-human-auth-via-oidc.md)). prisme **verifies the ID token on every request** — signature, issuer, audience, expiry, lifetime and subject allow-list — and trusts no identity header. The token lives in an `HttpOnly` `Secure` `SameSite=Lax` `__Host-`-prefixed session cookie, and the code exchange uses PKCE, so no client secret is held |
 | Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI (which is itself behind the identity provider) |
 
 A request presenting both credentials is rejected rather than resolved by precedence.
 
-### Why the assertion is verified rather than trusted
+### Why the identity is verified rather than trusted
 
-The deployment authenticates humans at the gateway and forwards identity upstream. Trusting those
-headers would make prisme's security a **network-reachability assumption**: anything that could
-reach the application directly, bypassing the gateway, could assert any identity — silently, and
-completely, for an application holding read/write tokens to an entire personal workspace. The
-gateway already forwards the provider's *signed* token beside the plaintext headers, so verifying
-it costs nothing and removes the assumption. Full reasoning and the verification rules:
+A deployment can authenticate humans at a gateway and forward identity upstream as plaintext
+headers. Trusting those headers would make prisme's security a **network-reachability assumption**:
+anything that could reach the application directly, bypassing the gateway, could assert any identity
+— silently, and completely, for an application holding read/write tokens to an entire personal
+workspace. Both decisions taken here refuse that. ADR-0021 verified the provider's *signed* token
+instead, and ADR-0026 keeps the verification and moves the login in-app, so the token is obtained by
+a flow prisme runs rather than inherited from a proxy. Full reasoning:
+[ADR-0026](20-decisions/0026-human-auth-via-oidc.md), and the verification rules it keeps,
 [ADR-0021](20-decisions/0021-verified-forward-auth-assertion.md).
 
-Two consequences that are easy to get wrong:
+Three consequences that are easy to get wrong:
 
-- **CSRF is still live.** The absence of a prisme cookie does not help — the gateway's own session
-  cookie is ambient in the browser, so a cross-site state-changing request arrives authenticated.
-  Origin checks on state-changing requests are mandatory.
-- **The assertion is a bearer credential.** It belongs on the log redaction deny-list beside the
-  tokens, and its replay window is the provider's token validity.
+- **CSRF is live, and prisme's own cookie is now part of it.** A cookie is ambient in the browser, so
+  a cross-site state-changing request arrives authenticated. Under ADR-0021 that was the gateway's
+  cookie and the point was that the absence of a prisme one bought nothing; prisme now issues the
+  session cookie itself, which makes origin checks on state-changing requests **the control rather
+  than belt-and-braces**. They run on both tiers.
+- **The cookie is a bearer credential.** It belongs on the log redaction deny-list beside the tokens,
+  and its replay window is the provider's token validity — which is why token lifetime is part of the
+  deployment contract ([`15-runtime.md`](15-runtime.md#6-interface-to-the-deployment-repository)).
+- **A session is a new thing to get wrong.** It is bounded by the token's own `exp` and has no
+  refresh path, the identifier is never adopted from a request (so there is nothing to fixate), and
+  clearing it ends it — there is no server-side session. The obligations ADR-0026 pays for are listed
+  in its Consequences section rather than left implicit.
 
 ### Why authorization stays in prisme
 
@@ -138,8 +147,8 @@ unlikely to make them.
 |---|---|
 | Injection | Parameterized queries only, via the query builder. No string-built SQL; lint-enforced |
 | XSS | Strict CSP with per-request nonces. No raw HTML injection of third-party content. Rich text from the document tool is sanitised through an allow-list, never a deny-list |
-| CSRF | Origin checks on every state-changing request. prisme sets no session cookie, but the gateway's is ambient in the browser, so the check does the work |
-| Identity spoofing | Identity is read **only** from a verified signed assertion. Plaintext identity headers are never a fallback, and a direct connection that bypasses the gateway authenticates nothing |
+| CSRF | Origin checks on every state-changing request, on both tiers — including `/auth/logout`. A session cookie is ambient in the browser (ADR-0026), so the check is the control rather than a second line |
+| Identity spoofing | Identity is read **only** from a verified signed token. Plaintext identity headers are never a fallback, the assertion header is not read on the way in at all (ADR-0026 rule 3), and a direct connection that bypasses the ingress authenticates nothing |
 | SSRF | Content from external tools contains arbitrary URLs. Nothing fetches a URL originating in user or third-party data without an allow-list |
 | Untrusted input | One Zod schema per boundary, parsed before any other code sees the value — including **responses from external APIs** |
 | Secret leakage | Redacting logger with a deny-list; no secrets in errors, traces, URLs or query strings |

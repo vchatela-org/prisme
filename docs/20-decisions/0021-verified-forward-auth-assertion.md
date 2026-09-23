@@ -1,6 +1,18 @@
 # ADR-0021 · Trust a verified assertion, never an identity header
 
-**Status:** Accepted · 2026-09-15 · Completes [ADR-0015](0015-auth-split-by-caller.md), closes **OQ-9**
+**Status:** Superseded by [ADR-0026](0026-human-auth-via-oidc.md) · 2026-09-22 · Accepted 2026-09-15 ·
+Completes [ADR-0015](0015-auth-split-by-caller.md), closes **OQ-9**
+
+> ⚠ **Superseded by [ADR-0026](0026-human-auth-via-oidc.md)** (2026-09-22, Accepted). The decision
+> below is sound about *what to trust* — a verified signature, never a header — and ADR-0026 keeps
+> every rule of it except one. What it got wrong is *where the signature comes from*: rule 5
+> ("prisme issues no session cookie for humans") stopped being true the moment prisme had to run a
+> login flow, and its obligation 1 (an asymmetric signing keypair on the forward-auth proxy
+> provider) turned out to be undeliverable on the target identity provider, by that provider's design
+> rather than by misconfiguration. **Do not act on the four obligations at the bottom of this file**;
+> §6 of [`../15-runtime.md`](../15-runtime.md#6-interface-to-the-deployment-repository) carries the
+> ones that replaced them. Rules 1–4 and 6–9 remain in force through ADR-0026 and are what the code
+> still implements.
 
 ## Context
 

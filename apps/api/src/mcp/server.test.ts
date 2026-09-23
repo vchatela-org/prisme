@@ -408,7 +408,9 @@ describe('authorization', () => {
       now: () => PINNED_NOW,
     });
 
-    const send = (body: unknown): Promise<Response> =>
+    // `async` for the same reason as `call` in auth.integration.test.ts: Hono
+    // types `app.request` as `Response | Promise<Response>`.
+    const send = async (body: unknown): Promise<Response> =>
       app.request(MCP_PATH, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

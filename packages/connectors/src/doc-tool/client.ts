@@ -30,8 +30,23 @@ import { wireBlockListSchema, wirePageSchema, wireQueryResponseSchema } from './
 /** The tool's public API host. No workspace appears in it, and it is overridable. */
 export const DEFAULT_DOC_TOOL_BASE_URL = 'https://api.notion.com';
 
-/** Pinned: the tool dates its breaking changes, and an unpinned version is a silent upgrade. */
-export const DEFAULT_DOC_TOOL_API_VERSION = '2022-06-28';
+/**
+ * Pinned: the tool dates its breaking changes, and an unpinned version is a
+ * silent upgrade.
+ *
+ * The **value** matters as much as the pin. A version header is not a
+ * capability list — the tool rejects a string it does not recognise — and the
+ * endpoints below belong to an API surface that only exists from `2025-09-03`
+ * onwards: `POST /v1/data_sources/<id>/query` answers `400 invalid_request_url`
+ * under `2022-06-28`, which is the pin this client shipped with. So the pin and
+ * the calls were from two different eras, and every query failed.
+ *
+ * Bumping it is not a one-line change to be made on faith: a version accompanies
+ * *breaking* changes, so each endpoint this client reads has to be checked
+ * against the new one (see the comments on `wirePageSchema` and `mapPageContent`
+ * for the one that moved when this was raised).
+ */
+export const DEFAULT_DOC_TOOL_API_VERSION = '2026-03-11';
 
 const PAGE_SIZE = 100;
 const MAX_PAGES = 100;
