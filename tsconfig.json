@@ -6,6 +6,14 @@
   //
   // apps/web is absent on purpose — Next.js type-checks it with `noEmit`, which
   // a composite build forbids. `pnpm typecheck` runs it separately.
+  //
+  // That first pass therefore type-checks no test file at all, which is how
+  // forty-three errors accumulated in test scaffolding nobody was checking —
+  // including fakes that had drifted from the interfaces they stand in for.
+  // `pnpm typecheck` adds a second pass (`pnpm -r exec tsc --noEmit -p
+  // tsconfig.json`) that does include them, and it has to come *after* the build
+  // because a package's tests resolve its siblings through their emitted
+  // declarations.
   "files": [],
   "references": [
     { "path": "packages/observability/tsconfig.build.json" },

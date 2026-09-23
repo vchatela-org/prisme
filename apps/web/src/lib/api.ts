@@ -12,13 +12,19 @@ import { webRuntime } from './runtime';
  *
  * ## 1. The assertion is forwarded, never minted
  *
- * The middleware has already verified the caller's assertion, and it puts
- * nothing on the request saying so — ADR-0021 rule 6: the web tier is not a
- * trusted hop, and the API verifies the same assertion again. So what travels
- * upstream is the header exactly as the browser sent it, and this tier holds
- * no credential of its own. If the header is absent the call is made anyway and
- * the API answers `401`; inventing a nicer local failure would hide a
- * misconfigured gateway behind a sign-in prompt.
+ * The middleware has already verified the caller's ID token, and it puts
+ * nothing on the request saying so — ADR-0021 rule 6, kept by ADR-0026 rule 5:
+ * the web tier is not a trusted hop, and the API verifies the same token again
+ * with the same implementation. So what travels upstream is the header the
+ * middleware set from the session cookie, and this tier holds no credential
+ * that could *mint* one — the provider does that, and the cookie carries what
+ * it minted. If the header is absent the call is made anyway and the API
+ * answers `401`; inventing a nicer local failure would hide a broken login
+ * behind a sign-in prompt.
+ *
+ * (Before ADR-0026 the header arrived from a forward-auth proxy and this tier
+ * relayed it untouched. The direction of travel is unchanged and that is the
+ * point: only the acquisition moved.)
  *
  * This is also why there is no API token in `apps/web`'s configuration. A web
  * tier holding an agent token would be an ambient authority sitting in front of

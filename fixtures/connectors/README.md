@@ -18,6 +18,7 @@ instance data into git ([`../../docs/17-privacy.md`](../../docs/17-privacy.md)).
 | `doc-tool.query-objectives.json` | A paged query response, page 1 of 2 |
 | `doc-tool.query-objectives-page2.json` | Page 2, reached by `next_cursor` |
 | `doc-tool.page.json` | A single page, as `fetchPage` reads it |
+| `doc-tool.query-legacy-archived.json` | A one-page query response in the shape an API version *older* than the pinned one returns — the trash field under its former name, and no `in_trash` |
 | `doc-tool.blocks.json` | That page's block children, one level of nesting |
 | `malformed/*.json` | Responses that must **fail**, one per rule worth proving |
 
