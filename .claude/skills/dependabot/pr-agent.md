@@ -31,7 +31,7 @@ green — it is almost certainly green at a commit nobody should ship. Integrate
 ## 1. Worktree, outside the repository
 
 ```sh
-repo=$(git rev-parse --show-toplevel)
+# run this from the main checkout, not from inside another worktree
 n=<pr-number>; branch=<headRefName>; wt=/opt/git/prisme-worktrees/dep-$n
 git fetch --prune origin
 git worktree remove --force "$wt" 2>/dev/null || true
@@ -53,8 +53,12 @@ be `main` by accident.
 ## 2. Merge `main` in, never rebase
 
 ```sh
-git merge origin/main --no-edit
+git merge --no-commit origin/main
 ```
+
+Stop before the commit deliberately: the commit message belongs to this integration, and a merge
+that commits itself carries git's default subject with no way back — see step 7. `git merge --abort`
+is the escape if the merge turns out to be the wrong call.
 
 The branch is Dependabot's, and rebasing it rewrites commits it owns; the precedent is a merge
 (`docs/50-journal/P0-2026-09-16-node-26-web-and-engines.md`). Resolve conflicts on their merits:
@@ -77,9 +81,13 @@ Never hand-edit `pnpm-lock.yaml`. `--frozen-lockfile` failing is a lockfile that
 the manifests, which is a red `typecheck`/`lint`/`test`/`build`/`images` waiting to happen five
 checks later.
 
-`engine-strict=true` in `.npmrc` means an `engines` mismatch is a hard install failure here rather
-than a warning in CI. If install refuses, the bump is a toolchain move, not a version move — see the
-Node case below.
+`engine-strict=true` in `.npmrc` is *meant* to turn an `engines` mismatch into a hard install failure
+rather than a warning — but it did not, and the first run recorded it: the local box was on Node 24
+while `.nvmrc` pins 26.8.2, `pnpm install` succeeded, `--frozen-lockfile` exited 0, and every local
+check then ran on a runtime CI does not use. **So a local green does not validate a Node-major bump**;
+only CI, which installs the version `.nvmrc` names, does. Run `node -v` against `.nvmrc` before you
+trust a local pass, and say in the pull request body which Node the local checks ran on. If an
+install *does* refuse, that is the toolchain case below, not a version move.
 
 ## 4. Classify the bump
 
@@ -194,9 +202,17 @@ gate. If the only way to green is to weaken one, that is a park, not a fix.
 
 ## 7. Commit and push
 
-Commit with a real message: what the bump is, and what it took. Then:
+**Compose the message before you push, because there is no second chance.** The branch is
+Dependabot's, a force-push is forbidden, and `git commit --amend` is refused by this harness's
+permission classifier anyway (observed 2026-09-23, on the first run) — so a message that is wrong
+after the push stays wrong. Step 2 left the merge uncommitted for exactly this reason:
 
 ```sh
+git commit -F - <<'EOF'
+Integrate <bump> onto main
+
+<what the bump is, and what it took beyond version arithmetic>
+EOF
 git push origin HEAD:<headRefName>
 ```
 
@@ -251,10 +267,16 @@ gh api repos/<owner>/<repo>/actions/jobs/<job_id> \
 gh run rerun <run_id> --job <job_id>
 ```
 
-Steps all `success` with the job's `conclusion` already `success` means it is done and wedged. Un-wedge
-it without touching the tree, so the green read stays attached to the same commit. **Never push an
-empty commit to reset the checks** — that re-runs all of them and throws away a green read on a commit
-that was fine. And never treat the wedge as licence to merge: the rule is that green is read back.
+Read that output for one field above all: `conclusion`. Its two readings look alike and want opposite
+things. All steps `success` with `conclusion: null` is a job that is genuinely still finishing — often
+its own post-steps, upload and `Complete job`, which is where `images` sat for two minutes on the first
+run — so wait. All steps `success` with `conclusion: success` while the rollup still says `pending` is
+finished-and-wedged: that one is un-wedged with the re-run, without touching the tree, so the green
+read stays attached to the same commit.
+
+**Never push an empty commit to reset the checks** — that re-runs all of them and throws away a green
+read on a commit that was fine. And never treat a wedge as licence to merge: the rule is that green is
+read back.
 
 ## Parking, when green is not reachable
 
