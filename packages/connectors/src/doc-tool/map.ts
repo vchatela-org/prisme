@@ -231,6 +231,23 @@ function hashableProperties(
 }
 
 /**
+ * Whether a page is live, from the two spellings the tool uses for "not live".
+ *
+ * `in_trash` is the field the tool documents and the one the version this client
+ * pins returns; `archived` is the alias it used to return and no longer does.
+ * Reading **both** is what makes the answer the same under either version — and
+ * it has to be an *or*, not a choice of one: a version that sends the old name
+ * sends nothing under the new one, so a reader that picked either field alone
+ * would call every trashed page live on the other version. A trashed page is not
+ * live, which is the fact this is about; which key carries it is the tool's
+ * business. It matters because the read is level-triggered (docs/16-sync.md §2):
+ * a page that reads as live when it is not is drift no later pass will notice.
+ */
+function isArchived(page: WirePage): boolean {
+  return (page.archived ?? false) || (page.in_trash ?? false);
+}
+
+/**
  * Everything a page record holds except which store it came from.
  *
  * Split out because `fetchPage` reads one page by ID and has no role to report;
@@ -258,14 +275,14 @@ export function mapPageContent(page: WirePage, operation: string): Omit<DocRecor
     externalId: page.id,
     lastEditedAt: instant(page.last_edited_time, 'last_edited_time', operation),
     createdAt: instant(page.created_time, 'created_time', operation),
-    archived: (page.archived ?? false) || (page.in_trash ?? false),
+    archived: isArchived(page),
     title,
     properties,
     urls,
     // Deliberately excludes `last_edited_time`: a touch that changes nothing
     // must not look like a change (docs/16-sync.md §2).
     contentHash: contentHash({
-      archived: (page.archived ?? false) || (page.in_trash ?? false),
+      archived: isArchived(page),
       properties: hashableProperties(properties),
     }),
   };
