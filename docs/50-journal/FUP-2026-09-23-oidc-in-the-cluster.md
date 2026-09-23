@@ -1,8 +1,7 @@
 # FUP · 2026-09-23 · The OIDC client exists, in the cluster
 
 **Agent:** Claude · **Duration:** one session ·
-**Outcome:** the deployment side of ADR-0026 is done and verified; the manifest half is a PR
-awaiting a human merge
+**Outcome:** the deployment side of ADR-0026 is done, applied and verified
 
 [ADR-0026](../20-decisions/0026-human-auth-via-oidc.md) was implemented and driven end to end against a fake
 provider, and left exactly one thing undone: **no OIDC client existed on the deployment's identity
@@ -82,19 +81,56 @@ Three things a plan would not have shown, all about propagation rather than regi
 3. **The key set went from empty to one asymmetric key**, which is the whole point of the exercise
    and is a single command to check. It is also the check that would have caught the previous
    arrangement's failure, which is why it is now in the runbook's "check it came up" list.
+4. **Forcing the Vault re-sync by hand blocked the next apply.** The propagation in (1) was made to
+   happen *now* rather than within the refresh interval, with a one-field `kubectl patch`. That
+   patch became the field manager for that field, and the deployment repository's own apply is a
+   server-side apply — so it hit a field-manager conflict on a resource it had written successfully
+   many times before, and the **apply failed after the API tier had already rolled**. The web tier
+   was left on the old image, behind a route whose middleware had just been removed, which presents
+   as a `401` from an application that has no way to authenticate anybody. Setting the field back to
+   the value the apply wanted cleared it and the re-run completed. The lesson is narrow and worth
+   keeping: **a hand-edit that makes a controller reconcile faster can be a landmine for the
+   declarative apply that owns the same object**, and the failure lands on an unrelated resource.
 
 The ordering is a constraint, not a preference: **the provider and the entries must change before
 the image does**, or the new web tier boots without its login configuration and refuses to start.
+And the apply is the last step, because removing the forward-auth middleware while the old image is
+still serving is a `401` rather than a login — the middleware and the image have to change together,
+which is what makes them one apply.
+
+## The apply, and what it took
+
+The deployment repository's manifest half — the image pin, the middleware removal and the
+callback-route deletion — merged and applied, and both tiers now run the version that logs humans
+in. It failed once, on finding 4 above, and the re-run completed. The two changes are one pull
+request on purpose: the middleware and the image must move in the same apply, because a
+forward-auth middleware left on a route whose image no longer reads an assertion is a `401` for
+every request rather than a login.
+
+## Verified after the apply
+
+- **Both tiers rolled clean** — `0` restarts. The web tier refuses to boot without its login
+  configuration, so a green rollout is itself evidence the values arrived.
+- **A browser gets the login; a script does not.** Opening the app in a real browser follows
+  `/` → `/auth/login` → the provider, and the provider's page reads *"Log in to continue to prisme"*,
+  scoped to this client and carrying its id, the exact callback URL and an `S256` challenge. The same
+  request with no browser-style `Accept` answers `401` instead — the deliberate distinction:
+  sending a navigation to a login form is useful, sending an API client there is not.
+- **The callback refuses rather than loops** — an unknown `state` answers `401`, with the reason in
+  the log line and not on the wire.
+- **The forward-auth route and its middleware are gone**, and nothing serves the outpost on this host.
+- **The reconciler still works**: a frozen pass exits `0`, reports nothing to do, and refuses to
+  write outward. The roll did not disturb it.
+- **The API is ready**, schema version matching the binary.
 
 ## Not done
 
-- **The apply has not run.** It is the deployment repository's manifest half — the image pin, the
-  middleware removal and the callback-route deletion — and it is a pull request awaiting a human
-  merge. Everything above is live; the cluster's running image is not yet the one that logs humans
-  in. That is the one remaining step and it is deliberately a human's.
-- **The login round trip has not been driven in a browser against the real provider.** The
-  registration, the endpoints, the key set and the configured values are each verified independently;
-  the end-to-end round trip is the check that closes it, and it can only run once the apply lands.
+- **The login was not completed with a credential, so the round trip is verified only to the
+  provider's sign-in form.** Everything up to that boundary is confirmed against the live provider —
+  including three refusal paths — but the exchange, the ID-token verification and the session are
+  **not** exercised end to end against the real provider by this entry, and it should not be read as
+  claiming they were. The last step needs a real account, which is the owner's to give; that is one
+  sign-in in a browser, and it is the only thing left.
 - **Nothing about the API tier changed** — the same verifier, the same key set, the same fixed
   algorithm allow-list, the same origin check. ADR-0026 rule 5 keeps that deliberately.
 - **Deployment-repository PR #1233 was closed rather than merged.** It documented the proxy
