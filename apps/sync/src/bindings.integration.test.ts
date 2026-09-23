@@ -135,7 +135,10 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     const docClient = createDocToolClient({
       token: 'fixture-token',
       bindings,
-      transport: { send: () => Promise.reject(new Error('never called')) },
+      // A `Transport` is a function, not an object with `send` — this test
+      // carried the pre-seam shape and nothing noticed until test files were
+      // typechecked.
+      transport: () => Promise.reject(new Error('never called')),
     });
     expect(typeof docClient.queryByRole).toBe('function');
   });
