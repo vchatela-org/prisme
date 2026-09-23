@@ -1,0 +1,22 @@
+{
+  "_comment": "Synthetic. One page as an API version *before* the trash rename returns it: `archived` is present and `in_trash` is absent. Kept so the mapping's compatibility with the older spelling is a test rather than a claim, since the pinned version sends the other one.",
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "doc-page-0004",
+      "created_time": "2026-02-10T11:30:00.000Z",
+      "last_edited_time": "2026-09-16T08:59:00.000Z",
+      "archived": true,
+      "properties": {
+        "Name": {
+          "id": "title",
+          "type": "title",
+          "title": [{ "plain_text": "Retired objective", "href": null }]
+        }
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

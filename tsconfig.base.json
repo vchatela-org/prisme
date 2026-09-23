@@ -6,6 +6,17 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
+
+    // TypeScript 6.0 changed the default of `types` from "every package under
+    // node_modules/@types" to an empty array. Without this line the node
+    // globals and the `node:*` builtins simply stop existing at compile time —
+    // `process`, `URL`, `setTimeout`, `import.meta.url` — which is the whole of
+    // this repository's runtime. `node` is named explicitly rather than `*`:
+    // the new default is a build-time win, and the only global type package
+    // this workspace pulls in is @types/node. React's types are resolved
+    // through the `react` import itself, not through this list.
+    "types": ["node"],
+
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
