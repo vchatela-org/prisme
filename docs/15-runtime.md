@@ -487,14 +487,19 @@ Two corrections to an earlier reading of the cluster, both measured:
   irrelevant, because the token now arrives through a flow prisme runs itself. The measurement is
   kept because it is what the two superseded alternatives were weighed against.
 
-**Now verified against the live cluster — the client registration, 2026-09-23.** An OIDC client is
-registered on the deployment's identity provider, the web tier is pointed at it, and the
-forward-auth arrangement it replaced is gone. What was checked is the provider's *behaviour* rather
-than its configuration output: the authorize endpoint accepts the configured callback with an
+**Now verified against the live cluster — the client registration and the completed login,
+2026-09-23.** An OIDC client is registered on the deployment's identity provider, the web tier is
+pointed at it, and the forward-auth arrangement it replaced is gone. What was checked is the
+provider's *behaviour* rather than its configuration output: the authorize endpoint accepts the
+configured callback with an
 `S256` challenge and refuses a near-miss, and the key set went from empty to one asymmetric key —
 the condition whose absence the replaced arrangement could not report at all. The flow itself was
 verified earlier end to end against a locally running fake provider (`seed/harness/`, gitignored) —
-real redirects, real cookies, a real PKCE exchange and a real signature check. Neither repository
+real redirects, real cookies, a real PKCE exchange and a real signature check. **A real account then
+drove the same flow against the live provider**: the callback exchanged the code, verified the ID
+token against the key set — subject allow-list included — and issued the session, after which the
+web tier's gate answered every screen instead of redirecting to the login. So what is verified
+against the live cluster is the whole round trip, not only the registration. Neither repository
 points at a real provider's endpoints ([`17-privacy.md`](17-privacy.md)); the one deployment-specific
 fact that moved — a **new client id**, because a proxy provider cannot be converted to an OAuth2 one
 in place — is recorded in
