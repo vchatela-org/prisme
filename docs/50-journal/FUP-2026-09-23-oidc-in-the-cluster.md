@@ -4,7 +4,7 @@
 **Outcome:** the deployment side of ADR-0026 is done and verified; the manifest half is a PR
 awaiting a human merge
 
-[ADR-0026](0026-human-auth-via-oidc.md) was implemented and driven end to end against a fake
+[ADR-0026](../20-decisions/0026-human-auth-via-oidc.md) was implemented and driven end to end against a fake
 provider, and left exactly one thing undone: **no OIDC client existed on the deployment's identity
 provider**, which is the operator's step and the only thing between the code and a working login in
 the cluster ([the implementation entry](FUP-2026-09-22-oidc-human-auth.md)). This entry is that
