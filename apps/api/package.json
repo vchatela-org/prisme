@@ -32,7 +32,7 @@
     "@prisme/domain": "workspace:*",
     "@prisme/observability": "workspace:*",
     "@prisme/sync": "workspace:*",
-    "hono": "^4.6.0",
+    "hono": "^4.13.8",
     "postgres": "^3.4.0",
     "zod": "^4.1.0"
   }
