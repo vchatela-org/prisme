@@ -79,6 +79,14 @@ locally.
 The deny-list is itself public, so it contains **patterns, not secrets** — ID *shapes* rather than
 real IDs, and it references personal names indirectly where it must.
 
+An identifier is only a hit in a position where one is *written*, and the key's spelling is part of
+that: `project_id: …` and `projectId: …` are two patterns, because a word boundary never reaches the
+`Id` inside `projectId`. The camelCase pattern requires the value to be a **quoted** string literal,
+which is the only way this scanner can tell a pasted id from a code expression — `projectId:
+parentExternalId` is sixteen alphanumeric characters in an id position and is code, not data. That
+limit is deliberate and written beside the pattern: an unquoted camelCase value, and a quoted
+all-letters sixteen-character word, are not covered.
+
 ### 2.5 gitleaks
 
 Runs in CI and as a pre-commit hook, covering credential shapes that push protection may not know.

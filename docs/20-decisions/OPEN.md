@@ -117,6 +117,6 @@ has produced a few months of data.
 | Is objective progress computed? | Self-assessed; computed shown beside it — [ADR-0013](0013-self-assessed-progress.md) |
 | Who owns process pages? | The document tool, outright — [ADR-0016](0016-document-tool-owns-processes.md) |
 | Public or private repository? | Public, with an impersonal content rule — [ADR-0017](0017-public-repository.md) |
-| **OQ-9** · Forward-auth or OIDC in the application? | Forward-auth, with the provider's signed assertion **verified** rather than its headers trusted — [ADR-0021](0021-verified-forward-auth-assertion.md). W14 is unblocked |
+| **OQ-9** · Forward-auth or OIDC in the application? | **OIDC in the application**, with the ID token **verified** rather than any identity header trusted — [ADR-0026](0026-human-auth-via-oidc.md), which supersedes [ADR-0021](0021-verified-forward-auth-assertion.md) on the point that decided it: the forward-auth arrangement needs an asymmetric signing keypair the target provider cannot durably hold. W14 is unblocked |
 | Who owns database backups, and does prisme need to build one? | The deployment repository, as a dump CronJob beside its other databases. prisme ships **none** — [ADR-0022](0022-backups-belong-to-the-deployment-repository.md). It was never a workstream dependency; it gates only [step 8](../13-migration.md#5-sequence), the first outward write |
 | **OQ-8** · Which licence? | **MIT**, chosen at publication. See [`LICENSE`](../../LICENSE) |
