@@ -98,7 +98,10 @@ describe.runIf(describeWithDatabase === 'run')('authentication end to end', () =
     });
   });
 
-  function call(
+  // `async`, because Hono types `app.request` as `Response | Promise<Response>`
+  // — it answers synchronously in some paths — and an `async` wrapper is what
+  // makes that assignable to the `Promise<Response>` the callers await.
+  async function call(
     method: string,
     path: string,
     headers: Record<string, string> = {},
