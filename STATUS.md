@@ -353,18 +353,23 @@ against the same key set as before. What moved is where the login happens — th
 assertion could not be given a durable signing keypair (below). **W14 is unblocked**, and no open
 question now blocks a workstream. OQ-1 and OQ-2 block P2; the rest are deferred by choice.
 
-✅ **The OIDC client is registered, and the login is wired up in the cluster.** The code was verified
-end to end against a local fake provider; the registration on the deployment's provider, the
-configuration, and the removal of the forward-auth arrangement it replaces are **done and checked
-against the live provider** — the authorize endpoint accepts the exact callback with an `S256`
+✅ **The OIDC client is registered, the login is wired up in the cluster, and a real account has
+completed the round trip.** The code was verified end to end against a local fake provider; the
+registration on the deployment's provider, the configuration, and the removal of the forward-auth
+arrangement it replaces are **done and checked against the live provider** — the authorize endpoint
+accepts the exact callback with an `S256`
 challenge and refuses a near-miss, and the key set went from empty to one asymmetric key, which is
 the check that would have caught the arrangement this replaced
 ([the entry](docs/50-journal/FUP-2026-09-23-oidc-in-the-cluster.md)). The deployment repository's
 half — the image pin, the forward-auth middleware removal and the callback-route deletion — merged
 and applied, so both tiers run the version that logs humans in, and a browser follows the app into
-the provider's sign-in form correctly scoped to this client. **What is left is one sign-in:** the
-round trip is verified *to* the credential boundary and no further, and completing it needs a real
-account.
+the provider's sign-in form correctly scoped to this client. **The sign-in itself has since
+completed, on a real account:** the callback exchanged the code, verified the ID token against the
+live key set — the subject allow-list included, which nothing earlier can test — and issued the
+session, after which the edge's request log shows `/` and every screen answering `200` where they
+had answered `303` to `/auth/login` before
+([the entry](docs/50-journal/FUP-2026-09-23-oidc-signin-completes.md)). **What is left is a human's,
+and it is no longer the login:** the write freeze below, and the open decisions.
 
 ✅ **Database backups are not a prisme task** —
 [ADR-0022](docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md): a dump CronJob in
