@@ -15,7 +15,7 @@ real question is **who defines its permissions**.
 
 | Caller | Mechanism |
 |---|---|
-| Human, in a browser | **The identity provider**, through a verified signed assertion — mechanism settled in [ADR-0021](0021-verified-forward-auth-assertion.md) |
+| Human, in a browser | **The identity provider**, through a verified signed token — mechanism settled in [ADR-0026](0026-human-auth-via-oidc.md) (in-app OIDC), which supersedes [ADR-0021](0021-verified-forward-auth-assertion.md)'s forward-auth transport |
 | Agents, MCP clients, scripts | **prisme-issued scoped tokens**, minted from the UI, which is itself behind the identity provider |
 
 Tokens are Argon2id-hashed at rest, scoped, expiring, revocable, with `last_used_at` recorded and a
@@ -46,7 +46,17 @@ Closed by **[ADR-0021](0021-verified-forward-auth-assertion.md)**: forward-auth,
 header. The split decided here is unchanged — identity from the provider, authorization in prisme —
 and the browser half no longer depends on a network-reachability assumption.
 
-Read ADR-0021 for the verification rules; they are the binding ones.
+**Corrected 2026-09-22 — the transport moved, the decision did not.** ADR-0021's obligation 1 (an
+asymmetric signing keypair on the forward-auth proxy provider) turned out to be undeliverable on the
+target identity provider, by that provider's design.
+[**ADR-0026**](0026-human-auth-via-oidc.md) supersedes it on that point alone: prisme now runs the
+OIDC authorization-code flow in the web tier, and the token it obtains is verified by the same
+verifier — every rule of ADR-0021 except rule 5 survives. Note that ADR-0015's original assumption
+was per-application OIDC, so this is a return to it rather than a third model.
+
+Read [ADR-0026](0026-human-auth-via-oidc.md) for the flow and
+[ADR-0021](0021-verified-forward-auth-assertion.md) for the verification rules; those are the binding
+ones.
 
 ## Alternatives
 
