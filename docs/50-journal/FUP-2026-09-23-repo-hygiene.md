@@ -1,6 +1,6 @@
 # FUP · 2026-09-23 · Two settings that did nothing, and a file that should never have been tracked
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#57](https://github.com/vchatela-org/prisme/pull/57) · **Outcome:** complete
 
 Closes two small debts the workstream entries recorded but nobody had picked up. Both are the same
 shape as the ones [W00's close-out](W00-2026-09-15-close-out.md) found: **configuration that looks
