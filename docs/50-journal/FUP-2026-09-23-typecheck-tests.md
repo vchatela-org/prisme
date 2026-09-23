@@ -1,6 +1,6 @@
 # FUP · 2026-09-23 · The gate that type-checks test files, and the forty-three errors it found
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#59](https://github.com/vchatela-org/prisme/pull/59) · **Outcome:** complete
 
 Closes W06's follow-up #2: *"**No CI gate typechecks test files.** `pnpm typecheck` builds
 `tsconfig.build.json`, which excludes `*.test.ts`, and ESLint does not report compile errors. Two
