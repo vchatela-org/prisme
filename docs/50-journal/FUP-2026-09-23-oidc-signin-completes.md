@@ -1,6 +1,6 @@
 # FUP · 2026-09-23 · The human login completes, in the cluster
 
-**Agent:** Claude · **Duration:** one session ·
+**Agent:** Claude · **Duration:** one session · **PR** #61 ·
 **Outcome:** the last operator step of ADR-0026 is closed — a real account completed the round trip
 
 [The preceding entry](FUP-2026-09-23-oidc-in-the-cluster.md) registered the client, converted the
