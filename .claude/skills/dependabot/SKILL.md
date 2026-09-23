@@ -104,11 +104,18 @@ the run that follows a merge.
 ```sh
 git fetch --tags --prune
 last=$(git tag --list 'v*' --sort=-version:refname | head -1)
-git log "$last..origin/main" --merges --pretty=%s | grep -i dependabot   # what a tag would contain
+# Dependabot's branch prefix, not the word: this skill's own pull requests are named
+# `chore/dependabot-skill`, and `grep -i dependabot` matches those too — so the check reports the
+# skill's own documentation as dependency work waiting to be released.
+git log "$last..origin/main" --merges --pretty=%s | grep 'dependabot/'   # what a tag would contain
 ```
 
 No output from that last one is a legitimate answer — it means nothing is waiting to be released, not
-a failure to investigate.
+a failure to investigate. The prefix is what makes the answer mean something: on the first real run
+the word-matched version returned two hits and both were the skill's own pull requests.
+
+**Confirm the tag you are about to cut is not already there** — `git tag -l "v<version>"` must be
+empty. A version that exists is never reused and never re-pointed.
 
 - **The version.** Patch by default — `$last` with its patch field incremented. **Minor** when what
   `main` gained since `$last` includes new behaviour rather than a dependency move: a new ADR in
@@ -119,6 +126,16 @@ a failure to investigate.
   `$last..origin/main`. A run whose pull requests are green but unmerged records the version as
   **pending**, with what unblocks it (one merge), and stops there. It never cuts a version that does
   not contain what it names.
+- **Pending is an obligation, not a paragraph.** That rule has one cost, and it is the run's to pay:
+  at the moment a run ends, the merges are a human's and the tag is this skill's, and **nothing
+  re-runs to notice the precondition has been met**. A pending version therefore sits unborn until
+  somebody asks where it is — which is exactly what happened to the first real run, whose `v0.0.6`
+  waited on a merge nobody had made yet and then on a run nobody had scheduled
+  ([the entry](../../../docs/50-journal/P0-2026-09-23-dependabot-wave.md)). So a
+  pending version is recorded where a human will look — a line under *Releases* in
+  [`STATUS.md`](../../../STATUS.md#releases), naming the one merge that unblocks it — and handed to
+  something that will act: a scheduled re-run, or, in a watched run, the report's release line.
+  Never left as a journal sentence alone.
 - **Say what you are about to publish, then publish it.** An annotated tag on `main`'s current
   commit, its message naming the pull requests it contains, pushed with `git push origin v<version>`.
   Never from a branch. Never a version that already exists.
@@ -152,7 +169,10 @@ On a fresh branch off up-to-date `main`, named `docs/dependabot-wave-<date>`:
 - `docs/50-journal/P0-<date>-dependabot-wave.md` — what was decided and why, never what the data
   said — and its row in `docs/50-journal/INDEX.md`.
 - **The release decision**: the version, which field moved, why that field, the commit it was cut on,
-  or — when it is pending — the single merge that unblocks it.
+  or — when it is pending — the single merge that unblocks it. When it is pending, also record it
+  under *Releases* in [`STATUS.md`](../../../STATUS.md#releases) and remove the line in a later run
+  that cuts it, so the open obligation lives where a human looks rather than in an append-only
+  journal alone.
 - Any `ignore:` entry for `.github/dependabot.yml` the run concludes is warranted, **proposed** in
   the journal's *Follow-ups*. The file itself changes only if the user agrees.
 

@@ -106,7 +106,7 @@ pairs **#46 with #48** and **#47 with #49**, each pair together. Nothing in CI w
 half.
 
 **After the wave lands** the tag is `v0.0.6` (patch) and this run's version line becomes true; until
-then it is pending.
+then it is pending. **Landed, and cut — see the addendum below.**
 
 **Once all four Docker pull requests are merged**, one change can move both images to the
 `:nonroot` tag's current digest (Node v26.10.0) together. That is the safe shape for that move.
@@ -139,3 +139,33 @@ unavailable, and the locally built verification images.
 **none.** No `docs/` spec diverged from reality in this run; the two spec-shaped deltas (the lint
 ordering note and the possible Docker group) are follow-ups above rather than corrections, because
 neither is currently stated wrongly anywhere.
+
+## Addendum · 2026-09-23 · the release, cut
+
+The version this run recorded as **pending** is cut: **`v0.0.6`**, annotated, on `main`'s tip after
+the wave merged (`52db733`). Patch field, for the reason above — no new ADR and no `feat:` commit
+since `v0.0.5`, only dependency moves and build-configuration change.
+
+**It was pending because of a handoff, not a failure.** The run ended at 17:48 and the eight merges
+landed between 18:23 and 19:04. The skill's release rule is that a tag must be *true* — the work has
+to be **on `main`** — and `/dependabot` never merges, so at 17:48 the run could only record the
+number and wait, which it did, correctly and in writing. What did not exist was anything that would
+**revisit** it. The merges were a human's; the tag is the skill's; and no second run fired to observe
+that the precondition had been met. The number sat unborn until somebody asked where it was — which
+is the whole failure, and it is a gap in the run's ending rather than in its work.
+
+Two things are fixed against it, both in [the skill](../../.claude/skills/dependabot/SKILL.md) and
+both carried by this follow-up's own document pull request:
+
+- **The release check no longer reads the skill's own documentation as a finding.** Step 5's grep now
+  matches Dependabot's branch prefix (`dependabot/`) rather than the word *dependabot* — which is
+  what the *Surprises* note above was about. `dependabot/npm_and_yarn/…` is dependency work;
+  `chore/dependabot-skill` is this skill's own pull request; `grep -i dependabot` matched both and
+  could not tell them apart.
+- **A pending release is a durable obligation, not a paragraph.** A run that finds the version
+  pending must now record it where a human will look — a line in
+  [`STATUS.md`](../../STATUS.md#releases), naming the one merge that unblocks it — and hand it to
+  something that will act on it. A journal explains a decision; it does not hold an open action. This
+  run is what that costs.
+
+The release itself is in `STATUS.md` under *Releases*, which is the visible half of the same fix.
