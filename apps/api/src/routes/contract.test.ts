@@ -107,7 +107,10 @@ describe('an unconfigured instance serves nothing', () => {
       const response = await app.request(path, {
         method: route.method.toUpperCase(),
         headers: { 'content-type': 'application/json' },
-        body: route.method === 'get' ? undefined : '{}',
+        // Spread rather than `body: undefined`: under `exactOptionalPropertyTypes`
+        // an explicit `undefined` is not the same as an absent field, and
+        // `RequestInit['body']` does not admit it.
+        ...(route.method === 'get' ? {} : { body: '{}' }),
       });
 
       expect(response.status, `${route.operationId} answered ${String(response.status)}`).toBe(401);
