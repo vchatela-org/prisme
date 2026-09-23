@@ -12,8 +12,10 @@ one-line bump is not a one-line change (`docs/50-journal/P0-2026-09-15-node-26-b
 skill runs that work as a loop and follows the same rule as everything else here: **it stops when
 every check on the pull request reports green, read back after the last push, and a human merges.**
 
-A run is safe to repeat and safe to schedule because it has no destructive ending. It never merges,
-never pushes to `main`, and never touches `STATUS.md` or the journal from inside a dependency branch.
+A run is safe to repeat and safe to schedule because it never merges and never pushes to `main`, and
+because its one outward action — cutting the version tag that publishes both images — is announced in
+the report, recorded in the journal, and taken only when the work that version names is already on
+`main`.
 
 ## Arguments
 
@@ -22,6 +24,7 @@ never pushes to `main`, and never touches `STATUS.md` or the journal from inside
 | `#46 #50 …` | Restrict the run to these pull requests |
 | `--dry-run` | Enumerate, order, classify, report — spawn nothing |
 | `--force` | Re-attempt pull requests parked by an earlier run |
+| `--no-release` | Skip the release decision at the end (it is still recorded) |
 
 With no arguments: every open Dependabot pull request that is not parked.
 
@@ -90,7 +93,44 @@ Before each spawn, ask whether an earlier pull request of this run has been merg
 remaining branches. A stale base is how a wave rots: yesterday's green says nothing against today's
 `main`.
 
-### 5. Report
+### 5. Decide the release
+
+**This is what the run is for.** Integrating the bumps changes nothing in the cluster until a version
+is cut: `publish.yml` fires on a `v*` tag, pushes both images to Harbor, and the deployment side
+picks that version up from there. So every run ends by asking whether `main` holds dependency work
+that no tag contains yet — including a run that found nothing to integrate, because that is exactly
+the run that follows a merge.
+
+```sh
+git fetch --tags --prune
+last=$(git tag --list 'v*' --sort=-version:refname | head -1)
+git log "$last..origin/main" --merges --pretty=%s | grep -i dependabot   # what a tag would contain
+```
+
+No output from that last one is a legitimate answer — it means nothing is waiting to be released, not
+a failure to investigate.
+
+- **The version.** Patch by default — `$last` with its patch field incremented. **Minor** when what
+  `main` gained since `$last` includes new behaviour rather than a dependency move: a new ADR in
+  `docs/20-decisions/`, or a `feat:` commit. Say which field and why in the journal entry; a version
+  nobody can explain is a version nobody can trust.
+- **Tag only when the tag would be true.** The precondition is that the work is already **on
+  `main`** — every green pull request of this run merged, and those merges visible in
+  `$last..origin/main`. A run whose pull requests are green but unmerged records the version as
+  **pending**, with what unblocks it (one merge), and stops there. It never cuts a version that does
+  not contain what it names.
+- **Say what you are about to publish, then publish it.** An annotated tag on `main`'s current
+  commit, its message naming the pull requests it contains, pushed with `git push origin v<version>`.
+  Never from a branch. Never a version that already exists.
+- `--no-release` and `--dry-run` skip the cut. The decision is still recorded.
+
+The repository's own precedent is that cutting a tag is a *release decision* rather than a mechanical
+step, and that it belongs to a human (`docs/50-journal/FUP-2026-09-21-publish-verified.md`). The
+owner has delegated that decision to this skill. What the delegation does not license is a silent
+release: the version, the field it moved and the reason are written down, and the tag message says
+what it contains.
+
+### 6. Report
 
 One table, at the end:
 
@@ -101,12 +141,18 @@ One table, at the end:
 A parked row carries its reason, and the reasons are repeated in full below the table — every one of
 them is a decision waiting on a human.
 
-### 6. Record the run
+Then the release line: the version, which field moved and why, whether it was cut or is pending, and
+the commit it was cut on. A run that integrated nothing new and released nothing is a good run — say
+so plainly rather than dressing it up.
+
+### 7. Record the run
 
 On a fresh branch off up-to-date `main`, named `docs/dependabot-wave-<date>`:
 
 - `docs/50-journal/P0-<date>-dependabot-wave.md` — what was decided and why, never what the data
   said — and its row in `docs/50-journal/INDEX.md`.
+- **The release decision**: the version, which field moved, why that field, the commit it was cut on,
+  or — when it is pending — the single merge that unblocks it.
 - Any `ignore:` entry for `.github/dependabot.yml` the run concludes is warranted, **proposed** in
   the journal's *Follow-ups*. The file itself changes only if the user agrees.
 
@@ -124,13 +170,12 @@ only the first merge of a batch is conflict-free. Do not merge this one either.
 | **A check red for a reason outside the branch** | The protocol's row: say so in the body and the report, raise it, and do not loop silently against a runner outage |
 
 Green and parked are the only endings, and neither is a merge: an agent never merges its own pull
-request, and nothing in this run touches `main`. A parked pull request is never hidden — it is a
+request, and nothing in this run moves `main`. A parked pull request is never hidden — it is a
 comment, a marker a later run reads, and a line in the report.
 
 ## What this deliberately does not do
 
-- **Never merges.** Green is the finish line; the human merges. That is the reason a scheduled run is
-  safe to leave unattended.
+- **Never merges.** Green is the finish line; the human merges.
 - **Never runs two pull requests at once.** See above.
 - **Never edits `.github/dependabot.yml`, `STATUS.md` or the journal `INDEX.md` from a dependency
   branch.** Config and registry changes ride the run's own document pull request, or they do not
@@ -138,6 +183,11 @@ comment, a marker a later run reads, and a line in the report.
 - **Never weakens a check.** No deleted assertion, no relaxed lint rule, no `eslint-disable`, no
   skipped test, no narrowed `paths:` filter. A gate relaxed to pass is a failure that looks like a
   success, and the next person reads it as one.
+- **Never tags from a branch, and never reuses a version.** The tag points at `main`, at work that is
+  already on it. A version that does not contain what it names is worse than no release: it is a
+  release nobody can trust and a rollback nobody can reason about.
+- **Never puts a version bump inside a dependency pull request.** Eight of them would collide on the
+  same line for a number that only the run can decide once.
 
 ## Scheduling
 
@@ -146,8 +196,10 @@ world's cron fires. A session job is `CronCreate` with `recurring: true` and a c
 `17 6 * * 2`; an idle-time loop is `/loop`. The skill is idempotent: a pull request already green
 against a current `main` is skipped, so a missed or repeated firing costs nothing but a listing.
 
-The one thing a schedule cannot do is resolve a park. Those need a human's decision, and they
-accumulate in the report until they get one.
+A scheduled run that finds the wave merged cuts the release itself, so what a human still owns is the
+merge and the parks: review the green pull requests, merge them, and the next firing publishes. Two
+things a schedule cannot do — resolve a park, and vouch for a version — and both are reported until a
+human acts on them.
 
 ## Read next
 

@@ -219,6 +219,10 @@ the answer is none.
 - **Privacy**: fixture data only, no real value anywhere, and the deny-list scan's result.
 - **Not done** and **Follow-ups**: what you deliberately left, and anything a human now owns.
 
+**Do not put a version bump in this pull request.** The release is decided once, at the end of the
+run, by the orchestrator — eight pull requests each moving a version would collide on the same line
+for a number none of them can decide alone.
+
 ## 9. Read the checks back
 
 ```sh
@@ -229,6 +233,12 @@ gh pr view <n> --json statusCheckRollup
 Every check must be green on the head commit. A push resets the read: a green you saw before your
 last push says nothing about the branch now, including a push that only moved a document. Queued, in
 progress, or absent from the rollup is **not** green.
+
+One reading that is green while looking otherwise: the aggregate `CodeQL` context reports `skipping`
+when a pull request cannot trigger analysis — a dependency branch often will not — while its three
+real contexts, `CodeQL (actions)`, `CodeQL (javascript-typescript)` and `CodeQL (python)`, pass.
+Branch protection requires the three, not the aggregate, so `skipping` there is a green. Do not chase
+it, and do not report the rollup as red on its account.
 
 **A wedged check is not a running check.** This repository's CI runs on a self-hosted cluster runner
 that sometimes leaves a finished job reporting `in_progress` for ever. A check sitting at `pending`
