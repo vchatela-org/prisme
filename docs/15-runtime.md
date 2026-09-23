@@ -487,12 +487,18 @@ Two corrections to an earlier reading of the cluster, both measured:
   irrelevant, because the token now arrives through a flow prisme runs itself. The measurement is
   kept because it is what the two superseded alternatives were weighed against.
 
-**Not yet verified against the live cluster — the client registration.** No OIDC client exists for
-prisme on the deployment's identity provider, deliberately: registering one is the operator's step,
-and this repository must not point at a real provider's endpoints
-([`17-privacy.md`](17-privacy.md)). The flow itself is verified end to end against a locally running
-fake provider (`seed/harness/`, gitignored) — real redirects, real cookies, a real PKCE exchange and
-a real signature check — so what remains is the registration, not the code.
+**Now verified against the live cluster — the client registration, 2026-09-23.** An OIDC client is
+registered on the deployment's identity provider, the web tier is pointed at it, and the
+forward-auth arrangement it replaced is gone. What was checked is the provider's *behaviour* rather
+than its configuration output: the authorize endpoint accepts the configured callback with an
+`S256` challenge and refuses a near-miss, and the key set went from empty to one asymmetric key —
+the condition whose absence the replaced arrangement could not report at all. The flow itself was
+verified earlier end to end against a locally running fake provider (`seed/harness/`, gitignored) —
+real redirects, real cookies, a real PKCE exchange and a real signature check. Neither repository
+points at a real provider's endpoints ([`17-privacy.md`](17-privacy.md)); the one deployment-specific
+fact that moved — a **new client id**, because a proxy provider cannot be converted to an OAuth2 one
+in place — is recorded in
+[the entry](50-journal/FUP-2026-09-23-oidc-in-the-cluster.md) rather than in this repository.
 
 **Closed by W00 — the rendered env-file path and format.** It turned out not to need confirming:
 prisme reads whatever path `PRISME_ENV_FILE` names and hardcodes none, so the cluster's mount point
