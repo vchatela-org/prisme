@@ -45,3 +45,24 @@ Run parallel agents in **separate git worktrees** (`isolation: "worktree"`), one
 workstream (`ws/<id>`), and land each one as its **own green pull request** — not a merge to `main`.
 The worktree keeps two agents out of each other's files; the branch keeps their commits separable
 while the PRs go green at different times.
+
+## Non-workstream agents
+
+Not every agent here has a workstream brief. One does not, and it is kept out of the wave tables
+above because nothing schedules it and it depends on nothing:
+
+| Agent | What it does | Driven by |
+|---|---|---|
+| [`dependabot-pr`](dependabot-pr.md) | Integrates **one** open Dependabot pull request to green: merges `main` into the branch, regenerates the lockfile, fixes what breaks, fills in the body, reads the checks back | [the `/dependabot` skill](../skills/dependabot/SKILL.md), one agent per pull request, **serially** |
+
+Two of the rules above apply to it unchanged: it stops at green read back from the pull request, and
+it never merges. What differs is the branch and the worktree. A Dependabot branch is Dependabot's, so
+the agent merges `main` **into** it rather than cutting one; and the worktree must sit **outside** the
+repository, because a nested one resolves the main checkout's `node_modules` and passes every check
+against the old dependency set.
+
+The skill's own contract for that agent, and the traps a dependency bump keeps setting:
+[`../skills/dependabot/pr-agent.md`](../skills/dependabot/pr-agent.md).
+
+**The model override above is for workstreams.** A subagent spawned by a skill inherits the model the
+session is already running — no `model` argument is passed and none should be added.
