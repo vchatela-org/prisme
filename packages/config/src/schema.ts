@@ -160,6 +160,34 @@ const areaColorPins = () =>
     });
 
 /**
+ * `OIDC_SCOPES`.
+ *
+ * Whitespace- or comma-separated, because every provider's documentation writes
+ * the list one way and half the deployment repositories write it the other.
+ *
+ * `openid` is required and not defaulted *into* the value: without it the
+ * provider answers with an OAuth2 access token and no ID token, so the callback
+ * would have nothing to verify and the login would fail one hop later with a
+ * message about a missing claim rather than a missing scope. That is a boot
+ * failure here instead.
+ */
+const scopes = (label: string) =>
+  z
+    .string()
+    .transform((value) =>
+      value
+        .split(/[\s,]+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== ''),
+    )
+    .refine((entries) => entries.length > 0, { message: `${label} must list at least one scope` })
+    .refine((entries) => entries.includes('openid'), {
+      message:
+        `${label} must include "openid". Without it the provider returns no ID token, which is the ` +
+        'only thing prisme can verify',
+    });
+
+/**
  * Asymmetric algorithms only. `none` and every HMAC variant are rejected here
  * regardless of what the environment asks for — docs/15-runtime.md §2.
  */
@@ -215,6 +243,58 @@ export const VARIABLES = {
   AUTH_ISSUER_URL: { schema: httpUrl('AUTH_ISSUER_URL'), required: ['web', 'api'] },
   AUTH_AUDIENCE: { schema: nonEmpty('AUTH_AUDIENCE'), required: ['web', 'api'] },
   AUTH_ALLOWED_SUBJECTS: { schema: csv('AUTH_ALLOWED_SUBJECTS'), required: ['web', 'api'] },
+  /*
+   * The OIDC client the **web tier** logs humans in with (ADR-0026).
+   *
+   * Required for `web` and for nothing else, which is the whole of the change
+   * ADR-0026 makes: the web tier stops inheriting an assertion from a proxy and
+   * starts obtaining the ID token itself, so the client registration lives
+   * where the login flow lives. The API keeps verifying a JWT it is handed
+   * (ADR-0026 rule 5) and is refused these values — a tier that never performs
+   * a code exchange has no business holding a client id or a callback URL.
+   *
+   * **There is deliberately no `OIDC_CLIENT_SECRET` here, and its absence is a
+   * property rather than an omission.** The code exchange uses PKCE with
+   * `code_challenge_method=S256` (ADR-0026 rule 4), so the client is public and
+   * nothing prisme holds can mint a token at the provider. Adding a secret
+   * would falsify "the human authentication path holds no secret"
+   * (docs/15-runtime.md §2) and would need that claim corrected rather than
+   * quietly weakened — which is a decision for a human, not a schema default.
+   */
+  OIDC_CLIENT_ID: { schema: nonEmpty('OIDC_CLIENT_ID'), required: ['web'] },
+  /*
+   * Where the provider sends the browser back. Always the absolute public URL
+   * of `/auth/callback`, and never derived from a request: a redirect URI taken
+   * from an incoming header is one an attacker chooses, and the provider
+   * compares it exactly anyway.
+   *
+   * `loadConfig` additionally requires its **origin** to equal
+   * `PRISME_BASE_URL`'s — see the cross-check there for why that is not merely
+   * tidiness.
+   */
+  OIDC_REDIRECT_URI: { schema: httpUrl('OIDC_REDIRECT_URI'), required: ['web'] },
+  /*
+   * The two ends of the authorization-code flow, both **configuration**.
+   *
+   * They are given explicitly rather than discovered from the issuer's
+   * `/…/openid-configuration`, which is what OIDC usually does and what this
+   * deliberately does not. The discovery document is a response body from an
+   * external service, and docs/14-threat-model.md §5 classifies those as
+   * untrusted input: pointing a code exchange at a URL that arrived over the
+   * network is the same mistake as taking the key-set URL from a request
+   * header, which ADR-0021 rule 2 refuses a few lines up. Two URLs an operator
+   * copies out of the provider's own console are validated at boot instead, and
+   * a typo is a failed start rather than a failed login.
+   *
+   * Note what is *not* affected: the key set is still discovered from
+   * `AUTH_ISSUER_URL` when `AUTH_JWKS_URL` is unset, through `@prisme/auth`'s
+   * own allow-listed fetch. The trust anchor is untouched.
+   */
+  OIDC_AUTHORIZATION_ENDPOINT: {
+    schema: httpUrl('OIDC_AUTHORIZATION_ENDPOINT'),
+    required: ['web'],
+  },
+  OIDC_TOKEN_ENDPOINT: { schema: httpUrl('OIDC_TOKEN_ENDPOINT'), required: ['web'] },
   TOKEN_PEPPER: { schema: nonEmpty('TOKEN_PEPPER'), required: ['api'] },
   DOCTOOL_API_TOKEN: { schema: nonEmpty('DOCTOOL_API_TOKEN'), required: ['api', 'sync'] },
   TASKTOOL_API_TOKEN: { schema: nonEmpty('TASKTOOL_API_TOKEN'), required: ['api', 'sync'] },
@@ -226,6 +306,18 @@ export const VARIABLES = {
     default: 'info',
   },
   AUTH_JWKS_URL: { schema: httpUrl('AUTH_JWKS_URL'), required: [] },
+  /*
+   * The header the ID token travels in **between the two tiers** — web sets it,
+   * API reads it.
+   *
+   * Its meaning narrowed with ADR-0026 and the default was left alone rather
+   * than renamed. It used to name a header a forward-auth proxy injected on the
+   * way in; the web tier now obtains the token itself and presents it upstream,
+   * so nothing outside prisme writes this header any more. Renaming the default
+   * would have been churn in a deployment's configuration for no gain, and the
+   * API's verification is identical either way — the name was never the
+   * security property.
+   */
   AUTH_ASSERTION_HEADER: {
     schema: nonEmpty('AUTH_ASSERTION_HEADER'),
     required: [],
@@ -243,6 +335,19 @@ export const VARIABLES = {
     default: '24h',
   },
   AUTH_JWKS_CACHE_TTL: { schema: duration('AUTH_JWKS_CACHE_TTL'), required: [], default: '10m' },
+  OIDC_SCOPES: { schema: scopes('OIDC_SCOPES'), required: [], default: 'openid profile email' },
+  /*
+   * Where a logout ends the *provider's* session, and it is optional because not
+   * every provider publishes one.
+   *
+   * Unset is a working configuration: prisme clears its own session cookie and
+   * says so, which ends prisme's session completely — the cookie **is** the
+   * session (there is no server-side session to leave behind,
+   * docs/15-runtime.md §2). What the end-session endpoint adds is ending the
+   * session at the provider too, so the next visit really does start at a login
+   * form instead of silently re-authenticating against a session nobody ended.
+   */
+  OIDC_END_SESSION_ENDPOINT: { schema: httpUrl('OIDC_END_SESSION_ENDPOINT'), required: [] },
   SYNC_ENABLED: { schema: boolean('SYNC_ENABLED'), required: [], default: 'true' },
   SYNC_WRITE_ENABLED: { schema: boolean('SYNC_WRITE_ENABLED'), required: [], default: 'false' },
   SYNC_CREATE_THRESHOLD: {

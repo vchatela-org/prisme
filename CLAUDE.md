@@ -68,6 +68,8 @@ seed/                  gitignored — real instance data, never committed
 apps/{web,api,sync}    each has its own CLAUDE.md
 packages/{domain,connectors,ui}   each has its own CLAUDE.md
 .claude/agents/        agent definitions, one per workstream
+.claude/skills/        invocable skills for a repeatable run — `/dependabot` integrates the open
+                       Dependabot pull requests, one subagent per PR, until each is green
 ```
 
 Per-directory `CLAUDE.md` files load automatically when you work in that directory. They hold the

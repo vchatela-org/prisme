@@ -24,6 +24,30 @@ export interface AuthConfig {
   readonly jwksCacheTtlSeconds: number;
 }
 
+/**
+ * The web tier's OIDC client — [ADR-0026](../../../docs/20-decisions/0026-human-auth-via-oidc.md)
+ * turned into configuration.
+ *
+ * Present only for `web`, which is the tier that runs the login flow. The API
+ * verifies a token it is handed and needs none of this (ADR-0026 rule 5).
+ *
+ * **No `clientSecret` field, deliberately, and it is not an oversight.**
+ * ADR-0026 rule 4 has the code exchange use PKCE, so the client is public and
+ * there is nothing here that could mint an assertion at the provider — which is
+ * the property that keeps RS256 minting at the provider and verification here.
+ * Adding one is a change of decision, not of configuration.
+ */
+export interface OidcConfig {
+  readonly clientId: string;
+  /** Absolute public URL of `/auth/callback`. Never derived from a request. */
+  readonly redirectUri: string;
+  readonly authorizationEndpoint: string;
+  readonly tokenEndpoint: string;
+  /** Ends the provider's session on logout. Optional; see `schema.ts`. */
+  readonly endSessionEndpoint: string | undefined;
+  readonly scopes: readonly string[];
+}
+
 export interface SyncConfig {
   readonly enabled: boolean;
   /** Ships off. See docs/13-migration.md. */
@@ -54,6 +78,8 @@ export interface Config {
   readonly doctoolApiToken: string | undefined;
   readonly tasktoolApiToken: string | undefined;
   readonly auth: AuthConfig | undefined;
+  /** Only the web tier logs a human in; see {@link OidcConfig}. */
+  readonly oidc: OidcConfig | undefined;
   readonly sync: SyncConfig;
   readonly capacity: CapacityConfig;
   readonly scoringActiveMethod: string;
@@ -113,6 +139,22 @@ export class ConfigError extends Error {
 export interface LoadConfigOptions extends SourceOptions {
   /** Which subset of the contract is required. Defaults to `api`. */
   readonly service?: Service;
+}
+
+/**
+ * Scheme, host and port — no path, no trailing slash.
+ *
+ * Normalised through `URL` rather than trimmed, because `PRISME_BASE_URL` may
+ * legitimately carry a path and comparing the raw strings would then reject a
+ * correct configuration.
+ */
+function originOf(value: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    // The schema has already refused it; the cross-check simply does not apply.
+    return '';
+  }
 }
 
 function parseOne(
@@ -186,6 +228,51 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     }
   }
 
+  /*
+   * Two misconfigurations of the OIDC client that are silent at the provider
+   * and produce a login that cannot work.
+   *
+   * `problems` has already collected everything the schema could see on its
+   * own; these are the pairs, and they belong here for the same reason the sync
+   * window check does — each variable is valid alone and the combination is
+   * not.
+   */
+  if (service === 'web') {
+    const baseUrl = parsed['PRISME_BASE_URL'] as string | undefined;
+    const redirectUri = parsed['OIDC_REDIRECT_URI'] as string | undefined;
+    if (baseUrl !== undefined && redirectUri !== undefined) {
+      if (originOf(redirectUri) !== originOf(baseUrl)) {
+        problems.push({
+          variable: 'OIDC_REDIRECT_URI',
+          // No value is echoed: both are URLs, and a URL is deployment detail
+          // (docs/17-privacy.md §1).
+          message:
+            'must be on the same origin as PRISME_BASE_URL, because the session cookie that ' +
+            'PRISME_BASE_URL mints is scoped to it and the browser would not send it back to a ' +
+            'callback on another origin',
+        });
+      }
+    }
+
+    const audience = parsed['AUTH_AUDIENCE'] as string | undefined;
+    const clientId = parsed['OIDC_CLIENT_ID'] as string | undefined;
+    if (audience !== undefined && clientId !== undefined && audience !== clientId) {
+      // The one that would otherwise be discovered after a *successful* login:
+      // the provider accepts the code exchange and the ID token it returns then
+      // fails `aud` verification, one hop from anything that mentions either
+      // variable. OIDC Core requires the ID token's `aud` to contain the
+      // client id, so the two are the same value by specification rather than
+      // by convention.
+      problems.push({
+        variable: 'AUTH_AUDIENCE',
+        message:
+          'must equal OIDC_CLIENT_ID for the web tier. The ID token the provider issues names the ' +
+          'client id in `aud` (OIDC Core §2), and prisme verifies `aud` — so a login would ' +
+          'succeed at the provider and then be refused here, as an unexplained 401',
+      });
+    }
+  }
+
   if (problems.length > 0) throw new ConfigError(service, problems);
 
   /*
@@ -215,6 +302,27 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
         }
       : undefined;
 
+  /*
+   * Assembled for `web` alone, and that is not a stylistic choice.
+   *
+   * ADR-0026 leaves the API tier exactly as it was: it verifies the JWT the web
+   * tier presents, with the same implementation (rule 5), and never performs a
+   * code exchange. Handing it a client id, a callback URL and a token endpoint
+   * would be handing it the means to obtain a token of its own, which is a
+   * different system from the one in the decision.
+   */
+  const oidc: OidcConfig | undefined =
+    service === 'web'
+      ? {
+          clientId: parsed['OIDC_CLIENT_ID'] as string,
+          redirectUri: parsed['OIDC_REDIRECT_URI'] as string,
+          authorizationEndpoint: parsed['OIDC_AUTHORIZATION_ENDPOINT'] as string,
+          tokenEndpoint: parsed['OIDC_TOKEN_ENDPOINT'] as string,
+          endSessionEndpoint: parsed['OIDC_END_SESSION_ENDPOINT'] as string | undefined,
+          scopes: parsed['OIDC_SCOPES'] as string[],
+        }
+      : undefined;
+
   return {
     service,
     port: parsed['PORT'] as number,
@@ -228,6 +336,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     doctoolApiToken: parsed['DOCTOOL_API_TOKEN'] as string | undefined,
     tasktoolApiToken: parsed['TASKTOOL_API_TOKEN'] as string | undefined,
     auth,
+    oidc,
     sync: {
       enabled: parsed['SYNC_ENABLED'] as boolean,
       writeEnabled: parsed['SYNC_WRITE_ENABLED'] as boolean,
