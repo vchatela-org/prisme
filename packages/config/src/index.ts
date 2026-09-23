@@ -2,6 +2,7 @@ export { loadConfig, loadConfigOrExit, ConfigError } from './load.js';
 export type {
   Config,
   AuthConfig,
+  OidcConfig,
   SyncConfig,
   CapacityConfig,
   ConfigProblem,
