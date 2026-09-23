@@ -349,8 +349,16 @@ describe('ordering a convergence', () => {
     ];
     const refs = new Map([['entity-1', { externalProjectId: 'linked' }]]);
 
-    const first = orderConvergence({ intents, refsByEntity: refs });
-    const second = orderConvergence({ intents: [...intents].reverse(), refsByEntity: refs });
+    const first = orderConvergence({
+      intents,
+      refsByEntity: refs,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
+    });
+    const second = orderConvergence({
+      intents: [...intents].reverse(),
+      refsByEntity: refs,
+      addressablePageKinds: NOTHING_ADDRESSABLE,
+    });
 
     expect(first.steps.map((step) => step.intent.id)).toEqual(
       second.steps.map((step) => step.intent.id),
