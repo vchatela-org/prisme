@@ -162,6 +162,9 @@ describe('the adoption pass', () => {
     const docClient: DocToolClient = {
       queryByRole: vi.fn(() => Promise.reject(new Error('role is not bound'))),
       fetchPage: () => Promise.reject(new Error('not used')),
+      // Required by the interface since ADR-0025 made pages creatable; these
+      // fakes are readers, so reaching it is a test error rather than a no-op.
+      createPage: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     const result = await adopt({
@@ -182,6 +185,9 @@ describe('the adoption pass', () => {
         return Promise.resolve([]);
       },
       fetchPage: () => Promise.reject(new Error('not used')),
+      // Required by the interface since ADR-0025 made pages creatable; these
+      // fakes are readers, so reaching it is a test error rather than a no-op.
+      createPage: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     await adopt({ store, taskClient: taskClientOf(), docClient, now: () => NOW });
