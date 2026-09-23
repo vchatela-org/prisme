@@ -319,6 +319,24 @@ either: `packages/connectors/src/doc-tool` deliberately does not read it, becaus
 workspace. That is a decision for a human, not a patch, and it is the first row of
 [the entry](docs/50-journal/FUP-2026-09-21-tool-base-urls.md).
 
+## Releases
+
+The tag **is** the release: `publish.yml` fires on a `v*` tag, pushes both images to Harbor, and the
+deployment side pins that version. Nothing is published from a push to `main`.
+
+| Version | Cut | Contains | State |
+|---|---|---|---|
+| `v0.0.6` | 2026-09-23, on `52db733` | the eight-pull-request Dependabot wave (#50–#53, #46–#49) | 🟢 both images published |
+| `v0.0.5` | 2026-09-22 | human login in-app over OIDC (ADR-0026) | 🟢 |
+| `v0.0.1` | 2026-09-15 | the skeleton — **its images were never built**, see the W00 close-out | ⚠ names nothing |
+
+**A pending release is an open item, and it lives here.** A `/dependabot` run never merges, so a run
+that integrates the wave to green may still be unable to cut its tag; when that happens it records the
+version and the one merge that unblocks it in this table — not in a journal entry alone, because an
+append-only journal explains an obligation rather than holding one. `v0.0.6` was the first to need
+that: green at 17:48 on 2026-09-23, merged between 18:23 and 19:04, and cut once the merges landed —
+[the entry](docs/50-journal/P0-2026-09-23-dependabot-wave.md#addendum--2026-09-23--the-release-cut).
+
 ## P0 is frozen
 
 Checked on 2026-09-15, against the exit criteria in
