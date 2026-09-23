@@ -10,11 +10,13 @@ const nextConfig = {
   reactStrictMode: true,
   // Never advertise the framework version to an unauthenticated caller.
   poweredByHeader: false,
-  eslint: {
-    // Linting is a repository-wide job with one configuration
-    // (`pnpm lint`), not something each app re-runs with its own rules.
-    ignoreDuringBuilds: true,
-  },
+  //
+  // There is deliberately no `eslint` key here. Until Next 16 one was needed to
+  // stop `next build` re-linting with rules that disagree with `pnpm lint`, the
+  // repository's one configuration. Next 16 removed the option *and* the lint
+  // step it controlled, so the key is now rejected with a warning on every
+  // build — and leaving it in to keep the build quiet about linting would be a
+  // setting that does nothing while looking like it does something.
 };
 
 export default nextConfig;
