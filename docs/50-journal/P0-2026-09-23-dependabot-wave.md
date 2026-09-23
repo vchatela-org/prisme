@@ -1,7 +1,7 @@
 # P0 · 2026-09-23 · The first Dependabot wave, integrated to green
 
 **Agent:** Claude (orchestrator) + eight `dependabot-pr` subagents, serially · **Duration:** one
-session · **PR** — · **Outcome:** complete
+session · **PR** [#64](https://github.com/vchatela-org/prisme/pull/64) · **Outcome:** complete
 
 The `/dependabot` skill's first real run. Eight open Dependabot pull requests, all integrated to
 green and **read back**, one subagent at a time. Nothing merged — a human merges — and no version
