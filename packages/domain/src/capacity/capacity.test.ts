@@ -47,7 +47,16 @@ function completion(
   return { completedAt: new Date('2026-09-10T09:00:00Z'), ...overrides };
 }
 
-function byKey(capacity: readonly { readonly areaKey: string }[], key: string) {
+/**
+ * The row for an area, or a loud failure.
+ *
+ * Generic rather than annotated with the one field it reads: a parameter typed
+ * `readonly { readonly areaKey: string }[]` *widens* every row to that shape,
+ * so the return carries no fields and every assertion below becomes a type
+ * error. That is the whole reason this file was red the day test files were
+ * first typechecked.
+ */
+function byKey<T extends { readonly areaKey: string }>(capacity: readonly T[], key: string): T {
   const found = capacity.find((entry) => entry.areaKey === key);
   if (!found) throw new Error(`no capacity row for ${key}`);
   return found;

@@ -51,12 +51,27 @@ function id(index: number): string {
   return `n-${String(index).padStart(2, '0')}`;
 }
 
+/**
+ * The nth element of a closed set, cycled.
+ *
+ * `noUncheckedIndexedAccess` makes an index access `T | undefined`, and
+ * `exactOptionalPropertyTypes` then refuses to pass that as a field that is
+ * simply absent — so this is unwrapped once, here, rather than asserted at each
+ * use. The empty-set branch is unreachable and present so the function's type is
+ * honest rather than convenient.
+ */
+function cycle<T>(values: readonly T[], index: number): T {
+  const value = values[index % values.length];
+  if (value === undefined) throw new Error('cycle: the set is empty');
+  return value;
+}
+
 function network(shape: keyof typeof SHAPES): readonly Initiative[] {
   return Array.from({ length: COUNT }, (_unused, index) =>
     anInitiative({
       id: id(index),
-      areaKey: AREA_KEYS[index % AREA_KEYS.length],
-      size: FIBONACCI_SCALE[index % FIBONACCI_SCALE.length],
+      areaKey: cycle(AREA_KEYS, index),
+      size: cycle(FIBONACCI_SCALE, index),
       dependsOn: SHAPES[shape](index),
       // Every fourth initiative carries a deadline, half of them impossible.
       ...(index % 4 === 0
