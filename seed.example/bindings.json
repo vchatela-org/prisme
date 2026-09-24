@@ -12,11 +12,13 @@
     "processes_db":  { "id": "REPLACE-ME", "access": "read-only", "_note": "Owned outright by the document tool. prisme reads duration and frequency and writes nothing (ADR-0016)." },
     "reviews_db":    { "id": "REPLACE-ME", "access": "write" },
 
-    "_adr_0025": "Where an initiative's and a project's narrative page is created, and what each is a copy of (ADR-0011, ADR-0019, ADR-0025). Both kinds may be bound to one identifier if that is how the workspace is organised; the distinction is prisme's.",
+    "_adr_0025": "Where a narrative page is created, and what it is a copy of (ADR-0011, ADR-0019, ADR-0025, ADR-0028). A kind is addressable only when BOTH its store and its template are bound; a half-bound kind blocks with a reason rather than making a page with no parent or an empty one. Any of the kinds may share one identifier if that is how the workspace is organised; the distinction is prisme's.",
     "initiative_pages_db":     { "id": "REPLACE-ME", "access": "create" },
     "project_pages_db":        { "id": "REPLACE-ME", "access": "create" },
+    "capture_pages_db":        { "id": "REPLACE-ME", "access": "create", "_note": "ADR-0028. A capture is not yet an initiative, and ADR-0025 declined to guess which of the two it would become." },
     "initiative_page_template": { "id": "REPLACE-ME", "access": "read-only" },
     "project_page_template":    { "id": "REPLACE-ME", "access": "read-only" },
+    "capture_page_template":    { "id": "REPLACE-ME", "access": "read-only" },
 
     "projectTemplateId": "REPLACE-ME"
   },
