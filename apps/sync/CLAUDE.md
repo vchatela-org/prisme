@@ -45,7 +45,17 @@ sync/
   bindings.ts  the seed path: role bindings, from `seed/bindings.json`
   areas.ts     the seed path: areas, year weights, area mappings (`seed/areas.json`)
   seed-cli.ts  argument parsing for both, kept out of `main.ts` so it is testable
+  capacity-refresh.ts
+               the trailing-window refresh the full pass runs: `materialise`, bounded
 ```
+
+One step of the pass lives in `main.ts` rather than `run.ts`: after a full pass it refreshes
+`capacity_week` over the trailing window, beside the creation-ledger drain that already runs there.
+Both are **prisme's own writes**, which is why neither belongs inside the planner's pass and why
+neither is reachable from `POST /sync`. `materialise` is the backfill's second phase, exported so
+both can use one implementation — and it takes its range **explicitly**, because a `backfill` with a
+narrow `from` is not bounded: `planResume` answers such a request with the union of it and the
+cursor.
 
 The seed path is a **migration step, not a pass**: it writes prisme's own tables, reaches no API and
 takes no advisory lock. `pnpm seed:load` runs `areas` then `bindings` — a mapping names an area.
