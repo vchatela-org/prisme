@@ -1,6 +1,14 @@
 # FUP · 2026-09-24 · The seed path, which two specs said existed
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#74](https://github.com/vchatela-org/prisme/pull/74) · **Outcome:** complete
+
+**Stacked on [#73](https://github.com/vchatela-org/prisme/pull/73)**, which is merged first: the
+register row this change closes 🟢 is added by that one, so the row and its closure cannot arrive in
+the same diff without the row existing twice. The branch therefore carries #73's three documentation
+commits, and this pull request's diff is the seed path alone once #73 lands. The alternative — one
+pull request for both — was rejected for a reason the release entry already recorded: the two files
+that collect a row per pull request are the ones that conflict, and mixing a lockfile move into a
+documentation-only change makes both harder to read than the stacking does.
 
 [`docs/17-privacy.md`](../17-privacy.md) says areas, weights, tool mappings and external IDs load
 from `seed/`. [`docs/13-migration.md`](../13-migration.md) step 1 depends on it. Neither was true:
