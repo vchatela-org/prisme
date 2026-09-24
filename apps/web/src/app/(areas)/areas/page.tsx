@@ -17,13 +17,7 @@ import { apiFetch } from '@/lib/api';
 import { proposePins } from '@/lib/area-pin-proposal';
 import { areaColorPins } from '@/lib/area-pins';
 import { areaWeightsSchema, balanceSchema, focusSchema, type AreaBalance } from '@/lib/contracts';
-import {
-  estimatedMinutesPct,
-  minutesCaveat,
-  mostStarved,
-  observedSourceCaveat,
-  orderAreas,
-} from '@/lib/kpi-view';
+import { estimatedMinutesPct, minutesChartCaveat, mostStarved, orderAreas } from '@/lib/kpi-view';
 
 export const metadata = {
   title: 'Areas · prisme',
@@ -201,7 +195,7 @@ export default async function AreasPage({
         )}
 
         <p className="text-xs text-ink-muted">
-          {minutesCaveat(estimated)} {observedSourceCaveat(data)}
+          {minutesChartCaveat({ estimatedPct: estimated, coverage: data })}
         </p>
       </Section>
 
