@@ -10,8 +10,10 @@
     "reviews_db": { "id": "binding-reviews-0006", "access": "write" },
     "initiative_pages_db": { "id": "binding-initiative-pages-0008", "access": "create" },
     "project_pages_db": { "id": "binding-project-pages-0009", "access": "create" },
+    "capture_pages_db": { "id": "binding-capture-pages-0012", "access": "create" },
     "initiative_page_template": { "id": "binding-initiative-template-0010", "access": "read-only" },
     "project_page_template": { "id": "binding-project-template-0011", "access": "read-only" },
+    "capture_page_template": { "id": "binding-capture-template-0013", "access": "read-only" },
     "projectTemplateId": "binding-template-0007"
   },
   "taskTool": {

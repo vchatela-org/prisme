@@ -20,13 +20,15 @@ import { useState } from 'react';
  * makes "I did not think about a page" and "make me a page" the same input —
  * and the API refuses that shape for the same reason (`dto/create.ts`).
  *
- * ## Why `create` says it will not happen yet
+ * ## Why `create` says when it can stall
  *
- * It records the intention and nothing makes it: no role key names where a
- * page would go, and none carries the capability to create one (ADR-0025).
- * The control says so at the moment of choosing rather than leaving somebody
- * to find out from the ledger — an option that silently does nothing is worse
- * than one that explains itself.
+ * It records the intention and a converge pass makes it, so what the copy owes
+ * the person choosing is the one condition: an instance that has bound where
+ * this kind of page lives gets one on the next pass, and one that has not gets
+ * a plan reporting it blocked with that reason (ADR-0025, ADR-0028). Saying so
+ * at the moment of choosing is better than leaving somebody to find out from
+ * the ledger — an option that silently does nothing is worse than one that
+ * explains itself.
  */
 
 export type PageDecision =
@@ -85,8 +87,9 @@ export function PageChoice({
 
       {value.mode === 'create' ? (
         <FieldHint>
-          Recorded as an intention, and waiting on a decision rather than on a pass: prisme has
-          nowhere addressable to create a page yet (ADR-0025). Linking one works today.
+          Recorded as an intention and made by the converge pass, as long as this instance has bound
+          where a page of this kind lives — otherwise the plan reports it blocked with that reason
+          (ADR-0025, ADR-0028). Linking one works today.
         </FieldHint>
       ) : null}
 

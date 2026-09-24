@@ -314,7 +314,7 @@ journal entry rather than a unit of planned work.
 | The committed fixture harness — gitignored, stale, rebuilt and thrown away nine times | W07, W08, W10, W11, W15, FUP-radix-inline-styles, FUP-tool-base-urls, FUP-doc-tool-api-version, FUP-2026-09-24 (the tenth session to run without one) | 🟡 recorded, not fixed — a maintained artefact rather than a patch; see [the entry](docs/50-journal/FUP-2026-09-24-open-followups.md) | — |
 | `is_archived` / `is_locked` are returned by the document tool and unread — undocumented booleans, and mapping one would be a guess | FUP-2026-09-22-doc-tool-api-version | 🟡 recorded, not fixed | — |
 | The initiative detail screen's **Open page** — needs a browser-facing base and a page-id → URL shape, and the tool's own page URL is deliberately unread because it identifies the workspace | FUP-2026-09-21-tool-base-urls, FUP-2026-09-21-page-creation | ⏳ human decision — pending | — |
-| A capture's page has no role key — ADR-0025's vocabulary names an initiative's page and a project's page, and a capture is neither | FUP-2026-09-21-page-creation, FUP-2026-09-21-tool-base-urls | ⏳ human decision — pending | — |
+| A capture's page has no role key — ADR-0025's vocabulary names an initiative's page and a project's page, and a capture is neither | FUP-2026-09-21-page-creation, FUP-2026-09-21-tool-base-urls | 🟢 [ADR-0028](docs/20-decisions/0028-capture-pages-get-a-role-pair.md) **Accepted**; the pair exists and the plan's second block reason is gone | [#69](https://github.com/vchatela-org/prisme/pull/69) |
 | **The document tool's API version predated the endpoints prisme calls** — the client pinned `2022-06-28` (the era of `/v1/databases/`) while calling `/v1/data_sources/query`, so every query returned `400 invalid_request_url` and the scan printed "document tool not read" | found while preparing the deployment (nobody had recorded it) | 🟢 | [#54](https://github.com/vchatela-org/prisme/pull/54) |
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
 | **The deny-list missed camelCase id positions** — `\b(id\|…)` never reaches the `Id` inside `projectId`, so the `v1` id shape went uncovered wherever a TS or JSON body would be pasted; a separator-only rule matches the destructuring rename `projectId: parentExternalId`, which is code rather than data | FUP-todoist-api-v1 (found while migrating to the `v1` API) | 🟢 | [#58](https://github.com/vchatela-org/prisme/pull/58) |
@@ -377,7 +377,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**26 accepted** · **1 superseded** · **0 proposed** · **7 open** — index:
+**27 accepted** · **1 superseded** · **0 proposed** · **7 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
@@ -390,7 +390,7 @@ without moving the number (it said *22 accepted · 7 open*; the 2026-09-22 rewri
 records and carried the stale figure forward). It became **eight** that morning and **seven** the
 same day, when OQ-10 was closed — the first figure this file has held that a reader can check against
 `OPEN.md` in one look. All three agree now: this line, `OPEN.md`'s own header, and `README.md`'s
-26 accepted · 1 superseded · 0 proposed beside the index. OQ-3 also moved *within* `OPEN.md` from
+27 accepted · 1 superseded · 0 proposed beside the index. OQ-3 also moved *within* `OPEN.md` from
 *Blocking future phases* to *Deferred by choice*, which is what its own `Blocks: nothing —
 deliberately deferred` line had said since it was written, and the four deferred questions (OQ-3, 5,
 6, 7) each carry a **trigger written as an observable fact** rather than a date, because "not yet" is

@@ -257,7 +257,13 @@ process exits rather than starting without its secrets.
 
 The identifiers of external databases are **instance data**, not configuration in git. They load
 from the seed path into the database, keyed by role: `objectives_db`, `takeaways_db`, `media_db`,
-`areas_db`, `processes_db`, `reviews_db`. See [`17-privacy.md`](17-privacy.md).
+`areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and ADR-0028 — the store and template
+role for each kind of narrative page (`initiative_pages_db`, `project_pages_db`, `capture_pages_db`
+and their templates). See [`17-privacy.md`](17-privacy.md).
+
+A page kind is addressable only when **both** its store and its template are bound. One without the
+other is not a half-working feature: the plan blocks that kind's pages with a sentence naming the
+command below, rather than creating a page with no parent or an empty one.
 
 ```
 prisme-sync bindings --from <path>     load seed/bindings.json

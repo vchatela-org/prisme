@@ -87,21 +87,27 @@ export interface LedgerSummary {
   readonly pending: number;
   readonly failed: number;
   readonly satisfied: number;
-  /**
-   * Intents nothing will ever make without a decision elsewhere — today, every
-   * page, because the document tool has no addressable store for one
-   * (ADR-0025). Counted apart from `pending` because "waiting for the next
-   * pass" and "waiting for a human to accept an ADR" are different states and
-   * only one of them resolves on its own.
-   */
-  readonly waitingOnADecision: number;
 }
 
+/**
+ * Counts, and the count that is *deliberately absent*.
+ *
+ * There used to be a fourth: a page intent was counted apart from `pending` as
+ * "waiting on a decision", because ADR-0025 had not been accepted and nothing
+ * could ever make one. That is no longer true — a page intent now waits on the
+ * converge pass exactly as a task intent does — so the separate count is gone
+ * rather than kept as a column that reads zero.
+ *
+ * What it papered over is still real and is stated in the advice instead: a
+ * page the pass cannot make is one whose kind this instance has not bound, and
+ * the plan says so per intent. This screen cannot tell the two apart, because
+ * the blocked reason is computed by the pass rather than stored on the row —
+ * so it does not claim to.
+ */
 export function summariseLedger(intents: readonly CreationIntent[]): LedgerSummary {
   let pending = 0;
   let failed = 0;
   let satisfied = 0;
-  let waitingOnADecision = 0;
 
   for (const intent of intents) {
     if (intent.state === 'satisfied') {
@@ -112,11 +118,10 @@ export function summariseLedger(intents: readonly CreationIntent[]): LedgerSumma
       failed += 1;
       continue;
     }
-    if (intent.tool === 'document') waitingOnADecision += 1;
-    else pending += 1;
+    pending += 1;
   }
 
-  return { pending, failed, satisfied, waitingOnADecision };
+  return { pending, failed, satisfied };
 }
 
 /**
@@ -145,7 +150,7 @@ export function ledgerAdvice(intent: CreationIntent): {
   if (intent.tool === 'document') {
     return {
       sentence:
-        'Recorded, and waiting on a decision rather than on a pass: prisme has nowhere addressable to create a page (ADR-0025). Linking an existing page works today.',
+        'Recorded. The converge pass makes it — on the schedule, or from Sync now — if this instance has bound where a page of this kind lives; if it has not, the plan reports it blocked with that reason rather than guessing (ADR-0025, ADR-0028). Linking an existing page works today.',
       retryable: false,
     };
   }
