@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The weeks keep themselves current
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#76](https://github.com/vchatela-org/prisme/pull/76) · **Outcome:** complete
 
 `capacity_week` was materialised only by `prisme-sync backfill --from <date>`, a command a person
 runs. So the declared-against-observed comparison — the view that exists in no other tool, and the
