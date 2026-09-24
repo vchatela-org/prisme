@@ -103,7 +103,7 @@ count and the only reason this surfaced is that the task had to establish it rat
 | the unreachable path, end to end | local | `unchecked` on all three attempts, exit 2, the summary saying *not a vulnerability report* |
 | `privacy deny-list` | local | clean, 23 patterns (no local supplement in this worktree) |
 | `internal links` | local | clean, 600 links across 139 files |
-| the rest | CI | see the rollup on the pull request — all 15 required contexts green at `23dcdec` |
+| the rest | CI | see the rollup on the pull request — all 15 required contexts, read back green. Deliberately no commit sha here: a journal entry cannot be edited, and a doc-only push moves the one the rollup describes |
 
 ## Privacy
 
