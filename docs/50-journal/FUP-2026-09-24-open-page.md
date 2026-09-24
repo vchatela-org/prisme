@@ -1,6 +1,8 @@
 # FUP · 2026-09-24 · Open page, without holding a workspace URL
 
-**Agent:** Claude · **Duration:** one session · **PR:** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR:**
+[#70](https://github.com/vchatela-org/prisme/pull/70) — the commit rode in this pull request's
+**stack**, not in one of its own · **Outcome:** complete
 
 Closes the register row the follow-up wave carried as `⏳ human decision — pending`: the initiative
 detail screen's **Open page** button. The decision was the owner's, taken on 2026-09-24, and what
@@ -82,7 +84,7 @@ what the next browser drive should cover.
 
 | What | Why it matters | Owner |
 |---|---|---|
-| Driving the link in a browser | The wiring is asserted by the build and by nothing else | whoever runs the next browser drive — or the committed harness, if it lands |
+| Driving the link in a browser | The wiring is asserted by the build and by nothing else | whoever runs the next browser drive — the committed [`harness/`](../../harness/README.md) (#70) is now there to do it |
 | An instance must set the variable | Unset is a disabled control that explains itself, so this is a deployment step rather than a gap | the owner, at deployment |
 | If a workspace's page URL carries something other than an id in its path | The template handles any shape, so this needs no code — but the operator is the only one who knows it | the owner |
 
@@ -96,7 +98,7 @@ what the next browser drive should cover.
 | `build` | CI | the web tier compiles with a new server-component import; no new dependency |
 | `internal links` | CI | `docs/15-runtime.md` gained no new anchor, and the journal entry links to a new file |
 | `privacy deny-list` · `gitleaks` | local (pre-commit) + CI | local clean. The two hostnames in the tests and in `.env.example` are `workspace.example.com` and friends — invented and reserved for documentation |
-| every other required check | CI | see the rollup on the pull request |
+| every other required check | CI | see the rollup on [#70](https://github.com/vchatela-org/prisme/pull/70) |
 
 ## Privacy
 
