@@ -82,7 +82,7 @@ required variable stops the process with the variable named. `dependency audit` 
 [`scripts/dependency-audit.py`](scripts/dependency-audit.py), which runs
 `pnpm audit --audit-level=moderate` and **fails closed** when the advisory database does not answer —
 naming which of the three outcomes it saw, so *unchecked* is never read as *vulnerable*
-([ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), Proposed). `golden fixtures` (W01, #17) refuses a change to a scoring
+([ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), Accepted). `golden fixtures` (W01, #17) refuses a change to a scoring
 golden file that does not bump the method's `version` — without it, two runs of "version 1" can mean
 two different things and every stored score becomes unattributable (ADR-0006). Each became required
 from the commit that added it. W14 still owns its own additions. Rules, and what to do at each
@@ -319,7 +319,7 @@ journal entry rather than a unit of planned work.
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
 | **The deny-list missed camelCase id positions** — `\b(id\|…)` never reaches the `Id` inside `projectId`, so the `v1` id shape went uncovered wherever a TS or JSON body would be pasted; a separator-only rule matches the destructuring rename `projectId: parentExternalId`, which is code rather than data | FUP-todoist-api-v1 (found while migrating to the `v1` API) | 🟢 | [#58](https://github.com/vchatela-org/prisme/pull/58) |
 | **No CI gate typechecked test files** — `pnpm typecheck` builds `tsconfig.build.json`, which excludes `*.test.ts`, so **43** type errors had accumulated in five packages, including `apps/sync` fakes that had drifted from the interfaces they stand in for (no `createPage` since ADR-0025, a `Transport` still the pre-seam `{ send }` object) | W06 (which recorded **two** — the gate found 43) | 🟢 | [#59](https://github.com/vchatela-org/prisme/pull/59) |
-| **`dependency audit` failed having learned nothing when npm's advisory endpoint was unreachable** — a required check whose red meant *could not check* and *found a vulnerability* at once, blocking merges on branches that changed no dependency | W10's entry, tracked as **OQ-10** | 🟢 (the gate fails closed and says which of the three outcomes it saw; [ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md) is **Proposed** — the acceptance is the human's) | [#66](https://github.com/vchatela-org/prisme/pull/66) |
+| **`dependency audit` failed having learned nothing when npm's advisory endpoint was unreachable** — a required check whose red meant *could not check* and *found a vulnerability* at once, blocking merges on branches that changed no dependency | W10's entry, tracked as **OQ-10** | 🟢 (the gate fails closed and says which of the three outcomes it saw; [ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md) **Accepted** 2026-09-24) | [#66](https://github.com/vchatela-org/prisme/pull/66) |
 | **The decision count was wrong in two files at once** — `STATUS.md` said 7 open while `OPEN.md` held 8, and nothing reads either | found while working the open decisions (nobody had recorded it) | 🟢 (both say 8; the deferred questions now carry checkable triggers) | [#66](https://github.com/vchatela-org/prisme/pull/66) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
@@ -377,38 +377,37 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**25 accepted** · **1 superseded** · **1 proposed** · **8 open** — index:
+**26 accepted** · **1 superseded** · **0 proposed** · **7 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0.
 
-**The open count was wrong, and nothing reads either file to notice.** Until 2026-09-24 this line
-said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in the
-second — and it had been wrong since **2026-09-19**, the commit that recorded OQ-10 in `OPEN.md`
+**The open count was wrong once, and nothing reads either file to notice.** Until 2026-09-24 this
+line said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in
+the second — and it had been wrong since **2026-09-19**, the commit that recorded OQ-10 in `OPEN.md`
 without moving the number (it said *22 accepted · 7 open*; the 2026-09-22 rewrite corrected the
-records and carried the stale figure forward). It now
-says eight, `OPEN.md` says eight in its own header, and `README.md` says 25 accepted · 1 superseded ·
-1 proposed beside the index. **No question was actually closed**, so none moved to *Recently closed*;
-OQ-3 moved *within* `OPEN.md` from *Blocking future phases* to *Deferred by choice*, which is what its
-own `Blocks: nothing — deliberately deferred` line had said since it was written. The four deferred
-questions (OQ-3, 5, 6, 7) each now carry a **trigger written as an observable fact** rather than a
-date, because "not yet" is re-argued every time it has no end.
+records and carried the stale figure forward). It became **eight** that morning and **seven** the
+same day, when OQ-10 was closed — the first figure this file has held that a reader can check against
+`OPEN.md` in one look. All three agree now: this line, `OPEN.md`'s own header, and `README.md`'s
+26 accepted · 1 superseded · 0 proposed beside the index. OQ-3 also moved *within* `OPEN.md` from
+*Blocking future phases* to *Deferred by choice*, which is what its own `Blocks: nothing —
+deliberately deferred` line had said since it was written, and the four deferred questions (OQ-3, 5,
+6, 7) each carry a **trigger written as an observable fact** rather than a date, because "not yet" is
+re-argued every time it has no end.
 
-🟡 **OQ-10 is answered, and the answer is not accepted: that is a human's**
-([ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), **Proposed** 2026-09-24). The gate
-fails closed; the three outcomes — *checked-clean*, *vulnerable*, *unchecked* — are named in the job
-summary so an npm outage is never read as a CVE; `--ignore-registry-errors`, which reports an
-unreachable registry as a clean audit and exits 0, is refused and controlled against. It is
-implemented in the same pull request rather than raised as a record and left, because the harm was
-live: a required check whose red meant two different things, blocking merges on branches that changed
-no dependency ([#31](https://github.com/vchatela-org/prisme/pull/31), 2026-09-19). **No repository
+✅ **OQ-10 is closed** — [ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), **accepted by
+the owner on 2026-09-24**, the day after it was written. The gate fails closed; the three outcomes —
+*checked-clean*, *vulnerable*, *unchecked* — are named in the job summary so an npm outage is never
+read as a CVE; `--ignore-registry-errors`, which reports an unreachable registry as a clean audit and
+exits 0, is refused and controlled against. It landed **Proposed and implemented**, and the
+distinction is worth keeping: an agent does not accept its own ADR, so the record waited a day while
+the gate it describes was already strict — the acceptance is what makes the decision binding, not
+what makes the gate work ([#66](https://github.com/vchatela-org/prisme/pull/66)). **No repository
 setting changes and none is needed** — the negative controls run as steps inside the existing required
 `dependency audit` check, so branch protection needs no edit, and the reasoning is the one
 [FUP-2026-09-23-typecheck-tests](docs/50-journal/FUP-2026-09-23-typecheck-tests.md) recorded: a new
-check *name* is a context nobody reads until a human adds it. What is left is the acceptance itself,
-and **an agent does not accept its own ADR** — until then OQ-10 stays open in `OPEN.md`, where it
-belongs.
+check *name* is a context nobody reads until a human adds it.
 
 ✅ **OQ-9 is closed** — [ADR-0026](docs/20-decisions/0026-human-auth-via-oidc.md), which **supersedes**
 [ADR-0021](docs/20-decisions/0021-verified-forward-auth-assertion.md) on one point and keeps the rest
@@ -439,6 +438,22 @@ and it is no longer the login:** the write freeze below, and the open decisions.
 [ADR-0022](docs/20-decisions/0022-backups-belong-to-the-deployment-repository.md): a dump CronJob in
 the GitOps deployment repository, beside its other databases. **Nothing in this repository builds,
 schedules or checks a backup**, and no workstream is waiting on one. It gates a single moment, below.
+
+## P1 — prove the read path first
+
+The five steps of
+[`docs/13-migration.md`](docs/13-migration.md#proving-the-read-path--p1s-exit-criterion).
+**All of them write nothing outward**, and all of them are worth doing before the gate below is
+reached: a read path that has never been run against the live instance is the one thing every check
+in this repository cannot see — which is how a wrong API pin and a withdrawn API both shipped green.
+
+- [ ] Role bindings loaded (`prisme-sync bindings --from <path>`) — **without them, "not read" and
+      "broken" are the same message**
+- [ ] Area mappings set, and this year's weights
+- [ ] One full pass run by hand, and its report read, for **both** tools
+- [ ] `/focus`, `/areas` and `/kpi` opened against real data — area *names*, never keys
+- [ ] Adoption queue worked and link coverage recorded
+- [ ] `prisme-sync plan` read by hand
 
 ## Before the first outward write
 

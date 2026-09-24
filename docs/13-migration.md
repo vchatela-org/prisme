@@ -163,6 +163,53 @@ Why it belongs precisely at step 8: until then the only loss is a database that 
 re-ingesting both tools. From step 8 the database holds the link table, the scores and the adoption
 decisions that no re-ingest can reconstruct — dropping it stops being free.
 
+### Proving the read path — P1's exit criterion
+
+Steps 1–7 write nothing outward, so they are also the whole of **P1's exit criterion**: *prisme
+answers "what should I work on now?" from real data, while writing nothing outward.* Nothing here
+needs a backup and nothing here can corrupt anything — a mistake costs a database that a re-ingest
+rebuilds.
+
+It is a run a **person** makes, because it cannot be a test. `packages/connectors/CLAUDE.md` forbids a
+test that calls a real API, and the consequence is not academic: the document-tool client pinned an
+API version that did not contain the endpoints it called, the whole task-tool API was withdrawn from
+under it, and **no check in this repository could have seen either**. Every gate stays green against
+an instance whose reads are broken, which is exactly why this pass exists.
+
+**Three things must be configured first**, all of them instance data and none of it here:
+
+| What | How |
+|---|---|
+| Role bindings — which store each role key names | `prisme-sync bindings --from <path>` |
+| Area mappings — where each area's work lives in the task tool | `PUT /areas/:key/mappings`, or the Areas screen |
+| This year's weights | the Year Review, or the year's weight rows |
+
+Then, in order:
+
+1. **A full read.** Run one pass by hand — `POST /sync`, or the force button on the Focus screen. It
+   reads both tools and writes to prisme's own database only.
+2. **Read the pass's own report.** Two lines matter: whether the **task tool** read, and whether the
+   **document tool** read. A tool that is not bound prints as *not read* rather than as an error,
+   deliberately, because the message would otherwise carry a role binding. So `document tool   not
+   read` has two causes that look identical and are not: **nothing is bound**, or **the query was
+   refused**. Step 1's bindings command is what tells them apart, and it is the first thing to check
+   rather than the last.
+3. **Open the screens before any decision is made.** `/focus` must show a `now` set drawn from real
+   initiatives; `/areas` the area list with its declared-versus-observed chart; `/kpi` the same
+   reading. **If a screen shows area *keys* where it means names, the area list did not parse** — a
+   real defect once, fixed in W11 — and it is the cheapest tell that the two tiers disagree.
+4. **Work the adoption queue** ([`4. The adoption queue`](#4-the-adoption-queue)) and record the link
+   coverage: how many candidates were linkable and how many had diverged. That number is what step 8
+   is gated on, and re-deriving it later means re-running the scan.
+5. **`prisme-sync plan`, read by hand.** `create: 0` is the expectation and the gate
+   ([ADR-0010](20-decisions/0010-adopt-never-creates.md) guard 3). `SYNC_CREATE_THRESHOLD` refuses a
+   plan above the configured count, but a threshold is not a substitute for reading it. **This output
+   carries real titles and must never be pasted into this repository** (`apps/sync/CLAUDE.md`).
+
+**What a good run does not prove**, said plainly so it is not mistaken for more: nothing is written
+outward, no deadline has moved, no page exists, and **no review has run**. It proves the read path
+and the ranking against real data. That is P1; step 8 is what comes after.
+
 ## 6. Retiring the old system
 
 Only after a week with an empty conflict ledger:
