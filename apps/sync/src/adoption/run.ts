@@ -7,6 +7,7 @@ import { scan, type ScanResult } from './queue.js';
 import { formatAdoptionPlan } from './report.js';
 import type { ClassifierConfig } from './classify.js';
 import type { ExternalObject } from './types.js';
+import { documentToolLine, unreadReason, type UnreadReason } from '../unread.js';
 
 /**
  * One adoption pass: read both tools, classify, resolve, report, mirror.
@@ -92,15 +93,19 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
   ];
 
   const docCounts: string[] = [];
+  const docUnread: UnreadReason[] = [];
   if (options.docClient !== undefined) {
     for (const role of SCANNED_ROLES) {
       // One store at a time, and a store that is not bound is skipped rather
       // than failing the pass: a workspace that has no processes store is a
       // workspace with no rituals, not a broken configuration.
-      const records = await readRole(options.docClient, role);
-      if (records === undefined) continue;
-      objects.push(...adaptDocRecords(records, adaptOptions));
-      docCounts.push(`${role}=${String(records.length)}`);
+      const read = await readRole(options.docClient, role);
+      if (!read.ok) {
+        docUnread.push(read.reason);
+        continue;
+      }
+      objects.push(...adaptDocRecords(read.records, adaptOptions));
+      docCounts.push(`${role}=${String(read.records.length)}`);
     }
   }
 
@@ -116,7 +121,7 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
 
   const source = [
     `task tool       full read      tasks=${String(snapshot.tasks.length)}   projects=${String(snapshot.projects.length)}`,
-    `document tool   ${docCounts.length === 0 ? 'not read' : docCounts.join('   ')}`,
+    `document tool   ${documentToolLine(docCounts, docUnread)}`,
     `prisme          entities=${String(report.entities.total)}   unbound targets=${String(targets.length)}`,
   ];
 
@@ -127,20 +132,29 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
   };
 }
 
+/** One role's read: the records, or why there are none. */
+type RoleRead =
+  | { readonly ok: true; readonly records: Awaited<ReturnType<DocToolClient['queryByRole']>> }
+  | { readonly ok: false; readonly reason: UnreadReason };
+
 /**
- * Read one store, or `undefined` if it is not bound.
+ * Read one store, or say why it could not be read.
  *
  * An unbound role throws from `createRoleBindings`' resolver, and that is the
  * right behaviour for the reconciler — but here it is a fact about the
  * instance's configuration rather than a failure, and refusing to scan the task
  * tool because a document store is missing would help nobody.
+ *
+ * The **message** stays swallowed and a **reason** comes back in its place: the
+ * message names the role binding, which is instance data, while the failure
+ * kind is vendor vocabulary that `packages/connectors/src/errors.ts` already
+ * rules safe. Before this, an unbound store and a refused read both printed
+ * "not read", and the two call for opposite responses.
  */
-async function readRole(client: DocToolClient, role: RoleKey) {
+async function readRole(client: DocToolClient, role: RoleKey): Promise<RoleRead> {
   try {
-    return await client.queryByRole(role);
-  } catch {
-    // Deliberately swallowed and reported as "not read" rather than logged: the
-    // message would carry the role binding, which is instance data.
-    return undefined;
+    return { ok: true, records: await client.queryByRole(role) };
+  } catch (error) {
+    return { ok: false, reason: unreadReason(error) };
   }
 }
