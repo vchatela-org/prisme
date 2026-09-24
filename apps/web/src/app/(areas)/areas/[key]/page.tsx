@@ -26,10 +26,9 @@ import {
   estimatedMinutesPct,
   labelsOf,
   measuredBuckets,
-  minutesCaveat,
+  minutesChartCaveat,
   monthsBefore,
   observedShareSeries,
-  WINDOW_CAVEAT,
 } from '@/lib/kpi-view';
 import { declaredSeries, yearsSpanned, type WeightsByYear } from '@/lib/weight-year';
 
@@ -191,7 +190,11 @@ export default async function AreaDetailPage({
               { label: 'Declared', values: [...declared], slot: 'lane' },
             ]}
             formatAs={{ kind: 'percent' }}
-            footnote={`${WINDOW_CAVEAT} ${measured === 0 ? '' : `${String(measured)} of ${String(labels.length)} months carry any measurement.`} ${minutesCaveat(balance.ok ? estimatedMinutesPct(balance.data.areas) : null)}`}
+            footnote={`${minutesChartCaveat({
+              estimatedPct: balance.ok ? estimatedMinutesPct(balance.data.areas) : null,
+              coverage: kpi.data,
+              windowed: true,
+            })} ${measured === 0 ? '' : `${String(measured)} of ${String(labels.length)} months carry any measurement.`}`}
           />
         )}
       </Section>
