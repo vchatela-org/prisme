@@ -87,7 +87,11 @@ describe('parsing a project’s sections', () => {
 });
 
 describe('summarising the ledger', () => {
-  it('counts each state, and pages apart from what resolves on its own', () => {
+  it('counts a page intent as ordinary pending work, since it now is', () => {
+    // Before ADR-0025 was accepted a page intent was counted apart, because no
+    // pass could ever make one. That became untrue the moment the role keys
+    // existed, and a separate column reading zero is worse than no column:
+    // it reads as a state somebody is watching.
     const summary = summariseLedger([
       intent({ id: '1', state: 'pending' }),
       intent({ id: '2', state: 'pending', tool: 'document', objectKind: 'page' }),
@@ -95,21 +99,11 @@ describe('summarising the ledger', () => {
       intent({ id: '4', state: 'satisfied', externalId: 'made-1' }),
     ]);
 
-    expect(summary).toEqual({
-      pending: 1,
-      failed: 1,
-      satisfied: 1,
-      waitingOnADecision: 1,
-    });
+    expect(summary).toEqual({ pending: 2, failed: 1, satisfied: 1 });
   });
 
   it('is all zeroes for an empty ledger', () => {
-    expect(summariseLedger([])).toEqual({
-      pending: 0,
-      failed: 0,
-      satisfied: 0,
-      waitingOnADecision: 0,
-    });
+    expect(summariseLedger([])).toEqual({ pending: 0, failed: 0, satisfied: 0 });
   });
 });
 
@@ -121,14 +115,15 @@ describe('what to do about a ledger row', () => {
   });
 
   /**
-   * A page is not retryable: nothing about pressing a button again changes
-   * whether a role key exists, and offering one is an invitation to press it
-   * forever.
+   * A page is still not retryable, and for a reason that survived ADR-0025:
+   * pressing a button cannot change whether this instance has bound where the
+   * page lives, and offering one is an invitation to press it forever.
    */
-  it('offers no retry for a page, and names the decision it waits on', () => {
+  it('offers no retry for a page, and names what actually blocks one', () => {
     const advice = ledgerAdvice(intent({ tool: 'document', objectKind: 'page' }));
     expect(advice.retryable).toBe(false);
-    expect(advice.sentence).toContain('ADR-0025');
+    expect(advice.sentence).toContain('blocked');
+    expect(advice.sentence).toContain('ADR-0028');
   });
 
   it('says a dependent row is waiting for what it belongs to', () => {

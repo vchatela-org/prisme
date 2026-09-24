@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { idempotencyKey } from '@prisme/connectors/write';
-import {
-  applyOutcome,
-  orderConvergence,
-  PAGE_KIND_UNSUPPORTED,
-  PAGE_UNBOUND,
-  resolveCreation,
-} from './order.js';
+import { applyOutcome, orderConvergence, PAGE_UNBOUND, resolveCreation } from './order.js';
+import type { PageKind } from '@prisme/connectors';
 import type { EntityRefs, Intent } from './types.js';
 
 /**
@@ -37,10 +32,11 @@ function intent(overrides: Partial<Intent> & Pick<Intent, 'id' | 'objectKind'>):
 const NO_REFS: ReadonlyMap<string, EntityRefs> = new Map();
 
 /**
- * An instance that has bound none of ADR-0025's roles — the default for every
- * test that is not about pages, and the state of every fresh installation.
+ * An instance that has bound none of ADR-0025's or ADR-0028's page roles — the
+ * default for every test that is not about pages, and the state of every fresh
+ * installation.
  */
-const NOTHING_ADDRESSABLE: ReadonlySet<'initiative' | 'project'> = new Set();
+const NOTHING_ADDRESSABLE: ReadonlySet<PageKind> = new Set();
 
 describe('resolving a draft', () => {
   it('turns a project draft into a project creation', () => {
@@ -141,10 +137,12 @@ describe('resolving a draft', () => {
     ).toEqual({ kind: 'page', draft: { kind: 'project', title: 'A page' } });
   });
 
-  it('does not resolve a capture\u2019s page, and says the vocabulary is the reason', () => {
-    // A gap rather than a decision: ADR-0025 names an initiative's page and a
-    // project's page and nothing between them, and guessing which of the two a
-    // capture meant is the class of guess this repository refuses everywhere.
+  it('resolves a capture\u2019s page as its own kind, since ADR-0028', () => {
+    // This used to return PAGE_KIND_UNSUPPORTED, because ADR-0025 named two
+    // kinds and refused to guess which one a capture meant. The third kind is
+    // its own store and its own template \u2014 that is what closes the gap, rather
+    // than routing a capture through an initiative's page because it will
+    // *probably* become one.
     expect(
       resolveCreation(
         intent({
@@ -157,7 +155,7 @@ describe('resolving a draft', () => {
         undefined,
         {},
       ),
-    ).toEqual({ error: PAGE_KIND_UNSUPPORTED });
+    ).toEqual({ kind: 'page', draft: { kind: 'capture', title: 'x' } });
   });
 
   it('refuses a page intent that names the task tool', () => {
@@ -315,9 +313,12 @@ describe('ordering a convergence', () => {
     expect(plan.steps[0]?.kind).toBe('run');
   });
 
-  it('blocks a capture\u2019s page with the vocabulary, not with the bindings', () => {
-    // Binding the roles would not help a capture: the plan must say the true
-    // reason, or an operator runs `bindings` twice and reports the same bug.
+  it('blocks a capture\u2019s page by the bindings, like every other kind, since ADR-0028', () => {
+    // Before ADR-0028 this was blocked by the *kind* \u2014 binding the roles would
+    // not have helped, and the plan said so, which is why the assertion was on
+    // a different message. The distinction is worth keeping: a plan that still
+    // reported the vocabulary would send an operator to run `bindings` and then
+    // report the same bug again. Now the only reason left is the fixable one.
     const plan = orderConvergence({
       intents: [
         intent({
@@ -333,7 +334,29 @@ describe('ordering a convergence', () => {
     });
 
     expect(plan.blocked).toBe(1);
-    expect(plan.steps[0]?.kind === 'blocked' && plan.steps[0].reason).toBe(PAGE_KIND_UNSUPPORTED);
+    expect(plan.steps[0]?.kind === 'blocked' && plan.steps[0].reason).toBe(PAGE_UNBOUND);
+  });
+
+  it('runs a capture\u2019s page once its own store and template are bound', () => {
+    // The bound kind is `capture` alone, so this cannot pass by borrowing an
+    // initiative's addressability \u2014 the pair ADR-0028 adds is the thing doing
+    // the work.
+    const plan = orderConvergence({
+      intents: [
+        intent({
+          id: 'pg-3',
+          entityKind: 'capture',
+          objectKind: 'page',
+          tool: 'document',
+          draft: { title: 'x' },
+        }),
+      ],
+      refsByEntity: NO_REFS,
+      addressablePageKinds: new Set(['capture']),
+    });
+
+    expect(plan.runnable).toBe(1);
+    expect(plan.steps[0]?.kind).toBe('run');
   });
 
   it('plans the same order twice, whatever order the rows arrived in', () => {

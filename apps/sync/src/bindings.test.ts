@@ -29,12 +29,15 @@ describe('parseBindingsFile', () => {
   it('reads the fixture, which is the format the spec documents', () => {
     const loaded = parseBindingsFile(readFileSync(FIXTURE, 'utf8'), FIXTURE);
 
-    // Ten: the six stores, plus ADR-0025's two page stores and two templates.
-    // `projectTemplateId` is not one — it is a task-tool project template, not
-    // a role prisme addresses by key — and the prose keys are not either.
-    expect(loaded.bindings).toHaveLength(10);
+    // Twelve: the six stores, plus ADR-0025's two page stores and two
+    // templates, plus ADR-0028's capture pair. `projectTemplateId` is not one —
+    // it is a task-tool project template, not a role prisme addresses by key —
+    // and the prose keys are not either.
+    expect(loaded.bindings).toHaveLength(12);
     expect(loaded.roles).toEqual([
       'areas_db',
+      'capture_page_template',
+      'capture_pages_db',
       'initiative_page_template',
       'initiative_pages_db',
       'media_db',

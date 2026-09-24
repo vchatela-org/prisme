@@ -15,10 +15,10 @@ import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.j
  *    The edge is stored (`requires`), not inferred from ordering, so a section
  *    whose project failed is *blocked with a reason* rather than sent with an
  *    empty parent.
- * 3. **A page needs an addressable store.** ADR-0025's role keys name where an
- *    initiative's or a project's page goes and what it copies, and if the
- *    instance has not bound them the page intent is blocked with a reason —
- *    see the note below.
+ * 3. **A page needs an addressable store.** ADR-0025's and ADR-0028's role keys
+ *    name where each kind of page goes and what it copies, and if the instance
+ *    has not bound them the page intent is blocked with a reason — see the note
+ *    below.
  * 4. **A draft must parse.** The draft is `unknown` in the ledger, and a shape
  *    that does not match its object kind is a blocked step rather than a
  *    crash mid-pass with half the sections made.
@@ -28,16 +28,18 @@ import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.j
  * Before ADR-0025 was accepted, **every** page intent was blocked: no role key
  * named where a page would go and none carried the capability to create one, so
  * the only honest thing the plan could say was that prisme had nowhere to
- * write. That is no longer true — `initiative_pages_db` and
- * `project_pages_db` exist — and what remains is a property of the *instance*:
- * an installation that has not bound those roles has no addressable store, and
- * the plan says so per intent rather than sending a creation at a parent nobody
+ * write. That is no longer true, and what remains is a property of the
+ * *instance* rather than of the vocabulary: an installation that has not bound a
+ * kind's store and its template has no addressable store for that kind, and the
+ * plan says so per intent rather than sending a creation at a parent nobody
  * chose.
  *
- * A capture's page stays blocked for a different reason, and it is a gap rather
- * than a decision: ADR-0025's vocabulary names two kinds of page, and a capture
- * is neither. Guessing which of the two it meant is the class of guess this
- * repository refuses everywhere else.
+ * **ADR-0028 closed the last vocabulary gap.** A capture's page used to be
+ * blocked by the *kind* — ADR-0025 named an initiative's page and a project's
+ * page, and a capture is neither, so the plan reported the gap rather than
+ * guessing which of the two it meant. All three kinds are addressable now, and
+ * every remaining block is the bindings one, which is a deployment step a human
+ * can run (`prisme-sync bindings --from <path>`) and not a missing decision.
  */
 
 /** Projects first, then sections in order, then everything else. Stable. */
@@ -51,15 +53,14 @@ const KIND_ORDER: Readonly<Record<string, number>> = {
 /**
  * Why a page cannot be created, when it cannot.
  *
- * Two sentences rather than one, because the two situations need different
- * actions from a human: an unbound role is a deployment step they can run, and
- * a capture's page is a vocabulary gap they can only report.
+ * One sentence, because there is one situation left: an unbound role is a
+ * deployment step a human can run. The second sentence this constant used to
+ * have a sibling for — a capture's page, blocked because no role key named one
+ * — is gone with ADR-0028, which is why the message names all three kinds
+ * rather than two.
  */
 export const PAGE_UNBOUND =
-  'the document tool has no bound store for this kind of page: bind the page and template roles (ADR-0025) with `prisme-sync bindings --from <path>`';
-
-export const PAGE_KIND_UNSUPPORTED =
-  "a capture's page has no role key in ADR-0025's vocabulary, which names an initiative's page and a project's page and nothing between them";
+  'the document tool has no bound store for this kind of page: bind the page and template roles (ADR-0025, ADR-0028) with `prisme-sync bindings --from <path>`';
 
 function text(draft: Readonly<Record<string, unknown>>, field: string): string | undefined {
   const value = draft[field];
@@ -141,10 +142,10 @@ export function resolveCreation(
 
     // The kind is the entity's, not the draft's: an initiative's page is an
     // initiative's page because of what it is a page *of*, and a draft field
-    // would let a caller say otherwise.
-    if (intent.entityKind === 'capture') return { error: PAGE_KIND_UNSUPPORTED };
-    // Narrowed by the exclusion above, so no cast: the two surviving kinds are
-    // exactly ADR-0025's two.
+    // would let a caller say otherwise. Every member of `IntentEntityKind` is
+    // now a `PageKind` (ADR-0028), so this is a widening and not a cast — if a
+    // fourth entity kind is ever added without a page kind to go with it, this
+    // line stops compiling rather than silently mapping to the wrong store.
     return { kind: 'page', draft: { kind: intent.entityKind, title } };
   }
 
@@ -208,13 +209,7 @@ export function orderConvergence(input: OrderInput): ConvergePlan {
      * mistake, not a plan this function should accommodate.
      */
     const isPage = intent.tool === 'document';
-    // A capture is excluded here rather than counted as unbound: binding the
-    // roles would not help it, and the plan must say the true reason.
-    if (
-      isPage &&
-      intent.entityKind !== 'capture' &&
-      !input.addressablePageKinds.has(intent.entityKind)
-    ) {
+    if (isPage && !input.addressablePageKinds.has(intent.entityKind)) {
       steps.push({ kind: 'blocked', intent, reason: PAGE_UNBOUND });
       continue;
     }

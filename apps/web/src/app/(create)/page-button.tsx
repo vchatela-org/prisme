@@ -30,13 +30,14 @@ import { requestInitiativePage } from './create-actions';
  * pressed (the ledger's one-per-slot index sees to that) but tells the person
  * nothing, which is how somebody presses it four times.
  *
- * ## Create says out loud that it will not happen yet
+ * ## Create says out loud where it can stall
  *
- * There is no role key naming where a page would go and none carrying the
- * capability to create one (ADR-0025). The button records the intention and
- * the copy says what that means, because an option that silently does nothing
- * is worse than one that explains itself. **Link existing** works today, and
- * it is the half adoption needs anyway.
+ * The button records an intention and a converge pass makes it, so the honest
+ * thing the copy can say is what the pass needs: an instance that has bound the
+ * store and the template for this kind of page gets one on the next pass, and
+ * one that has not gets a plan that reports it blocked with that reason
+ * (ADR-0025, ADR-0028). An option that silently does nothing is worse than one
+ * that explains itself, and **Link existing** works today either way.
  */
 export function PageButton({ initiativeId, state }: { initiativeId: string; state: PageState }) {
   const [linking, setLinking] = useState(false);
@@ -81,8 +82,9 @@ export function PageButton({ initiativeId, state }: { initiativeId: string; stat
       <div className="flex flex-col gap-1">
         <span className="text-sm text-ink-secondary">A page has been asked for.</span>
         <FieldHint>
-          It is waiting on a decision rather than on a pass: prisme has nowhere addressable to
-          create a page yet (ADR-0025). Linking an existing one works today.
+          It is waiting on the converge pass. If this instance has not bound where this kind of page
+          lives, the plan reports it blocked with that reason, and running the bindings command from
+          the sync CLI is what fixes it (ADR-0025, ADR-0028). Linking an existing one works today.
         </FieldHint>
       </div>
     );

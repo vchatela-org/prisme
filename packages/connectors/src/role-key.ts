@@ -35,6 +35,21 @@ export const ROLE_KEYS = [
    */
   'initiative_pages_db',
   'project_pages_db',
+  /*
+   * ADR-0028's pair, added when it was accepted.
+   *
+   * ADR-0025 named an initiative's page and a project's page and stopped, on
+   * purpose: a capture is neither, and guessing which of the two it meant is
+   * the class of guess this repository refuses everywhere. So a capture's page
+   * was recorded as an intent that the plan reported `blocked` with the reason
+   * — a gap, said out loud, rather than a silent approximation.
+   *
+   * The gap is closed the same way the first two were: a store role and a
+   * template role, bound independently, because a capture's page is not an
+   * initiative's page that happens to arrive earlier.
+   */
+  'capture_pages_db',
+  'capture_page_template',
   'initiative_page_template',
   'project_page_template',
 ] as const;
@@ -52,18 +67,31 @@ export const roleKeySchema: z.ZodType<RoleKey> = z.enum(ROLE_KEYS);
  * template is neither work nor adoptable. Kept here rather than in the scan so
  * that adding a role is a decision made in one place.
  */
-export const PAGE_ROLES: readonly RoleKey[] = ['initiative_pages_db', 'project_pages_db'];
+export const PAGE_ROLES: readonly RoleKey[] = [
+  'initiative_pages_db',
+  'project_pages_db',
+  'capture_pages_db',
+];
 export const TEMPLATE_ROLES: readonly RoleKey[] = [
   'initiative_page_template',
   'project_page_template',
+  'capture_page_template',
 ];
 
 export function isTemplateRole(role: RoleKey): boolean {
   return TEMPLATE_ROLES.includes(role);
 }
 
-/** The two kinds of narrative page ADR-0011 and ADR-0019 ask for. */
-export type PageKind = 'initiative' | 'project';
+/**
+ * The kinds of narrative page prisme can address.
+ *
+ * Two come from ADR-0011 and ADR-0019 — an initiative's and a project's — and
+ * a capture's is ADR-0028's. The third is not a convenience: a capture is a
+ * task that may be promoted later, so a page created from one is a page about
+ * something that is not yet an initiative, and ADR-0025 declined to guess
+ * which of the two it would become.
+ */
+export type PageKind = 'initiative' | 'project' | 'capture';
 
 /**
  * Which store each kind of page goes in, and which template it is a copy of.
@@ -81,11 +109,13 @@ export type PageKind = 'initiative' | 'project';
 export const PAGE_ROLE_FOR: Readonly<Record<PageKind, RoleKey>> = {
   initiative: 'initiative_pages_db',
   project: 'project_pages_db',
+  capture: 'capture_pages_db',
 };
 
 export const PAGE_TEMPLATE_FOR: Readonly<Record<PageKind, RoleKey>> = {
   initiative: 'initiative_page_template',
   project: 'project_page_template',
+  capture: 'capture_page_template',
 };
 
 export type RoleAccess = 'read' | 'write' | 'read_write' | 'create';
@@ -116,9 +146,11 @@ export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   reviews_db: 'write',
   initiative_pages_db: 'create',
   project_pages_db: 'create',
+  capture_pages_db: 'create',
   // A template is read: prisme copies its blocks and writes none of them.
   initiative_page_template: 'read',
   project_page_template: 'read',
+  capture_page_template: 'read',
 };
 
 export function isReadable(role: RoleKey): boolean {

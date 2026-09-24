@@ -139,7 +139,11 @@ function creationWriter(
  */
 function addressablePageKinds(bindings: RoleBindings): ReadonlySet<PageKind> {
   const kinds = new Set<PageKind>();
-  for (const kind of ['initiative', 'project'] as const) {
+  // The kinds come from the vocabulary rather than from a list repeated here.
+  // A hardcoded pair is how ADR-0028's third kind would have been added to
+  // `PAGE_ROLE_FOR` and forgotten at this one call site — bound, and planned as
+  // unbound, with nothing failing.
+  for (const kind of Object.keys(PAGE_ROLE_FOR) as PageKind[]) {
     if (bindings.has(PAGE_ROLE_FOR[kind]) && bindings.has(PAGE_TEMPLATE_FOR[kind])) {
       kinds.add(kind);
     }

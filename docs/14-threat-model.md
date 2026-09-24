@@ -167,8 +167,8 @@ capability each requires:
 | `takeaways_db` | read-only |
 | `objectives_db` | read/write — prisme owns specific fields |
 | `reviews_db` | write — review summaries |
-| `initiative_page_template`, `project_page_template` | read-only — prisme copies their blocks and writes none |
-| `initiative_pages_db`, `project_pages_db` | **`create`** — it may add a page under the bound parent and may not read or edit anything (ADR-0025) |
+| `initiative_page_template`, `project_page_template`, `capture_page_template` | read-only — prisme copies their blocks and writes none |
+| `initiative_pages_db`, `project_pages_db`, `capture_pages_db` | **`create`** — it may add a page under the bound parent and may not read or edit anything (ADR-0025, ADR-0028) |
 
 Read-only wherever prisme owns nothing is not a formality: it is the difference between a bug
 corrupting a field and a bug corrupting an archive.

@@ -30,10 +30,13 @@ export const metadata = {
  *
  * `pending` resolves on its own, on the next pass. `satisfied` is done.
  * `failed` is the one worth a person's attention, and it is the only one with
- * a button. Pages are counted apart from `pending` deliberately: they are
- * waiting on a decision rather than on a pass (ADR-0025), and grouping them
- * with things that resolve themselves would make a permanent state look
- * temporary.
+ * a button.
+ *
+ * Pages used to be counted apart from `pending`, because ADR-0025 had not been
+ * accepted and no pass could ever make one — a permanent state dressed as a
+ * temporary one. They are ordinary `pending` rows now that a page is creatable,
+ * and the one way a page still cannot be made is stated in the row's own
+ * advice: this instance has not bound where that kind of page lives.
  *
  * ## No draft is displayed, because none is sent
  *
@@ -66,12 +69,6 @@ export default async function CreationsPage() {
         <StatRow>
           <StatTile label="Queued" value={String(summary.pending)} />
           <StatTile label="Failed" value={String(summary.failed)} />
-          {/*
-            Counted apart from `Queued` on purpose: a page is waiting on a
-            decision rather than on a pass (ADR-0025), and grouping the two
-            would make a permanent state look temporary.
-          */}
-          <StatTile label="Waiting on a decision" value={String(summary.waitingOnADecision)} />
           <StatTile label="Made" value={String(summary.satisfied)} />
         </StatRow>
       </Section>
