@@ -50,7 +50,9 @@ class NoopObserver {
   }
 }
 globalThis.ResizeObserver = NoopObserver;
-globalThis.IntersectionObserver = NoopObserver;
+// `IntersectionObserver` has members this stub does not implement (`rootMargin`, `thresholds`),
+// and nothing here observes anything: the assertion is the shortest honest way to say so.
+globalThis.IntersectionObserver = NoopObserver as unknown as typeof IntersectionObserver;
 Element.prototype.scrollIntoView = () => {};
 Element.prototype.hasPointerCapture = () => false;
 Element.prototype.setPointerCapture = () => {};
