@@ -24,6 +24,7 @@ someone to "just update it with the real numbers".
 | `initiatives.json` | Initiatives across every status, with dependencies and deadlines |
 | `objectives.json` | Annual and monthly objectives with key results |
 | `task-mirror.json` | The task tool's anchor subtrees, mirrored — what `progressComputed` is counted from |
+| `area-mappings.json` | External location → area — what makes a completion an **attributed** minute |
 | `bindings.json` | Role key → external store identifier, with **invented** identifiers |
 | `scoring/wsjf-balanced.golden.json` | Golden inputs → expected outputs for the shipped method |
 | `schedule/cpm-cases.json` | Four scheduling networks with **hand-computed** CPM results |
@@ -49,6 +50,30 @@ detail's task list, so seeding it widens what every suite sees. That is the poin
 side effect — a mirror a test could opt into would leave the divergence unreachable from a plain
 seed — and a suite that measures a window it builds itself is expected to start from an empty
 mirror rather than to assume there is no fixture data.
+
+**It also covers initiatives that serve no key result**, which is a different gap from the one
+above and was found the same way. A subtree exists for `progressComputed` only if some key result is
+served by its initiative; without one, the initiative detail showed an empty task list from a plain
+seed, and an empty task list is indistinguishable from a screen that is broken. `init-005`,
+`init-009` and `init-013` carry subtrees for that reason, and their completed work is dated
+**outside** the rolling four-week window deliberately — the mirror feeds the capacity window too, and
+moving every suite's balance numbers to fill a detail screen would be the wrong trade. A suite that
+wants a completion inside the window seeds one.
+
+## Attribution needs a mapping, not just a completion
+
+`area-mappings.json` is the other half of what a plain seed was missing. `area_mapping` is what turns
+a completion into an **attributed** minute — `attribute.ts` resolves a section's location first and
+falls back to its project — so with no rows in that table every completion the fixture set could
+produce was unattributable, and the balance chart read as empty for a reason indistinguishable from
+a defect in prisme.
+
+The mapping's external identifiers are the ones `connectors/task-tool.completions.json` actually
+reports, which is what makes it reachable rather than decorative, and one entry refines a section
+that its project also covers so the precedence is exercised by a plain seed.
+
+**In a real instance this file has no counterpart.** A person's mappings live in `seed/`, are loaded
+by `prisme-sync bindings --from`, and never enter this repository ([`17-privacy.md`](../docs/17-privacy.md)).
 
 ## The two-year span is intentional
 
