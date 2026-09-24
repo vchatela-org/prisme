@@ -1,6 +1,7 @@
 import type { DocToolClient } from '@prisme/connectors';
 import { materialise, type MaterialiseResult } from './backfill/run.js';
 import type { BackfillStore } from './backfill/ports.js';
+import type { UnreadReason } from './unread.js';
 
 /**
  * The **bounded capacity refresh**: keep the trailing window of materialised
@@ -59,6 +60,8 @@ export interface CapacityRefreshResult {
   /** Completions attributed in the window, which is the number worth watching. */
   readonly attributed: number;
   readonly documentToolRead: boolean;
+  /** The failure kind, when a read was attempted and did not happen. See `unread.ts`. */
+  readonly documentToolUnread?: UnreadReason | undefined;
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -93,5 +96,8 @@ export async function refreshCapacity(
     weeks: materialised.weeks.length,
     attributed: materialised.attribution.attributed.length,
     documentToolRead: materialised.documentToolRead,
+    ...(materialised.documentToolUnread === undefined
+      ? {}
+      : { documentToolUnread: materialised.documentToolUnread }),
   };
 }
