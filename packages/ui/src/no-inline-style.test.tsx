@@ -43,7 +43,11 @@ import { ToastProvider } from './primitives/toast.js';
  * satisfy it, are in `tokens/area-color.ts`.
  *
  * A sibling guard in `tokens/no-inline-style-source.test.ts` reads the source
- * of both trees, because what is not rendered here is not covered here.
+ * of both trees, because what is not rendered here is not covered here. A
+ * second sibling, [`no-inline-style-dom.test.tsx`](no-inline-style-dom.test.tsx),
+ * covers the other half: `style` **elements** that Radix and the scroll lock
+ * append *after* mount, which no server render can contain and which this file
+ * therefore cannot see.
  */
 
 const AREAS = { health: 1, craft: 3 } as const;
