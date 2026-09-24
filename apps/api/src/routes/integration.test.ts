@@ -116,6 +116,46 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  describe('what a plain seed carries', () => {
+    it('maps an external location to an area, and lets a section refine its project', async () => {
+      const rows = await database.client<
+        { area_key: string; external_project_id: string; external_section_id: string | null }[]
+      >`select area_key, external_project_id, external_section_id from area_mapping`;
+
+      // Without rows here every completion a seed can produce is unattributable
+      // and the balance chart reads as empty for a reason indistinguishable
+      // from a defect in prisme. The identifiers are the ones
+      // `fixtures/connectors/task-tool.completions.json` reports, which is what
+      // makes the mapping reachable rather than decorative.
+      expect(rows).toContainEqual({
+        area_key: 'health',
+        external_project_id: 'project-0001',
+        external_section_id: null,
+      });
+      // And the precedence `attribute.ts` implements: a section of a mapped
+      // project may belong to a different area than the project itself.
+      expect(rows).toContainEqual({
+        area_key: 'money',
+        external_project_id: 'project-0001',
+        external_section_id: 'section-0001',
+      });
+    });
+
+    it('gives an initiative with no key result behind it the tasks it actually has', async () => {
+      const app = api();
+
+      const { body } = await app.request('GET', url(`/initiatives/${fixtureId('init-005')}/tasks`));
+      const list = body as { items: { isAnchor: boolean; completed: boolean }[] };
+
+      // `init-005` serves no key result, so a mirror built only from the key
+      // results leaves it with no subtree at all — and an empty task list is
+      // indistinguishable from a screen that is broken.
+      expect(list.items.length).toBeGreaterThan(0);
+      expect(list.items.some((task) => task.isAnchor)).toBe(true);
+      expect(list.items.some((task) => !task.completed)).toBe(true);
+    });
+  });
+
   describe('initiatives', () => {
     it('returns an explicit DTO, with no column the contract does not name', async () => {
       const id = fixtureId('init-003');
