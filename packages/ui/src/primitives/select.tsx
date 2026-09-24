@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { Select as RadixSelect } from 'radix-ui';
 import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn.js';
+import { useCspNonce } from '../lib/csp-nonce.js';
 import { DISABLED, FOCUS_RING } from '../lib/focus.js';
 
 /**
@@ -44,8 +45,19 @@ export function SelectContent({
   className,
   children,
   position = 'popper',
+  nonce,
   ...props
 }: ComponentProps<typeof RadixSelect.Content>) {
+  /*
+   * Radix hides the viewport's scrollbar with a `<style>` element it renders
+   * *inside* the popup, and a `style-src` without `unsafe-inline` refuses an
+   * element with no nonce. Radix takes the nonce as a prop and prisme passed
+   * none, so opening a `Select` logged a violation every time — see
+   * `lib/csp-nonce.tsx`, which is where the page's nonce comes from.
+   */
+  const pageNonce = useCspNonce();
+  const viewportNonce = nonce ?? pageNonce;
+
   return (
     <RadixSelect.Portal>
       <RadixSelect.Content
@@ -59,7 +71,12 @@ export function SelectContent({
         )}
         {...props}
       >
-        <RadixSelect.Viewport className="p-1">{children}</RadixSelect.Viewport>
+        <RadixSelect.Viewport
+          className="p-1"
+          {...(viewportNonce === undefined ? {} : { nonce: viewportNonce })}
+        >
+          {children}
+        </RadixSelect.Viewport>
       </RadixSelect.Content>
     </RadixSelect.Portal>
   );

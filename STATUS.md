@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-23 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
+**Last updated:** 2026-09-24 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
 
 ---
 
@@ -303,7 +303,15 @@ journal entry rather than a unit of planned work.
 | **The reconciler's own metrics are invisible in a deployment** — a CronJob pod is never scraped, so the API serves both sync gauges as a constant `0`: the staleness alert fires permanently and the drift alert can never fire | Found while deploying (nobody had recorded it) | 🟢 | [#44](https://github.com/vchatela-org/prisme/pull/44) |
 | **The task tool's entire API was removed** — every read, completion and write returned `410 Gone`, and no test in this repository may call a real API, so nothing here could have seen it | found while preparing the deployment (nobody had recorded it) | 🟢 | [#45](https://github.com/vchatela-org/prisme/pull/45) |
 | **ADR-0021's first deployment obligation is undeliverable** — the proxy provider cannot be given a durable asymmetric signing keypair, by the identity provider's design, so a verified-assertion forward-auth path cannot be stood up | found while deploying (nobody had recorded it) | 🟢 [ADR-0026](docs/20-decisions/0026-human-auth-via-oidc.md) **Accepted**; login flow implemented, the client **registered and deployed**, and the forward-auth arrangement it replaced removed — [the entry](docs/50-journal/FUP-2026-09-23-oidc-in-the-cluster.md) | [#55](https://github.com/vchatela-org/prisme/pull/55), [#56](https://github.com/vchatela-org/prisme/pull/56), [#60](https://github.com/vchatela-org/prisme/pull/60) |
-| **Opening a Radix `Select` logs two CSP violations** — its popper applies an inline style computed from a measurement at runtime, which no class can carry and which the server-render guard in `packages/ui` cannot see | the OIDC follow-up, found by driving a write in a real browser | 🟡 recorded, not fixed | [#56](https://github.com/vchatela-org/prisme/pull/56) |
+| **Opening a Radix `Select` logs two CSP violations** — **not** the popper's runtime inline style, as this row first said: both were `style-src-elem`, two `<style>` *elements* (Radix's select viewport and the scroll lock underneath a popup), which no nonce reached and the server-render guard in `packages/ui` cannot see | the OIDC follow-up, found by driving a write in a real browser | 🟢 | [#61](https://github.com/vchatela-org/prisme/pull/61) |
+| A popup's injected stylesheets carry the page nonce — the middleware's `x-nonce` reaches the root layout, and from there Radix's `SelectViewport` and `get-nonce` | FUP-2026-09-24 (this wave) | 🟢 | [#61](https://github.com/vchatela-org/prisme/pull/61) |
+| `middleware.ts` → `proxy.ts`, **after** a check that a response still carries the CSP and every other security header | FUP-2026-09-23-repo-hygiene | 🟢 | [#61](https://github.com/vchatela-org/prisme/pull/61) |
+| Nothing asserted the web tier sends its security headers: `/healthz` is excluded from the matcher and was the only thing the `images` probe read | FUP-2026-09-23-repo-hygiene | 🟢 | [#61](https://github.com/vchatela-org/prisme/pull/61) |
+| No logout control in the UI — `POST /auth/logout` exists, is origin-checked and verified end to end, and nothing called it | FUP-2026-09-22-oidc-human-auth | 🟢 | [#61](https://github.com/vchatela-org/prisme/pull/61) |
+| The committed fixture harness — gitignored, stale, rebuilt and thrown away nine times | W07, W08, W10, W11, W15, FUP-radix-inline-styles, FUP-tool-base-urls, FUP-doc-tool-api-version, FUP-2026-09-24 (the tenth session to run without one) | 🟡 recorded, not fixed — a maintained artefact rather than a patch; see [the entry](docs/50-journal/FUP-2026-09-24-open-followups.md) | — |
+| `is_archived` / `is_locked` are returned by the document tool and unread — undocumented booleans, and mapping one would be a guess | FUP-2026-09-22-doc-tool-api-version | 🟡 recorded, not fixed | — |
+| The initiative detail screen's **Open page** — needs a browser-facing base and a page-id → URL shape, and the tool's own page URL is deliberately unread because it identifies the workspace | FUP-2026-09-21-tool-base-urls, FUP-2026-09-21-page-creation | ⏳ human decision — pending | — |
+| A capture's page has no role key — ADR-0025's vocabulary names an initiative's page and a project's page, and a capture is neither | FUP-2026-09-21-page-creation, FUP-2026-09-21-tool-base-urls | ⏳ human decision — pending | — |
 | **The document tool's API version predated the endpoints prisme calls** — the client pinned `2022-06-28` (the era of `/v1/databases/`) while calling `/v1/data_sources/query`, so every query returned `400 invalid_request_url` and the scan printed "document tool not read" | found while preparing the deployment (nobody had recorded it) | 🟢 | [#54](https://github.com/vchatela-org/prisme/pull/54) |
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
 | **The deny-list missed camelCase id positions** — `\b(id\|…)` never reaches the `Id` inside `projectId`, so the `v1` id shape went uncovered wherever a TS or JSON body would be pasted; a separator-only rule matches the destructuring rename `projectId: parentExternalId`, which is code rather than data | FUP-todoist-api-v1 (found while migrating to the `v1` API) | 🟢 | [#58](https://github.com/vchatela-org/prisme/pull/58) |
@@ -311,12 +319,18 @@ journal entry rather than a unit of planned work.
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
+**A row here is an obligation, not a note.** Four of them lived only inside journal entry tables
+until 2026-09-24, which is exactly the rediscovery the journal rules exist to prevent — a follow-up
+inside an append-only entry explains a gap rather than holding one, and the next person reads the
+dashboard first. The two rows marked `⏳ human decision — pending` are deliberately **not** for an
+agent: each needs something decided before anything can be built, and the decision is the owner's.
+
 ⚠ **Two journal entries say `DOCTOOL_BASE_URL` would unblock the initiative screen's *Open page*
 button. It does not, and nothing was closed for it.** That variable is the **API host** — the one
 that serves JSON — and a person cannot open a page at it. The button also needs a *browser-facing*
 base and whatever path shape turns a page id into a link, and the tool's own page URL cannot supply
 either: `packages/connectors/src/doc-tool` deliberately does not read it, because it identifies the
-workspace. That is a decision for a human, not a patch, and it is the first row of
+workspace. That is a decision for a human, not a patch, and it is a row above and the first row of
 [the entry](docs/50-journal/FUP-2026-09-21-tool-base-urls.md).
 
 ## Releases
