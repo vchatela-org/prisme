@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The register was reverted, and nothing reads it
 
-**Agent:** Claude · **Duration:** one session · **PR** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#77](https://github.com/vchatela-org/prisme/pull/77) · **Outcome:** complete
 
 Reviewing the outstanding rows before the functional phase, one of them was inconsistent with
 itself: the `AREA_COLOR_PINS` row read **🟡** with `—` in the PR column, while the journal entry
