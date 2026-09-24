@@ -7,6 +7,7 @@ import { formatBackfillReport } from './report.js';
 import { planResume, SLICE_DAYS, type ResumePlan } from './slices.js';
 import type { AdherencePeriod, CapacityWeek, RitualRecord, StoredCompletion } from './types.js';
 import { dayText, startOfWeek, weeklyCapacity } from './weeks.js';
+import type { UnreadReason } from '../unread.js';
 
 /**
  * One backfill pass.
@@ -63,6 +64,8 @@ export interface BackfillResult {
   readonly unmeasurableRituals: readonly RitualRecord[];
   readonly declaredDurationsKnown: number;
   readonly documentToolRead: boolean;
+  /** The failure kind, when a read was attempted and did not happen. See `unread.ts`. */
+  readonly documentToolUnread?: UnreadReason | undefined;
   /** The report, rendered. **Carries instance data**; print it, never commit it. */
   readonly report: string;
 }
@@ -172,6 +175,8 @@ export interface MaterialiseResult {
   readonly unmeasurableRituals: readonly RitualRecord[];
   readonly declaredDurationsKnown: number;
   readonly documentToolRead: boolean;
+  /** The failure kind, when a read was attempted and did not happen. See `unread.ts`. */
+  readonly documentToolUnread?: UnreadReason | undefined;
 }
 
 /**
@@ -233,5 +238,6 @@ export async function materialise(options: MaterialiseOptions): Promise<Material
     unmeasurableRituals: rituals.filter((ritual) => ritual.externalTaskId === undefined),
     declaredDurationsKnown: declared.byTask.size,
     documentToolRead: declared.read,
+    ...(declared.unread === undefined ? {} : { documentToolUnread: declared.unread }),
   };
 }

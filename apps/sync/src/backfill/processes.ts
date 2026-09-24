@@ -1,5 +1,6 @@
 import type { DocToolClient } from '@prisme/connectors';
 import type { RitualRecord } from './types.js';
+import { unreadReason, type UnreadReason } from '../unread.js';
 
 /**
  * The middle tier of the duration preference order: the declared duration of
@@ -62,6 +63,18 @@ export interface ProcessDurations {
   /** Whether the document tool was read at all. */
   readonly read: boolean;
   /**
+   * Why a read was attempted and did not happen — the failure kind, never the
+   * message.
+   *
+   * `undefined` while `read` is false covers the two *configuration* causes,
+   * which the caller already knows because it supplied them: no client, or no
+   * duration property. A value appears only when the store was addressed and
+   * the read came back refused or unbound, which is the distinction
+   * [`unread.ts`](../unread.ts) exists to keep: one is a seed file to fix, the
+   * other is a credential or an outage to go and look at.
+   */
+  readonly unread?: UnreadReason | undefined;
+  /**
    * Pages carrying the named property with a value prisme refused to interpret.
    *
    * Counted, never guessed at. A duration held as free text says "45 min" in
@@ -80,8 +93,9 @@ export async function declaredMinutesFromProcesses(
   const { docClient, durationProperty } = options;
   if (docClient === undefined || durationProperty === undefined) return EMPTY;
 
-  const records = await readProcesses(docClient);
-  if (records === undefined) return EMPTY;
+  const read = await readProcesses(docClient);
+  if (!read.ok) return { ...EMPTY, unread: read.reason };
+  const records = read.records;
 
   const minutesByPage = new Map<string, number>();
   let unreadable = 0;
@@ -111,17 +125,24 @@ export async function declaredMinutesFromProcesses(
   return { byTask, read: true, unreadable };
 }
 
+/** The processes store's read: the records, or why there are none. */
+type ProcessRead =
+  | { readonly ok: true; readonly records: Awaited<ReturnType<DocToolClient['queryByRole']>> }
+  | { readonly ok: false; readonly reason: UnreadReason };
+
 /**
- * Read the processes store, or `undefined` if it is not bound.
+ * Read the processes store, or say why it could not be read.
  *
- * Swallowed deliberately and reported as "not read" rather than logged, exactly
- * as `adoption/run.ts` does it: the message would carry the role binding, which
- * is instance data.
+ * Swallowed deliberately and reported rather than logged, exactly as
+ * `adoption/run.ts` does it: the message would carry the role binding, which is
+ * instance data. What comes back instead is the **failure kind**, which is
+ * vendor vocabulary and safe — so "the store is not bound" and "the read was
+ * refused" stop printing the same thing.
  */
-async function readProcesses(client: DocToolClient) {
+async function readProcesses(client: DocToolClient): Promise<ProcessRead> {
   try {
-    return await client.queryByRole('processes_db');
-  } catch {
-    return undefined;
+    return { ok: true, records: await client.queryByRole('processes_db') };
+  } catch (error) {
+    return { ok: false, reason: unreadReason(error) };
   }
 }
