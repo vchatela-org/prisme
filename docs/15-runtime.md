@@ -298,10 +298,46 @@ The path is required rather than defaulted: the seed directory is gitignored, it
 deployment detail, and a command that silently read nothing from a path that does not exist would
 look like a success. The file's format is [`seed.example/bindings.json`](../seed.example/bindings.json).
 
+**The same file states where the areas' work lives**, in its `areaMappings` array, and the command
+writes those too. It is the same file because it is the same question — which external object is
+which prisme object — and it was the same gap: the array was in the file, in the documented format,
+and parsed by nothing. One external location belongs to exactly one area
+(`area_mapping_one_area_per_location`), and the loader **refuses** a location another area already
+holds rather than letting a unique index raise a constraint violation naming a table the operator
+has never heard of.
+
 **A role with no binding is not addressable**, and the connectors report it rather than guessing: a
 scan says `document tool   not read`, and the backfill reports the declared-duration tier as
 unavailable. That is the state of every instance that has not run the command, and it is a state
 the passes handle rather than fail on.
+
+### The area catalogue
+
+Areas, their year weights, and the external locations that fold into each. The weights are the
+allocation every ranking happens *inside* (ADR-0005, ADR-0007), so this is the file that decides
+what "balanced" means for a year — and until it exists, nothing can be ranked.
+
+```
+prisme-sync areas --from <path>            load seed/areas.json
+prisme-sync areas --from <path> --force    replace a year that already has weights
+```
+
+Areas are **upserted, never deleted**: work hangs from an area, so an area the file omits is left
+exactly as it was, and a field the file does not carry is left alone — `"active"` absent is not
+`"active": true`, or re-running the loader would silently reactivate an area somebody archived in
+the application. A year whose stored weights already **agree** with the file is left alone and the
+run reports success, which is what makes a second run a quiet no-op; a year whose stored weights
+*differ* is refused without `--force`, because a weight is fixed for a whole calendar year.
+
+The file's own rules bind it, and each is refused by name: a weight for a lane, a weight for an area
+the file does not list, a year whose shares do not sum to 100, and a year that covers only some of
+the file's areas — a partial year sums to 100 by construction, so the sum check cannot see it and
+the omitted area would quietly carry a zero share on every chart. The format is
+[`seed.example/areas.json`](../seed.example/areas.json).
+
+**`pnpm seed:load` runs both commands, areas first** — a mapping names an area, so the areas have to
+be there. Each command keeps its required `--from`; the script is the local convenience
+`seed.example/README.md` documents, and the container runs neither.
 
 **The command replaces the whole table.** Removing a role from the file unbinds it. A merge would
 leave a role bound to a store the file no longer mentions, with no way to unbind one short of
