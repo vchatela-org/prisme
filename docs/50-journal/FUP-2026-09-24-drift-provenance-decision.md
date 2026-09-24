@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The drift alert's missing provenance, decided
 
-**Agent:** Claude · **Duration:** part of a session · **PR** this branch · **Outcome:** decided, not built
+**Agent:** Claude · **Duration:** part of a session · **PR** [#81](https://github.com/vchatela-org/prisme/pull/81) · **Outcome:** decided, not built
 
 **This entry records a decision, not a change.** The sync-metrics row stays 🟡 and this branch touches
 no code. It exists because the decision was made and implementing it is a separate piece of work — and
