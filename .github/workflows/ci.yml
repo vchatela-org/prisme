@@ -165,11 +165,31 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # The audit asks registry.npmjs.org for the advisories covering this
+      # lockfile, and three outcomes share two statuses: the database answered,
+      # or it did not. A required check carries one status, so "could not check"
+      # read exactly like "found a vulnerability" and blocked merges on branches
+      # that changed no dependency (#31, 2026-09-19) — while the tempting
+      # `--ignore-registry-errors` turns that same outage into a green.
+      #
+      # So `pnpm audit` is not run here directly. The script runs it, classifies
+      # the outcome as checked-clean, vulnerable or unchecked, and fails closed on
+      # the third. The controls go first, inside this job rather than as a check
+      # of their own: a new check name is a context nobody reads until a human
+      # adds it to branch protection, which is the same reasoning that folded the
+      # test-file typecheck into `typecheck`
+      # (docs/50-journal/FUP-2026-09-23-typecheck-tests.md). The required-check
+      # list does not change. ADR-0027 — Proposed, awaiting the owner.
+      - name: The classifier must refuse what it cannot read
+        run: ./scripts/dependency-audit.py --selftest
+
       # `moderate` rather than `high`: this application holds API tokens to the
       # owner's entire planning workspace (docs/14-threat-model.md §1), and the
       # dependency surface is small enough that a moderate advisory is worth
       # reading rather than batching.
-      - run: pnpm audit --audit-level=moderate
+      - name: Audit the lockfile, failing closed if the database does not answer
+        run: ./scripts/dependency-audit.py
 
   golden:
     name: golden fixtures

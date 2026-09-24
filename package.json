@@ -27,7 +27,7 @@
     "start:sync": "pnpm --filter @prisme/sync run start",
     "start:web": "pnpm --filter @prisme/web run start",
     "privacy": "./scripts/privacy-scan.sh",
-    "audit": "pnpm audit --audit-level=moderate"
+    "audit": "./scripts/dependency-audit.py"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
