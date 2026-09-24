@@ -74,9 +74,15 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           // Tooling that belongs to no package's tsconfig: the root test
-          // configuration, and the script that writes the design system's
-          // generated stylesheet after tsc has compiled its tokens (W07).
-          allowDefaultProject: ['vitest.config.ts', 'packages/ui/scripts/emit-css.mjs'],
+          // configuration, the script that writes the design system's generated
+          // stylesheet after tsc has compiled its tokens (W07), and the local
+          // harness — which is deliberately outside every package, because it
+          // exists to run all of them at once.
+          allowDefaultProject: [
+            'vitest.config.ts',
+            'packages/ui/scripts/emit-css.mjs',
+            'harness/*.mjs',
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -312,6 +318,44 @@ export default tseslint.config(
   {
     files: ['**/*.config.mjs', '**/*.config.js', 'packages/ui/scripts/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+
+  // --- The local development harness ----------------------------------------
+  // `harness/` is three CLIs in no package: one starts the stack, one seeds it,
+  // one drives a login through it. They are the analogue of an entrypoint, and
+  // the two rules turned off here are the exceptions the entrypoints already
+  // have, for the same reasons:
+  //
+  //   - **it reads `process.env` because supplying the environment is its job.**
+  //     These scripts run *before* any `@prisme/config` exists — the apps they
+  //     start validate the environment in the ordinary way, and the harness is
+  //     what puts it there;
+  //   - **it prints to stdout.** A harness whose output nobody can see is not
+  //     usable, and its whole purpose is to say which of three processes failed.
+  //
+  // The globals are named rather than switched off wholesale, so `no-undef`
+  // still catches a typo — which is how `Buffer.fr` was found in the scratch
+  // harness this replaced. The type-aware rules are off because these files are
+  // in no tsconfig program at all.
+  //
+  // Nothing here is imported by an application and no image contains it.
+  {
+    files: ['harness/*.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+      },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-restricted-globals': 'off',
+    },
   },
 
   prettier,
