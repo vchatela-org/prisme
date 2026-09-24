@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · "Not read" says why, without saying where
 
-**Agent:** Claude · **Duration:** one session · **PR** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#79](https://github.com/vchatela-org/prisme/pull/79) · **Outcome:** complete
 
 The register's row: *"'Not read' cannot distinguish an unbound role from a refused read — the
 privacy reason for the swallow stands; the diagnostic gap is real."* It was right on both counts, and
