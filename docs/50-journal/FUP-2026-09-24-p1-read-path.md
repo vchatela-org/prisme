@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The read path, run against the live instance
 
-**Agent:** Claude · **Duration:** one session · **PR** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#82](https://github.com/vchatela-org/prisme/pull/82) · **Outcome:** complete
 
 P1's six read-only steps, run locally against the **live** document and task tools, with the live
 tokens and the write freeze on. Nothing outward was written and nothing was enabled.
