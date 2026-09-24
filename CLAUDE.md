@@ -65,6 +65,8 @@ docs/                  the specification — numbered, stable paths, cite them b
   50-journal/      append-only run notes + INDEX.md
 fixtures/              synthetic dataset — the ONLY data allowed in docs, tests and examples
 seed/                  gitignored — real instance data, never committed
+harness/               the local dev stack: a fake identity provider, a seeder and a login
+                       driver. `./harness/up.sh`, then `pnpm harness:drive`
 apps/{web,api,sync}    each has its own CLAUDE.md
 packages/{domain,connectors,ui}   each has its own CLAUDE.md
 .claude/agents/        agent definitions, one per workstream
