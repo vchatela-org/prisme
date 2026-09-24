@@ -1,6 +1,7 @@
 # FUP · 2026-09-24 · The v0.1.0 release, and where the Open-page commit actually landed
 
-**Agent:** Claude · **Duration:** one session · **PR:** this pull request · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR:**
+[#72](https://github.com/vchatela-org/prisme/pull/72) · **Outcome:** complete
 
 Asked to close the follow-up wave: rebase the Open-page branch once #69 landed, open its pull
 request, and cut the version [the release rule](../../.claude/skills/dependabot/SKILL.md) asks for,
@@ -19,6 +20,13 @@ removal of #70's own work** — the branch is a rebase of a change that is alrea
 it would revert the harness. No pull request was opened, and nothing was pushed to that branch.
 
 **`v0.1.0` is cut**, annotated, on `main`'s tip (`ddbf481`), and pushed.
+
+**`main` then moved past it.** [#71](https://github.com/vchatela-org/prisme/pull/71) — the
+schedule-guidance correction — merged afterwards, so `main` is now `bf54a97` and `v0.1.0` does not
+contain it. That is what a tag is rather than a gap:
+the version names the commit it was cut on, and what it does not contain is the next version's
+business. This branch merges `main` forward, so the record is reviewed against a current base and
+the release does not go out of date the moment it is written.
 
 ## Decisions taken
 
