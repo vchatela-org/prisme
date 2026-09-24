@@ -33,6 +33,23 @@ const httpUrl = (label: string) =>
     { message: `${label} must be an absolute http(s) URL` },
   );
 
+/**
+ * An absolute http(s) URL with a `{id}` placeholder in it.
+ *
+ * The placeholder is a literal, not a `URL` template — `new URL` percent-encodes
+ * braces, so a template read back through `.href` would carry `%7Bid%7D` and
+ * never substitute. Validation parses a copy with the placeholder replaced
+ * instead, so the value that reaches the substitution keeps its braces.
+ *
+ * Required rather than defaulted, because a template without a placeholder is a
+ * link to the same page for everything — which looks configured and is never
+ * right.
+ */
+const pageUrlTemplate = (label: string) =>
+  httpUrl(label).refine((value) => value.includes('{id}'), {
+    message: `${label} must contain {id}, the placeholder a page's identifier is substituted into`,
+  });
+
 const postgresUrl = (label: string) =>
   nonEmpty(label).refine(
     (value) => /^postgres(ql)?:\/\//i.test(value),
@@ -403,6 +420,28 @@ export const VARIABLES = {
    */
   DOCTOOL_BASE_URL: { schema: httpUrl('DOCTOOL_BASE_URL'), required: [] },
   TASKTOOL_BASE_URL: { schema: httpUrl('TASKTOOL_BASE_URL'), required: [] },
+  /*
+   * Where a page **opens**, which is not where prisme reads it.
+   *
+   * `DOCTOOL_BASE_URL` above is the API host — a person cannot open a page at
+   * it. This is the host their browser visits, and the two are different hosts
+   * on every real deployment.
+   *
+   * It is a **template** rather than a base because turning a page id into a
+   * link needs a path shape, and that shape is vendor knowledge this repository
+   * deliberately does not hold: `packages/connectors/src/doc-tool` refuses to
+   * read the page URL the tool returns on every page, because it identifies the
+   * workspace ([`17-privacy.md`](../../docs/17-privacy.md) §1). So the operator
+   * supplies the shape and prisme supplies the id — which keeps the workspace
+   * out of git *and* keeps a second tier from learning a vendor's URL layout.
+   *
+   * Unset is every instance's state until somebody sets it, and it means the
+   * initiative screen's *Open page* stays a disabled control that says why.
+   */
+  DOCTOOL_PAGE_URL_TEMPLATE: {
+    schema: pageUrlTemplate('DOCTOOL_PAGE_URL_TEMPLATE'),
+    required: [],
+  },
   SCORING_ACTIVE_METHOD: {
     schema: nonEmpty('SCORING_ACTIVE_METHOD'),
     required: [],
