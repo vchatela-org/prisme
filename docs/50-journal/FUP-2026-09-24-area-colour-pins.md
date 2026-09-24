@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The screen tells you what to pin
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#75](https://github.com/vchatela-org/prisme/pull/75) · **Outcome:** complete
 
 W09 found that area colour collides on every screen, and #37 mounted the pinning map that fixes it.
 What was left is the row the register held until now: *"`AREA_COLOR_PINS` must be set by hand and
