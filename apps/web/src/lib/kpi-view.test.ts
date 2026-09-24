@@ -6,6 +6,7 @@ import {
   labelsOf,
   measuredBuckets,
   minutesCaveat,
+  minutesChartCaveat,
   observedSourceCaveat,
   monthsBefore,
   mostStarved,
@@ -327,5 +328,51 @@ describe('observedSourceCaveat', () => {
     });
     expect(sentence).toContain('anchor subtrees');
     expect(sentence).toContain('backfill');
+  });
+});
+
+describe('minutesChartCaveat', () => {
+  it('names the record on every chart it composes, which is the property the screens lost', () => {
+    // W09's screens wrote the three sentences out by hand, and two of the four
+    // charts drawn from attributed minutes did not say which record they read —
+    // so a reader comparing the year review with the KPI dashboard compared an
+    // identified number against an unidentified one, and the unidentified one
+    // was the smaller of the two (task_mirror is the anchor subtree only).
+    // The assertion is over every combination rather than one string, because
+    // the defect was uneven application and a single case cannot see that.
+    for (const windowed of [true, false]) {
+      for (const observedSource of ['capacity_week', 'task_mirror'] as const) {
+        const sentence = minutesChartCaveat({
+          estimatedPct: 40,
+          coverage: { observedSource },
+          windowed,
+        });
+
+        expect(sentence).toContain(observedSourceCaveat({ observedSource }));
+      }
+    }
+  });
+
+  it('adds the window sentence for a share-over-time chart and only there', () => {
+    const coverage = { observedSource: 'capacity_week' } as const;
+
+    expect(minutesChartCaveat({ estimatedPct: 40, coverage, windowed: true })).toContain(
+      'rolling four-week window',
+    );
+    // The balance meters are over the window the balance factor is measured
+    // over, so the sentence would be false on them rather than merely unwelcome.
+    expect(minutesChartCaveat({ estimatedPct: 40, coverage })).not.toContain(
+      'rolling four-week window',
+    );
+  });
+
+  it('still states both limitations when there is no proportion to quote', () => {
+    const sentence = minutesChartCaveat({
+      estimatedPct: null,
+      coverage: { observedSource: 'task_mirror', observedThrough: null },
+    });
+
+    expect(sentence).toContain('estimated otherwise');
+    expect(sentence).toContain('anchor subtrees');
   });
 });

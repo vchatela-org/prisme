@@ -30,10 +30,9 @@ import {
   labelsOf,
   measuredBuckets,
   minutesCaveat,
-  observedSourceCaveat,
+  minutesChartCaveat,
   observedShareSeries,
   orderAreas,
-  WINDOW_CAVEAT,
 } from '@/lib/kpi-view';
 import { declaredSeries, staleYears, yearsSpanned, type WeightsByYear } from '@/lib/weight-year';
 import { RangePicker, resolveRange } from './range';
@@ -299,7 +298,7 @@ export default async function KpiPage({
           it. One copy, directly under the charts it governs, is read.
         */}
         <p className="max-w-prose text-xs text-ink-muted">
-          {WINDOW_CAVEAT} {minutesCaveat(estimated)} {observedSourceCaveat(kpi.data)}
+          {minutesChartCaveat({ estimatedPct: estimated, coverage: kpi.data, windowed: true })}
         </p>
       </Section>
 
