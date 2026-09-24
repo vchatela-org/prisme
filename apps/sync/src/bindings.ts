@@ -8,6 +8,7 @@ import {
   type RoleBindings,
   type RoleKey,
 } from '@prisme/connectors';
+import { parseMappingList, type MappingSeed } from './areas.js';
 
 /**
  * Loading, storing and reading the **role bindings**.
@@ -31,12 +32,27 @@ import {
  * gitignored (`docs/17-privacy.md` §1) and the identifier is never logged,
  * never put in an error message, and never returned from this module in a
  * form anything but a connector sees.
+ *
+ * ## The `areaMappings` array in the same file
+ *
+ * This module reads it too, through [`areas.ts`](areas.ts)'s parser. It was
+ * parsed by **nobody**: this file looked at the `documentTool` key and returned,
+ * so the array the format documents sat in the file unread and the areas it
+ * names had no loader at all — while `docs/17-privacy.md` said they load from
+ * `seed/`. `saveMappings` writes them, and it is called from the same command,
+ * because the two halves come from the same file.
+ *
+ * The order is deliberate: the areas must exist before a mapping can name one,
+ * which is why `prisme-sync areas --from …` runs first and `saveMappings`
+ * refuses an area it cannot find rather than letting a foreign key say so.
  */
 
 export interface BindingsLoadResult {
   readonly bindings: readonly RoleBinding[];
   /** The roles that were bound, **by key only** — never the identifiers. */
   readonly roles: readonly RoleKey[];
+  /** The external locations that fold into each area, from the same file. */
+  readonly mappings: readonly MappingSeed[];
 }
 
 /**
@@ -51,6 +67,7 @@ export interface BindingsLoadResult {
  */
 interface SeedFile {
   readonly documentTool?: Readonly<Record<string, unknown>>;
+  readonly areaMappings?: unknown;
 }
 
 const KNOWN_ROLES: ReadonlySet<string> = new Set(ROLE_KEYS);
@@ -86,7 +103,8 @@ export function parseBindingsFile(text: string, path: string): BindingsLoadResul
     throw new Error(`${path} must be a JSON object`);
   }
 
-  const documentTool = (parsed as SeedFile).documentTool ?? {};
+  const seed = parsed as SeedFile;
+  const documentTool = seed.documentTool ?? {};
   const entries: RoleBinding[] = [];
 
   for (const [role, value] of Object.entries(documentTool)) {
@@ -138,7 +156,12 @@ export function parseBindingsFile(text: string, path: string): BindingsLoadResul
   const bindings = roleBindingsSchema.parse(entries);
   createRoleBindings(bindings);
 
-  return { bindings, roles: bindings.map((binding) => binding.role).sort() };
+  // Parsed here, written by the same command: the array lives in this file, and
+  // a file that states where the areas' work lives is not half-read because the
+  // half that names a role is the half with a loader.
+  const mappings = parseMappingList(seed.areaMappings, path);
+
+  return { bindings, roles: bindings.map((binding) => binding.role).sort(), mappings };
 }
 
 /**
