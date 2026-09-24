@@ -274,6 +274,39 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('the browser-facing page URL template', () => {
+    it('is unset by default, so Open page is disabled until somebody sets it', () => {
+      const config = loadConfig({ env: WEB, service: 'web' });
+      expect(config.doctoolPageUrlTemplate).toBeUndefined();
+    });
+
+    it('keeps the placeholder rather than percent-encoding it', () => {
+      // The trap this variable has and the two above do not: `new URL` encodes
+      // braces, so a template read back through `.href` would carry `%7Bid%7D`
+      // and substitute nothing. The value must survive validation intact.
+      const config = loadConfig({
+        env: { ...WEB, DOCTOOL_PAGE_URL_TEMPLATE: 'https://workspace.example.com/p/{id}' },
+        service: 'web',
+      });
+      expect(config.doctoolPageUrlTemplate).toBe('https://workspace.example.com/p/{id}');
+    });
+
+    it.each([
+      ['a template with no placeholder', 'https://workspace.example.com/pages'],
+      ['a bare hostname', 'workspace.example.com/{id}'],
+      ['a non-http scheme', 'ftp://workspace.example.com/{id}'],
+    ])('refuses %s', (_label, value) => {
+      expect(() =>
+        loadConfig({ env: { ...WEB, DOCTOOL_PAGE_URL_TEMPLATE: value }, service: 'web' }),
+      ).toThrow(/DOCTOOL_PAGE_URL_TEMPLATE/);
+    });
+
+    it('is required of no service either', () => {
+      expect(requiredFor('web')).not.toContain('DOCTOOL_PAGE_URL_TEMPLATE');
+      expect(requiredFor('api')).not.toContain('DOCTOOL_PAGE_URL_TEMPLATE');
+    });
+  });
+
   /*
    * ADR-0026 rule 4, as a set of assertions.
    *
