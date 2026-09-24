@@ -3,8 +3,9 @@
 **Agent:** Claude · **Duration:** one session · **PR** [#66](https://github.com/vchatela-org/prisme/pull/66) · **Outcome:** complete
 
 The follow-up wave's other half: the open questions that are not the owner's to answer at a review.
-Three of them are record work — a count, a filing and four triggers — and the fourth needed code,
-because "fail closed" is a claim about behaviour and a document cannot test it.
+Most of this entry is record work — a wrong count, a misfiled question, and four triggers made
+checkable. OQ-10 alone needed code, because *fails closed* is a claim about behaviour and a document
+cannot test it.
 
 ## What was done
 
@@ -47,10 +48,11 @@ protection — a human's setting — needs no edit. This is
 [FUP-2026-09-23-typecheck-tests](FUP-2026-09-23-typecheck-tests.md)'s reasoning reused: a new context
 that is not yet required is a green nobody reads, and adding one is somebody else's job.
 
-**A count is written down in three files, which is unusual and is the point.** The count was wrong for
-four days in two files at once and no check reads either. Three copies would normally be three places
-to drift; here the alternative is one place that is wrong and silent, and the copies are compared by
-whoever reads the next decision.
+**A count is written down in three files, which is unusual and is the point.** It was wrong for five
+days and exactly one file carried it, so nothing could disagree with anything: a count that lives in
+one place is not a check, it is a fact nobody re-derives. Three copies would normally be three places
+to drift, and here they are the cheap version of agreement — whoever reads the next decision can
+disagree without a script.
 
 ## Surprises
 
@@ -100,8 +102,8 @@ count and the only reason this surfaced is that the task had to establish it rat
 | the real audit | local | `checked-clean`, exit 0, attempt 1/3 |
 | the unreachable path, end to end | local | `unchecked` on all three attempts, exit 2, the summary saying *not a vulnerability report* |
 | `privacy deny-list` | local | clean, 23 patterns (no local supplement in this worktree) |
-| `internal links` | local | see the pull request; every new link resolves to a file that exists |
-| the rest | CI | see the rollup on the pull request |
+| `internal links` | local | clean, 600 links across 139 files |
+| the rest | CI | see the rollup on the pull request — all 15 required contexts green at `23dcdec` |
 
 ## Privacy
 
