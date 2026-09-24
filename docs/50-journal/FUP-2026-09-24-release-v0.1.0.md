@@ -84,7 +84,23 @@ and the same reasoning that left the superseded scratch harness alone applies he
 
 ## Checks
 
-_(read back after the pull request's checks report)_
+Read back from the pull request rather than from the local runs, after the last push. Every check
+that reports is green; a later doc-only push resets the read, which is why this table names no
+commit.
+
+| Check | Where it ran | Result |
+|---|---|---|
+| `internal links` | local + CI | pass — `./scripts/check-doc-links.py` clean, **656 internal links across 148 files** |
+| `privacy deny-list` · `gitleaks` · `security gate self-test` | local (pre-commit) + CI | pass — `./scripts/privacy-scan.sh` clean, 23 patterns; the commit hook reported no secrets |
+| `typecheck` · `lint` · `test` · `build` | CI | pass — no source file is touched, so these are the unchanged gates, read anyway rather than assumed |
+| `golden fixtures` · `dependency audit` · `dependency review` | CI | pass |
+| `codeql` (actions, javascript-typescript, python) | CI | pass |
+| `images` | CI | pass |
+
+**One local reading was wrong and the mistake is worth naming.** Mid-merge, with the conflict
+unresolved, the link check printed *776 links across 150 files* — because it enumerates with
+`git ls-files` and an unmerged index lists a conflicted path more than once. The number looked like
+coverage and was double-counting. The committed tree reads 656 across 148, reproducibly.
 
 ## Privacy
 
