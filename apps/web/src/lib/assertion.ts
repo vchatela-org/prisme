@@ -12,7 +12,8 @@ import { webRuntime } from './runtime';
  * The verification policy, the key set, and the session cookie — the three
  * things the web tier needs before it will believe anything.
  *
- * They lived inside `middleware.ts` until the callback route needed the same
+ * They lived inside the proxy (`middleware.ts` until Next 16 renamed the
+ * convention) until the callback route needed the same
  * three. It needed them for a reason worth stating: without verifying the ID
  * token *in the callback*, a token that does not verify would be written into a
  * session cookie and refused one request later by the middleware — which sends

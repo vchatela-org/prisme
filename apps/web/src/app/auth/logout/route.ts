@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { oidcSettings } from '@/lib/assertion';
-import { endSessionUrl, SESSION_COOKIE, STATE_COOKIE } from '@/lib/oidc';
+import { endSessionUrl, SESSION_COOKIE, STATE_COOKIE, type LogoutResult } from '@/lib/oidc';
 
 /**
  * Log out — for real, and the distinction is the whole of this file.
@@ -45,14 +45,43 @@ import { endSessionUrl, SESSION_COOKIE, STATE_COOKIE } from '@/lib/oidc';
  *
  * It is deliberately reachable **without** a session: throwing away a broken
  * credential is the one thing that has to work while the credential is broken.
+ *
+ * ### Why the screen's control is a script and not a form, and why this route
+ * ### answers one in JSON
+ *
+ * The obvious control is `<form method="post" action="/auth/logout">`, and it
+ * **cannot work here**: the web tier sends `Referrer-Policy: no-referrer`, and a
+ * browser sends `Origin: null` — not this origin — on a form submission from a
+ * document with that policy. The origin check refuses it by design (`'null'` is
+ * not an origin prisme is served at), and it is right to: `null` is also what a
+ * sandboxed cross-site frame sends. Measured, not reasoned about — the form got
+ * a `403` from the middleware while a `fetch` from the same page passed.
+ *
+ * So the control is a script, and a script needs to know **where to go next**:
+ * the provider's end-session endpoint is configuration, and a `fetch` cannot
+ * read the `Location` of a redirect it is not allowed to follow cross-origin
+ * (measured: the browser refuses to follow it at all, so the provider's session
+ * would not be ended by one). A caller that asks for JSON therefore gets the
+ * one thing a caller cannot otherwise discover, and everything else stays
+ * exactly as it was — a browser reaching this route the ordinary way still gets
+ * the redirect or the sentence.
  */
 export const dynamic = 'force-dynamic';
 
-export function POST(): NextResponse {
+/** A caller that will place the browser itself, rather than being navigated. */
+function wantsJson(request: NextRequest): boolean {
+  return (request.headers.get('accept') ?? '').includes('application/json');
+}
+
+export function POST(request: NextRequest): NextResponse {
   const endSession = endSessionUrl(oidcSettings());
 
-  const response =
-    endSession === undefined
+  const response = wantsJson(request)
+    ? NextResponse.json({ endSessionUrl: endSession ?? null } satisfies LogoutResult, {
+        status: 200,
+        headers: { 'cache-control': 'no-store' },
+      })
+    : endSession === undefined
       ? new NextResponse(
           'signed out. The prisme session has ended — the cookie is cleared and the token it held is ' +
             'discarded, and prisme keeps no server-side session to invalidate.\n\n' +

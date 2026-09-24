@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
 import { CaptureDialog } from './capture-dialog';
+import { SignOut } from './sign-out';
 
 /**
  * The frame the daily surfaces sit in.
@@ -290,6 +291,7 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
           <div className="flex items-center gap-2">
             {headerRight}
             <ThemeToggle />
+            <SignOut />
           </div>
         }
       >
