@@ -174,6 +174,14 @@ the process with the key named, because a colour the palette cannot paint is oth
 on a chart as a missing swatch. An area the map does not name keeps the key-derived fallback, so the
 map is a partial answer rather than a replacement.
 
+**You do not have to work the map out.** The **Areas** screen detects a clash — it can, because
+this variable is web-tier configuration and only the web tier can see both the pinning in force and
+the colours it produces — and when two areas share a hue it names them and prints the line to set,
+using the palette's own ceiling rather than a second copy of it. The proposed map **keeps whatever
+is already pinned and deals only the unpinned keys**, into the lowest free slots, because colour is
+identity: re-shuffling an area a reader has learned invalidates every chart they have read. That
+also means a configuration which pins two areas to one slot is *corrected* rather than echoed back.
+
 `DOCTOOL_DURATION_PROPERTY` is the middle tier of the duration preference order
 ([`12-scoring.md`](12-scoring.md) §4). It is configuration rather than seed data for the same reason
 `AUTH_ALLOWED_SUBJECTS` is: the document tool keys its properties by whatever an instance happens to
