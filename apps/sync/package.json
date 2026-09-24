@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "seed:load": "node dist/main.js areas --from ../../seed/areas.json && node dist/main.js bindings --from ../../seed/bindings.json"
   },
   "dependencies": {
     "@prisme/config": "workspace:*",
@@ -24,6 +25,7 @@
     "@prisme/db": "workspace:*",
     "@prisme/domain": "workspace:*",
     "@prisme/observability": "workspace:*",
-    "postgres": "^3.4.0"
+    "postgres": "^3.4.0",
+    "zod": "^4.1.0"
   }
 }
