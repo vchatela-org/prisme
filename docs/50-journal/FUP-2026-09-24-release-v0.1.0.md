@@ -13,11 +13,11 @@ since `main` had gained two ADRs.
 
 **The Open-page pull request is not needed, because its commit is already on `main`.** The
 `fup/2026-09-24-dev-harness` branch was **stacked on top of** `fup/2026-09-24-open-page`, so the
-harness pull request (#70) carried the Open-page commit (`32ffc2e`) into `main` with it. This was
-verified rather than assumed: the twelve files of the Open-page change are **byte-identical**
-between `main` and the branch, and `git diff origin/main HEAD` on the branch shows **only the
-removal of #70's own work** — the branch is a rebase of a change that is already merged, and merging
-it would revert the harness. No pull request was opened, and nothing was pushed to that branch.
+harness pull request (#70) carried the Open-page commit (`32ffc2e`) into `main` with it. Verified
+rather than assumed: the **remote** `fup/2026-09-24-open-page` ref is an **ancestor of `main`**, so a
+pull request opened from it would carry no commits at all, and the twelve files of the change are
+byte-identical between `main` and the local branch. No pull request was opened, and nothing was
+pushed to that branch.
 
 **`v0.1.0` is cut**, annotated, on `main`'s tip (`ddbf481`), and pushed.
 
@@ -63,16 +63,29 @@ empty commit was pushed. Recorded because of the shape it leaves behind: a **hal
 which is the inconsistency the release rule's pairing rule exists to prevent, arriving from a
 transient cluster fault rather than from anything a reviewer could have seen in the diff.
 
-**Two branches are now redundant, and neither was deleted.** The local and remote
-`fup/2026-09-24-open-page` refs both point at a rebase of a merged change. Deleting them is the
-owner's call: a branch removed by an agent that does not own it turns a tidy-up into a lost pointer,
-and the same reasoning that left the superseded scratch harness alone applies here.
+**A measurement that read as proof was measuring the wrong thing, and the first version of this entry
+said so confidently.** The claim was that merging the stale branch would revert the harness, and the
+evidence was `git diff origin/main <branch>` printing 1 288 deletions. That command diffs two
+**trees**: when the branch's base is behind `main`, its output mixes the branch's own change with the
+**inverse of everything `main` has gained since**, so it looks like a mass deletion whatever the
+branch contains. It is not a merge preview. The preview is `git merge-tree --write-tree`, and it says
+something different — the local ref conflicts on `STATUS.md` and `INDEX.md`, the two registry files,
+and touches **none of #70's files**, so a merge would leave the harness intact. The ref is redundant
+because it **contributes nothing**, not because it is destructive. Corrected here and in the pull
+request body rather than quietly dropped: a check whose output reads as proof and is not is the exact
+failure this repository's other gates exist to catch.
+
+**Two refs are redundant, and neither was deleted.** The remote `fup/2026-09-24-open-page` is already
+contained in `main`, so a pull request from it would be empty; the local one is a rebase of the same
+change, adds nothing, and collides with `main` on the registry files. Deleting them is the owner's
+call: a branch removed by an agent that does not own it turns a tidy-up into a lost pointer, and the
+same reasoning that left the superseded scratch harness alone applies here.
 
 ## Follow-ups
 
 | What | Why it matters | Owner |
 |---|---|---|
-| The two `fup/2026-09-24-open-page` refs (local and remote) | Redundant — merging one would revert #70; they only mislead the next reader | the owner |
+| The two `fup/2026-09-24-open-page` refs (local and remote) | Redundant — the remote one is already in `main`, the local one adds nothing; they only mislead the next reader | the owner |
 | Driving the *Open page* link in a browser | Its wiring is asserted by the build and by nothing else; the committed `harness/` (#70) is now there to do it | whoever runs the next browser drive |
 | A tag is cut before its record lands | Deliberate here, and the reason the record must name the tag's commit as this one does; a run that forgets leaves a version nothing explains | the next release |
 
