@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-23 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
+**Last updated:** 2026-09-24 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
 
 ---
 
@@ -78,8 +78,11 @@ working one. W00 watched both fail by hand once; this is that, on every pull req
 `images` builds all three images, Trivy-scans them, and asserts what is only checkable on a real
 container: that `prisme-api` and `prisme-sync` are the same digest, that neither runs as root, that
 `/healthz` answers with an unreachable database while `/readyz` returns 503, and that a missing
-required variable stops the process with the variable named. `dependency audit` is
-`pnpm audit --audit-level=moderate`. `golden fixtures` (W01, #17) refuses a change to a scoring
+required variable stops the process with the variable named. `dependency audit` runs
+[`scripts/dependency-audit.py`](scripts/dependency-audit.py), which runs
+`pnpm audit --audit-level=moderate` and **fails closed** when the advisory database does not answer —
+naming which of the three outcomes it saw, so *unchecked* is never read as *vulnerable*
+([ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), Proposed). `golden fixtures` (W01, #17) refuses a change to a scoring
 golden file that does not bump the method's `version` — without it, two runs of "version 1" can mean
 two different things and every stored score becomes unattributable (ADR-0006). Each became required
 from the commit that added it. W14 still owns its own additions. Rules, and what to do at each
@@ -308,6 +311,8 @@ journal entry rather than a unit of planned work.
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
 | **The deny-list missed camelCase id positions** — `\b(id\|…)` never reaches the `Id` inside `projectId`, so the `v1` id shape went uncovered wherever a TS or JSON body would be pasted; a separator-only rule matches the destructuring rename `projectId: parentExternalId`, which is code rather than data | FUP-todoist-api-v1 (found while migrating to the `v1` API) | 🟢 | [#58](https://github.com/vchatela-org/prisme/pull/58) |
 | **No CI gate typechecked test files** — `pnpm typecheck` builds `tsconfig.build.json`, which excludes `*.test.ts`, so **43** type errors had accumulated in five packages, including `apps/sync` fakes that had drifted from the interfaces they stand in for (no `createPage` since ADR-0025, a `Transport` still the pre-seam `{ send }` object) | W06 (which recorded **two** — the gate found 43) | 🟢 | [#59](https://github.com/vchatela-org/prisme/pull/59) |
+| **`dependency audit` failed having learned nothing when npm's advisory endpoint was unreachable** — a required check whose red meant *could not check* and *found a vulnerability* at once, blocking merges on branches that changed no dependency | W10's entry, tracked as **OQ-10** | 🟢 (the gate fails closed and says which of the three outcomes it saw; [ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md) is **Proposed** — the acceptance is the human's) | [#NN](https://github.com/vchatela-org/prisme/pull/NN) |
+| **The decision count was wrong in two files at once** — `STATUS.md` said 7 open while `OPEN.md` held 8, and nothing reads either | found while working the open decisions (nobody had recorded it) | 🟢 (both say 8; the deferred questions now carry checkable triggers) | [#NN](https://github.com/vchatela-org/prisme/pull/NN) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -358,11 +363,36 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**25 accepted** · **1 superseded** · **0 proposed** · **7 open** — index:
+**25 accepted** · **1 superseded** · **1 proposed** · **8 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0.
+
+**The open count was wrong, and nothing reads either file to notice.** Until 2026-09-24 this line
+said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in the
+second — and it had been wrong since the 2026-09-20 additions, not since the file was written. It now
+says eight, `OPEN.md` says eight in its own header, and `README.md` says 25 accepted · 1 superseded ·
+1 proposed beside the index. **No question was actually closed**, so none moved to *Recently closed*;
+OQ-3 moved *within* `OPEN.md` from *Blocking future phases* to *Deferred by choice*, which is what its
+own `Blocks: nothing — deliberately deferred` line had said since it was written. The four deferred
+questions (OQ-3, 5, 6, 7) each now carry a **trigger written as an observable fact** rather than a
+date, because "not yet" is re-argued every time it has no end.
+
+🟡 **OQ-10 is answered, and the answer is not accepted: that is a human's**
+([ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md), **Proposed** 2026-09-24). The gate
+fails closed; the three outcomes — *checked-clean*, *vulnerable*, *unchecked* — are named in the job
+summary so an npm outage is never read as a CVE; `--ignore-registry-errors`, which reports an
+unreachable registry as a clean audit and exits 0, is refused and controlled against. It is
+implemented in the same pull request rather than raised as a record and left, because the harm was
+live: a required check whose red meant two different things, blocking merges on branches that changed
+no dependency ([#31](https://github.com/vchatela-org/prisme/pull/31), 2026-09-19). **No repository
+setting changes and none is needed** — the negative controls run as steps inside the existing required
+`dependency audit` check, so branch protection needs no edit, and the reasoning is the one
+[FUP-2026-09-23-typecheck-tests](docs/50-journal/FUP-2026-09-23-typecheck-tests.md) recorded: a new
+check *name* is a context nobody reads until a human adds it. What is left is the acceptance itself,
+and **an agent does not accept its own ADR** — until then OQ-10 stays open in `OPEN.md`, where it
+belongs.
 
 ✅ **OQ-9 is closed** — [ADR-0026](docs/20-decisions/0026-human-auth-via-oidc.md), which **supersedes**
 [ADR-0021](docs/20-decisions/0021-verified-forward-auth-assertion.md) on one point and keeps the rest
