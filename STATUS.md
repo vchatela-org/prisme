@@ -340,7 +340,7 @@ journal entry rather than a unit of planned work.
 | `fixtures/` carries no `area_mapping` rows and its task mirror covers only the initiatives that serve a key result, so attribution and computed progress are exercised only partly by a plain seed | FUP-2026-09-21-fixture-task-mirror | 🟡 | — |
 | Cycle time is drawn nowhere — prisme records no moment at which an initiative started, and reconstructing one from the event log is aggregation the API owns | W09, W10 | ⏸ **deliberate, not outstanding** — an absence a reader would otherwise re-derive | — |
 | **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟡 (deployment repository, not this one) | — |
-| **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | this branch |
+| **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | [#73](https://github.com/vchatela-org/prisme/pull/73) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
