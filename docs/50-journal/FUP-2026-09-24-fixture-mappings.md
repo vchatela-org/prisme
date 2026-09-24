@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The fixture set could not attribute anything
 
-**Agent:** Claude · **Duration:** one session · **PR** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#80](https://github.com/vchatela-org/prisme/pull/80) · **Outcome:** complete
 
 The register's row, two gaps in one line: *"`fixtures/` carries no `area_mapping` rows and its task
 mirror covers only the initiatives that serve a key result, so attribution and computed progress are
