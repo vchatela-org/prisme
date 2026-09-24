@@ -55,6 +55,34 @@ The full pass exists to answer a question the incremental path cannot: *did we m
 reports `prisme_sync_drift_objects`, and a non-zero value on two consecutive days means incremental
 sync is broken while appearing healthy.
 
+#### The capacity refresh rides the full pass
+
+`capacity_week` — what the declared-against-observed comparison is drawn from — is materialised by
+the **daily full pass**, over the trailing `CAPACITY_WINDOW_WEEKS` window. Until this, it was
+materialised only by `prisme-sync backfill --from <date>`, a command a person runs, so the balance
+read correctly on the day of the backfill and drifted from then on while its own screens still named
+`capacity_week` as the source.
+
+It rides the **full** pass rather than every pass for two reasons: the window is four weeks and a pass
+runs every fifteen minutes, so daily is current with days to spare; and the refresh may read the
+document tool for the declared-duration tier, which is a query worth making about once a day rather
+than ninety-six times.
+
+It **writes prisme's own table and, without a bound document-tool store, reads no page at all** — so
+it runs with the write freeze on, which is the state of every instance until the first outward write
+is authorised. The chart has to work during the read-only phase; that is the phase it is for.
+
+Three things it deliberately does not do. It does not touch history outside the window: a week older
+than `CAPACITY_WINDOW_WEEKS` keeps the numbers the backfill gave it. It is **not** a `backfill` with
+a narrow `from` — that would materialise everything the cursor covers, because `planResume` answers a
+request narrower than the cursor with the union of the two. And it does not fail the pass: a capacity
+write that failed is logged and the anchor reconciliation still reports its own outcome, because a
+red CronJob over a derived table pages somebody about the wrong thing — while the staleness is
+visible where it matters, in `observedThrough` on the balance view.
+
+Filling history is still `prisme-sync backfill --from <date>`, still run by a person, still with no
+default date. This keeps what that produced current; it does not replace it.
+
 #### What the reconciler actually reads (W04)
 
 The table above describes the *reads*. The planner's input is not one of them: **every pass reads
