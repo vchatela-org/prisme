@@ -93,13 +93,7 @@ export { converge } from './create/run.js';
 export type { ConvergeOptions, ConvergeResult } from './create/run.js';
 export { createCreationStore } from './create/store.js';
 export type { CreationStore } from './create/ports.js';
-export {
-  orderConvergence,
-  resolveCreation,
-  applyOutcome,
-  PAGE_KIND_UNSUPPORTED,
-  PAGE_UNBOUND,
-} from './create/order.js';
+export { orderConvergence, resolveCreation, applyOutcome, PAGE_UNBOUND } from './create/order.js';
 export { formatConvergePlan } from './create/report.js';
 export { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
 export type {
