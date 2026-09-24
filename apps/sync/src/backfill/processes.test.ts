@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DocRecord, DocToolClient, RoleKey } from '@prisme/connectors';
+import { ConnectorError } from '@prisme/connectors';
+import type { ConnectorFailure, DocRecord, DocToolClient, RoleKey } from '@prisme/connectors';
 
 import { declaredMinutesFromProcesses } from './processes.js';
 import type { RitualRecord } from './types.js';
@@ -39,6 +40,19 @@ function client(records: readonly DocRecord[], failOn?: RoleKey): DocToolClient 
     // Required by the interface since ADR-0025 made pages creatable; these
     // fakes are readers, so reaching it is a test error rather than a no-op.
     createPage: () => Promise.reject(new Error('not used')),
+  };
+}
+
+function throwing(failure: ConnectorFailure): DocToolClient {
+  return {
+    ...client([]),
+    queryByRole: () =>
+      Promise.reject(
+        new ConnectorError(failure, 'the message names the role binding', {
+          tool: 'doc',
+          operation: 'query processes_db',
+        }),
+      ),
   };
 }
 
@@ -85,6 +99,35 @@ describe('with no document-tool client', () => {
 
     expect(result.read).toBe(false);
     expect(result.byTask.size).toBe(0);
+  });
+
+  it('carries the failure kind, so an unbound store is not a refused read', async () => {
+    // The two call for opposite responses — a seed file to fix, or a credential
+    // to go and look at — and the message that would say which names the role
+    // binding, so only the kind is kept (`unread.ts`).
+    const reasonOf = async (failure: ConnectorFailure) => {
+      const result = await declaredMinutesFromProcesses([ritual()], {
+        docClient: throwing(failure),
+        durationProperty: DURATION_PROPERTY,
+      });
+      return result.unread;
+    };
+
+    expect(await reasonOf('unbound_role')).toBe('unbound_role');
+    expect(await reasonOf('invalid_token')).toBe('invalid_token');
+  });
+
+  it('reports no reason when the tier is off by configuration', async () => {
+    // Nothing failed: nobody asked. A reason here would send the reader looking
+    // for a permission problem that does not exist.
+    const noClient = await declaredMinutesFromProcesses([ritual()], {
+      durationProperty: DURATION_PROPERTY,
+    });
+    const noProperty = await declaredMinutesFromProcesses([ritual()], { docClient: client([]) });
+
+    expect(noClient.read).toBe(false);
+    expect(noClient.unread).toBeUndefined();
+    expect(noProperty.unread).toBeUndefined();
   });
 });
 
