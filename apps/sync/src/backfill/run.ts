@@ -127,6 +127,73 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
 
   const covered = { from: plan.covers.from, to: plan.covers.to };
 
+  const materialised = await materialise({
+    store: options.store,
+    ...(options.docClient === undefined ? {} : { docClient: options.docClient }),
+    ...(options.durationProperty === undefined
+      ? {}
+      : { durationProperty: options.durationProperty }),
+    defaultMinutes: options.defaultMinutes,
+    from: covered.from,
+    to: covered.to,
+  });
+
+  const result = { plan, fetched, ...materialised };
+
+  return { ...result, report: formatBackfillReport(result, covered) };
+}
+
+export interface MaterialiseOptions {
+  readonly store: BackfillStore;
+  /** Absent leaves the preference order two-tier. See {@link BackfillOptions}. */
+  readonly docClient?: DocToolClient | undefined;
+  readonly durationProperty?: string | undefined;
+  readonly defaultMinutes: number;
+  /**
+   * The instant range to materialise, **explicit and independent of any
+   * cursor**.
+   *
+   * That independence is the whole reason this is a function of its own. The
+   * backfill runs it over `plan.covers`, which is the **union** of the request
+   * and the cursor's coverage — correct for a backfill, and wrong for anything
+   * that wants to refresh a window: a four-week request against a three-year
+   * cursor would re-materialise three years. Passing the range in is what makes
+   * a bounded refresh actually bounded.
+   */
+  readonly from: Date;
+  readonly to: Date;
+}
+
+export interface MaterialiseResult {
+  readonly attribution: AttributionResult;
+  readonly weeks: readonly CapacityWeek[];
+  readonly adherence: readonly AdherencePeriod[];
+  /** Rituals with no bound task: a habit prisme cannot measure yet. */
+  readonly unmeasurableRituals: readonly RitualRecord[];
+  readonly declaredDurationsKnown: number;
+  readonly documentToolRead: boolean;
+}
+
+/**
+ * Phase two of a backfill, on its own: attribute the **stored** history over
+ * `[from, to)` and write the materialised weeks.
+ *
+ * Level-triggered, like every other pass in this application
+ * ([ADR-0009](../../../docs/20-decisions/0009-level-triggered-reconciliation.md)):
+ * it re-reads what is stored and re-materialises the range, so adding an
+ * `area_mapping` row re-attributes history without fetching a page. It reaches
+ * no API when `docClient` is absent, and writes nothing outward in any case —
+ * the store port has no method that could.
+ *
+ * The range covers **whole weeks by Monday**, not the instants it is given
+ * (`weekBounds`), because a range beginning on a Sunday belongs to the week
+ * that began the Monday before it. That asymmetry is where W13's off-by-one
+ * lived; it is stated here because a caller passing a four-week window is
+ * touching it.
+ */
+export async function materialise(options: MaterialiseOptions): Promise<MaterialiseResult> {
+  const covered = { from: options.from, to: options.to };
+
   const [stored, areaMap, rituals] = await Promise.all([
     options.store.loadCompletions(covered.from, covered.to),
     options.store.loadAreaMap(),
@@ -159,9 +226,7 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
   await options.store.replaceCapacityWeeks(weeks, ...weekBounds(covered));
   await options.store.recordAdherence(adherence);
 
-  const result = {
-    plan,
-    fetched,
+  return {
     attribution,
     weeks,
     adherence,
@@ -169,6 +234,4 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
     declaredDurationsKnown: declared.byTask.size,
     documentToolRead: declared.read,
   };
-
-  return { ...result, report: formatBackfillReport(result, covered) };
 }

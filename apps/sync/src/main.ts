@@ -78,6 +78,7 @@ import { createAdoptionStore } from './adoption/store.js';
 import { loadAreasFromFile, saveAreas, saveMappings } from './areas.js';
 import { backfillFrom } from './backfill/cli.js';
 import { loadBindingsFromFile, readBindings, saveBindings } from './bindings.js';
+import { refreshCapacity } from './capacity-refresh.js';
 import { backfill } from './backfill/run.js';
 import { createBackfillStore } from './backfill/store.js';
 import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
@@ -571,7 +572,7 @@ async function main(): Promise<number> {
         }
       }
 
-      return reconcile({
+      const result = await reconcile({
         mode,
         store: createPostgresStore(database.client),
         taskClient: createTaskToolClient({
@@ -596,6 +597,60 @@ async function main(): Promise<number> {
         runId: currentRunContext()?.runId ?? 'run',
         now: () => new Date(),
       });
+
+      /*
+       * The bounded capacity refresh — the last step of a **full** pass, and
+       * the reason the balance view stops going stale.
+       *
+       * `capacity_week` used to be materialised only by `prisme-sync backfill
+       * --from <date>`, a command a person runs, so the declared-against-
+       * observed chart read correctly on the day of the backfill and drifted
+       * from then on while still naming `capacity_week` as its source. This
+       * keeps the trailing window current from what the pass already has.
+       *
+       * **Full passes only**, because the window the view reads is four weeks
+       * and a pass runs every fifteen minutes: daily is current with days to
+       * spare, and it keeps the declared-duration read this can make to about
+       * once a day. **It writes prisme's own table and reaches no API** — with
+       * the write freeze on, which is the state of every instance until the
+       * first outward write is authorised, this still runs. The chart has to
+       * work during the read-only phase; that is the phase it is for.
+       *
+       * A failure here does **not** fail the pass. The reconciler's job is
+       * anchors and it has done it; a red CronJob over a capacity write would
+       * page somebody about the wrong thing, and the staleness is visible where
+       * it matters — the balance view says which record it read and how far its
+       * coverage reaches.
+       */
+      if (mode === 'apply' && result.full) {
+        try {
+          const refreshed = await refreshCapacity({
+            store: createBackfillStore(database.client),
+            docClient: createDocToolClient({
+              token: config.doctoolApiToken as string,
+              baseUrl: config.doctoolBaseUrl,
+              bindings: await readBindings(database.client),
+              transport,
+              metrics: connectorMetrics,
+            }),
+            ...(config.doctoolDurationProperty === undefined
+              ? {}
+              : { durationProperty: config.doctoolDurationProperty }),
+            defaultMinutes: config.capacity.defaultTaskMinutes,
+            weeks: config.capacity.windowWeeks,
+            now: new Date(),
+          });
+          logger.info('capacity refreshed', {
+            weeks: refreshed.weeks,
+            attributed: refreshed.attributed,
+            documentToolRead: refreshed.documentToolRead,
+          });
+        } catch (error: unknown) {
+          logger.error('capacity refresh failed', { error });
+        }
+      }
+
+      return result;
     });
 
     if (!outcome.acquired) {
