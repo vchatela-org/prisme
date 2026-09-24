@@ -152,6 +152,13 @@ Steps 1–7 are reversible by deleting a database. Step 8 is the first irreversi
 gated on two human checks: a person has read the plan, and **a database restore has been rehearsed
 at least once**.
 
+**Step 1 has a command**, and until it did, the step was a sentence describing something no shipped
+interface could do: `prisme-sync areas --from seed/areas.json` creates the areas and seeds their
+year weights, then `prisme-sync bindings --from seed/bindings.json` binds the role keys and maps the
+external locations onto those areas. That order, because a mapping names an area. `pnpm seed:load`
+runs both. Re-running is a no-op; a year whose stored weights differ from the file's is refused
+without `--force` ([`15-runtime.md`](15-runtime.md) §2).
+
 That second one is infrastructure work, done in the GitOps deployment repository as a dump CronJob
 alongside its other databases — never in this repository, which ships no backup capability at all
 ([ADR-0022](20-decisions/0022-backups-belong-to-the-deployment-repository.md)). It is a checklist

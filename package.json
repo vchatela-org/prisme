@@ -25,6 +25,7 @@
     "dev:db:down": "docker compose down -v",
     "start:api": "pnpm --filter @prisme/api run start",
     "start:sync": "pnpm --filter @prisme/sync run start",
+    "seed:load": "pnpm --filter @prisme/sync... run build && pnpm --filter @prisme/sync run seed:load",
     "start:web": "pnpm --filter @prisme/web run start",
     "privacy": "./scripts/privacy-scan.sh",
     "audit": "./scripts/dependency-audit.py",

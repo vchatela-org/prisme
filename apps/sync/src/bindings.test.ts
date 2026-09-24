@@ -50,6 +50,36 @@ describe('parseBindingsFile', () => {
     ]);
   });
 
+  it('reads the area mappings from the same file, which nothing did before', () => {
+    // The array that sat in the documented format and was parsed by nobody:
+    // this loader returned at the `documentTool` key. `docs/17-privacy.md` said
+    // areas, weights and mappings load from `seed/`, and only two of the three
+    // had a loader.
+    const loaded = parseBindingsFile(readFileSync(FIXTURE, 'utf8'), FIXTURE);
+
+    expect(loaded.mappings).toEqual([
+      { areaKey: 'alpha', externalProjectId: 'binding-project-0001' },
+      { areaKey: 'beta', externalProjectId: 'binding-project-0002' },
+    ]);
+  });
+
+  it('is empty, not an error, when a file carries no mappings', () => {
+    // Every instance that predates the array, and every file that maps nothing:
+    // a binding set with no locations is a working configuration, and the
+    // adoption scan reports unmapped work rather than failing.
+    const loaded = parse('{"documentTool":{"areas_db":{"id":"x"}}}');
+
+    expect(loaded.mappings).toEqual([]);
+  });
+
+  it('refuses a placeholder in the mappings array too', () => {
+    expect(() =>
+      parse(
+        '{"documentTool":{"areas_db":{"id":"x"}},"areaMappings":[{"areaKey":"alpha","externalProjectId":"REPLACE-ME"}]}',
+      ),
+    ).toThrow(/placeholder externalProjectId/);
+  });
+
   it('never returns an identifier from `roles`', () => {
     // `roles` is what a log line prints. It must be keys only.
     const loaded = parseBindingsFile(readFileSync(FIXTURE, 'utf8'), FIXTURE);

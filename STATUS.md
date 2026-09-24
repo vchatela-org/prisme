@@ -2,7 +2,16 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-24 · **Current phase:** P0 **frozen** — **every workstream has landed**, and a follow-up wave is closing what they recorded. Waves 3 and 4 completed with W09 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11 ([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13 ([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as [#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢; what remains is a human's: the gate before the first outward write, and the open decisions below
+**Last updated:** 2026-09-24 · **Current phase:** P0 **frozen** — **every workstream has landed** and
+the follow-up wave has closed what they recorded. Waves 3 and 4 completed with W09
+([#30](https://github.com/vchatela-org/prisme/pull/30)), W10
+([#31](https://github.com/vchatela-org/prisme/pull/31)), W11
+([#32](https://github.com/vchatela-org/prisme/pull/32)) and W13
+([#33](https://github.com/vchatela-org/prisme/pull/33)), and **W15 closes wave 5** as
+[#34](https://github.com/vchatela-org/prisme/pull/34). W00–W15 are all 🟢. **What stands between the
+repository and the functional phase is no longer a workstream but the rows below marked 🟡**, found
+by reading the journal entries rather than by any check; what remains beyond them is a human's: the
+gate before the first outward write, and the open decisions below
 
 ---
 
@@ -321,7 +330,17 @@ journal entry rather than a unit of planned work.
 | **No CI gate typechecked test files** — `pnpm typecheck` builds `tsconfig.build.json`, which excludes `*.test.ts`, so **43** type errors had accumulated in five packages, including `apps/sync` fakes that had drifted from the interfaces they stand in for (no `createPage` since ADR-0025, a `Transport` still the pre-seam `{ send }` object) | W06 (which recorded **two** — the gate found 43) | 🟢 | [#59](https://github.com/vchatela-org/prisme/pull/59) |
 | **`dependency audit` failed having learned nothing when npm's advisory endpoint was unreachable** — a required check whose red meant *could not check* and *found a vulnerability* at once, blocking merges on branches that changed no dependency | W10's entry, tracked as **OQ-10** | 🟢 (the gate fails closed and says which of the three outcomes it saw; [ADR-0027](docs/20-decisions/0027-audit-gate-fails-closed.md) **Accepted** 2026-09-24) | [#66](https://github.com/vchatela-org/prisme/pull/66) |
 | **The decision count was wrong in two files at once** — `STATUS.md` said 7 open while `OPEN.md` held 8, and nothing reads either | found while working the open decisions (nobody had recorded it) | 🟢 (both say 8; the deferred questions now carry checkable triggers) | [#66](https://github.com/vchatela-org/prisme/pull/66) |
-| **The skill's own *Scheduling* section prescribed the failure it was meant to prevent** — it told the reader to schedule the wave with `CronCreate` and `recurring: true`, which is **deleted after seven days**, so the schedule expired silently; the installed firings also left three weekdays uncovered, doubled one day, and put the earliest of them inside the inference provider's weekday peak-pricing window for the whole daylight-saving half of the year | found while checking the installed schedule against the provider's own pricing (nobody had recorded it) | 🟢 the section now names four requirements — off the hour, off-peak (outside **12:00–18:00 UTC on weekdays**, converted for both DST states), a durable host scheduler, and a dedicated worktree with a lock — and keeps *weekly is enough*: the cadence was never wrong, the mechanism was | this branch |
+| **The skill's own *Scheduling* section prescribed the failure it was meant to prevent** — it told the reader to schedule the wave with `CronCreate` and `recurring: true`, which is **deleted after seven days**, so the schedule expired silently; the installed firings also left three weekdays uncovered, doubled one day, and put the earliest of them inside the inference provider's weekday peak-pricing window for the whole daylight-saving half of the year | found while checking the installed schedule against the provider's own pricing (nobody had recorded it) | 🟢 the section now names four requirements — off the hour, off-peak (outside **12:00–18:00 UTC on weekdays**, converted for both DST states), a durable host scheduler, and a dedicated worktree with a lock — and keeps *weekly is enough*: the cadence was never wrong, the mechanism was | [#71](https://github.com/vchatela-org/prisme/pull/71) |
+| **Nothing loads areas, weights or their mappings from the seed path** — `parseBindingsFile` reads only the `documentTool` key and silently ignores `areaMappings`, `seed/areas.json` has no loader, and `pnpm seed:load`, which `seed.example/README.md` documents, exists in no `package.json`; `POST /areas` and `PUT /areas/:key/mappings` have no UI caller and no CLI, so a live instance's areas and mappings can only be set by hand-written calls, while [`docs/17-privacy.md`](docs/17-privacy.md) claims they load from `seed/` | FUP-2026-09-21-role-bindings, met again preparing the functional phase | 🟢 `prisme-sync areas --from` and `bindings --from` load them; `pnpm seed:load` runs both, areas first. Re-running is a no-op and a year that disagrees is refused without `--force` | [#74](https://github.com/vchatela-org/prisme/pull/74) |
+| `AREA_COLOR_PINS` must be set by hand and **nothing generates it**, so an instance that pins nothing keeps the collision — `areaColorCollisions` can report the clash and only the gallery calls it | FUP-2026-09-21-area-colour-pinning | 🟡 | — |
+| **Nothing schedules the backfill** — `capacity_week` stops being refreshed the day the operator stops running the command, and the balance then reads stale weeks while naming them `capacity_week` | FUP-2026-09-21-capacity-week-reader | 🟡 | — |
+| `review/year` and the area detail call `minutesCaveat` without its source, so two of the three minutes charts do not say which record they are reading | FUP-2026-09-21-capacity-week-reader | 🟡 | — |
+| The deployment's drift alert was **removed rather than repaired**, and `last_drift_full` is recorded with no reader; `apps/sync/src/main.ts` still sets in-process gauges a CronJob pod can never have scraped | FUP-2026-09-22-sync-metrics | 🟡 (the first is the deployment repository's) | — |
+| **"Not read" cannot distinguish an unbound role from a refused read** — the privacy reason for the swallow stands; the diagnostic gap is real | FUP-2026-09-22-doc-tool-api-version | 🟡 | — |
+| `fixtures/` carries no `area_mapping` rows and its task mirror covers only the initiatives that serve a key result, so attribution and computed progress are exercised only partly by a plain seed | FUP-2026-09-21-fixture-task-mirror | 🟡 | — |
+| Cycle time is drawn nowhere — prisme records no moment at which an initiative started, and reconstructing one from the event log is aggregation the API owns | W09, W10 | ⏸ **deliberate, not outstanding** — an absence a reader would otherwise re-derive | — |
+| **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟡 (deployment repository, not this one) | — |
+| **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | [#73](https://github.com/vchatela-org/prisme/pull/73) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -331,6 +350,15 @@ inside an append-only entry explains a gap rather than holding one, and the next
 dashboard first. **The two rows that were `⏳ human decision — pending` are both closed now, on
 2026-09-24**: the owner decided, and each decision turned out to be a small change rather than a
 large one — which is what a recorded decision usually looks like once it is made.
+
+**The sweep was not finished the first time, and the count is the evidence.** The same day, working
+the open decisions and then preparing the functional phase, **eight further rows were found that
+each lived in a journal entry and nowhere on this page** — the seed path, the ungenerated
+`AREA_COLOR_PINS`, the unscheduled backfill, the missing `minutesCaveat` source, the deployment's
+withdrawn drift alert, "not read" against a refused read, the fixtures' missing attribution rows and
+the undrawn cycle time — and a **ninth that had no record anywhere at all**: the deployment's
+bootstrap runbook has no step for areas, weights or mappings. Nine rows, found by reading the
+entries rather than by any check, which is why the rule above is a rule and not a preference.
 
 ✅ **Two journal entries said `DOCTOOL_BASE_URL` would unblock the initiative screen's *Open page*
 button, and both were wrong.** That variable is the **API host** — the one that serves JSON — and a
@@ -454,7 +482,8 @@ in this repository cannot see — which is how a wrong API pin and a withdrawn A
 
 - [ ] Role bindings loaded (`prisme-sync bindings --from <path>`) — **without them, "not read" and
       "broken" are the same message**
-- [ ] Area mappings set, and this year's weights
+- [ ] Area mappings set, and this year's weights (`prisme-sync areas --from <path>`, then
+      `prisme-sync bindings --from <path>` — or `pnpm seed:load`, which runs both in that order)
 - [ ] One full pass run by hand, and its report read, for **both** tools
 - [ ] `/focus`, `/areas` and `/kpi` opened against real data — area *names*, never keys
 - [ ] Adoption queue worked and link coverage recorded
