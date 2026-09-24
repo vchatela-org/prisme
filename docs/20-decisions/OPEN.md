@@ -6,20 +6,20 @@ alongside this file.
 If you are blocked by one of these: say so in your journal entry and stop. Do not pick an answer and
 proceed — an undocumented guess is indistinguishable from a decision until it causes a bug.
 
-**Eight open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
+**Seven open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
 [`README.md`](README.md) lists the records, and a count kept in one place drifts silently — it said
-seven while this file held eight, from 2026-09-20 until 2026-09-24.
+seven while this file held eight, from 2026-09-20 until 2026-09-24. OQ-10 was the eighth, and it
+closed on 2026-09-24 ([ADR-0027](0027-audit-gate-fails-closed.md)) — accepted by the owner, which is
+what moved the number rather than what made the gate work.
 
-Four are waiting on a **person** or on something real, and they are the four below the first
-heading: OQ-1 and OQ-2 block P2, OQ-4 turns on deciding what a piece of work *is*, and OQ-10 blocks
-every merge intermittently and now carries a **Proposed** answer
-([ADR-0027](0027-audit-gate-fails-closed.md)) awaiting the owner's acceptance — it stays open until
-that acceptance, because a Proposed record binds nobody. The other four are **deferred by choice**,
-each with a trigger written as an observable fact rather than a date.
+Three are waiting on a **person** or on something real, and they are the three below the first
+heading: OQ-1 and OQ-2 block P2, and OQ-4 turns on deciding what a piece of work *is*. The other
+four are **deferred by choice**, each with a trigger written as an observable fact rather than a
+date.
 
 ---
 
-## Blocking a phase, a merge, or the first review
+## Blocking a phase or the first review
 
 ### OQ-1 · Can a project span more than one area?
 
@@ -52,31 +52,6 @@ intent distinguishes them.
 
 Practical rule to try: if it has an outcome you would put in a review, it is an initiative;
 otherwise it is Run.
-
-### OQ-10 · Should a required security gate fail closed when its upstream is unreachable?
-
-**Blocks:** no phase — but it blocks *every* merge, intermittently, whenever npm is in maintenance
-
-`dependency audit` runs `pnpm audit --audit-level=moderate`, which asks
-`registry.npmjs.org/-/npm/v1/security/advisories/bulk` at check time. When that endpoint is down the
-check fails having learned nothing: it is not reporting a vulnerability, it is failing to ask. The
-two states are indistinguishable in the pull request's status list, and because the check is
-required, an upstream outage blocks merges on branches that change no dependency at all. This
-happened to [#31](https://github.com/vchatela-org/prisme/pull/31) on 2026-09-19 and cost a full
-re-run cycle once npm recovered.
-
-Failing closed is a defensible default for a security gate — a green that means "could not check"
-is worse than a red. But nobody has chosen it out loud, and the alternatives are real: a cached or
-vendored advisory database, or distinguishing *unreachable* from *vulnerable* so only the latter is
-required. Whichever is chosen must not become a gate that passes when it has not actually checked.
-
-**Answered, awaiting acceptance** — [ADR-0027](0027-audit-gate-fails-closed.md), **Proposed**
-2026-09-24: the gate fails closed, the three outcomes are named in the job summary so *unreachable*
-is never read as *vulnerable*, `--ignore-registry-errors` is refused and controlled against, and the
-negative controls run inside the existing required check so no setting needs a human. It decided the
-question in the same pull request rather than leaving the gate in the state above, because the
-recorded harm was live. **The question stays open until the owner accepts the ADR** — a Proposed
-record binds nobody, and this file is the list of what is not decided.
 
 ---
 
@@ -158,5 +133,6 @@ Until then there is nothing to write that the document tool is not already able 
 | Who owns process pages? | The document tool, outright — [ADR-0016](0016-document-tool-owns-processes.md) |
 | Public or private repository? | Public, with an impersonal content rule — [ADR-0017](0017-public-repository.md) |
 | **OQ-9** · Forward-auth or OIDC in the application? | **OIDC in the application**, with the ID token **verified** rather than any identity header trusted — [ADR-0026](0026-human-auth-via-oidc.md), which supersedes [ADR-0021](0021-verified-forward-auth-assertion.md) on the point that decided it: the forward-auth arrangement needs an asymmetric signing keypair the target provider cannot durably hold. W14 is unblocked |
+| **OQ-10** · Should a required security gate fail closed when its upstream is unreachable? | **Yes, fail closed, and say which failure it is** — [ADR-0027](0027-audit-gate-fails-closed.md), **accepted by the owner 2026-09-24**. The gate reports three outcomes where it reported two (`checked-clean` / `vulnerable` / `unchecked`), so an npm outage is never read as a CVE, and `--ignore-registry-errors` — which reports an unreachable registry as a clean audit at exit 0 — is refused and controlled against. It landed Proposed and implemented, because the recorded harm was live |
 | Who owns database backups, and does prisme need to build one? | The deployment repository, as a dump CronJob beside its other databases. prisme ships **none** — [ADR-0022](0022-backups-belong-to-the-deployment-repository.md). It was never a workstream dependency; it gates only [step 8](../13-migration.md#5-sequence), the first outward write |
 | **OQ-8** · Which licence? | **MIT**, chosen at publication. See [`LICENSE`](../../LICENSE) |

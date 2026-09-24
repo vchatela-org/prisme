@@ -1,12 +1,14 @@
 # ADR-0027 · Fail the dependency audit closed, and name the failure it is
 
-**Status:** Proposed · 2026-09-24
+**Status:** Accepted · 2026-09-24 · answers OQ-10
 
-> **Proposed, not Accepted: an agent does not accept its own ADR.** The workflow change it decides is
-> implemented in the same pull request, because the alternative — leaving the gate in the state
+> **Accepted by the owner on 2026-09-24, the day after it was written.** It landed **Proposed** and
+> implemented: the workflow change it decides was made in the same pull request, because the
+> alternative — leaving the gate in the state
 > [#31](https://github.com/vchatela-org/prisme/pull/31) hit — is a required check whose red means two
-> different things. The owner accepts or refuses it; until then, OQ-10 in [`OPEN.md`](OPEN.md) stays
-> open.
+> different things. An agent does not accept its own ADR, so the record sat Proposed for a day while
+> the gate it describes was already strict; the acceptance is what makes the decision binding rather
+> than what makes the gate work. OQ-10 is closed in [`OPEN.md`](OPEN.md).
 
 ## Context
 
