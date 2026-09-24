@@ -339,7 +339,7 @@ journal entry rather than a unit of planned work.
 | **"Not read" cannot distinguish an unbound role from a refused read** — the privacy reason for the swallow stands; the diagnostic gap is real | FUP-2026-09-22-doc-tool-api-version | 🟡 | — |
 | `fixtures/` carries no `area_mapping` rows and its task mirror covers only the initiatives that serve a key result, so attribution and computed progress are exercised only partly by a plain seed | FUP-2026-09-21-fixture-task-mirror | 🟡 | — |
 | Cycle time is drawn nowhere — prisme records no moment at which an initiative started, and reconstructing one from the event log is aggregation the API owns | W09, W10 | ⏸ **deliberate, not outstanding** — an absence a reader would otherwise re-derive | — |
-| **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟡 (deployment repository, not this one) | — |
+| **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟡 (deployment repository, not this one) · **confirmed by measurement 2026-09-24**: the deployed instance's database holds the schema, the role bindings and a populated adoption queue, and **zero** areas, weights and mappings — so the empty balance chart is not a risk, it is the state. [The entry](docs/50-journal/FUP-2026-09-24-p1-read-path.md) | — |
 | **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | [#73](https://github.com/vchatela-org/prisme/pull/73) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
@@ -480,14 +480,27 @@ The five steps of
 reached: a read path that has never been run against the live instance is the one thing every check
 in this repository cannot see — which is how a wrong API pin and a withdrawn API both shipped green.
 
-- [ ] Role bindings loaded (`prisme-sync bindings --from <path>`) — **without them, "not read" and
-      "broken" are the same message**
-- [ ] Area mappings set, and this year's weights (`prisme-sync areas --from <path>`, then
-      `prisme-sync bindings --from <path>` — or `pnpm seed:load`, which runs both in that order)
-- [ ] One full pass run by hand, and its report read, for **both** tools
-- [ ] `/focus`, `/areas` and `/kpi` opened against real data — area *names*, never keys
-- [ ] Adoption queue worked and link coverage recorded
-- [ ] `prisme-sync plan` read by hand
+**Run on 2026-09-24, locally, against the live tools** — the whole list, on an instance that had
+never had any of it. What the run found is worth reading before trusting a tick:
+[the entry](docs/50-journal/FUP-2026-09-24-p1-read-path.md).
+
+- [x] Role bindings loaded (`prisme-sync bindings --from <path>`) — **without them, "not read" and
+      "broken" are the same message.** Five of twelve bound, and the seven unbound are the ones the
+      instance does not use
+- [x] Area mappings set, and this year's weights (`prisme-sync areas --from <path>`, then
+      `prisme-sync bindings --from <path>` — or `pnpm seed:load`, which runs both in that order).
+      The areas and weights were **derived from the tool's own vocabulary**, which already carried
+      them; the mappings are a **proposal awaiting the owner's correction**, and the two blocks that
+      have no home among the areas are exactly what **OQ-1** asks
+- [x] One full pass run by hand, and its report read, for **both** tools — the task tool through
+      `plan`, the document tool through the adoption scan, which is the only read of it
+- [x] `/focus`, `/areas` and `/kpi` opened against real data — area *names*, never keys. Driven in a
+      real browser, with the console read back: one `favicon.ico` 404 and no CSP violation
+- [x] Adoption queue worked and link coverage recorded — the queue is populated, readable and
+      `Would create: 0`; **no candidate has been decided**, which is the owner's step and not a gap
+      in the read path
+- [x] `prisme-sync plan` read by hand — **`create: 0` on a clean instance**, which is ADR-0010
+      guard 3 answered by measurement rather than by argument
 
 ## Before the first outward write
 
