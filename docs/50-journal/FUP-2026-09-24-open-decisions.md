@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · The non-functional open decisions: one decided, one count corrected, four made checkable
 
-**Agent:** Claude · **Duration:** one session · **PR** [#NN](https://github.com/vchatela-org/prisme/pull/NN) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#66](https://github.com/vchatela-org/prisme/pull/66) · **Outcome:** complete
 
 The follow-up wave's other half: the open questions that are not the owner's to answer at a review.
 Three of them are record work — a count, a filing and four triggers — and the fourth needed code,
