@@ -162,6 +162,7 @@ provider and produces a login that cannot work:
 | `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
 | `TASKTOOL_BASE_URL` | *the vendor's public API* | The task tool's **API host**, for the same reason |
+| `DOCTOOL_PAGE_URL_TEMPLATE` | *unset* | Where a page **opens** — the browser-facing host, with a literal `{id}` where the identifier goes. **Web tier**; unset leaves *Open page* disabled |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
 
 `AREA_COLOR_PINS` is **instance data carried as configuration**, and it is the one optional variable
@@ -195,6 +196,30 @@ page at, and prisme reads no page URL from either tool for exactly that kind of 
 page carries identifies a workspace and is instance data
 ([`17-privacy.md`](17-privacy.md#1-the-line)). Configuration naming an API host
 does not change that.
+
+`DOCTOOL_PAGE_URL_TEMPLATE` is the other half of that distinction, and it is the only place prisme
+builds a link a person clicks. It is a **template** rather than a base because turning a page
+identifier into a link needs a *path shape*, which is vendor knowledge this repository deliberately
+does not hold: `packages/connectors/src/doc-tool` refuses to read the page URL the tool returns on
+every page, so the operator supplies the shape and prisme supplies the identifier. The workspace
+therefore stays out of git **and** no part of the application learns a vendor's URL layout.
+
+The placeholder is the literal `{id}`, and the value must be an absolute `http(s)` URL containing it
+— a template without one would link every page to the same place, which looks configured and is never
+right. Two properties are worth knowing because they are easy to get wrong:
+
+- **The braces are not percent-encoded.** `new URL` turns `{` into `%7B`, so a template read back
+  through `.href` would carry `%7Bid%7D` and substitute nothing. The value is validated through
+  `URL` on a copy with the placeholder already replaced, and the substitution is a plain string
+  replacement on the original (`apps/web/src/lib/page-link.ts`).
+- **An identifier that would change the origin is refused**, and the screen falls back to the
+  disabled control. A page identifier arrives from the document tool and is third-party data; a
+  template that puts `{id}` in the authority would let that data choose which site the link points
+  at, which is not a link prisme will render.
+
+Unset is every instance's state until somebody sets it, and it is not a broken deployment: the
+initiative screen's *Open page* stays a disabled control that says what is missing. Nothing else
+reads this variable, and no state depends on it.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
