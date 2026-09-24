@@ -71,6 +71,12 @@ interface ObjectiveFixture {
   keyResults: KeyResultFixture[];
 }
 
+interface AreaMappingFixture {
+  areaKey: string;
+  externalProjectId: string;
+  externalSectionId?: string;
+}
+
 interface TaskMirrorFixture {
   externalId: string;
   initiativeId: string;
@@ -121,6 +127,7 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
   const initiatives = readFixture<{ initiatives: InitiativeFixture[] }>('initiatives.json');
   const objectives = readFixture<{ objectives: ObjectiveFixture[] }>('objectives.json');
   const mirror = readFixture<{ tasks: TaskMirrorFixture[] }>('task-mirror.json');
+  const mappings = readFixture<{ areaMappings: AreaMappingFixture[] }>('area-mappings.json');
 
   const ids = new Map<string, string>();
   for (const initiative of initiatives.initiatives)
@@ -146,6 +153,29 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
       await tx`
         insert into area_weight (area_key, year, weight_pct)
         values (${weight.areaKey}, ${weight.year}, ${weight.weightPct})`;
+    }
+
+    /*
+     * Where the external world's work belongs.
+     *
+     * `area_mapping` is what turns a completion into an attributed minute, and
+     * until this fixture existed the set carried no rows for it at all — so
+     * every completion a plain seed could produce was unattributable and the
+     * balance chart read as empty for a reason indistinguishable from a bug
+     * (W13's finding, and the register's row).
+     *
+     * The projects and sections here are the ones
+     * `fixtures/connectors/task-tool.completions.json` actually reports, which
+     * is what makes the mapping reachable rather than decorative. One entry
+     * refines a section that its project also covers, so the precedence
+     * `attribute.ts` implements — section first, project as fallback — is
+     * exercised by a plain seed.
+     */
+    for (const mapping of mappings.areaMappings) {
+      await tx`
+        insert into area_mapping (area_key, external_project_id, external_section_id)
+        values (${mapping.areaKey}, ${mapping.externalProjectId},
+                ${mapping.externalSectionId ?? null})`;
     }
 
     // Two passes: every initiative exists before any dependency references one,
@@ -268,10 +298,12 @@ export async function seedFixtures(client: postgres.Sql): Promise<SeedResult> {
  * Completed tasks beneath an initiative's anchor, so capacity has something to
  * measure.
  *
- * `fixtures/` carries no task mirror — the task tool's side is recorded as
- * connector responses, not as prisme rows — so the shape is built here from
- * fixture initiatives. Nothing about it is real, and nothing about it is meant
- * to resemble a real workspace.
+ * `fixtures/task-mirror.json` covers the anchor subtrees a key result is counted
+ * from and the initiatives that serve none. This is for a suite that needs a
+ * completion *it* chose, in a window it measures itself — typically after
+ * clearing `task_mirror`, so its assertions are about what it wrote rather than
+ * about what the fixture set happens to hold. Nothing about it is real, and
+ * nothing about it is meant to resemble a real workspace.
  */
 export async function seedCompletions(
   client: postgres.Sql,
