@@ -22,6 +22,10 @@ because "fail closed" is a claim about behaviour and a document cannot test it.
   ritual adherence, a contested review or a quarter of stored decisions, three months of completion
   history beside one declared estimate — rather than a phrase like "after a month of real use", which
   has no end and so gets re-argued every time it is reached.
+- **`pnpm run audit` runs the same gate.** The root `audit` alias pointed at `pnpm audit` directly —
+  the behaviour this change replaces, so a developer running it locally would still get the two
+  failures told apart only by reading stderr. It now calls the script: one place decides what the
+  audit means, and no automation used the alias, so nothing else moves.
 - **OQ-1, OQ-2 and OQ-4 are untouched**, deliberately. They are the owner's, and they are answered at
   the first real review; editing them here would be an agent deciding a model question by tidying it.
 
@@ -122,5 +126,6 @@ and a credential in a failed registry URL is redacted before it can reach a publ
   the index.
 - [`STATUS.md`](../../STATUS.md) — the Decisions count and the paragraph that explains it, the
   Follow-up wave rows, and the sentence describing what `dependency audit` now runs.
-- `.github/workflows/ci.yml` and `scripts/dependency-audit.py` — the gate itself. Not a spec, but the
-  thing every spec above now describes.
+- `.github/workflows/ci.yml`, `scripts/dependency-audit.py` and `package.json`'s `audit` alias — the
+  gate itself, and the one local entry point to it. Not specs, but the thing every spec above now
+  describes.
