@@ -644,6 +644,9 @@ async function main(): Promise<number> {
             weeks: refreshed.weeks,
             attributed: refreshed.attributed,
             documentToolRead: refreshed.documentToolRead,
+            ...(refreshed.documentToolUnread === undefined
+              ? {}
+              : { documentToolUnread: refreshed.documentToolUnread }),
           });
         } catch (error: unknown) {
           logger.error('capacity refresh failed', { error });
