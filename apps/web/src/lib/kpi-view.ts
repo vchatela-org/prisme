@@ -233,6 +233,39 @@ export function observedSourceCaveat(coverage: ObservedCoverage): string {
 }
 
 /**
+ * The whole caveat under a chart drawn from attributed minutes.
+ *
+ * ## Why the three sentences are composed here rather than written at the call site
+ *
+ * They were written at the call site, and that is how the defect this function
+ * closes happened: of the four places that draw attributed minutes, two named
+ * the record they read and two did not. Nothing failed — a reader comparing the
+ * year review against the KPI dashboard was comparing an identified number with
+ * an unidentified one, and the unidentified one was *further from* the reader's
+ * expectation in the case nobody could see (W13: `task_mirror` is the anchor
+ * subtree, so the number is smaller).
+ *
+ * Which record a chart reads is a property of the chart, not of the person who
+ * wrote the screen, so it belongs in one function that cannot apply two of the
+ * three parts. `windowed` is the one genuine difference between the charts: a
+ * share-over-time chart buckets by calendar period, and the balance factor the
+ * scoring method reads is a rolling four-week window, so only those charts
+ * carry `WINDOW_CAVEAT`.
+ */
+export function minutesChartCaveat(input: {
+  readonly estimatedPct: number | null;
+  readonly coverage: ObservedCoverage;
+  /** True for a share-over-time chart, whose buckets are not the rolling window. */
+  readonly windowed?: boolean;
+}): string {
+  return [
+    ...(input.windowed === true ? [WINDOW_CAVEAT] : []),
+    minutesCaveat(input.estimatedPct),
+    observedSourceCaveat(input.coverage),
+  ].join(' ');
+}
+
+/**
  * The most starved area, or a count when the answer is not one area.
  *
  * ## Why this is not just `max(balanceFactor)`
