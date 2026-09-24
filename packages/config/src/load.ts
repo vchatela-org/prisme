@@ -113,6 +113,16 @@ export interface Config {
    */
   readonly doctoolBaseUrl: string | undefined;
   readonly tasktoolBaseUrl: string | undefined;
+  /**
+   * A URL with `{id}` in it, for turning a page's identifier into a link a
+   * person can open. Unset on every instance that has not supplied one, which
+   * is why the screen's *Open page* is disabled by default.
+   *
+   * Kept as a template rather than resolved here, for the same reason the two
+   * above are kept as `undefined`: this package has no business knowing a
+   * vendor's URL shape (see `DOCTOOL_PAGE_URL_TEMPLATE` in `schema.ts`).
+   */
+  readonly doctoolPageUrlTemplate: string | undefined;
 }
 
 export interface ConfigProblem {
@@ -353,6 +363,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     doctoolDurationProperty: parsed['DOCTOOL_DURATION_PROPERTY'] as string | undefined,
     doctoolBaseUrl: parsed['DOCTOOL_BASE_URL'] as string | undefined,
     tasktoolBaseUrl: parsed['TASKTOOL_BASE_URL'] as string | undefined,
+    doctoolPageUrlTemplate: parsed['DOCTOOL_PAGE_URL_TEMPLATE'] as string | undefined,
   };
 }
 

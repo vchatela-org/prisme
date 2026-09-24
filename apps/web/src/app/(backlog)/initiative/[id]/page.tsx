@@ -19,6 +19,8 @@ import {
 import { pageStateOf } from '@/lib/create-view';
 import { dayOf, daysSince, dueSummary } from '@/lib/focus-view';
 import { countsFrom } from '@/lib/guardrails';
+import { pageUrl } from '@/lib/page-link';
+import { webRuntime } from '@/lib/runtime';
 
 /**
  * One initiative, with everything that was decided about it.
@@ -272,6 +274,10 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
         <PageButton
           initiativeId={data.id}
           state={pageStateOf(data.externalPageId, creations.ok ? creations.data.items : [])}
+          // `undefined` until the instance supplies a template, and `undefined`
+          // again if the identifier cannot be turned into a link on that
+          // template's own origin. The button says which state it is in.
+          href={pageUrl(webRuntime().config.doctoolPageUrlTemplate, data.externalPageId)}
         />
       </Section>
 

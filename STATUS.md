@@ -311,9 +311,9 @@ journal entry rather than a unit of planned work.
 | `middleware.ts` → `proxy.ts`, **after** a check that a response still carries the CSP and every other security header | FUP-2026-09-23-repo-hygiene | 🟢 | [#67](https://github.com/vchatela-org/prisme/pull/67) |
 | Nothing asserted the web tier sends its security headers: `/healthz` is excluded from the matcher and was the only thing the `images` probe read | FUP-2026-09-23-repo-hygiene | 🟢 | [#67](https://github.com/vchatela-org/prisme/pull/67) |
 | No logout control in the UI — `POST /auth/logout` exists, is origin-checked and verified end to end, and nothing called it | FUP-2026-09-22-oidc-human-auth | 🟢 | [#67](https://github.com/vchatela-org/prisme/pull/67) |
-| The committed fixture harness — gitignored, stale, rebuilt and thrown away nine times | W07, W08, W10, W11, W15, FUP-radix-inline-styles, FUP-tool-base-urls, FUP-doc-tool-api-version, FUP-2026-09-24 (the tenth session to run without one) | 🟡 recorded, not fixed — a maintained artefact rather than a patch; see [the entry](docs/50-journal/FUP-2026-09-24-open-followups.md) | — |
-| `is_archived` / `is_locked` are returned by the document tool and unread — undocumented booleans, and mapping one would be a guess | FUP-2026-09-22-doc-tool-api-version | 🟡 recorded, not fixed | — |
-| The initiative detail screen's **Open page** — needs a browser-facing base and a page-id → URL shape, and the tool's own page URL is deliberately unread because it identifies the workspace | FUP-2026-09-21-tool-base-urls, FUP-2026-09-21-page-creation | ⏳ human decision — pending | — |
+| The committed fixture harness — gitignored, stale, rebuilt and thrown away nine times | W07, W08, W10, W11, W15, FUP-radix-inline-styles, FUP-tool-base-urls, FUP-doc-tool-api-version, FUP-2026-09-24 (the tenth session to run without one) | 🟢 [committed](harness/README.md) as `harness/` — a fake identity provider, an idempotent seeder and a login driver. Verified by running it, which found two defects: the seeder truncated the migration ledger under the wrong name (so the API was never ready), and the provider had no `/token` route | [#70](https://github.com/vchatela-org/prisme/pull/70) |
+| `is_archived` / `is_locked` are returned by the document tool and unread — undocumented booleans, and mapping one would be a guess | FUP-2026-09-22-doc-tool-api-version | ⏸ **settled, not outstanding** — the tool documents neither field, so mapping one is the guess `packages/connectors/CLAUDE.md` refuses. There is no fix to make; it stays unread | — |
+| The initiative detail screen's **Open page** — needs a browser-facing base and a page-id → URL shape, and the tool's own page URL is deliberately unread because it identifies the workspace | FUP-2026-09-21-tool-base-urls, FUP-2026-09-21-page-creation | 🟢 decided: an operator-supplied **URL template** (`DOCTOOL_PAGE_URL_TEMPLATE`) rather than a base, so no vendor path shape enters the repository | [#70](https://github.com/vchatela-org/prisme/pull/70) |
 | A capture's page has no role key — ADR-0025's vocabulary names an initiative's page and a project's page, and a capture is neither | FUP-2026-09-21-page-creation, FUP-2026-09-21-tool-base-urls | 🟢 [ADR-0028](docs/20-decisions/0028-capture-pages-get-a-role-pair.md) **Accepted**; the pair exists and the plan's second block reason is gone | [#69](https://github.com/vchatela-org/prisme/pull/69) |
 | **The document tool's API version predated the endpoints prisme calls** — the client pinned `2022-06-28` (the era of `/v1/databases/`) while calling `/v1/data_sources/query`, so every query returned `400 invalid_request_url` and the scan printed "document tool not read" | found while preparing the deployment (nobody had recorded it) | 🟢 | [#54](https://github.com/vchatela-org/prisme/pull/54) |
 | **Two settings that had stopped doing anything, and a tracked file `.gitignore` already refused** — the `eslint` key in `apps/web/next.config.mjs` is rejected with a warning on every build because Next 16 dropped the option *and* the lint step it controlled, and `.cache_ggshield` was committed before the ignore rule covering it existed | W07, W08, W14 | 🟢 | [#57](https://github.com/vchatela-org/prisme/pull/57) |
@@ -327,16 +327,19 @@ Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**
 **A row here is an obligation, not a note.** Four of them lived only inside journal entry tables
 until 2026-09-24, which is exactly the rediscovery the journal rules exist to prevent — a follow-up
 inside an append-only entry explains a gap rather than holding one, and the next person reads the
-dashboard first. The two rows marked `⏳ human decision — pending` are deliberately **not** for an
-agent: each needs something decided before anything can be built, and the decision is the owner's.
+dashboard first. **The two rows that were `⏳ human decision — pending` are both closed now, on
+2026-09-24**: the owner decided, and each decision turned out to be a small change rather than a
+large one — which is what a recorded decision usually looks like once it is made.
 
-⚠ **Two journal entries say `DOCTOOL_BASE_URL` would unblock the initiative screen's *Open page*
-button. It does not, and nothing was closed for it.** That variable is the **API host** — the one
-that serves JSON — and a person cannot open a page at it. The button also needs a *browser-facing*
-base and whatever path shape turns a page id into a link, and the tool's own page URL cannot supply
-either: `packages/connectors/src/doc-tool` deliberately does not read it, because it identifies the
-workspace. That is a decision for a human, not a patch, and it is a row above and the first row of
-[the entry](docs/50-journal/FUP-2026-09-21-tool-base-urls.md).
+✅ **Two journal entries said `DOCTOOL_BASE_URL` would unblock the initiative screen's *Open page*
+button, and both were wrong.** That variable is the **API host** — the one that serves JSON — and a
+person cannot open a page at it. The button needs a *browser-facing* address **and** a path shape
+that turns a page id into a link, and the tool's own page URL cannot supply either:
+`packages/connectors/src/doc-tool` deliberately does not read it, because it identifies the
+workspace. The decision was the owner's and is recorded: an operator-supplied **template**
+(`DOCTOOL_PAGE_URL_TEMPLATE`, with a literal `{id}`) supplies the shape, prisme supplies the id, and
+neither a vendor's URL layout nor the workspace enters the repository — one row above, and
+[the entry](docs/50-journal/FUP-2026-09-24-open-page.md).
 
 ## Releases
 

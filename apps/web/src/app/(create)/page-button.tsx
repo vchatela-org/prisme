@@ -39,7 +39,24 @@ import { requestInitiativePage } from './create-actions';
  * (ADR-0025, ADR-0028). An option that silently does nothing is worse than one
  * that explains itself, and **Link existing** works today either way.
  */
-export function PageButton({ initiativeId, state }: { initiativeId: string; state: PageState }) {
+export function PageButton({
+  initiativeId,
+  state,
+  href,
+}: {
+  initiativeId: string;
+  state: PageState;
+  /**
+   * Where this initiative's page opens, or `undefined` when the instance has
+   * supplied no template to build one from.
+   *
+   * A prop rather than something this component derives, because the template is
+   * configuration and this is a client component: the server component reads it
+   * and hands down the finished link, which is also what keeps the URL shape out
+   * of the browser bundle (`pageUrl` in `lib/page-link.ts`).
+   */
+  href?: string | undefined;
+}) {
   const [linking, setLinking] = useState(false);
   const [externalId, setExternalId] = useState('');
   const [pending, startTransition] = useTransition();
@@ -65,14 +82,32 @@ export function PageButton({ initiativeId, state }: { initiativeId: string; stat
   if (state === 'present') {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="secondary" disabled>
-          <ExternalLink aria-hidden />
-          Open page
-        </Button>
-        <span className="text-xs text-ink-muted">
-          A page is linked. Opening it needs the document tool&rsquo;s address, which is instance
-          configuration this application is not given yet.
-        </span>
+        {href === undefined ? (
+          <>
+            <Button size="sm" variant="secondary" disabled>
+              <ExternalLink aria-hidden />
+              Open page
+            </Button>
+            <span className="text-xs text-ink-muted">
+              A page is linked. Opening it needs a browser-facing address for the document tool,
+              which this instance is not given yet.
+            </span>
+          </>
+        ) : (
+          /*
+           * The one control on this screen that leaves the application, so it
+           * opens in a new tab with `noreferrer` — the page is the document
+           * tool's, and prisme sends no referrer anywhere (`Referrer-Policy:
+           * no-referrer`, W14). `asChild` rather than a styled `<a>`, so the
+           * link is the same button as the rest of the screen.
+           */
+          <Button size="sm" variant="secondary" asChild>
+            <a href={href} target="_blank" rel="noreferrer">
+              <ExternalLink aria-hidden />
+              Open page
+            </a>
+          </Button>
+        )}
       </div>
     );
   }
