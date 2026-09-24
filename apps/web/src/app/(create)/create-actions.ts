@@ -390,7 +390,7 @@ export async function requestInitiativePage(input: PageRequestInput): Promise<Ac
         ok: true,
         title: 'Page requested',
         description:
-          'Recorded. It is waiting on a decision rather than on a pass: prisme has nowhere addressable to create a page yet (ADR-0025). Linking an existing one works today.',
+          'Recorded. The converge pass makes it, if this instance has bound where a page of this kind lives — otherwise the plan reports it blocked with that reason (ADR-0025, ADR-0028). Linking an existing one works today.',
       };
 }
 

@@ -12,9 +12,9 @@ Specs: [`16-sync.md`](../../docs/16-sync.md) · [`11-ownership.md`](../../docs/1
    arriving from the user's own workspace still contains markup, arbitrary URLs and content pasted
    from the open web — and it flows into rendering *and* into agent context.
 2. **External stores are addressed by role key**, never by name or ID: `objectives_db`,
-   `takeaways_db`, `media_db`, `areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 —
-   `initiative_pages_db`, `project_pages_db`, `initiative_page_template`, `project_page_template`.
-   No real name or ID may appear in this repository
+   `takeaways_db`, `media_db`, `areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and
+   ADR-0028 — `initiative_pages_db`, `project_pages_db`, `capture_pages_db`, `initiative_page_template`,
+   `project_page_template`, `capture_page_template`. No real name or ID may appear in this repository
    ([`17-privacy.md`](../../docs/17-privacy.md)).
 3. **Never guess a mapping.** An unexpected shape fails the run with a message naming the field.
    Guessing produces silent corruption of real data.

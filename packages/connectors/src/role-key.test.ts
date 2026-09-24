@@ -7,10 +7,13 @@ import {
   createRoleBindings,
   isReadable,
   isTemplateRole,
+  PAGE_ROLE_FOR,
+  PAGE_TEMPLATE_FOR,
   ROLE_ACCESS,
   ROLE_KEYS,
   roleBindingsSchema,
   TEMPLATE_ROLES,
+  type PageKind,
 } from './role-key.js';
 
 /**
@@ -105,9 +108,13 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
     expect(ROLE_ACCESS.processes_db).toBe('read');
   });
 
-  describe('the create capability (ADR-0025)', () => {
-    it('is held by the two page stores and by nothing else', () => {
-      expect(ROLE_KEYS.filter(canCreate)).toEqual(['initiative_pages_db', 'project_pages_db']);
+  describe('the create capability (ADR-0025, ADR-0028)', () => {
+    it('is held by the page stores and by nothing else', () => {
+      expect(ROLE_KEYS.filter(canCreate)).toEqual([
+        'initiative_pages_db',
+        'project_pages_db',
+        'capture_pages_db',
+      ]);
     });
 
     it('is narrower than write: a creating role may not be read', () => {
@@ -126,6 +133,26 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
       expect(() => assertCreatable('areas_db', 'create page')).toThrow(/may not add to it/);
       expect(() => assertCreatable('reviews_db', 'create page')).toThrow(/may not add to it/);
       expect(() => assertCreatable('initiative_pages_db', 'create page')).not.toThrow();
+    });
+
+    it('addresses every page kind through its own store and its own template', () => {
+      // The property ADR-0028 depends on, asserted over the vocabulary rather
+      // than over the three names: a kind added without a store, or a store
+      // added without a kind, is a page that cannot be created *or* one that
+      // silently borrows another kind's parent. Both are compile errors already
+      // — the records are `Record<PageKind, RoleKey>` — and this is what says
+      // so at run time as well.
+      for (const kind of Object.keys(PAGE_ROLE_FOR) as PageKind[]) {
+        const store = PAGE_ROLE_FOR[kind];
+        const template = PAGE_TEMPLATE_FOR[kind];
+        expect(canCreate(store)).toBe(true);
+        expect(isReadable(template)).toBe(true);
+        expect(store).not.toBe(template);
+      }
+
+      // And the three kinds are genuinely three, not one role repeated.
+      expect(new Set(Object.values(PAGE_ROLE_FOR)).size).toBe(Object.keys(PAGE_ROLE_FOR).length);
+      expect(Object.keys(PAGE_ROLE_FOR).sort()).toEqual(['capture', 'initiative', 'project']);
     });
 
     it('reads the templates, because it copies their blocks and writes none', () => {
