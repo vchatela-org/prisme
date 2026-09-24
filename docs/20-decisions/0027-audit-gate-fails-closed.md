@@ -10,7 +10,8 @@
 
 ## Context
 
-`dependency audit` is a required check and has been since W14. It runs
+`dependency audit` has been a required check since W00 ([#5](https://github.com/vchatela-org/prisme/pull/5))
+and is W14's to own — its brief covers the CI gates. It runs
 `pnpm audit --audit-level=moderate`, which asks `registry.npmjs.org/-/npm/v1/security/advisories/bulk`
 at check time for the advisories covering this lockfile. [`14-threat-model.md`](../14-threat-model.md)
 §6 lists it as a supply-chain control that gates the build, at `moderate` rather than `high` because
@@ -129,9 +130,11 @@ adds: a second supply-chain artifact inside the thing that checks supply chains.
 itself network-dependent, so *unreachable* reappears one level down with an extra step; the matcher
 from lockfile to OSV records has to be correct, and a matcher that is subtly wrong — a version range
 compared lexically, a transitive dependency not walked — passes when it has not checked, which is the
-forbidden gate wearing a different hat; and its refresh becomes a workflow that fails quietly, a shape
-this repository has already been bitten by twice (a `paths:` filter that turned a gate into
-decoration, a deny-list weakened by a data migration). Rejected **now, not for ever**: it becomes the
+forbidden gate wearing a different hat; and its refresh becomes a workflow that fails quietly, which
+is the shape this repository has already met twice — a required-check list that claimed a check it did
+not have ([W14](../50-journal/W14-2026-09-18-settings-followup.md)), and a deny-list that stopped
+covering the identifiers it exists for once the task tool changed its id format
+([FUP-2026-09-22](../50-journal/FUP-2026-09-22-todoist-api-v1.md)). Rejected **now, not for ever**: it becomes the
 right answer if audits must run air-gapped, or if this endpoint's unavailability stops being rare
 enough to call rare. That is a supersession, not a patch.
 

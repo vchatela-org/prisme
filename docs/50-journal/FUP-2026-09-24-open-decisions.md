@@ -72,10 +72,11 @@ covered and would have hidden the regression.
 subcommand cannot be told to revalidate; there is no way to ask it for a fresher reading than it gives.
 Recorded as a limit of the gate in the ADR rather than papered over.
 
-**The count had been wrong since 2026-09-20, not since the file was written.** OQ-10's addition and
-W15's ADR-0025 work landed around then; the line was not updated with either. The failure mode is
-worth the sentence: nothing reads a count, and the only reason it surfaced is that this task had to
-establish it.
+**The count had been wrong since 2026-09-19 — and the commit that broke it is the one that recorded
+OQ-10 in `OPEN.md`.** It said *22 accepted · 7 open*, having just made the eighth question exist; the
+2026-09-22 rewrite corrected the records and carried the stale figure forward unchanged. Five days,
+two files, and no check between them: the failure mode is worth the sentence, because nothing reads a
+count and the only reason this surfaced is that the task had to establish it rather than copy it.
 
 ## Follow-ups
 
@@ -94,7 +95,7 @@ establish it.
 | the same selftest, **watched fail** | local | with the stderr-first check removed: **1** control red (the `--ignore-registry-errors` one). With `--ignore-registry-errors` added to the command: the command control red |
 | the real audit | local | `checked-clean`, exit 0, attempt 1/3 |
 | the unreachable path, end to end | local | `unchecked` on all three attempts, exit 2, the summary saying *not a vulnerability report* |
-| `privacy deny-list` | local | clean, 44 patterns |
+| `privacy deny-list` | local | clean, 23 patterns (no local supplement in this worktree) |
 | `internal links` | local | see the pull request; every new link resolves to a file that exists |
 | the rest | CI | see the rollup on the pull request |
 

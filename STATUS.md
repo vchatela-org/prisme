@@ -371,7 +371,9 @@ None blocks P0.
 
 **The open count was wrong, and nothing reads either file to notice.** Until 2026-09-24 this line
 said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in the
-second — and it had been wrong since the 2026-09-20 additions, not since the file was written. It now
+second — and it had been wrong since **2026-09-19**, the commit that recorded OQ-10 in `OPEN.md`
+without moving the number (it said *22 accepted · 7 open*; the 2026-09-22 rewrite corrected the
+records and carried the stale figure forward). It now
 says eight, `OPEN.md` says eight in its own header, and `README.md` says 25 accepted · 1 superseded ·
 1 proposed beside the index. **No question was actually closed**, so none moved to *Recently closed*;
 OQ-3 moved *within* `OPEN.md` from *Blocking future phases* to *Deferred by choice*, which is what its
