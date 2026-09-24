@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · Every minutes chart names the record it reads
 
-**Agent:** Claude · **Duration:** one session · **PR** this branch · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#78](https://github.com/vchatela-org/prisme/pull/78) · **Outcome:** complete
 
 The register's row: *"`review/year` and the area detail call `minutesCaveat` without its source, so
 two of the three minutes charts do not say which record they are reading"*. The row was right about
