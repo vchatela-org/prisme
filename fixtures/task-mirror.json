@@ -3,6 +3,7 @@
   "_what_this_is": "The task tool's anchor subtrees, mirrored \u2014 the prisme rows a sync would write. `fixtures/connectors/` records the task tool's *responses*; this is what those responses become once they are stored, and it is here because `progressComputed` (ADR-0013) is computed from these rows: without a mirror every key result reports a computed progress of null and the self-versus-computed divergence cannot be exercised from a plain seed.",
   "_counting_rule": "`task_total` and `task_done` count rows where `is_anchor` is false, under an initiative that serves the key result. The anchor row is the initiative's own task in the task tool and is never counted, which is why every covered initiative carries one here.",
   "_shape_rule": "One entry per key result, deliberately: a complete key result (3 of 3), one that is doing better than it is assessed (3 of 4 against a self-assessment of 60), one behind (1 of 5 against 40), the large divergence (7 of 10 against 15), and one served key result with an anchor and nothing under it, which stays null. `init-004` is that last case; a key result with no serving initiative at all is `kr-002` in objectives.json and is null for a different reason.",
+  "_coverage_rule": "Not every subtree belongs to a key result. `init-005`, `init-009` and `init-013` serve no key result at all, and each carries a subtree anyway: without one, the initiative detail shows an empty task list from a plain seed, which reads as a broken screen rather than as a fixture that stopped short. Their completed work is dated **outside** the rolling four-week window on purpose — the mirror is what `progressComputed` is counted from *and* what the capacity window is measured over, and a completion inside the window would move every suite's balance numbers to serve the detail screen. A suite that wants a completion in the window seeds one; `seedCompletions` is for that.",
   "tasks": [
     {
       "externalId": "t-i001-anchor",
@@ -220,6 +221,57 @@
       "completed": true,
       "completedAt": "2026-07-13T14:00:00.000Z",
       "recordedMinutes": 60
+    },
+    {
+      "externalId": "t-i005-anchor",
+      "initiativeId": "init-005",
+      "areaKey": "home",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i005-1",
+      "initiativeId": "init-005",
+      "areaKey": "home",
+      "isAnchor": false,
+      "completed": true,
+      "completedAt": "2026-05-12T10:00:00.000Z",
+      "recordedMinutes": 30
+    },
+    {
+      "externalId": "t-i005-2",
+      "initiativeId": "init-005",
+      "areaKey": "home",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i009-anchor",
+      "initiativeId": "init-009",
+      "areaKey": "home",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i009-1",
+      "initiativeId": "init-009",
+      "areaKey": "home",
+      "isAnchor": false,
+      "completed": false
+    },
+    {
+      "externalId": "t-i013-anchor",
+      "initiativeId": "init-013",
+      "areaKey": "community",
+      "isAnchor": true,
+      "completed": false
+    },
+    {
+      "externalId": "t-i013-1",
+      "initiativeId": "init-013",
+      "areaKey": "community",
+      "isAnchor": false,
+      "completed": false
     }
   ]
 }

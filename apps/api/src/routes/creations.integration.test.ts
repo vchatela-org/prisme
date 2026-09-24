@@ -37,11 +37,21 @@ import { API_BASE_PATH } from './index.js';
 const describeOrSkip = describeWithDatabase === 'run' ? describe : describe.skip;
 
 /**
- * `fixtures/` carries no `area_mapping` rows and `seedFixtures` loads none, so
- * the location a capture goes to has to be seeded here. Recorded as a
- * follow-up rather than added to the shared fixture: mappings feed the
- * backfill's attribution too, and quietly changing what every suite sees is
- * how one workstream breaks another's numbers.
+ * The location a capture goes to, seeded here rather than taken from the shared
+ * fixture.
+ *
+ * `fixtures/area-mappings.json` exists now and covers the locations the
+ * connector fixtures report, so this suite could read one of those. It does not:
+ * it needs a location of its own, named by this file, so that what it asserts
+ * about capture placement cannot change because somebody widened the fixture.
+ *
+ * That was W15's reason for declining to add mappings to the shared fixture —
+ * *"quietly changing what every suite sees is how one workstream breaks
+ * another's numbers"* — and the fixture arrived anyway. The prediction was
+ * right and cost one assertion: a capture test that had used `craft` as an area
+ * mapped nowhere started creating its task instead of refusing it, because the
+ * fixture now maps that area. That is recorded in
+ * `docs/50-journal/FUP-2026-09-24-fixture-mappings.md` rather than hidden.
  */
 const MAPPED_AREA = 'home';
 const MAPPED_PROJECT = 'ext-project-home';

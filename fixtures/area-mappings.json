@@ -1,0 +1,14 @@
+{
+  "_comment": "Synthetic. Invented external identifiers, matched to the ones `fixtures/connectors/task-tool.completions.json` already carries so that attribution is reachable from a plain seed. See README.md.",
+  "_what_this_is": "`area_mapping` — external location (a task-tool project, optionally a section) to a prisme area. This is what turns a completion into an attributed minute: `attribute.ts` resolves a section's location first and falls back to its project, so a section may belong to a different area than the project that contains it. Without rows here, every completion a seed can produce is unattributable and both the balance chart and the KPI series read as empty for reasons that look like a bug in prisme.",
+  "_why_the_projects_are_the_ones_the_connector_fixtures_use": "The mapping is only exercised if it covers somewhere a completion actually came from. `fixtures/connectors/task-tool.completions.json` reports three completions under two projects; these mappings cover both, and one of them refines a single section, which is the precedence `locationKey` exists for.",
+  "_not_a_seed_file": "This is the fixture set's own shape. In a real instance a person's mappings live in `seed/`, are loaded by `prisme-sync bindings --from`, and never enter this repository (docs/17-privacy.md).",
+
+  "areaMappings": [
+    { "areaKey": "health", "externalProjectId": "project-0001" },
+
+    { "areaKey": "money", "externalProjectId": "project-0001", "externalSectionId": "section-0001" },
+
+    { "areaKey": "relationships", "externalProjectId": "project-0002" }
+  ]
+}
