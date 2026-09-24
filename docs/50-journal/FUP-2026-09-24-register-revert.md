@@ -19,9 +19,18 @@ held the old row, so the resolution that made the conflict markers disappear als
 `#76` merged green.
 
 Measured, rather than inferred: `git diff 19aaf42 14b1c14 -- STATUS.md` — the state of `main` just
-before the merge against the merge itself — shows exactly one line changing, and it is this one,
-from `🟢 … | [#75](…)` back to `🟡 | —`. Nothing else in `STATUS.md` moved, and the only other
-casualty was a blank line in [`INDEX.md`](INDEX.md), which is cosmetic.
+before the merge against the merge itself — shows exactly one line changing, and it is this one:
+the row goes from 🟢 with `#75` in its PR column back to 🟡 with `—`. Nothing else in `STATUS.md`
+moved, and the only other casualty was a blank line in [`INDEX.md`](INDEX.md), which is cosmetic.
+
+**The link check caught that sentence, and it was right to.** The first version wrote the diff out
+as a markdown link with an ellipsis standing in for the URL, and `check-doc-links.py` read the
+ellipsis as a target and refused it — twice, because this paragraph then carried the same construct
+inside backticks, which does not protect it: the scan is over the raw text, not over rendered
+markdown. Worth recording because the *second* failure was the interesting one: the same script ran
+clean locally on the very file CI refused, because it enumerates **tracked** files and the entry was
+still untracked when it ran — 700 links across 152 files locally, 703 across 153 in CI. A new file
+must be staged before the local check means anything.
 
 ## Why nothing saw it
 
