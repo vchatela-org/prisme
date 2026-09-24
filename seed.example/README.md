@@ -15,8 +15,20 @@ without reverse-engineering the loader. The values here are invented.
 ```bash
 cp -r seed.example seed      # seed/ is gitignored
 $EDITOR seed/*.json          # fill in the real values
-pnpm seed:load               # loads into PostgreSQL
+pnpm seed:load               # loads both files into PostgreSQL, areas first
 ```
+
+`pnpm seed:load` runs `prisme-sync areas --from seed/areas.json` and then
+`prisme-sync bindings --from seed/bindings.json`. The order is not cosmetic: a mapping names an
+area, so the areas have to be there, and the loader refuses a mapping to an area it cannot find
+rather than letting a foreign key say so.
+
+Each command can also be run on its own, and both take a path because no default is right — the
+directory is gitignored and its mount point is deployment detail
+([`../docs/15-runtime.md`](../docs/15-runtime.md) §2). Re-running the loader is safe: areas are
+upserted and never deleted, and a year the file already agrees with is left alone. A year whose
+stored weights *differ* from the file's is refused, because a weight is fixed for a whole calendar
+year (ADR-0007) — pass `--force` when replacing one is what you mean.
 
 Confirm it never becomes tracked:
 
@@ -27,10 +39,15 @@ git ls-files seed/                      # must print nothing
 
 ## Files
 
-| File | Contents |
-|---|---|
-| `areas.json` | The real area list, and weights per year |
-| `bindings.json` | Role key → external database ID, and area → project/section mapping |
+| File | Contents | Loaded by |
+|---|---|---|
+| `areas.json` | The real area list, and weights per year | `prisme-sync areas --from …` |
+| `bindings.json` | Role key → external database ID, and area → project/section mapping | `prisme-sync bindings --from …` |
+
+A field an entry does not carry is left **as it is** on an area that already exists — `"active"`
+absent is not `"active": true` — so the file states what it means and nothing more. Both loaders are
+strict about the keys they do not recognise: a typo like `areaWeight` for `areaWeights` is refused
+by name, because the alternative is a successful run that loaded nothing.
 
 ## Why bindings are data, not configuration in git
 
