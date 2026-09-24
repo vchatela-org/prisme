@@ -13,7 +13,7 @@ import { SESSION_COOKIE, withoutCookie } from './lib/oidc';
  * on the way in. ADR-0026 kept every part of that and moved one thing: the
  * token is now obtained here, by an authorization-code flow the browser drives
  * against the provider (`/auth/login` → provider → `/auth/callback`), and the
- * **session cookie** holds it. So the middleware reads the ID token out of the
+ * **session cookie** holds it. So the proxy reads the ID token out of the
  * cookie instead of out of a header, and everything after that is the same code
  * it always was: `verifyAssertion` from `@prisme/auth`, over a key set resolved
  * from configuration, against a fixed asymmetric algorithm allow-list.
@@ -43,14 +43,29 @@ import { SESSION_COOKIE, withoutCookie } from './lib/oidc';
  * the web tier forwards what it verified, and the API **verifies it again**.
  * This tier holds no ambient authority over that one.
  *
- * ### Where the file lives
+ * ### Where the file lives, and what it is called
  *
- * W14's brief names it `apps/web/middleware.ts`. Next.js looks for middleware
+ * W14's brief names it `apps/web/middleware.ts`. Next.js looks for the file
  * beside the application root, and this application uses a `src/` layout — so
  * with the file one level up, `next build` produced an empty middleware
  * manifest and every header below was silently absent. A CSP that is not sent
  * is worse than no CSP, because the build is green either way. Same tree, same
  * file, the one path the framework loads.
+ *
+ * **Next 16 renamed the convention to `proxy`** — this file is
+ * `apps/web/src/proxy.ts` and exports `proxy` — and the rename was done the
+ * only acceptable way round: `scripts/check-web-security-headers.sh` asserts
+ * that a real response still carries every header below, it was **watched
+ * failing** against a copy of this file at a path the framework ignores (green
+ * build, no headers at all), and the rename landed only then. The two names are
+ * not interchangeable to the framework: a `proxy.ts` exporting `middleware`
+ * fails the build naming the file, and a file named anything else is simply not
+ * loaded. Neither is a header anyone would notice missing.
+ *
+ * It is folded into the `images` check rather than added as a new one, because
+ * a new status-check name is a human's branch-protection change and this is the
+ * same claim the workflow already makes about the image: that the thing which
+ * boots is the thing that was tested.
  *
  * ### The nonce, and why `unsafe-inline` is not here
  *
@@ -78,9 +93,19 @@ import { SESSION_COOKIE, withoutCookie } from './lib/oidc';
  * state-changing method, including on the `/auth/*` routes below the gate.
  */
 
-/** Node, not Edge: the configuration loader reads a rendered env file at boot. */
+/**
+ * The matcher, and nothing else.
+ *
+ * `runtime: 'nodejs'` was here until the file was renamed: the configuration
+ * loader reads a rendered env file at boot, which an edge runtime cannot do, so
+ * W14 pinned the runtime explicitly. Next 16 made it the *only* runtime for
+ * this file — `proxy` always runs on Node — and refused the key outright with
+ * *"Route segment config is not allowed in Proxy file"*. The build caught it,
+ * which is the good direction: the constraint did not become a silently
+ * ignored option, which is the failure mode `apps/web/next.config.mjs` spends a
+ * paragraph on.
+ */
 export const config = {
-  runtime: 'nodejs',
   /*
    * Everything except the probes and the immutable build output.
    *
@@ -184,7 +209,7 @@ function redirectTo(location: string, nonce: string): NextResponse {
   return response;
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
   if (STATE_CHANGING.has(request.method)) {

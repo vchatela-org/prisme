@@ -117,7 +117,15 @@ jobs:
       # OIDC client (ADR-0026). Leaving the four `OIDC_*` values out is not a
       # smaller test — it is a container that exits 78 before it listens, which
       # is exactly what this probe caught when they were added.
-      - name: prisme-web answers /healthz
+      #
+      # **`/healthz` is not where the security headers live.** The matcher
+      # excludes it on purpose, so a probe that only reads it would pass on an
+      # image whose middleware never loaded — which is the failure W14 recorded
+      # and which `next build` reports as green. `scripts/check-web-security-headers.sh`
+      # makes one ordinary navigation instead and asserts every header, on the
+      # real image, in the same step: the container is already up, and the claim
+      # "the policy is sent" belongs beside "the process answers".
+      - name: prisme-web answers /healthz and sends its security headers
         run: |
           docker run -d --name web-probe --read-only --tmpfs /tmp -p 3001:3000 \
             -e PRISME_BASE_URL='https://prisme.example.com' \
@@ -135,6 +143,8 @@ jobs:
           done
           curl -fsS http://127.0.0.1:3001/healthz | tee /tmp/healthz-web
           grep -q '"status":"ok"' /tmp/healthz-web
+          # The policy, on a path the matcher actually covers.
+          ./scripts/check-web-security-headers.sh http://127.0.0.1:3001
           docker rm -f web-probe
 
       # A missing required variable must stop the process with the variable

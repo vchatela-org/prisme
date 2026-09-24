@@ -3,6 +3,11 @@
 **Depends on:** W00 · **Wave:** 2
 **Files you may touch:** `apps/api/auth/**`, `apps/web/middleware.ts`, `.github/workflows/**`, security configuration
 
+> **Corrected 2026-09-24:** the file is `apps/web/src/proxy.ts` now — Next 16 renamed the
+> convention, and the rename was made only after a check that a response still carries the CSP and
+> every other security header ([FUP-2026-09-24](../50-journal/FUP-2026-09-24-open-followups.md)).
+> The rest of this brief is what W14 built, and it is unchanged.
+
 > **Correction (2026-09-22) — the transport below is historical; the workstream's content is not.**
 > [ADR-0026](../20-decisions/0026-human-auth-via-oidc.md) supersedes
 > [ADR-0021](../20-decisions/0021-verified-forward-auth-assertion.md) on one point: the login happens

@@ -393,3 +393,33 @@ export function endSessionUrl(config: OidcConfig): string | undefined {
   url.searchParams.set('client_id', config.clientId);
   return url.toString();
 }
+
+/**
+ * What `POST /auth/logout` answers a caller that asked for JSON.
+ *
+ * One field, and it is the one a script cannot otherwise obtain: where to send
+ * the browser so the *provider's* session ends too. `null` means the deployment
+ * configured no end-session endpoint, which is a supported configuration and
+ * not an error — the route's plain-text answer says so in a sentence.
+ *
+ * Parsed rather than trusted like every other boundary, even though this
+ * response comes from prisme's own route on prisme's own origin: the value is
+ * handed straight to `window.location.assign`, and "a URL that came over the
+ * network" is exactly what `docs/14-threat-model.md` §5 refuses to navigate to
+ * without checking. It is `http(s)` and absolute, or it is not used.
+ */
+export const LogoutResult = z.object({
+  endSessionUrl: z
+    .string()
+    .refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' || url.protocol === 'http:';
+      } catch {
+        return false;
+      }
+    })
+    .nullable(),
+});
+
+export type LogoutResult = z.infer<typeof LogoutResult>;
