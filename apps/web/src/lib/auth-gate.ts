@@ -8,7 +8,8 @@ import {
 /**
  * What the middleware decides, as a value rather than as three early returns.
  *
- * Split out of `middleware.ts` so it can be tested without a request: the
+ * Split out of the proxy (`middleware.ts`, as it was called then) so it can be
+ * tested without a request: the
  * decision is four inputs and four outcomes, and the distinction that matters
  * most is the one an early-return version makes easy to lose —
  *

@@ -51,6 +51,15 @@ Three things follow from the way the package is built, and all three bite if you
   rendering the components and
   [`src/tokens/no-inline-style-source.test.ts`](src/tokens/no-inline-style-source.test.ts) reading
   the source of this package and `apps/web`.
+- **A popup's `<style>` elements carry the page nonce.** Radix appends a stylesheet when a popup
+  opens and the scroll lock appends another; neither is in a server render, so neither is visible to
+  the guard above. [`src/lib/csp-nonce.tsx`](src/lib/csp-nonce.tsx) carries the per-request nonce
+  from the app's layout down to them — Radix's viewport takes it as a prop, `react-style-singleton`
+  reads it from `get-nonce` — and
+  [`src/no-inline-style-dom.test.tsx`](src/no-inline-style-dom.test.tsx) mounts a `Select` and a
+  `Dialog` in a headless DOM and refuses a sheet without it. **Anything here that mounts a popup
+  belongs in that file too**, and a component that does not sit under the provider will log two
+  violations the first time somebody opens it.
 - **Radix is patched, and this package owns the other half.** Radix hides its native controls with
   inline styles, so a strict policy makes them *visible* — the real defect W07 recorded. `patches/`
   at the repository root moves those values onto class names, and

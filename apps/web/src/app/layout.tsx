@@ -1,6 +1,6 @@
-import { AreaColorProvider, ThemeProvider } from '@prisme/ui';
+import { AreaColorProvider, CspNonceProvider, ThemeProvider } from '@prisme/ui';
 import { parseThemePreference, THEME_COOKIE } from '@prisme/ui/server';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { areaColorPins } from '../lib/area-pins';
 import '../styles/globals.css';
@@ -38,9 +38,23 @@ export const metadata = {
  * mounts a provider of its own with the invented fixture keys, and an inner
  * provider wins — which is what keeps the gallery showing its fixture colours
  * while every other screen gets the instance's.
+ *
+ * ## The nonce, and why it is read here
+ *
+ * `CspNonceProvider` carries the **per-request CSP nonce** so that the
+ * `<style>` elements a dependency appends at runtime — Radix's select viewport,
+ * the scroll lock underneath a popup — are authorised instead of refused. The
+ * middleware mints that nonce and puts it on the *forwarded request* as
+ * `x-nonce`, which is the one channel a server component can read it from: the
+ * browser is never told it and a client component cannot see a response header.
+ *
+ * It is mounted here, once, for every route — a screen that forgot it would be
+ * a screen whose popups log violations, which is the failure this exists to
+ * make impossible. See `@prisme/ui`'s `lib/csp-nonce.tsx`.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value);
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html
@@ -49,9 +63,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       suppressHydrationWarning
     >
       <body>
-        <AreaColorProvider overrides={areaColorPins()}>
-          <ThemeProvider initial={preference}>{children}</ThemeProvider>
-        </AreaColorProvider>
+        <CspNonceProvider nonce={nonce}>
+          <AreaColorProvider overrides={areaColorPins()}>
+            <ThemeProvider initial={preference}>{children}</ThemeProvider>
+          </AreaColorProvider>
+        </CspNonceProvider>
       </body>
     </html>
   );
