@@ -349,6 +349,7 @@ deployment side pins that version. Nothing is published from a push to `main`.
 
 | Version | Cut | Contains | State |
 |---|---|---|---|
+| `v0.1.0` | 2026-09-24, on `ddbf481` | two Accepted ADRs — the audit gate fails closed (0027) and a capture's page gets its own role pair (0028) — and the *Open page* work, over [#65](https://github.com/vchatela-org/prisme/pull/65)–[#70](https://github.com/vchatela-org/prisme/pull/70) | 🟢 both images published (the API image on a re-run — the first attempt failed on the cluster, [the entry](docs/50-journal/FUP-2026-09-24-release-v0.1.0.md)) |
 | `v0.0.6` | 2026-09-23, on `52db733` | the eight-pull-request Dependabot wave (#50–#53, #46–#49) | 🟢 both images published |
 | `v0.0.5` | 2026-09-22 | human login in-app over OIDC (ADR-0026) | 🟢 |
 | `v0.0.1` | 2026-09-15 | the skeleton — **its images were never built**, see the W00 close-out | ⚠ names nothing |
