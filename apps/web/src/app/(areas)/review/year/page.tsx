@@ -18,11 +18,10 @@ import {
   estimatedMinutesPct,
   labelsOf,
   measuredBuckets,
-  minutesCaveat,
+  minutesChartCaveat,
   monthsBefore,
   observedShareSeries,
   orderAreas,
-  WINDOW_CAVEAT,
 } from '@/lib/kpi-view';
 import { declaredSeries, yearsSpanned, type WeightsByYear } from '@/lib/weight-year';
 import { reviewTarget, type WeightEntry } from '@/lib/year-review';
@@ -224,7 +223,9 @@ export default async function YearReviewPage() {
             ))}
           </Card>
         )}
-        <p className="text-xs text-ink-muted">{minutesCaveat(estimated)}</p>
+        <p className="text-xs text-ink-muted">
+          {minutesChartCaveat({ estimatedPct: estimated, coverage: closing.data })}
+        </p>
       </Section>
 
       <StatRow>
@@ -249,36 +250,47 @@ export default async function YearReviewPage() {
       >
         {!kpi.ok ? (
           <ApiFailureState failure={kpi} surface="the history" />
-        ) : ranked.length === 0 ? null : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {ranked.map((row) => (
-              <LineChart
-                key={row.areaKey}
-                title={row.name}
-                subtitle="Observed against declared, monthly"
-                labels={monthLabels}
-                series={[
-                  {
-                    label: 'Observed',
-                    values: [...observedShareSeries(row.areaKey, kpi.data.minutes)],
-                  },
-                  {
-                    label: 'Declared',
-                    values: [...declaredSeries(labels, row.areaKey, byYear)],
-                    slot: 'lane',
-                  },
-                ]}
-                formatAs={{ kind: 'percent' }}
-              />
-            ))}
-          </div>
-        )}
+        ) : (
+          <>
+            {ranked.length === 0 ? null : (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {ranked.map((row) => (
+                  <LineChart
+                    key={row.areaKey}
+                    title={row.name}
+                    subtitle="Observed against declared, monthly"
+                    labels={monthLabels}
+                    series={[
+                      {
+                        label: 'Observed',
+                        values: [...observedShareSeries(row.areaKey, kpi.data.minutes)],
+                      },
+                      {
+                        label: 'Declared',
+                        values: [...declaredSeries(labels, row.areaKey, byYear)],
+                        slot: 'lane',
+                      },
+                    ]}
+                    formatAs={{ kind: 'percent' }}
+                  />
+                ))}
+              </div>
+            )}
 
-        {/* One copy under the grid, not one under each panel — see the same
-            note on the KPI dashboard. */}
-        <p className="max-w-prose text-xs text-ink-muted">
-          {WINDOW_CAVEAT} {minutesCaveat(estimated)}
-        </p>
+            {/* One copy under the grid, not one under each panel — see the same
+                note on the KPI dashboard. Inside the success branch, because a
+                caveat under a chart that failed to load describes nothing —
+                and because it is what tells the type system `kpi.data` is
+                there, which is the smaller of the two reasons. */}
+            <p className="max-w-prose text-xs text-ink-muted">
+              {minutesChartCaveat({
+                estimatedPct: estimated,
+                coverage: kpi.data,
+                windowed: true,
+              })}
+            </p>
+          </>
+        )}
       </Section>
 
       <Section
