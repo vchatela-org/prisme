@@ -1,6 +1,6 @@
 # FUP · 2026-09-24 · Nine obligations the register did not hold
 
-**Agent:** Claude · **Duration:** one session · **PR** (this branch) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#73](https://github.com/vchatela-org/prisme/pull/73) · **Outcome:** complete
 
 A review before starting the functional phase found that the follow-up wave's own table was
 incomplete: **nine obligations existed, and this file held none of them**. Eight lived inside a
