@@ -42,7 +42,17 @@ sync/
   run.ts       one pass: read, plan, optionally apply, report
   main.ts      the CLI: `prisme-sync plan` · `prisme-sync apply`
   index.ts     `@prisme/sync` — what the API's POST /sync imports
+  bindings.ts  the seed path: role bindings, from `seed/bindings.json`
+  areas.ts     the seed path: areas, year weights, area mappings (`seed/areas.json`)
+  seed-cli.ts  argument parsing for both, kept out of `main.ts` so it is testable
 ```
+
+The seed path is a **migration step, not a pass**: it writes prisme's own tables, reaches no API and
+takes no advisory lock. `pnpm seed:load` runs `areas` then `bindings` — a mapping names an area.
+Both are idempotent by design: areas are upserted and never deleted, a field the file does not carry
+is left alone, and a weight year the file already agrees with is not rewritten. One rule from
+`areas.ts` is worth knowing before adding to it: the loaders are **strict about data keys and silent
+about prose ones** (a `_` prefix), so a typo is refused by name rather than loading nothing.
 
 The split is enforced rather than described: `reconcile/` may not import
 `@prisme/db`, `@prisme/connectors`, `@prisme/config` or a Node builtin at all — only their *types* —
