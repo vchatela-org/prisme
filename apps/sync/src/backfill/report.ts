@@ -1,6 +1,7 @@
 import type { AttributionResult } from './attribute.js';
 import type { ResumePlan } from './slices.js';
 import type { AdherencePeriod, CapacityWeek, RitualRecord } from './types.js';
+import type { UnreadReason } from '../unread.js';
 
 /**
  * The backfill's output, rendered for a human.
@@ -42,6 +43,8 @@ export interface BackfillReportInput {
   readonly unmeasurableRituals: readonly RitualRecord[];
   readonly declaredDurationsKnown: number;
   readonly documentToolRead: boolean;
+  /** The failure kind, when a read was attempted and did not happen. See `unread.ts`. */
+  readonly documentToolUnread?: UnreadReason | undefined;
 }
 
 export function formatBackfillReport(
@@ -79,7 +82,13 @@ export function formatBackfillReport(
     `document tool   ${
       input.documentToolRead
         ? `processes read   ${plural(input.declaredDurationsKnown, 'declared duration', 'declared durations')}`
-        : 'not read — the declared-duration tier is unavailable'
+        : // The reason, when there is one: a store nobody bound and a read that
+          // was refused are the same sentence here without it, and they call
+          // for opposite responses (`unread.ts`). A tier that is off by
+          // configuration reports no reason, because the caller already knows.
+          `not read — the declared-duration tier is unavailable${
+            input.documentToolUnread === undefined ? '' : ` (${input.documentToolUnread})`
+          }`
     }`,
   );
   lines.push('');

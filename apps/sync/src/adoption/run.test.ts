@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DocToolClient, TaskSnapshot, TaskToolClient } from '@prisme/connectors';
+import { ConnectorError } from '@prisme/connectors';
+import type { DocToolClient, RoleKey, TaskSnapshot, TaskToolClient } from '@prisme/connectors';
 import { locationKey } from '../reconcile/types.js';
 import type { AuditableEntity } from './coverage.js';
 import type { AdoptionStore } from './ports.js';
@@ -156,11 +157,23 @@ describe('the adoption pass', () => {
     expect(result.report).toContain('document tool   not read');
   });
 
-  it('carries on when a document store is not bound', async () => {
+  it('carries on when a document store is not bound, and names a store that is not bound', async () => {
     // A workspace with no processes store is a workspace with no rituals, not a
     // broken configuration — and it must not take the task-tool scan down.
     const docClient: DocToolClient = {
-      queryByRole: vi.fn(() => Promise.reject(new Error('role is not bound'))),
+      queryByRole: vi.fn((role: RoleKey) =>
+        Promise.reject(
+          role === 'processes_db'
+            ? new ConnectorError('unbound_role', 'no binding for role processes_db', {
+                tool: 'doc',
+                operation: 'resolve role key',
+              })
+            : new ConnectorError('refused', 'the store refused the query', {
+                tool: 'doc',
+                operation: 'query store',
+              }),
+        ),
+      ),
       fetchPage: () => Promise.reject(new Error('not used')),
       // Required by the interface since ADR-0025 made pages creatable; these
       // fakes are readers, so reaching it is a test error rather than a no-op.
@@ -175,6 +188,49 @@ describe('the adoption pass', () => {
     });
     expect(result.scan.queue).toHaveLength(1);
     expect(result.report).toContain('document tool   not read');
+    // The reason, not just the fact: before this, "a store nobody bound" and
+    // "a read that was refused" printed the same six characters. One unbound of
+    // four is a seed file missing a role; four would be a file never loaded.
+    expect(result.report).toContain('not read — 3 refused, 1 unbound_role');
+  });
+
+  it('tells a refused read apart from an unbound store in the plan', async () => {
+    // The two call for opposite responses — a seed file to fix, or a credential
+    // to go and look at — and the message that would say which names the role
+    // binding, so it is the failure kind that reaches the plan.
+    const refuses = (failure: 'unbound_role' | 'invalid_token'): DocToolClient => ({
+      queryByRole: vi.fn(() =>
+        Promise.reject(
+          new ConnectorError(failure, 'the message names the role binding', {
+            tool: 'doc',
+            operation: 'query store',
+            ...(failure === 'invalid_token' ? { status: 401 } : {}),
+          }),
+        ),
+      ),
+      fetchPage: () => Promise.reject(new Error('not used')),
+      createPage: () => Promise.reject(new Error('not used')),
+    });
+
+    const { store } = storeOf();
+    const unbound = await adopt({
+      store,
+      taskClient: taskClientOf(),
+      docClient: refuses('unbound_role'),
+      now: () => NOW,
+    });
+    const denied = await adopt({
+      store,
+      taskClient: taskClientOf(),
+      docClient: refuses('invalid_token'),
+      now: () => NOW,
+    });
+
+    expect(unbound.report).toContain('not read — 4 unbound_role');
+    expect(denied.report).toContain('not read — 4 invalid_token');
+    // And the message never reaches the plan, whichever failure it was.
+    expect(unbound.report).not.toContain('the message names the role binding');
+    expect(denied.report).not.toContain('the message names the role binding');
   });
 
   it('reads the document stores that are bound, and never the write-only one', async () => {

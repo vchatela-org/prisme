@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ConnectorError } from '@prisme/connectors';
 import type { Completion } from '@prisme/connectors';
 
 import { backfill } from './run.js';
@@ -345,6 +346,40 @@ describe('the report', () => {
     expect(result.documentToolRead).toBe(false);
     expect(result.report).toContain('not read');
     expect(result.report).toContain('declared-duration tier is unavailable');
+    // And no reason, because none was earned: the caller simply did not supply
+    // a client, and a failure kind here would send the reader looking for a
+    // permission problem that does not exist.
+    expect(result.documentToolUnread).toBeUndefined();
+    expect(result.report).not.toMatch(/unavailable \(/);
+  });
+
+  it('names the failure kind in the report when a bound store refuses the read', async () => {
+    // The register's row: "not read" could not distinguish an unbound role from
+    // a refused read, and the difference is the whole diagnostic.
+    const { store } = createFakeStore();
+    const docClient = {
+      queryByRole: () =>
+        Promise.reject(
+          new ConnectorError('unbound_role', 'the message names the role binding', {
+            tool: 'doc',
+            operation: 'resolve role key',
+          }),
+        ),
+      fetchPage: () => Promise.reject(new Error('not used')),
+      createPage: () => Promise.reject(new Error('not used')),
+    };
+
+    const result = await backfill({
+      ...options(),
+      store,
+      taskClient: createFakeTaskClient(HISTORY).client,
+      docClient,
+      durationProperty: 'Invented duration property',
+    });
+
+    expect(result.documentToolUnread).toBe('unbound_role');
+    expect(result.report).toContain('declared-duration tier is unavailable (unbound_role)');
+    expect(result.report).not.toContain('the message names the role binding');
   });
 
   it('states what share of the minutes is the configured default rather than observed', async () => {
