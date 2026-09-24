@@ -211,15 +211,41 @@ comment, a marker a later run reads, and a line in the report.
 
 ## Scheduling
 
-Dependabot runs weekly, so a weekly run is enough. Schedule it off the hour — at `:00` the whole
-world's cron fires. A session job is `CronCreate` with `recurring: true` and a cron such as
-`17 6 * * 2`; an idle-time loop is `/loop`. The skill is idempotent: a pull request already green
-against a current `main` is skipped, so a missed or repeated firing costs nothing but a listing.
+Dependabot opens its pull requests weekly, so a weekly run is enough to keep the wave integrated.
+Whatever the cadence, a schedule has to get four things right.
+
+**Off the hour.** At `:00` the whole world's cron fires, and this run wants a quiet machine: it is
+serial by design (see *One at a time, never in parallel*), and a full test run concurrent with lint
+has produced convincing false failures before.
+
+**Off-peak.** The session pays per token, and time-of-day pricing makes the hour a cost decision. The
+window to stay out of is **12:00–18:00 UTC on weekdays**; weekends are off-peak all day. Convert the
+intended wall-clock hour to UTC **for both daylight-saving states** before fixing it — the same local
+time can be peak in summer and off-peak in winter — and stay clear of the boundary rather than landing
+on it.
+
+**On a durable scheduler, not a session-scoped one.** `CronCreate` with `recurring: true` is deleted
+after seven days, so it is a reasonable way to try a cadence and a bad way to keep one: the schedule
+stops silently and nothing reports that it did. A user crontab, a systemd timer or an equivalent runs
+whether or not a session is open, and can log what it did — and a scheduled run nobody watches must
+log somewhere a person will look. `/loop` is the session-scoped equivalent and inherits the same short
+life.
+
+**Not in a human's working checkout.** Run it from its own worktree pinned to the default branch: a
+person's checkout is usually mid-branch, and a scheduled run must not switch branches under them. Two
+runs must also never overlap — every npm branch shares one `pnpm-lock.yaml` and the per-pull-request
+worktrees are named by number, so concurrent runs collide rather than interleave; a lock file the
+wrapper holds is enough.
+
+The skill is idempotent: a pull request already green against a current `main` is skipped, so a missed
+or repeated firing costs nothing but a listing.
 
 A scheduled run that finds the wave merged cuts the release itself, so what a human still owns is the
 merge and the parks: review the green pull requests, merge them, and the next firing publishes. Two
 things a schedule cannot do — resolve a park, and vouch for a version — and both are reported until a
-human acts on them.
+human acts on them. Frequency is the operator's call: weekly keeps the wave integrated, and a cadence
+more frequent than that earns its keep mainly by noticing that a **pending** version's merge has
+landed (see *Decide the release*).
 
 ## Read next
 
