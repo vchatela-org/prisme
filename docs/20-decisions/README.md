@@ -39,6 +39,12 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0024](0024-mcp-without-the-sdk.md) | The MCP surface is written against the specification, not the SDK | Accepted |
 | [0025](0025-page-creation-needs-a-role-vocabulary.md) | Creating a page needs role keys that do not exist yet | **Accepted** 2026-09-21 |
 | [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Accepted** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
+| [0027](0027-audit-gate-fails-closed.md) | The audit gate fails closed, and names the failure it is | **Proposed** 2026-09-24 — answers [OQ-10](OPEN.md), awaiting the owner's acceptance |
+
+**26 records: 25 Accepted · 1 Superseded · 1 Proposed** — and **8 open questions** in [`OPEN.md`](OPEN.md).
+The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
+because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
+count nobody reads does not correct itself.
 
 ## Format
 

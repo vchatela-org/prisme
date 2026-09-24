@@ -201,6 +201,16 @@ while leaving reads working.
 | Pinned lockfile, pinned base image digests | Reproducible builds |
 | SBOM + provenance attestation | Emitted at build |
 
+**`npm audit` asks a remote endpoint, so it fails closed and says which failure it is.** It queries
+`registry.npmjs.org` at check time, which gives it three outcomes where a required status check has
+room for two: *checked, nothing found*; *checked, advisories to read*; and *the database did not
+answer*. The third is not a finding and is not a pass — an unreachable advisory database is not
+evidence of safety, and treating it as one is the difference between a gate and decoration. So the
+check goes red and **names which of the three it saw**, because *could not check* and *vulnerable*
+are otherwise the same red in a pull request's status list. `pnpm audit`'s `--ignore-registry-errors`,
+which reports an unanswered registry as a clean audit and exits 0, is deliberately not used, and a
+control refuses its return ([ADR-0027](20-decisions/0027-audit-gate-fails-closed.md)).
+
 ## 7. Privacy as a security property
 
 The repository is public. Credential leakage is covered above; **personal-content leakage has no
