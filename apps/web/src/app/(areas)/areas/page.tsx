@@ -10,8 +10,12 @@ import {
   StatTile,
 } from '@prisme/ui';
 import Link from 'next/link';
+import { areaColorCollisions } from '@prisme/ui/server';
+import { AreaColourNotice } from '@/components/area-colour-notice';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
+import { proposePins } from '@/lib/area-pin-proposal';
+import { areaColorPins } from '@/lib/area-pins';
 import { areaWeightsSchema, balanceSchema, focusSchema, type AreaBalance } from '@/lib/contracts';
 import {
   estimatedMinutesPct,
@@ -87,6 +91,10 @@ export default async function AreasPage({
   const targetOf = (key: string): number | null =>
     data.areas.find((row) => row.areaKey === key)?.targetSharePct ?? null;
 
+  // A colour clash is reported with names, not keys: the key is what goes in the
+  // environment, and the name is what the reader is looking at on the chart.
+  const nameOf = new Map(data.areas.map((row) => [row.areaKey, row.name]));
+
   const rows = orderAreas(data.areas, targetOf);
   const ranked = rows.filter((row) => row.kind === 'area');
   const lanes = rows.filter((row) => row.kind !== 'area');
@@ -101,6 +109,21 @@ export default async function AreasPage({
   // out here — and reported as a count when the clamp has flattened several
   // areas onto the same number, which on a real window it usually has.
   const worst = mostStarved(ranked);
+
+  /*
+   * The colours, and whether two areas are wearing the same one.
+   *
+   * This screen is the only place it can be both detected and fixed: the
+   * pinning is `AREA_COLOR_PINS`, which is web-tier configuration, so nothing
+   * outside this tier can tell whether the colours in force still collide.
+   * Reported here rather than on every screen that paints an area — one
+   * explanation of a global setting, where the areas themselves are listed.
+   */
+  const areas = data.areas.map((row) => ({ key: row.areaKey, kind: row.kind }));
+  const pins = areaColorPins();
+  const collisions = areaColorCollisions(areas, pins).map((group) =>
+    group.map((key) => ({ key, name: nameOf.get(key) ?? key })),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -119,6 +142,10 @@ export default async function AreasPage({
             </Button>
           }
         />
+      ) : null}
+
+      {collisions.length > 0 ? (
+        <AreaColourNotice collisions={collisions} proposal={proposePins(areas, pins)} />
       ) : null}
 
       <StatRow>
