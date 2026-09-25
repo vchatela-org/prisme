@@ -3,7 +3,7 @@ import { readSyncRunState } from '@prisme/sync';
 import type { Logger, Metrics } from '@prisme/observability';
 
 /**
- * The reconciler's two gauges, republished from PostgreSQL on every scrape.
+ * The reconciler's three gauges, republished from PostgreSQL on every scrape.
  *
  * ### Why this exists
  *
@@ -26,7 +26,7 @@ import type { Logger, Metrics } from '@prisme/observability';
  * 1. **It degrades, it never fails.** A metrics endpoint that goes down with
  *    the database blinds you at exactly the moment you are looking. If the
  *    query fails or is slow, the process and registry metrics are still served
- *    and the two republished gauges simply carry no sample.
+ *    and the three republished gauges simply carry no sample.
  * 2. **Absent is not zero.** With nothing recorded, the gauges are *removed*
  *    rather than set to zero, because a zero here is the defect: it made the
  *    staleness alert fire permanently and the drift alert unable to fire at
@@ -82,6 +82,21 @@ export function createSyncMetricsRefresher(options: SyncMetricsOptions): () => P
         options.metrics.syncDriftObjects.remove();
       } else {
         options.metrics.syncDriftObjects.set(state.drift.objects);
+      }
+
+      /*
+       * The third gauge, and the reason it is a separate series: this one is
+       * written only by a full pass, so it stands still across the fifteen
+       * minutes in between and `min_over_time(...[48h]) > 0` means "every full
+       * pass in the last two days", which is the alert in §5. Republishing it
+       * from the stored row on every scrape is what supplies those samples —
+       * the CronJob pod is never scraped, so without this the series would
+       * exist only in the minutes after a full pass.
+       */
+      if (state.driftFull === undefined) {
+        options.metrics.syncDriftFullObjects.remove();
+      } else {
+        options.metrics.syncDriftFullObjects.set(state.driftFull);
       }
     } catch (error) {
       /*
