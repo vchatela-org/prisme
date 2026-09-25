@@ -29,8 +29,9 @@ list of initiatives loses its structure and its shared context.
 - Large efforts keep their structure in the tool where the work happens.
 - Project creation is a genuine multi-tool operation, and must respect the no-duplicate guards
   (ADR-0010) — adopting an existing project creates nothing.
-- Rollups need a rule for whether a project's capacity counts to one area. Currently one area per
-  project; see OQ-1.
+- Rollups need a rule for whether a project's capacity counts to one area. **One area per project**,
+  settled by [ADR-0029](0029-one-area-per-project.md) — a project counts toward its own `area_key`,
+  and work that belongs elsewhere is mapped at the section.
 - An extra optional level in queries and UI. The cost of representing reality accurately.
 
 ## Alternatives
