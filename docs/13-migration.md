@@ -205,6 +205,14 @@ Then, in order:
    initiatives; `/areas` the area list with its declared-versus-observed chart; `/kpi` the same
    reading. **If a screen shows area *keys* where it means names, the area list did not parse** — a
    real defect once, fixed in W11 — and it is the cheapest tell that the two tiers disagree.
+   **`/areas` is also where the area colours are checked, and it is the only surface that can.** The
+   pinning is `AREA_COLOR_PINS`, web-tier configuration ([`15-runtime.md`](15-runtime.md) §2), so
+   nothing outside that tier can see both the pinning in force and the hues it produces. If the
+   notice appears, two areas are wearing one colour and the screen prints the map that fixes it —
+   and it **keeps what is already pinned**, so a colour a reader has learned does not move. The map is
+   instance data and goes to the web tier's configuration, never into this repository. **Nothing else
+   reports this**: no pass, no job and no gate goes red over it, so an instance configured completely
+   by the three settings above still collides, and it took running this pass on a real instance to see it.
 4. **Work the adoption queue** ([`4. The adoption queue`](#4-the-adoption-queue)) and record the link
    coverage: how many candidates were linkable and how many had diverged. That number is what step 8
    is gated on, and re-deriving it later means re-running the scan.
