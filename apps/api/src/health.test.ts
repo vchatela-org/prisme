@@ -112,6 +112,7 @@ describe('/metrics', () => {
       'prisme_sync_actions_total',
       'prisme_sync_conflicts_total',
       'prisme_sync_drift_objects',
+      'prisme_sync_drift_full_objects',
       'prisme_external_requests_total',
       'prisme_auth_failures_total',
     ]) {
