@@ -123,10 +123,34 @@ export async function gate(input: GateInput, deps: GateDeps): Promise<GateOutcom
     });
   } catch (error) {
     if (error instanceof AssertionRejection) {
-      // Presented, and wrong. No detail, and no echo of anything the request
-      // supplied (docs/14-threat-model.md §5): "wrong audience" and "subject not
-      // allow-listed" are different answers, and a caller who can tell them
-      // apart can map the configuration by probing.
+      /*
+       * An expired assertion is the session ending the way its bounded lifetime
+       * says it must — it is the "*or the session has expired*" half of the
+       * no-credential case in this file's own doc comment — and not a
+       * credential that fails to verify. So a browser gets the login flow,
+       * exactly as a request carrying no cookie at all does. The provider's own
+       * session usually makes that silent; where it does not, the user is asked
+       * to sign in, which is the only useful answer to "your session ended".
+       *
+       * Leaving it a 401 is a dead end, and not a recoverable one: the response
+       * is plain text with no control on it, `/auth/logout` is POST-only by
+       * design, and the origin check refuses the `Origin: null` a form on a
+       * `no-referrer` page sends — so the only way out is clearing cookies by
+       * hand. Measured on the live deployment 2026-09-25: an expired cookie on a
+       * browser navigation was a 401 with no redirect, where the same request
+       * with no cookie was a 303 to the login flow.
+       *
+       * Navigation only. A fetch or a server action presenting an expired token
+       * is still told the truth, because there is no browser to redirect.
+       *
+       * Every other reason stays a refusal, and the reason is never echoed
+       * (docs/14-threat-model.md §5): "wrong audience" and "subject not
+       * allow-listed" are different answers, and a caller who can tell them
+       * apart can map the configuration by probing.
+       */
+      if (error.reason === 'expired' && isNavigation(input)) {
+        return { kind: 'redirect', location: loginLocation(input) };
+      }
       return { kind: 'refused', status: 401, message: 'not authenticated' };
     }
     // The key set could not be fetched. That is an availability problem rather

@@ -11,6 +11,13 @@ import { CALLBACK_PATH, gate, LOGIN_PATH, LOGOUT_PATH, type GateInput } from './
  * **wrong** is refused. Those two are one `if` apart in the implementation and
  * worlds apart in what they mean, so each is checked from both sides.
  *
+ * An **expired** token sits on the login-flow side of that line rather than the
+ * refused side, which is not obvious from the code and has its own block below:
+ * it is the session ending the way its bounded lifetime says it must, and the
+ * doc comment in `auth-gate.ts` files it under *no credential* in as many words.
+ * The same block pins the other half — that "expired" is the **only** reason
+ * that redirects, so the reason itself stays unobservable to a prober.
+ *
  * The tokens here are real — minted and verified by `@prisme/auth`'s own test
  * support, with a real RSA keypair generated at run time. Nothing is stubbed
  * and no key or token is committed (this repository is public, and `gitleaks`
@@ -99,15 +106,6 @@ describe('gate', () => {
       ['signed by the wrong key', async () => keys.signWithWrongKey(goodClaims(NOW))],
       ['not a JWS at all', () => Promise.resolve('not-a-token')],
       [
-        'expired',
-        async () =>
-          keys.sign({
-            ...goodClaims(NOW),
-            iat: Math.floor(NOW.getTime() / 1000) - 7200,
-            exp: Math.floor(NOW.getTime() / 1000) - 3600,
-          }),
-      ],
-      [
         'for a subject that is not allow-listed',
         async () => keys.sign({ ...goodClaims(NOW), sub: 'somebody-else' }),
       ],
@@ -139,6 +137,80 @@ describe('gate', () => {
       // and a caller who can tell them apart can map the configuration by
       // probing (docs/14-threat-model.md §5).
       expect(JSON.stringify(outcome)).not.toMatch(/signature|audience|subject|issuer|expired/i);
+    });
+  });
+
+  describe('a token that is presented and expired', () => {
+    // Not "wrong", and the difference is the whole of this block: expiry is the
+    // session ending the way its bounded lifetime says it must, which the doc
+    // comment in `auth-gate.ts` already files under *no credential* — "nobody
+    // has logged in yet, **or the session has expired**". So a browser gets the
+    // login flow, on the same reasoning as a request carrying no cookie at all.
+    //
+    // Measured on the live deployment 2026-09-25: with no cookie the app was a
+    // 303 into the login flow, and with an expired cookie a 401 with no
+    // redirect at all — a dead end, since the refusal is plain text with no
+    // control on it and `/auth/logout` is POST-only.
+    const expired = async (): Promise<string> =>
+      keys.sign({
+        ...goodClaims(NOW),
+        iat: Math.floor(NOW.getTime() / 1000) - 7200,
+        exp: Math.floor(NOW.getTime() / 1000) - 3600,
+      });
+
+    it('sends a browser to the login flow, carrying return_to', async () => {
+      await expect(
+        gate(input({ sessionToken: await expired() }), {
+          policy: TEST_POLICY,
+          keySource,
+          now: NOW,
+        }),
+      ).resolves.toEqual({
+        kind: 'redirect',
+        location: `${LOGIN_PATH}?return_to=%2Ftimeline`,
+      });
+    });
+
+    it('sends a client-side navigation the same way', async () => {
+      await expect(
+        gate(input({ sessionToken: await expired(), accept: 'text/x-component' }), {
+          policy: TEST_POLICY,
+          keySource,
+          now: NOW,
+        }),
+      ).resolves.toMatchObject({ kind: 'redirect' });
+    });
+
+    it('still refuses a fetch, which is not a navigation and has no browser to redirect', async () => {
+      await expect(
+        gate(input({ sessionToken: await expired(), accept: '*/*' }), {
+          policy: TEST_POLICY,
+          keySource,
+          now: NOW,
+        }),
+      ).resolves.toEqual({ kind: 'refused', status: 401, message: 'not authenticated' });
+    });
+
+    it('is the ONLY reason that redirects, so the reason stays unobservable', async () => {
+      // Redirecting on any rejection would hand a login flow to whoever probes
+      // with garbage, which is the outcome this file's doc comment refuses. Only
+      // expiry — which nobody reaches without having held a real token — gets
+      // the redirect, and it teaches the holder only what they already knew.
+      for (const mint of [
+        async () => keys.signWithWrongKey(goodClaims(NOW)),
+        async () => Promise.resolve('not-a-token'),
+        async () => keys.sign({ ...goodClaims(NOW), sub: 'somebody-else' }),
+        async () =>
+          keys.sign({
+            ...goodClaims(NOW),
+            iat: Math.floor(NOW.getTime() / 1000),
+            exp: Math.floor(NOW.getTime() / 1000) + 90_000,
+          }),
+      ]) {
+        await expect(
+          gate(input({ sessionToken: await mint() }), { policy: TEST_POLICY, keySource, now: NOW }),
+        ).resolves.toEqual({ kind: 'refused', status: 401, message: 'not authenticated' });
+      }
     });
   });
 
