@@ -41,8 +41,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Accepted** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
 | [0027](0027-audit-gate-fails-closed.md) | The audit gate fails closed, and names the failure it is | **Accepted** 2026-09-24 — answers and closes [OQ-10](OPEN.md) |
 | [0028](0028-capture-pages-get-a-role-pair.md) | A capture's page gets its own role pair | **Accepted** 2026-09-24 — extends [0025](0025-page-creation-needs-a-role-vocabulary.md) |
+| [0029](0029-one-area-per-project.md) | A project has one area; multi-area work is mapped by section | **Accepted** 2026-09-25 — answers and closes [OQ-1](OPEN.md) |
 
-**27 records: 27 Accepted · 1 Superseded · 0 Proposed** — and **7 open questions** in [`OPEN.md`](OPEN.md).
+**28 records: 28 Accepted · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

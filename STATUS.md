@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-24 · **Current phase:** P0 **frozen** — **every workstream has landed** and
+**Last updated:** 2026-09-25 · **Current phase:** P0 **frozen** — **every workstream has landed** and
 the follow-up wave has closed what they recorded. Waves 3 and 4 completed with W09
 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10
 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11
@@ -423,11 +423,15 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**27 accepted** · **1 superseded** · **0 proposed** · **7 open** — index:
+**28 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
-None blocks P0.
+None blocks P0. **OQ-1 and OQ-4 closed on 2026-09-25** — the owner decided both in review, on the
+evidence the read path produced against the live instance: a project has one area and multi-area work
+is mapped by section ([ADR-0029](docs/20-decisions/0029-one-area-per-project.md)), and *learning by
+building* is an initiative when it has an outcome you would put in a review and Run otherwise. What
+is left is OQ-2, which is a calibration to take at the first real review, and four deferred by choice.
 
 **The open count was wrong once, and nothing reads either file to notice.** Until 2026-09-24 this
 line said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in
@@ -460,7 +464,8 @@ check *name* is a context nobody reads until a human adds it.
 of it: humans authenticate in-app over OIDC, and the ID token is **verified** with the same verifier
 against the same key set as before. What moved is where the login happens — the proxy's forward-auth
 assertion could not be given a durable signing keypair (below). **W14 is unblocked**, and no open
-question now blocks a workstream. OQ-1 and OQ-2 block P2; the rest are deferred by choice.
+question now blocks a workstream. OQ-2 blocks P2; the rest are deferred by choice, and OQ-1 and OQ-4
+closed on 2026-09-25 (above).
 
 ✅ **The OIDC client is registered, the login is wired up in the cluster, and a real account has
 completed the round trip.** The code was verified end to end against a local fake provider; the
@@ -503,8 +508,9 @@ never had any of it. What the run found is worth reading before trusting a tick:
 - [x] Area mappings set, and this year's weights (`prisme-sync areas --from <path>`, then
       `prisme-sync bindings --from <path>` — or `pnpm seed:load`, which runs both in that order).
       The areas and weights were **derived from the tool's own vocabulary**, which already carried
-      them; the mappings are a **proposal awaiting the owner's correction**, and the two blocks that
-      have no home among the areas are exactly what **OQ-1** asks
+      them; the two blocks that had no home among the areas were OQ-1 in the flesh, and the owner
+      closed it on 2026-09-25 — folded into the existing areas, no ninth area —
+      [ADR-0029](docs/20-decisions/0029-one-area-per-project.md)
 - [x] One full pass run by hand, and its report read, for **both** tools — the task tool through
       `plan`, the document tool through the adoption scan, which is the only read of it
 - [x] `/focus`, `/areas` and `/kpi` opened against real data — area *names*, never keys. Driven in a
