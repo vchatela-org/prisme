@@ -1,6 +1,6 @@
 # FUP · 2026-09-25 · §6e applied, and the read path re-run against the live tools
 
-**Agent:** Claude · **Duration:** one session · **PR** [#88](https://github.com/vchatela-org/prisme/pull/88) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#90](https://github.com/vchatela-org/prisme/pull/90) · **Outcome:** complete
 
 The instance's last piece of configuration applied, the read path re-run end to end with the live
 credentials, and the screens opened on the data it produced. **No real value appears in this entry** —
