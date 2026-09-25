@@ -123,7 +123,7 @@ An optional container for a multi-month effort. Most initiatives have no project
 | Field | Type | Owner | Notes |
 |---|---|---|---|
 | `name` | text | prisme | |
-| `area_key` | ref | prisme | Exactly one — see open question OQ-1 |
+| `area_key` | ref | prisme | Exactly one. Work that belongs to another area is mapped at the section, not the project — [ADR-0029](20-decisions/0029-one-area-per-project.md) |
 | `status` | enum | prisme | `active` \| `paused` \| `done` \| `dropped` |
 | `deadline` | date? | prisme | |
 | `sections[]` | ordered list | prisme | Subtopics; become sections in the task tool |
@@ -401,6 +401,5 @@ list and holds the numbering — cite it, do not renumber from here.
 
 | # | Question | Blocks |
 |---|---|---|
-| OQ-1 | Can a project span more than one area? | Project rollups, capacity attribution (P2) |
 | OQ-2 | WIP limits: one `now` per area, five overall? | `now`-set selection (P2) |
 | OQ-7 | Should prisme write observed duration back to process pages? | Nothing — deferred enhancement |
