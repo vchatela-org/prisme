@@ -6,30 +6,21 @@ alongside this file.
 If you are blocked by one of these: say so in your journal entry and stop. Do not pick an answer and
 proceed — an undocumented guess is indistinguishable from a decision until it causes a bug.
 
-**Seven open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
+**Five open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
 [`README.md`](README.md) lists the records, and a count kept in one place drifts silently — it said
 seven while this file held eight, from 2026-09-20 until 2026-09-24. OQ-10 was the eighth, and it
 closed on 2026-09-24 ([ADR-0027](0027-audit-gate-fails-closed.md)) — accepted by the owner, which is
-what moved the number rather than what made the gate work.
+what moved the number rather than what made the gate work. **OQ-1 and OQ-4 closed on 2026-09-25**,
+the owner deciding both on the evidence the read path produced against the live instance.
 
-Three are waiting on a **person** or on something real, and they are the three below the first
-heading: OQ-1 and OQ-2 block P2, and OQ-4 turns on deciding what a piece of work *is*. The other
-four are **deferred by choice**, each with a trigger written as an observable fact rather than a
-date.
+One is waiting on a **person** or on something real, and it is the one below the first heading:
+OQ-2 blocks P2, and it is a calibration to take at the first real review rather than a rule to
+derive. The other four are **deferred by choice**, each with a trigger written as an observable fact
+rather than a date.
 
 ---
 
 ## Blocking a phase or the first review
-
-### OQ-1 · Can a project span more than one area?
-
-**Blocks:** project rollups, capacity attribution (P2)
-
-A large project often contains work that genuinely belongs to different areas. Forcing one area
-keeps capacity accounting simple and honest; allowing several means a project's work splits across
-budgets, and rollups need a rule for which area a project "counts" toward.
-
-Current model assumes **exactly one area per project**. Revisit when a real project doesn't fit.
 
 ### OQ-2 · Work-in-progress limits
 
@@ -41,17 +32,6 @@ does nothing.
 
 Implement it as configuration so it can be tuned without a deploy, and pick the starting value at
 the first real review.
-
-### OQ-4 · Should the homelab-style "learning by building" work be Run or an initiative?
-
-**Blocks:** nothing structural — but it changes what the balance factor reports
-
-Keeping infrastructure running is upkeep and belongs in Run. Learning something with a defined
-outcome is a real initiative that should compete fairly. The same activity can be either, and only
-intent distinguishes them.
-
-Practical rule to try: if it has an outcome you would put in a review, it is an initiative;
-otherwise it is Run.
 
 ---
 
@@ -122,6 +102,8 @@ Until then there is nothing to write that the document tool is not already able 
 
 | Question | Resolution |
 |---|---|
+| **OQ-1** · Can a project span more than one area? | **No — one area per project, and multi-area work is mapped by section.** `area_mapping` already refines a project with a section, so a project whose work genuinely spans areas maps its **sections**; the project row keeps the one area it is *about*. A container with no single natural area is folded into the best-fitting existing area, so the vocabulary stays at eight and the year's weights are untouched. Decided by the owner 2026-09-25, on the read path's own evidence — the two blocks with no home among the eight areas were OQ-1 in the flesh — [ADR-0029](0029-one-area-per-project.md). Closes the attribution half of P2; project *rollups* remain P2's design work |
+| **OQ-4** · Is the homelab-style "learning by building" work Run or an initiative? | **Decided by the rule already written: if it has an outcome you would put in a review, it is an initiative; otherwise it is Run.** Decided by the owner 2026-09-25, so the balance factor reports the same way from the first pass instead of being reinterpreted after the fact. No model change — intent is what separates an initiative from upkeep, which the model already says ([ADR-0014](0014-lanes-outside-the-backlog.md)) |
 | Where does the prioritization model live? | prisme — [ADR-0001](0001-prisme-owns-the-model.md) |
 | Which stack? | TypeScript monorepo — [ADR-0002](0002-typescript-monorepo.md) |
 | How do `due` and `deadline` both feed prioritization? | They don't. Deadlines prioritize, dates plan — [ADR-0003](0003-deadline-prioritizes-due-plans.md) |
