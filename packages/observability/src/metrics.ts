@@ -23,6 +23,17 @@ export interface Metrics {
    * is broken while appearing healthy.
    */
   readonly syncDriftObjects: Gauge<string>;
+  /**
+   * The drift the last **full** pass measured, carried across the incremental
+   * passes in between.
+   *
+   * The same fact as `syncDriftObjects` on a full pass and a different one
+   * every fifteen minutes otherwise, which is the whole reason it exists: only
+   * this series stands still long enough for
+   * `min_over_time(prisme_sync_drift_full_objects[48h]) > 0` to mean "two
+   * consecutive daily full passes", the alert docs/15-runtime.md §5 specifies.
+   */
+  readonly syncDriftFullObjects: Gauge<string>;
   readonly externalRequests: Counter<'tool' | 'status'>;
   readonly authFailures: Counter<'reason'>;
 }
@@ -68,6 +79,11 @@ export function createMetrics(options: MetricsOptions = {}): Metrics {
       help: 'Objects the daily full pass found to differ from the incremental view.',
       registers: [registry],
     }),
+    syncDriftFullObjects: new Gauge({
+      name: 'prisme_sync_drift_full_objects',
+      help: 'Objects the last full pass found to differ from the incremental view, held until the next one.',
+      registers: [registry],
+    }),
     externalRequests: new Counter({
       name: 'prisme_external_requests_total',
       help: 'Requests to an external tool, by tool and HTTP status.',
@@ -83,10 +99,10 @@ export function createMetrics(options: MetricsOptions = {}): Metrics {
   };
 
   /*
-   * The two sync gauges start **unset**, not at zero.
+   * The three sync gauges start **unset**, not at zero.
    *
    * prom-client renders a registered, never-set, unlabelled `Gauge` as a sample
-   * with the value `0`. For a counter that is right; for these two it is a lie
+   * with the value `0`. For a counter that is right; for these three it is a lie
    * with operational consequences, and both were measured against a live
    * cluster:
    *
@@ -108,6 +124,7 @@ export function createMetrics(options: MetricsOptions = {}): Metrics {
    */
   metrics.syncLastSuccessTimestamp.remove();
   metrics.syncDriftObjects.remove();
+  metrics.syncDriftFullObjects.remove();
 
   return metrics;
 }

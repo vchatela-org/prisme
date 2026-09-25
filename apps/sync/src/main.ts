@@ -675,6 +675,12 @@ async function main(): Promise<number> {
     }
     metrics.syncConflicts.inc(result.applied?.conflicts ?? 0);
     metrics.syncDriftObjects.set(result.drift);
+    // The full-pass reading, and only on a full pass: an incremental one must
+    // leave it where it is, which is the property the alert depends on. These
+    // in-process gauges are still never scraped in a deployment — the API
+    // republishes both from `sync_run_state` — but the hand-run path sets them,
+    // and setting one and not the other is the asymmetry that misleads a reader.
+    if (result.full) metrics.syncDriftFullObjects.set(result.drift);
 
     const durationSeconds = (Date.now() - startedAt) / 1000;
     metrics.syncDuration.observe(durationSeconds);

@@ -464,13 +464,25 @@ bounded history. Exact manifests live in the GitOps repository.
 | `prisme_sync_duration_seconds` | histogram | — |
 | `prisme_sync_actions_total{type}` | counter | `create` above threshold outside adoption |
 | `prisme_sync_conflicts_total` | counter | Reviewed weekly, not alerted |
-| `prisme_sync_drift_objects` | gauge | Above 0 on two consecutive daily full passes |
+| `prisme_sync_drift_objects` | gauge | — |
+| `prisme_sync_drift_full_objects` | gauge | Above 0 on two consecutive daily full passes — `min_over_time(prisme_sync_drift_full_objects[48h]) > 0` |
 | `prisme_external_requests_total{tool,status}` | counter | Sustained `429` or `5xx` |
 | `prisme_auth_failures_total{reason}` | counter | Unusual rate |
 
-`prisme_sync_drift_objects` is the one that actually matters: it is the daily full pass reporting
-what the incremental path missed. Persistent non-zero drift means incremental sync is broken while
-appearing to work.
+`prisme_sync_drift_objects` is the one that actually matters: it is what a pass found the full view
+to hold that the incremental stream never mentioned, and persistent non-zero drift means incremental
+sync is broken while appearing to work.
+
+The alert above is nevertheless on the **second** series, and the reason is the cadence. A pass runs
+every fifteen minutes and only one a day is full, so `drift_objects` moves constantly and a 48-hour
+minimum over it is reset by the incremental samples *between* two full passes — the rule was right
+and could not be expressed. `prisme_sync_drift_full_objects` is written only by a full pass and
+republished continuously from the stored row, so it stands still across the passes in between and
+the same minimum means *every* full pass in the window rather than the last one.
+
+On either gauge a measured `0` and no sample at all are different facts, and the exposition keeps
+them apart: a deployment whose writes are frozen has no successful pass, and an instance whose full
+pass has never run has no drift measurement — neither is served as a zero.
 
 ### Logging
 
