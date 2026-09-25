@@ -32,10 +32,12 @@ describe('the sync gauges', () => {
     // makes a dashboard referencing it valid before the first pass.
     expect(body).toContain('# TYPE prisme_sync_last_success_timestamp gauge');
     expect(body).toContain('# TYPE prisme_sync_drift_objects gauge');
+    expect(body).toContain('# TYPE prisme_sync_drift_full_objects gauge');
 
     // And carrying no value, because nothing has measured one.
     expect(sampleOf(body, 'prisme_sync_last_success_timestamp')).toBeUndefined();
     expect(sampleOf(body, 'prisme_sync_drift_objects')).toBeUndefined();
+    expect(sampleOf(body, 'prisme_sync_drift_full_objects')).toBeUndefined();
   });
 
   it('publish the value once one is set, including zero', async () => {

@@ -52,8 +52,10 @@ natural morning event.
 | Detects | Changes since last run | **Drift** |
 
 The full pass exists to answer a question the incremental path cannot: *did we miss something?* It
-reports `prisme_sync_drift_objects`, and a non-zero value on two consecutive days means incremental
-sync is broken while appearing healthy.
+reports the count as `prisme_sync_drift_full_objects` — the series only a full pass writes, so it
+stands still across the incremental passes in between, which is what makes a windowed minimum over
+it mean *every* full pass in the window (see [`15-runtime.md`](15-runtime.md#metrics)). A non-zero
+value on two consecutive full passes means incremental sync is broken while appearing healthy.
 
 #### The capacity refresh rides the full pass
 

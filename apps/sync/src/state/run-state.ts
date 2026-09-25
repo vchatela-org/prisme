@@ -54,6 +54,24 @@ export interface SyncRunState {
         readonly full: boolean;
       }
     | undefined;
+  /**
+   * The drift the last **full** pass measured, carried across the incremental
+   * passes in between.
+   *
+   * Its own member rather than a reading of `drift.full`, because the two are
+   * published as two series and only this one can be windowed the way
+   * docs/15-runtime.md §5 needs. `drift` moves every fifteen minutes, so a
+   * 48-hour minimum over it is reset by the incremental samples *between* two
+   * full passes — the reason `min_over_time(prisme_sync_drift_objects[48h]) > 0`
+   * could not express "two consecutive daily full passes". This one stands still
+   * until the next full pass, so the same minimum means exactly that.
+   *
+   * A bare count, not the object `drift` is: there is one field to carry, and a
+   * timestamp would be a second column nothing reads — Prometheus stamps the
+   * sample at scrape time, and staleness is already
+   * `prisme_sync_last_success_timestamp`'s question.
+   */
+  readonly driftFull?: number | undefined;
 }
 
 interface RunStateRow {
@@ -61,6 +79,7 @@ interface RunStateRow {
   readonly last_drift_objects: number | string | null;
   readonly last_drift_at: Date | string | null;
   readonly last_drift_full: boolean | null;
+  readonly last_drift_full_objects: number | string | null;
 }
 
 /**
@@ -95,16 +114,25 @@ export async function recordPassOutcome(client: Sql, outcome: PassOutcome): Prom
   const at = outcome.at.toISOString();
   const success = outcome.succeeded ? at : null;
 
+  /*
+   * `last_drift_full_objects` is written **only** by a full pass, and the
+   * `coalesce` is what holds it still across the incremental passes in between:
+   * those carry `null` here, so the stored value survives them. Without it the
+   * gauge would be reset to the incremental drift every fifteen minutes, which
+   * is the defect the column exists to close — see `SyncRunState.driftFull`.
+   */
   await client`
     insert into sync_run_state
-      (id, last_success_at, last_drift_objects, last_drift_at, last_drift_full, updated_at)
+      (id, last_success_at, last_drift_objects, last_drift_at, last_drift_full,
+       last_drift_full_objects, updated_at)
     values ('singleton', ${success}::timestamptz, ${outcome.drift}, ${at}::timestamptz,
-            ${outcome.full}, now())
+            ${outcome.full}, ${outcome.full ? outcome.drift : null}, now())
     on conflict (id) do update set
       last_success_at = coalesce(excluded.last_success_at, sync_run_state.last_success_at),
       last_drift_objects = excluded.last_drift_objects,
       last_drift_at = excluded.last_drift_at,
       last_drift_full = excluded.last_drift_full,
+      last_drift_full_objects = coalesce(excluded.last_drift_full_objects, sync_run_state.last_drift_full_objects),
       updated_at = now()`;
 }
 
@@ -118,7 +146,8 @@ export async function recordPassOutcome(client: Sql, outcome: PassOutcome): Prom
  */
 export async function readSyncRunState(client: Sql): Promise<SyncRunState> {
   const rows = await client<RunStateRow[]>`
-    select last_success_at, last_drift_objects, last_drift_at, last_drift_full
+    select last_success_at, last_drift_objects, last_drift_at, last_drift_full,
+           last_drift_full_objects
     from sync_run_state
     where id = 'singleton'`;
 
@@ -142,5 +171,11 @@ export async function readSyncRunState(client: Sql): Promise<SyncRunState> {
             full: row.last_drift_full ?? false,
           },
         }),
+    // A separate `null` test rather than a reading of `drift`: the two columns
+    // are written by different passes, and a full pass that found no drift is a
+    // measured zero while no full pass at all is an absence.
+    ...(row.last_drift_full_objects === null
+      ? {}
+      : { driftFull: Number(row.last_drift_full_objects) }),
   };
 }
