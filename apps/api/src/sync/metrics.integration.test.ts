@@ -78,11 +78,13 @@ describe.runIf(describeWithDatabase === 'run')('/metrics, republished from Postg
     // Declared, so a dashboard and a recording rule referencing them are valid
     // from the first deployment...
     expect(body).toContain('# TYPE prisme_sync_drift_objects gauge');
+    expect(body).toContain('# TYPE prisme_sync_drift_full_objects gauge');
     expect(body).toContain('# TYPE prisme_sync_last_success_timestamp gauge');
     // ...and carrying nothing, because nothing has measured anything. This is
     // the line that distinguishes the fix from the bug: a zero here is what
     // made one alert fire for ever and the other never fire.
     expect(sampleOf(body, 'prisme_sync_drift_objects')).toBeUndefined();
+    expect(sampleOf(body, 'prisme_sync_drift_full_objects')).toBeUndefined();
     expect(sampleOf(body, 'prisme_sync_last_success_timestamp')).toBeUndefined();
   });
 
@@ -98,6 +100,72 @@ describe.runIf(describeWithDatabase === 'run')('/metrics, republished from Postg
     expect(sampleOf(body, 'prisme_sync_last_success_timestamp')).toBe(
       `prisme_sync_last_success_timestamp ${String(at.getTime() / 1000)}`,
     );
+  });
+
+  /**
+   * The property the third gauge exists for, and the one no other test can see.
+   *
+   * A full pass measures drift; fifteen-minute incremental passes run in
+   * between. If the full series moved on those, `min_over_time(...[48h]) > 0`
+   * would be reset to the incremental reading every quarter hour and could not
+   * express "two consecutive daily full passes" — which is exactly why
+   * `prisme_sync_drift_objects` could not carry that alert.
+   */
+  it('holds the last full pass’s drift across an incremental pass that found none', async () => {
+    const store = createReconcilerStore(database.client);
+
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:15:00.000Z'),
+      succeeded: true,
+      drift: 4,
+      full: true,
+    });
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:30:00.000Z'),
+      succeeded: true,
+      drift: 0,
+      full: false,
+    });
+
+    const body = await build()();
+
+    // The per-pass gauge moves to the incremental reading...
+    expect(sampleOf(body, 'prisme_sync_drift_objects')).toBe('prisme_sync_drift_objects 0');
+    // ...and the full-pass gauge is unmoved, which is the whole point.
+    expect(sampleOf(body, 'prisme_sync_drift_full_objects')).toBe(
+      'prisme_sync_drift_full_objects 4',
+    );
+  });
+
+  it('publishes a measured zero on the full-pass gauge, distinct from no full pass', async () => {
+    const store = createReconcilerStore(database.client);
+
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:15:00.000Z'),
+      succeeded: true,
+      drift: 0,
+      full: true,
+    });
+
+    expect(sampleOf(await build()(), 'prisme_sync_drift_full_objects')).toBe(
+      'prisme_sync_drift_full_objects 0',
+    );
+  });
+
+  it('publishes no full-pass sample when only incremental passes have run', async () => {
+    const store = createReconcilerStore(database.client);
+
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:15:00.000Z'),
+      succeeded: false,
+      drift: 2,
+      full: false,
+    });
+
+    const body = await build()();
+
+    expect(sampleOf(body, 'prisme_sync_drift_objects')).toBe('prisme_sync_drift_objects 2');
+    expect(sampleOf(body, 'prisme_sync_drift_full_objects')).toBeUndefined();
   });
 
   it('publishes a measured zero, which is not the same fact as no measurement', async () => {

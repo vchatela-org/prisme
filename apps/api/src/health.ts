@@ -55,9 +55,9 @@ export function healthRoutes(dependencies: HealthDependencies): Hono {
      * Republish the reconciler's gauges, and **degrade rather than fail**.
      *
      * The reconciler is a CronJob pod Prometheus never scrapes, so the only way
-     * `prisme_sync_last_success_timestamp` and `prisme_sync_drift_objects` are
-     * observable at all is this process reading what the pass recorded
-     * (docs/15-runtime.md §5, ADR-0018).
+     * `prisme_sync_last_success_timestamp`, `prisme_sync_drift_objects` and
+     * `prisme_sync_drift_full_objects` are observable at all is this process
+     * reading what the pass recorded (docs/15-runtime.md §5, ADR-0018).
      *
      * The refresher already bounds itself and swallows its own errors. The
      * guard here is the second half of the same promise, and it is not

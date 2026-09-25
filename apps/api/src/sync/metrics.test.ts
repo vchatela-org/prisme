@@ -36,6 +36,7 @@ describe('the sync metrics refresher', () => {
   it('leaves the gauges alone when the read times out', async () => {
     const metrics = createMetrics({ collectDefaults: false });
     metrics.syncDriftObjects.set(7);
+    metrics.syncDriftFullObjects.set(7);
 
     await createSyncMetricsRefresher({
       client: hangingClient(),
@@ -45,5 +46,6 @@ describe('the sync metrics refresher', () => {
 
     const body = await metrics.registry.metrics();
     expect(body).toContain('prisme_sync_drift_objects 7');
+    expect(body).toContain('prisme_sync_drift_full_objects 7');
   });
 });
