@@ -1,6 +1,6 @@
 # FUP · 2026-09-25 · OQ-1 and OQ-4 closed, before the functional phase
 
-**Agent:** Claude · **Duration:** one session · **PR** _this branch_ · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#86](https://github.com/vchatela-org/prisme/pull/86) · **Outcome:** complete
 
 The two open questions the read path made actionable, decided by the owner and recorded, so the
 functional phase can begin with attribution meaning something. **No real value appears in this
