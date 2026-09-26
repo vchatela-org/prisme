@@ -272,10 +272,14 @@ the intent, the converge pass blocked it with the reason on the line, and *Link 
 implemented in the pull request that accepted it — two role keys, two template bindings, and a
 `create` capability narrower than `write` — and
 [ADR-0028](docs/20-decisions/0028-capture-pages-get-a-role-pair.md) **Accepted 2026-09-24** gave a
-capture the pair it was missing. *Create page* works for an initiative, a project and a capture; the
-one block reason left is an unbound role, which Settings → Notion fixes
+capture the pair it was missing. *Create page* works for an initiative, a project and a capture
 ([#40](https://github.com/vchatela-org/prisme/pull/40),
 [#69](https://github.com/vchatela-org/prisme/pull/69)).
+[ADR-0030](docs/20-decisions/0030-page-stores-are-databases-with-native-templates.md) **Accepted
+2026-09-26** then made each store a database and its templates the database's own, removing the
+template roles and the block copy; the block reasons left are an unbound store and a store holding
+no template, each named on Settings → Notion
+([#103](https://github.com/vchatela-org/prisme/pull/103)).
 [The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
@@ -373,6 +377,7 @@ journal entry rather than a unit of planned work.
 | **There was no guide to using prisme** — the only draft explained how to deploy and seed it, not what to do with it, and writing it exposed the gaps #94–#97 closed | the owner, asking for a usage guide | 🟢 [`docs/18-user-guide.md`](docs/18-user-guide.md), linked from the README; G5 and G7 left open on purpose (an Accepted ADR, and a P7 decision) · [the entry](docs/50-journal/FUP-2026-09-26-user-guide.md) | [#98](https://github.com/vchatela-org/prisme/pull/98) |
 | **A private repository's name was linked from this public page** — the §7 row carried its deployment-repository pull request as a full URL. The **local** deny-list caught it; CI cannot, because that supplement is gitignored by design — which is exactly why the local scan exists. The corollary is worth keeping: a green `privacy deny-list` check was never evidence that nothing private is in a diff | found by the local scan on the first commit of the row above | 🟡 **the worktree is clean and the history is not** — redacted to the prose form every other row in this file uses, but the name is still in `main`'s history ([#92](https://github.com/vchatela-org/prisme/pull/92), merged 2026-09-26). A rewrite is a force-push, which is the owner's call and not an agent's · [the entry](docs/50-journal/FUP-2026-09-26-status-prose-vs-register.md) | [#93](https://github.com/vchatela-org/prisme/pull/93) |
 | **Configuration had three ways in** — Settings (UI and API), the web tier's `AREA_COLOR_PINS` from Vault, and the file-and-command seed path (`prisme-sync areas` / `bindings --from`, `pnpm seed:load`, `seed.example/`) wrote the same tables, and a file load silently replaced what the screen had set | owner decision 2026-09-26 | 🟢 the seed path is removed, and so is `AREA_COLOR_PINS` (a Vault-rendered colour map beneath the Settings choice); the UI and the API are the only way in, and the sync side only reads the bindings · [the entry](docs/50-journal/FUP-2026-09-26-configuration-is-ui-only.md) | [#102](https://github.com/vchatela-org/prisme/pull/102) |
+| **A page store was a parent page and a template a page prisme copied block by block**, while the owner keeps a database per kind with the document tool's own templates — every store binding checked `refused` on the live instance, and the tool now applies a database's templates itself | the owner, binding the stores ([ADR-0030](docs/20-decisions/0030-page-stores-are-databases-with-native-templates.md), accepted 2026-09-26) | 🟢 stores are databases; template roles and the block copy removed; one template used, several offered, none blocks with its own reason; migration 0012 · [the entry](docs/50-journal/FUP-2026-09-26-page-stores-are-databases.md) | [#103](https://github.com/vchatela-org/prisme/pull/103) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -457,7 +462,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**28 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
+**29 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
