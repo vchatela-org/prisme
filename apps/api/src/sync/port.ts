@@ -39,8 +39,22 @@ export interface SyncRunResult {
   readonly report: string | null;
 }
 
+/** What a rescan of the adoption queue found — counts only, never a title. */
+export interface AdoptionScanResult {
+  /** False when a pass held the lock. Nothing was queued. */
+  readonly ran: boolean;
+  readonly queued: number;
+  readonly certain: number;
+}
+
 export interface SyncRunner {
   run(request: SyncRunRequest): Promise<SyncRunResult>;
+  /**
+   * The adoption scan, in process and behind the same lock — what the
+   * `/adoption` screen's *Rescan* asks for (G9). Reads both tools, replaces
+   * the candidate list and the takeaway mirror, and writes nothing outward.
+   */
+  scanAdoption(): Promise<AdoptionScanResult>;
 }
 
 /**
@@ -50,4 +64,5 @@ export interface SyncRunner {
  */
 export const UNAVAILABLE_RUNNER: SyncRunner = {
   run: () => Promise.reject(new Error('no reconciler is configured for this instance')),
+  scanAdoption: () => Promise.reject(new Error('no reconciler is configured for this instance')),
 };

@@ -20,6 +20,7 @@ import { createApp } from './app.js';
 import { createAuth } from './auth/index.js';
 import { createServices, SERVICE_DEFAULTS } from './services/index.js';
 import { createPostgresStore } from './store/postgres.js';
+import { createExternalDirectory } from './sync/directory.js';
 import { createSyncMetricsRefresher } from './sync/metrics.js';
 import { createSyncRunner } from './sync/runner.js';
 
@@ -48,11 +49,20 @@ const services = createServices({
     client: database.client,
     taskToolToken: config.tasktoolApiToken as string,
     taskToolBaseUrl: config.tasktoolBaseUrl,
+    docToolToken: config.doctoolApiToken as string,
+    docToolBaseUrl: config.doctoolBaseUrl,
+    takeawayTypeProperty: config.doctoolTakeawayTypeProperty,
     writeEnabled: config.sync.writeEnabled,
     createThreshold: config.sync.createThreshold,
     baseUrl: config.baseUrl,
     runId: () => currentRunContext()?.runId ?? newRunId(),
     now: () => new Date(),
+  }),
+  directory: createExternalDirectory({
+    docToolToken: config.doctoolApiToken as string,
+    docToolBaseUrl: config.doctoolBaseUrl,
+    taskToolToken: config.tasktoolApiToken as string,
+    taskToolBaseUrl: config.tasktoolBaseUrl,
   }),
   config: {
     timezone: config.timezone,

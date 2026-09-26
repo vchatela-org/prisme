@@ -403,6 +403,17 @@ export const VARIABLES = {
    */
   DOCTOOL_DURATION_PROPERTY: { schema: nonEmpty('DOCTOOL_DURATION_PROPERTY'), required: [] },
   /*
+   * The takeaways store's property holding a takeaway's type — a select whose
+   * value starts with "action" or "principle" (French "principe" too). Instance
+   * data for the same reason as the duration property. Unset, no takeaway has a
+   * type: the adoption scan proposes none as an initiative and the Inbox's
+   * readings half stays empty, which is the safe direction.
+   */
+  DOCTOOL_TAKEAWAY_TYPE_PROPERTY: {
+    schema: nonEmpty('DOCTOOL_TAKEAWAY_TYPE_PROPERTY'),
+    required: [],
+  },
+  /*
    * The **API host** each connector calls — not the browser-facing host, and
    * the distinction matters: `https://api.notion.com` serves JSON and a person
    * cannot open a page at it.
@@ -440,6 +451,17 @@ export const VARIABLES = {
    */
   DOCTOOL_PAGE_URL_TEMPLATE: {
     schema: pageUrlTemplate('DOCTOOL_PAGE_URL_TEMPLATE'),
+    required: [],
+  },
+  /*
+   * `DOCTOOL_PAGE_URL_TEMPLATE`'s counterpart for the task tool, and for the
+   * same reasons: the browser-facing host and the path shape are vendor
+   * knowledge the operator supplies, and prisme supplies only the identifier.
+   * It turns a mapped project into a link on the Settings screens. Unset, the
+   * project is named and not linked.
+   */
+  TASKTOOL_PROJECT_URL_TEMPLATE: {
+    schema: pageUrlTemplate('TASKTOOL_PROJECT_URL_TEMPLATE'),
     required: [],
   },
   SCORING_ACTIVE_METHOD: {

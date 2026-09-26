@@ -99,6 +99,12 @@ export function applyInMemory(world: World, plan: Plan): World {
           break;
         }
 
+        case 'adopt_deadline': {
+          const anchor = anchorById(operation.initiativeId);
+          if (anchor && anchor.deadline === undefined) anchor.deadline = operation.deadline;
+          break;
+        }
+
         case 'capture_initiative': {
           const task = taskById(operation.externalId);
           anchors.push({
@@ -109,6 +115,7 @@ export function applyInMemory(world: World, plan: Plan): World {
             origin: 'adopted',
             priority: 'lowest',
             externalAnchorId: operation.externalId,
+            ...(operation.deadline === undefined ? {} : { deadline: operation.deadline }),
             ...(task === undefined
               ? {}
               : {

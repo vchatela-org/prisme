@@ -368,6 +368,41 @@ export async function resolveConflict(input: {
   };
 }
 
+const adoptionScanSchema = z.object({
+  ran: z.boolean(),
+  queued: z.number().int(),
+  certain: z.number().int(),
+  scannedAt: z.string(),
+});
+
+/**
+ * Re-read both tools into the adoption queue.
+ *
+ * It ran only as `prisme-sync adopt --plan` until now, so a task labelled in the
+ * task tool, or an area mapping added in Settings, changed nothing here until
+ * somebody ran a Job (G9). The daily full pass runs it too; this is for *now*.
+ * It writes prisme's own tables and nothing outward.
+ */
+export async function rescanAdoption(): Promise<ActionResult> {
+  const result = await apiFetch({
+    path: '/adoption/scan',
+    method: 'POST',
+    body: {},
+    schema: adoptionScanSchema,
+  });
+  if (!result.ok) return failed(result, 'the adoption scan');
+
+  revalidatePath('/adoption');
+  revalidatePath('/inbox');
+  if (!result.data.ran) {
+    return { ok: true, message: 'A sync pass was running; try again in a minute.' };
+  }
+  return {
+    ok: true,
+    message: `Read both tools. ${String(result.data.queued)} candidates in the queue.`,
+  };
+}
+
 const promoteSchema = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(500),

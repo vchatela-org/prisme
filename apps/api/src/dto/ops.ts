@@ -230,6 +230,20 @@ export const updateReviewBody = defineWrite(
   REVIEW_READ_ONLY,
 );
 
+/** A rescan of the adoption queue: counts only, never a title. */
+export const AdoptionScanDto = named(
+  'AdoptionScan',
+  z.object({
+    /** False when a reconciler pass held the lock; nothing was queued. */
+    ran: z.boolean(),
+    queued: z.int(),
+    certain: z.int(),
+    scannedAt: instant,
+  }),
+);
+
+export const scanAdoptionBody = defineWrite('ScanAdoption', z.strictObject({}));
+
 export const decideAdoptionBody = defineWrite(
   'DecideAdoption',
   z.strictObject({
