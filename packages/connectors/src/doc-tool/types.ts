@@ -1,5 +1,5 @@
 import type { CalendarDate } from '@prisme/domain';
-import type { RoleKey } from '../role-key.js';
+import type { RoleKey, StoreShape } from '../role-key.js';
 import type { SanitisedText } from '../sanitise.js';
 
 /**
@@ -109,8 +109,28 @@ export interface CreatePageInput {
   readonly title: string;
 }
 
+/**
+ * What an identifier points at, in words a person recognises.
+ *
+ * `externalId` is what prisme should **bind** — for a data source pasted as the
+ * database that holds it, the resolved data source rather than what was given.
+ * `linkId` is what a person **opens**: the page itself, or the database holding
+ * a data source. Neither is a URL — the tool's page URL identifies the
+ * workspace and is never read (docs/17-privacy.md §1).
+ */
+export interface DocStoreDescription {
+  readonly externalId: string;
+  readonly title: string;
+  readonly linkId: string;
+}
+
 export interface DocToolClient {
   queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]>;
+  /**
+   * Reads the title of a store **before** it is bound, which is why it takes an
+   * identifier rather than a role. Metadata only: no row, no block, no body.
+   */
+  describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription>;
   fetchPage(id: string): Promise<DocPage>;
   /**
    * Creates a page under the role's bound parent, or returns the one that is
