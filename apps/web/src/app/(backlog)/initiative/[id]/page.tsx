@@ -5,9 +5,11 @@ import { PageButton } from '@/app/(create)/page-button';
 import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
 import { StatusMenu } from '@/components/status-menu';
+import { DependencyEditor } from './dependency-editor';
 import { apiFetch } from '@/lib/api';
 import {
   areaListSchema,
+  backlogSchema,
   creationListSchema,
   eventPageSchema,
   focusSchema,
@@ -39,7 +41,7 @@ import { webRuntime } from '@/lib/runtime';
 export default async function InitiativePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [initiative, tasks, scores, areas, focus, events, creations] = await Promise.all([
+  const [initiative, tasks, scores, areas, focus, events, creations, others] = await Promise.all([
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}`, schema: initiativeSchema }),
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/tasks`, schema: taskListSchema }),
     apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/scores`, schema: scoreHistorySchema }),
@@ -58,6 +60,13 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
       path: '/creations',
       query: { entityId: id, limit: '20' },
       schema: creationListSchema,
+    }),
+    // Every other initiative, by title — what a dependency is chosen from and
+    // named by. Sorted by title because this is a picker, not a ranking.
+    apiFetch({
+      path: '/backlog',
+      query: { limit: '200', sort: 'title' },
+      schema: backlogSchema,
     }),
   ]);
 
@@ -81,6 +90,19 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
         focus.data.now.length,
       )
     : undefined;
+
+  // What a dependency can be: any other initiative still open. A finished one
+  // blocks nothing, so offering it would be offering a no-op.
+  const allOthers = others.ok ? others.data.items.map((entry) => entry.initiative) : [];
+  const titleOf = new Map(allOthers.map((other) => [other.id, other.title]));
+  const candidates = allOthers
+    .filter(
+      (other) =>
+        other.id !== data.id &&
+        (data.dependsOn.includes(other.id) ||
+          (other.status !== 'done' && other.status !== 'dropped')),
+    )
+    .map((other) => ({ id: other.id, title: other.title, status: other.status }));
 
   const due = tasks.ok ? dueSummary(tasks.data.items, dayOf(data.updatedAt)) : undefined;
   const idleDays = daysSince(data.rollup.lastActivity, new Date(data.updatedAt));
@@ -213,7 +235,7 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
             {data.dependsOn.map((dependency) => (
               <li key={dependency} className="flex items-center gap-2 text-sm">
                 <Link href={`/initiative/${dependency}`} className="text-ink hover:underline">
-                  {dependency}
+                  {titleOf.get(dependency) ?? dependency}
                 </Link>
                 {data.blockedBy.includes(dependency) ? (
                   <Badge variant="outline" className="text-status-warning">
@@ -226,6 +248,7 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
             ))}
           </ul>
         )}
+        <DependencyEditor id={data.id} current={data.dependsOn} candidates={candidates} />
       </Section>
 
       <Section

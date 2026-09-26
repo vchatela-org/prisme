@@ -16,6 +16,7 @@ import {
   Goal,
   Inbox,
   LayoutList,
+  Repeat,
   PackagePlus,
   Scale,
   Settings,
@@ -71,6 +72,9 @@ const NAV: readonly NavGroup[] = [
       // the year's end, rather than several times a day like the three above.
       { label: 'Areas', href: '/areas', icon: <Scale aria-hidden /> },
       { label: 'KPI', href: '/kpi', icon: <ChartNoAxesCombined aria-hidden /> },
+      // Rituals beside the KPI dashboard that measures them: defined rarely,
+      // read when adherence looks wrong.
+      { label: 'Rituals', href: '/rituals', icon: <Repeat aria-hidden /> },
       // The Timeline answers "when, and what moves with it" — read when a date
       // is in question rather than daily, which is why it sits after the three
       // above and not among them.
