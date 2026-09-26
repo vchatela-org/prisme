@@ -174,6 +174,7 @@ export function createFakeTaskClient(
     syncIncremental: () => Promise.resolve({ changes: [], token: 'fake' }),
     fetchAll: () =>
       Promise.resolve({ token: 'fake', projects: [], sections: [], labels: [], tasks: [] }),
+    fetchLocations: () => Promise.resolve({ projects: [], sections: [] }),
     fetchCompletions: (since, until) => {
       windows.push({ since, until });
       onFetch?.();
