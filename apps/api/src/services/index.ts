@@ -7,6 +7,7 @@ import {
   type SelectionLimits,
 } from '@prisme/domain';
 import type { ApiStore } from '../store/types.js';
+import type { ExternalDirectory } from '../sync/directory.js';
 import type { SyncRunner } from '../sync/port.js';
 import { createCatalogueService, type CatalogueService } from './catalogue.js';
 import { createCreateService, type CreateService } from './create.js';
@@ -14,6 +15,7 @@ import { createLaneService, type LaneService } from './lanes.js';
 import { createMeasureService, type MeasureService } from './measure.js';
 import { createObjectiveService, type ObjectiveService } from './okr.js';
 import { createOpsService, type OpsService } from './ops.js';
+import { createSettingsService, type SettingsService } from './settings.js';
 import { createWorkService, type WorkService } from './work.js';
 
 /**
@@ -82,12 +84,15 @@ export interface Services {
   readonly objectives: ObjectiveService;
   readonly lanes: LaneService;
   readonly ops: OpsService;
+  readonly settings: SettingsService;
   readonly config: ServiceConfig;
 }
 
 export interface CreateServicesOptions {
   readonly store: ApiStore;
   readonly runner: SyncRunner;
+  /** The Settings screens' reads of both tools — names, not work. */
+  readonly directory: ExternalDirectory;
   readonly config: ServiceConfig;
   /** Defaults to the shared registry with `wsjf-balanced` active (ADR-0006). */
   readonly registry?: Registry;
@@ -128,6 +133,7 @@ export function createServices(options: CreateServicesOptions): Services {
       workingWeekdays: config.workingWeekdays,
       sync: config.sync,
     }),
+    settings: createSettingsService(store, options.directory),
     config,
   };
 }
@@ -139,5 +145,6 @@ export type {
   MeasureService,
   ObjectiveService,
   OpsService,
+  SettingsService,
   WorkService,
 };

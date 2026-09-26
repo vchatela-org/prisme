@@ -17,8 +17,9 @@ function mapping(
   areaKey: string,
   externalProjectId: string,
   externalSectionId: string | null = null,
+  isHome = false,
 ): AreaMappingRecord {
-  return { areaKey, externalProjectId, externalSectionId };
+  return { areaKey, externalProjectId, externalSectionId, isHome };
 }
 
 describe('where a capture goes', () => {
@@ -52,6 +53,19 @@ describe('where a capture goes', () => {
     const second = locationForArea('home', [...mappings].reverse());
     expect(first).toEqual(second);
     expect(first).toEqual({ externalProjectId: 'p-1' });
+  });
+
+  /**
+   * The home is a person's decision on the Settings screen, and it beats the
+   * specificity rule: without it, a capture and an anchor for the same area
+   * could land in two places nobody chose (G4).
+   */
+  it('goes to the home mapping when one is marked, however unspecific', () => {
+    const location = locationForArea('home', [
+      mapping('home', 'p-1', 's-9'),
+      mapping('home', 'p-2', null, true),
+    ]);
+    expect(location).toEqual({ externalProjectId: 'p-2' });
   });
 });
 

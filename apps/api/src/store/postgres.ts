@@ -6,6 +6,7 @@ import type {
   AppendEventInput,
   ApiStore,
   AreaMappingRecord,
+  RoleBindingRecord,
   AreaRecord,
   AreaWeightRecord,
   BackfillCoverageRecord,
@@ -147,6 +148,23 @@ interface AreaRow {
   active: boolean;
   external_page_id: string | null;
   run_budget_hours_per_week: string | number | null;
+  color_slot: number | null;
+}
+
+interface AreaMappingRow {
+  area_key: string;
+  external_project_id: string;
+  external_section_id: string | null;
+  is_home: boolean;
+}
+
+function toAreaMapping(row: AreaMappingRow): AreaMappingRecord {
+  return {
+    areaKey: row.area_key,
+    externalProjectId: row.external_project_id,
+    externalSectionId: row.external_section_id,
+    isHome: row.is_home,
+  };
 }
 
 function toArea(row: AreaRow): AreaRecord {
@@ -157,6 +175,7 @@ function toArea(row: AreaRow): AreaRecord {
     active: row.active,
     externalPageId: row.external_page_id,
     runBudgetHoursPerWeek: number(row.run_budget_hours_per_week),
+    colorSlot: row.color_slot,
   };
 }
 
@@ -484,17 +503,62 @@ export function createPostgresStore(client: Sql): ApiStore {
   }
 
   return {
+    bindings: {
+      async list(): Promise<readonly RoleBindingRecord[]> {
+        const rows = await client<
+          {
+            role: string;
+            external_id: string;
+            title: string | null;
+            link_id: string | null;
+            checked_at: Date | string | null;
+            check_error: string | null;
+          }[]
+        >`
+          select role, external_id, title, link_id, checked_at, check_error
+          from role_binding order by role`;
+        return rows.map((row) => ({
+          role: row.role,
+          externalId: row.external_id,
+          title: row.title,
+          linkId: row.link_id,
+          checkedAt: row.checked_at === null ? null : new Date(row.checked_at),
+          checkError: row.check_error,
+        }));
+      },
+
+      async put(record: RoleBindingRecord): Promise<void> {
+        await client`
+          insert into role_binding (role, external_id, tool, title, link_id, checked_at, check_error,
+                                    updated_at)
+          values (${record.role}, ${record.externalId}, 'doc', ${record.title}, ${record.linkId},
+                  ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError}, now())
+          on conflict (role) do update set
+            external_id = excluded.external_id,
+            title = excluded.title,
+            link_id = excluded.link_id,
+            checked_at = excluded.checked_at,
+            check_error = excluded.check_error,
+            updated_at = now()`;
+      },
+
+      async remove(role: string): Promise<boolean> {
+        const rows = await client`delete from role_binding where role = ${role} returning role`;
+        return rows.length > 0;
+      },
+    },
+
     areas: {
       async list(): Promise<readonly AreaRecord[]> {
         const rows = await client<AreaRow[]>`
-          select key, name, kind, active, external_page_id, run_budget_hours_per_week
+          select key, name, kind, active, external_page_id, run_budget_hours_per_week, color_slot
           from area order by key`;
         return rows.map(toArea);
       },
 
       async get(key: string): Promise<AreaRecord | undefined> {
         const rows = await client<AreaRow[]>`
-          select key, name, kind, active, external_page_id, run_budget_hours_per_week
+          select key, name, kind, active, external_page_id, run_budget_hours_per_week, color_slot
           from area where key = ${key}`;
         const row = rows[0];
         return row === undefined ? undefined : toArea(row);
@@ -503,15 +567,18 @@ export function createPostgresStore(client: Sql): ApiStore {
       async create(input: CreateAreaInput): Promise<AreaRecord> {
         return client.begin(async (tx: Tx) => {
           const rows = await tx<AreaRow[]>`
-            insert into area (key, name, kind, active, external_page_id, run_budget_hours_per_week)
+            insert into area (key, name, kind, active, external_page_id, run_budget_hours_per_week,
+                              color_slot)
             values (${input.key}, ${input.name}, ${input.kind}, ${input.active},
-                    ${input.externalPageId ?? null}, ${input.runBudgetHoursPerWeek ?? null})
-            returning key, name, kind, active, external_page_id, run_budget_hours_per_week`;
+                    ${input.externalPageId ?? null}, ${input.runBudgetHoursPerWeek ?? null},
+                    ${input.colorSlot ?? null})
+            returning key, name, kind, active, external_page_id, run_budget_hours_per_week, color_slot`;
 
           for (const mapping of input.mappings) {
             await tx`
-              insert into area_mapping (area_key, external_project_id, external_section_id)
-              values (${input.key}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null})`;
+              insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+              values (${input.key}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null},
+                      ${mapping.isHome ?? false})`;
           }
 
           const row = rows[0];
@@ -533,25 +600,21 @@ export function createPostgresStore(client: Sql): ApiStore {
                                  then external_page_id else ${input.externalPageId ?? null} end,
             run_budget_hours_per_week = case when ${input.runBudgetHoursPerWeek === undefined}
                                  then run_budget_hours_per_week
-                                 else ${input.runBudgetHoursPerWeek ?? null} end
+                                 else ${input.runBudgetHoursPerWeek ?? null} end,
+            color_slot = case when ${input.colorSlot === undefined}
+                                 then color_slot else ${input.colorSlot ?? null} end
           where key = ${key}
-          returning key, name, kind, active, external_page_id, run_budget_hours_per_week`;
+          returning key, name, kind, active, external_page_id, run_budget_hours_per_week, color_slot`;
         const row = rows[0];
         return row === undefined ? undefined : toArea(row);
       },
 
       async mappings(): Promise<readonly AreaMappingRecord[]> {
-        const rows = await client<
-          { area_key: string; external_project_id: string; external_section_id: string | null }[]
-        >`
-          select area_key, external_project_id, external_section_id
+        const rows = await client<AreaMappingRow[]>`
+          select area_key, external_project_id, external_section_id, is_home
           from area_mapping
           order by area_key, external_project_id, external_section_id nulls first`;
-        return rows.map((row) => ({
-          areaKey: row.area_key,
-          externalProjectId: row.external_project_id,
-          externalSectionId: row.external_section_id,
-        }));
+        return rows.map(toAreaMapping);
       },
 
       async replaceMappings(key, mappings): Promise<readonly AreaMappingRecord[]> {
@@ -559,20 +622,15 @@ export function createPostgresStore(client: Sql): ApiStore {
           await tx`delete from area_mapping where area_key = ${key}`;
           for (const mapping of mappings) {
             await tx`
-              insert into area_mapping (area_key, external_project_id, external_section_id)
-              values (${key}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null})`;
+              insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+              values (${key}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null},
+                      ${mapping.isHome ?? false})`;
           }
-          const rows = await tx<
-            { area_key: string; external_project_id: string; external_section_id: string | null }[]
-          >`
-            select area_key, external_project_id, external_section_id
+          const rows = await tx<AreaMappingRow[]>`
+            select area_key, external_project_id, external_section_id, is_home
             from area_mapping where area_key = ${key}
             order by external_project_id, external_section_id nulls first`;
-          return rows.map((row) => ({
-            areaKey: row.area_key,
-            externalProjectId: row.external_project_id,
-            externalSectionId: row.external_section_id,
-          }));
+          return rows.map(toAreaMapping);
         });
       },
 
