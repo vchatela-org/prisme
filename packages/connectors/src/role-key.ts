@@ -20,38 +20,39 @@ export const ROLE_KEYS = [
   'processes_db',
   'reviews_db',
   /*
-   * ADR-0025's four, added when it was accepted.
+   * ADR-0025's page stores, added when it was accepted, and ADR-0030's reading
+   * of them.
    *
    * `ADR-0011` says an initiative's narrative page is created on demand and
    * `ADR-0019` says the same for a project, and until these existed prisme
    * could not address either target: none of the six above is where such a page
-   * lives, and none is a template. So *Create page* recorded an intention
-   * nothing could satisfy (W15).
+   * lives. So *Create page* recorded an intention nothing could satisfy (W15).
    *
-   * The two page stores name **where** a page is created; the two templates
-   * name **what it is a copy of**. An instance that keeps both kinds of page in
-   * one store binds the two to the same identifier — the distinction is
-   * prisme's, and binding is instance data.
+   * Each names **the database a kind of page is created in**, as an entry of
+   * its one data source (ADR-0030 rule 1) — the `_db` suffix means what it
+   * says. What a new page is a copy of is not a binding at all: it is one of the
+   * templates that database holds, kept and edited in the document tool's own
+   * editor. An instance that keeps two kinds of page in one database binds the
+   * two roles to the same identifier — the distinction is prisme's, and binding
+   * is instance data.
    */
   'initiative_pages_db',
   'project_pages_db',
   /*
-   * ADR-0028's pair, added when it was accepted.
+   * ADR-0028's store, added when it was accepted.
    *
    * ADR-0025 named an initiative's page and a project's page and stopped, on
    * purpose: a capture is neither, and guessing which of the two it meant is
    * the class of guess this repository refuses everywhere. So a capture's page
    * was recorded as an intent that the plan reported `blocked` with the reason
-   * — a gap, said out loud, rather than a silent approximation.
+   * — a gap, said out loud, rather than a silent approximation. It is closed the
+   * same way the first two were, by a store of its own, because a capture's page
+   * is not an initiative's page that happens to arrive earlier.
    *
-   * The gap is closed the same way the first two were: a store role and a
-   * template role, bound independently, because a capture's page is not an
-   * initiative's page that happens to arrive earlier.
+   * ADR-0028 also added a template role per kind, and ADR-0030 removed all
+   * three: a store's templates are the ones its database holds.
    */
   'capture_pages_db',
-  'capture_page_template',
-  'initiative_page_template',
-  'project_page_template',
 ] as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[number];
@@ -59,28 +60,17 @@ export type RoleKey = (typeof ROLE_KEYS)[number];
 export const roleKeySchema: z.ZodType<RoleKey> = z.enum(ROLE_KEYS);
 
 /**
- * The roles that name a **page rather than a store**, and so are read on
- * purpose rather than scanned.
+ * The roles prisme **creates in** rather than reads: the page stores.
  *
- * A template is a page whose blocks get copied into a new page; the adoption
- * scan walks stores looking for work somebody might want to adopt, and a
- * template is neither work nor adoptable. Kept here rather than in the scan so
- * that adding a role is a decision made in one place.
+ * Kept here rather than beside each caller so that adding a role is a decision
+ * made in one place. The adoption scan walks the readable stores only, so these
+ * never reach it — a page store is not read as work (ADR-0030 rule 7).
  */
 export const PAGE_ROLES: readonly RoleKey[] = [
   'initiative_pages_db',
   'project_pages_db',
   'capture_pages_db',
 ];
-export const TEMPLATE_ROLES: readonly RoleKey[] = [
-  'initiative_page_template',
-  'project_page_template',
-  'capture_page_template',
-];
-
-export function isTemplateRole(role: RoleKey): boolean {
-  return TEMPLATE_ROLES.includes(role);
-}
 
 /**
  * The kinds of narrative page prisme can address.
@@ -94,12 +84,17 @@ export function isTemplateRole(role: RoleKey): boolean {
 export type PageKind = 'initiative' | 'project' | 'capture';
 
 /**
- * Which store each kind of page goes in, and which template it is a copy of.
+ * Which store each kind of page goes in.
  *
  * The *distinction* is prisme's; the *identifiers* are instance data. That is
- * ADR-0025's rule 1 in one line: an instance that keeps both kinds of page in
- * one place binds the two roles to the same identifier, and nothing here needs
+ * ADR-0025's rule 1 in one line: an instance that keeps two kinds of page in one
+ * database binds the two roles to the same identifier, and nothing here needs
  * to know that it did.
+ *
+ * There is no second record for the template. ADR-0025 had one — a template
+ * role per kind — and ADR-0030 removed it: which template a page starts from is
+ * read from the store's own template list when the page is created, so a
+ * kind's store is the whole of what prisme needs to know about it.
  *
  * It lives beside the vocabulary rather than in the planner because it is a
  * property of the vocabulary: a role added here without a kind, or a kind added
@@ -110,12 +105,6 @@ export const PAGE_ROLE_FOR: Readonly<Record<PageKind, RoleKey>> = {
   initiative: 'initiative_pages_db',
   project: 'project_pages_db',
   capture: 'capture_pages_db',
-};
-
-export const PAGE_TEMPLATE_FOR: Readonly<Record<PageKind, RoleKey>> = {
-  initiative: 'initiative_page_template',
-  project: 'project_page_template',
-  capture: 'capture_page_template',
 };
 
 export type RoleAccess = 'read' | 'write' | 'read_write' | 'create';
@@ -130,12 +119,20 @@ export type RoleAccess = 'read' | 'write' | 'read_write' | 'create';
  * read path cannot be pointed at it by mistake.
  *
  * `create` is ADR-0025's verb and it is **narrower than `write`**: it permits
- * adding a page under the bound parent and permits nothing at all to content
- * that already exists. The distinction is the point — a bug in the creating
- * path adds a page, which a person deletes in a second, where a bug with
- * `write` edits a page somebody has been writing in for months. It is
- * deliberately *not* readable as well: prisme has no business reading the page
- * store, and a verb that implied both would be `write` with a nicer name.
+ * adding an entry to the bound database and permits nothing at all to content
+ * that already exists — including the entry it has just added. The distinction
+ * is the point — a bug in the creating path adds a page, which a person deletes
+ * in a second, where a bug with `write` edits a page somebody has been writing
+ * in for months.
+ *
+ * It is deliberately *not* readable in the sense {@link assertReadable} checks:
+ * no store row is ever queried as work, and no page body is read. It does carry
+ * **three narrow reads**, which ADR-0030 rule 7 names because creating cannot
+ * be done honestly without them: the store's schema (to find its title
+ * property), its template list (to know what a page starts from), and its
+ * entries' *titles* (to find the page a retry already made). Each is made by
+ * the creating path itself, behind {@link assertCreatable}, and a verb that
+ * implied reading anything more would be `write` with a nicer name.
  */
 export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   objectives_db: 'read_write',
@@ -147,22 +144,22 @@ export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   initiative_pages_db: 'create',
   project_pages_db: 'create',
   capture_pages_db: 'create',
-  // A template is read: prisme copies its blocks and writes none of them.
-  initiative_page_template: 'read',
-  project_page_template: 'read',
-  capture_page_template: 'read',
 };
 
 /**
  * What kind of object a role names in the document tool.
  *
- * The six original roles are queried as **data sources**; a page store is the
- * **page** new pages are created under, and a template is a page whose blocks
- * are copied (ADR-0025). The Settings screen needs the distinction to describe
- * a binding, and a person pasting a link needs it to be told which kind to
- * paste.
+ * One kind, since ADR-0030: **every role names a data source.** The six read
+ * roles always did, and the three page stores were parent *pages* until the
+ * document tool could instantiate a database's own templates — at which point a
+ * page store became the database the owner already kept (ADR-0030 rule 1).
+ *
+ * Kept as a type and a record rather than folded away, because the Settings
+ * screen names it to a person pasting a link, and because a second shape is not
+ * an edit to this file: two shapes for one role is the ambiguity ADR-0008
+ * exists to prevent, one level up, and ADR-0030 rejected it by name.
  */
-export type StoreShape = 'data_source' | 'page';
+export type StoreShape = 'data_source';
 
 export const ROLE_SHAPE: Readonly<Record<RoleKey, StoreShape>> = {
   objectives_db: 'data_source',
@@ -171,12 +168,9 @@ export const ROLE_SHAPE: Readonly<Record<RoleKey, StoreShape>> = {
   areas_db: 'data_source',
   processes_db: 'data_source',
   reviews_db: 'data_source',
-  initiative_pages_db: 'page',
-  project_pages_db: 'page',
-  capture_pages_db: 'page',
-  initiative_page_template: 'page',
-  project_page_template: 'page',
-  capture_page_template: 'page',
+  initiative_pages_db: 'data_source',
+  project_pages_db: 'data_source',
+  capture_pages_db: 'data_source',
 };
 
 export function isReadable(role: RoleKey): boolean {
@@ -184,7 +178,7 @@ export function isReadable(role: RoleKey): boolean {
   return access === 'read' || access === 'read_write';
 }
 
-/** Whether prisme may add a page under this role's bound parent (ADR-0025). */
+/** Whether prisme may add an entry to this role's bound database (ADR-0025, ADR-0030). */
 export function canCreate(role: RoleKey): boolean {
   return ROLE_ACCESS[role] === 'create';
 }
@@ -241,7 +235,7 @@ export function createRoleBindings(bindings: readonly RoleBinding[]): RoleBindin
         // Names the role, never the identifier of any store that *is* bound.
         throw new ConnectorError(
           'unbound_role',
-          `no binding for role ${role}; it is configured in the seed data, not in this repository`,
+          `no binding for role ${role}; it is set in Settings → Notion, not in this repository`,
           { tool: 'doc', operation: 'resolve role key' },
         );
       }

@@ -32,6 +32,14 @@ export type ConnectorFailure =
   | 'unavailable'
   /** A 4xx that is neither auth nor rate limiting. Retrying will not help. */
   | 'refused'
+  /**
+   * The identifier names an object of **another kind** than the role needs — a
+   * page where a database is wanted (ADR-0030). Only ever reported when the
+   * other kind was positively *read*: an object the integration cannot see is
+   * `refused`, because "not shared" and "not a database" are then the same
+   * answer from the tool, and telling them apart would be a guess.
+   */
+  | 'wrong_kind'
   /** The transport itself failed — DNS, TLS, connection reset, timeout. */
   | 'transport'
   /** A role key with no binding. Configuration, not a runtime condition. */

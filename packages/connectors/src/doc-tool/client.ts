@@ -16,14 +16,18 @@ import type {
   DocPage,
   DocRecord,
   DocStoreDescription,
+  DocTemplate,
   DocToolClient,
 } from './types.js';
 import {
   wireBlockListSchema,
   wireDatabaseSchema,
   wireDataSourceSchema,
+  wireDataSourcePropertiesSchema,
   wirePageSchema,
   wireQueryResponseSchema,
+  wireTemplateListSchema,
+  type WirePage,
   type WireRichText,
 } from './wire.js';
 
@@ -72,7 +76,7 @@ const MAX_BLOCK_DEPTH = 3;
 export interface DocToolClientOptions {
   /** The integration token. Held here, logged nowhere (docs/14-threat-model.md §1, A1). */
   readonly token: string;
-  /** Role key → external identifier. Loaded from the seed data, never from git. */
+  /** Role key → external identifier. Set in Settings → Notion, never in git. */
   readonly bindings: RoleBindings;
   readonly baseUrl?: string | undefined;
   readonly apiVersion?: string | undefined;
@@ -195,13 +199,11 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
   }
 
   /**
-   * A page read by id, in full.
+   * A page read by id, in full — properties and body.
    *
-   * A named function rather than a method, because two paths need it: the
-   * public `fetchPage`, and the level-triggered existence check a creation
-   * makes before it sends anything. A match there has to come back *fully
-   * read*, because the caller records an external id and a creation that
-   * reported one it had not read is the orphan the ledger exists to prevent.
+   * Only `fetchPage` reaches it. The creating path deliberately does not: the
+   * page it finds or makes belongs to the document tool, and `create` reads a
+   * store's entry *titles* and nothing of their bodies (ADR-0030 rule 7).
    *
    * No role is stamped on the result: a page fetched by id did not arrive
    * through a role-keyed query, and inventing one would be a lie about where
@@ -236,51 +238,90 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
   }
 
   /**
-   * A page already under this parent with this title, if there is one.
+   * The id of a data source's **title property**, found by type (ADR-0030 rule 1).
    *
-   * The document tool has no idempotency key and no custom field on a page
-   * under a page, so the identity of "the page this creation is about" cannot
-   * be attached to anything prisme sends. What it *can* be is a question about
-   * the world: the operation becomes "ensure a page with this title exists
-   * under this parent", which is the same shape every other pass in this
-   * application has (ADR-0009).
+   * Not by name: the title column is called whatever the workspace calls it, in
+   * whatever language the workspace is in, and prisme has no business knowing
+   * either. A data source has exactly one title property by the tool's own
+   * rules, so none — or two — is a shape this client does not recognise, and it
+   * says so rather than writing the title into whichever it met first.
    *
-   * The limitation is real and worth stating: two pages with one title under
-   * one parent are indistinguishable to this, so the second is treated as the
-   * first. A workspace where that matters is a workspace whose pages a person
-   * cannot tell apart either.
+   * The name, which is the map's key, is read past and never kept.
    */
-  async function findChildPage(
-    parentId: string,
+  async function titlePropertyOf(dataSourceId: string, operation: string): Promise<string> {
+    const schema = parseOrThrow(
+      wireDataSourcePropertiesSchema,
+      await send('GET', `/v1/data_sources/${encodeURIComponent(dataSourceId)}`, operation),
+      { tool: 'doc', operation, shape: 'data source' },
+    );
+    const titles = Object.values(schema.properties).filter((property) => property.type === 'title');
+    const [only, ...others] = titles;
+    if (only === undefined || others.length > 0) {
+      throw new ConnectorError(
+        'invalid_shape',
+        `the data source has ${String(titles.length)} title properties where the tool guarantees one`,
+        { tool: 'doc', operation },
+      );
+    }
+    return only.id;
+  }
+
+  /**
+   * The live entry of this data source whose title is this one, if there is one.
+   *
+   * The document tool has no idempotency key, so the identity of "the page this
+   * creation is about" cannot be attached to anything prisme sends. What it
+   * *can* be is a question about the world: the operation becomes "ensure an
+   * entry with this title exists in this database", which is the same shape
+   * every other pass in this application has (ADR-0009, ADR-0030 rule 6).
+   *
+   * Two properties keep it inside what `create` may read (ADR-0030 rule 7):
+   * the filter asks the tool for **exact title matches** only, and
+   * `filter_properties` asks it to return **the title and nothing else** — so
+   * no other entry, and no other property of a matching one, reaches prisme.
+   * The body is never fetched: a match is returned as the entry it is.
+   *
+   * The limitation is real and worth stating: two live entries with one title
+   * in one database are indistinguishable to this, so the second is treated as
+   * the first. A database where that matters is one whose entries a person
+   * cannot tell apart either. A trashed entry is not a match — the tool leaves
+   * archived entries out of a query, and one that arrives anyway is skipped —
+   * so a page somebody deleted is created again rather than resurrected.
+   */
+  async function findLiveEntry(
+    dataSourceId: string,
+    titleProperty: string,
     title: string,
     operation: string,
-  ): Promise<DocPage | undefined> {
+  ): Promise<WirePage | undefined> {
     const seen = new Set<string>();
     let cursor: string | undefined;
+    const only = new URLSearchParams([['filter_properties[]', titleProperty]]);
 
     for (let page = 0; page < MAX_PAGES; page += 1) {
-      const query = new URLSearchParams({ page_size: String(PAGE_SIZE) });
-      if (cursor !== undefined) query.set('start_cursor', cursor);
-
       const body = await send(
-        'GET',
-        `/v1/blocks/${encodeURIComponent(parentId)}/children?${query.toString()}`,
+        'POST',
+        `/v1/data_sources/${encodeURIComponent(dataSourceId)}/query?${only.toString()}`,
         operation,
+        {
+          page_size: PAGE_SIZE,
+          ...(cursor === undefined ? {} : { start_cursor: cursor }),
+          filter: { property: titleProperty, title: { equals: title } },
+        },
       );
-      const response = parseOrThrow(wireBlockListSchema, body, {
+      const response = parseOrThrow(wireQueryResponseSchema, body, {
         tool: 'doc',
         operation,
-        shape: 'block list',
+        shape: 'query response',
       });
 
-      for (const block of response.results) {
-        if (block.type !== 'child_page') continue;
-        const payload = block['child_page'] as { title?: unknown } | undefined;
-        if (payload?.title !== title) continue;
-        // A match is fetched in full, because the caller records an external
-        // id and a creation that reported one it had not read would be the
-        // orphan the ledger exists to prevent.
-        return await readPageById(block.id, operation);
+      for (const result of response.results) {
+        const entry = parseOrThrow(wirePageSchema, result, {
+          tool: 'doc',
+          operation,
+          shape: 'page',
+        });
+        if (!mapPageContent(entry, operation).archived) return entry;
       }
 
       if (!response.has_more) return undefined;
@@ -288,51 +329,27 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       if (cursor === undefined) return undefined;
     }
 
-    throw new ConnectorError(
-      'pagination',
-      `block list did not end after ${String(MAX_PAGES)} pages`,
-      {
-        tool: 'doc',
-        operation,
-      },
-    );
-  }
-
-  /**
-   * The template's top-level blocks, as objects the tool will accept back.
-   *
-   * Only the fields a creation may carry: a fetched block comes back with an
-   * `id`, timestamps and its own children, and sending those back would ask the
-   * tool to reproduce an object rather than to create one. `object`, `type` and
-   * the type's own payload are what a create accepts.
-   *
-   * `PAGE_SIZE` caps it, which is also the tool's own limit on a page's initial
-   * children — so a template deeper than a hundred top-level blocks is copied
-   * as far as the tool would take in one request, and no further.
-   */
-  async function fetchTemplateChildren(
-    templateId: string,
-    operation: string,
-  ): Promise<readonly unknown[]> {
-    const body = await send(
-      'GET',
-      `/v1/blocks/${encodeURIComponent(templateId)}/children?page_size=${String(PAGE_SIZE)}`,
-      operation,
-    );
-    const response = parseOrThrow(wireBlockListSchema, body, {
+    throw new ConnectorError('pagination', `query did not end after ${String(MAX_PAGES)} pages`, {
       tool: 'doc',
       operation,
-      shape: 'block list',
     });
+  }
 
-    return response.results.slice(0, PAGE_SIZE).map((block) => {
-      const payload = block[block.type];
-      return {
-        object: 'block',
-        type: block.type,
-        ...(payload === undefined ? {} : { [block.type]: payload }),
-      };
-    });
+  /** A page's properties as the creating path returns them: no body, by design. */
+  function entryOf(wirePage: WirePage, operation: string): DocPage {
+    const record = mapPageContent(wirePage, operation);
+    return {
+      externalId: record.externalId,
+      title: record.title,
+      lastEditedAt: record.lastEditedAt,
+      createdAt: record.createdAt,
+      archived: record.archived,
+      blocks: [],
+      text: '',
+      urls: [],
+      skippedBlockTypes: [],
+      contentHash: record.contentHash,
+    };
   }
 
   /**
@@ -351,11 +368,18 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       body = await send('GET', `/v1/data_sources/${encodeURIComponent(id)}`, operation);
     } catch (error) {
       if (!isNotFound(error)) throw error;
-      const database = parseOrThrow(
-        wireDatabaseSchema,
-        await send('GET', `/v1/databases/${encodeURIComponent(id)}`, operation),
-        { tool: 'doc', operation, shape: 'database' },
-      );
+      let databaseBody: unknown;
+      try {
+        databaseBody = await send('GET', `/v1/databases/${encodeURIComponent(id)}`, operation);
+      } catch (notDatabase) {
+        if (!isNotFound(notDatabase)) throw notDatabase;
+        return refuseOtherKind(id, operation, notDatabase);
+      }
+      const database = parseOrThrow(wireDatabaseSchema, databaseBody, {
+        tool: 'doc',
+        operation,
+        shape: 'database',
+      });
       const [only, ...others] = database.data_sources;
       if (only === undefined || others.length > 0) {
         throw new ConnectorError(
@@ -383,19 +407,98 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
     };
   }
 
-  return {
-    async describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription> {
-      const operation = `describe ${shape}`;
-      if (shape === 'data_source') return describeDataSource(externalId, operation);
-
-      // Properties only. A page's blocks are its body, and describing a page
-      // store is not a reason to read what anybody wrote under it.
-      const body = await send('GET', `/v1/pages/${encodeURIComponent(externalId)}`, operation);
-      const page = mapPageContent(
-        parseOrThrow(wirePageSchema, body, { tool: 'doc', operation, shape: 'page' }),
-        operation,
+  /**
+   * Why an identifier that is neither a data source nor a database failed —
+   * **as far as the tool lets that be known**.
+   *
+   * A page store used to be a page (ADR-0025), and a binding made then names
+   * one; ADR-0030 says such a binding "now fails its check as the wrong kind of
+   * object — which is the truth". The tool answers a data-source or database
+   * read of a page's identifier the same way it answers one of an object the
+   * integration cannot see, so the difference is only observable by reading the
+   * identifier *as a page*: if that succeeds, it is a page, shared, and the
+   * wrong kind. Properties only — the same metadata `describe` reads anywhere —
+   * and the page is not described, because it is not what the role names.
+   *
+   * If that read fails too, nothing distinguishes "not shared" from "not a
+   * database", and the original refusal is what is reported.
+   */
+  async function refuseOtherKind(id: string, operation: string, refusal: unknown): Promise<never> {
+    let isPage = false;
+    try {
+      parseOrThrow(
+        wirePageSchema,
+        await send('GET', `/v1/pages/${encodeURIComponent(id)}`, operation),
+        { tool: 'doc', operation, shape: 'page' },
       );
-      return { externalId: page.externalId, title: page.title, linkId: page.externalId };
+      isPage = true;
+    } catch {
+      // Not a page the integration can see either: nothing tells the two apart.
+    }
+    if (isPage) {
+      throw new ConnectorError('wrong_kind', 'that identifier names a page, not a database', {
+        tool: 'doc',
+        operation,
+      });
+    }
+    throw refusal;
+  }
+
+  /**
+   * Every template a data source holds, following the list's cursor.
+   *
+   * Sorted by name so that two reads of an unchanged database list the same
+   * way — a screen that reorders a select between two visits reads as a change.
+   */
+  async function templatesOf(dataSourceId: string, operation: string): Promise<DocTemplate[]> {
+    const templates: DocTemplate[] = [];
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const query = new URLSearchParams({ page_size: String(PAGE_SIZE) });
+      if (cursor !== undefined) query.set('start_cursor', cursor);
+
+      const response = parseOrThrow(
+        wireTemplateListSchema,
+        await send(
+          'GET',
+          `/v1/data_sources/${encodeURIComponent(dataSourceId)}/templates?${query.toString()}`,
+          operation,
+        ),
+        { tool: 'doc', operation, shape: 'template list' },
+      );
+
+      for (const template of response.templates) {
+        templates.push({
+          id: template.id,
+          name: sanitisePlainText(template.name).trim(),
+          isDefault: template.is_default,
+        });
+      }
+
+      if (!response.has_more) {
+        return templates.sort((left, right) => left.name.localeCompare(right.name));
+      }
+      cursor = guardCursor(seen, response.next_cursor, operation);
+      if (cursor === undefined) {
+        return templates.sort((left, right) => left.name.localeCompare(right.name));
+      }
+    }
+
+    throw new ConnectorError(
+      'pagination',
+      `template list did not end after ${String(MAX_PAGES)} pages`,
+      { tool: 'doc', operation },
+    );
+  }
+
+  return {
+    describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription> {
+      // Every role names a data source since ADR-0030, so there is one way to
+      // describe one. The shape is still taken, and still named in the
+      // operation, because it is what the caller asked for.
+      return describeDataSource(externalId, `describe ${shape}`);
     },
 
     async queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]> {
@@ -454,71 +557,70 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
     },
 
     /**
-     * ADR-0011's narrative page, created under the page store's bound parent.
+     * The templates of a page store's database (ADR-0030 rule 3).
      *
-     * Three properties, and each is a decision ADR-0025 made:
+     * Behind `assertCreatable`, not `assertReadable`: this is one of the three
+     * reads the `create` capability carries, and it is refused on a role prisme
+     * only reads — a template list is a question about where pages are made,
+     * and a read store is not one.
+     */
+    async listTemplates(role: RoleKey): Promise<readonly DocTemplate[]> {
+      const operation = `list templates ${role}`;
+      assertCreatable(role, operation);
+      return templatesOf(options.bindings.resolve(role), operation);
+    },
+
+    /**
+     * ADR-0011's narrative page, created as an entry of the page store's
+     * database (ADR-0030).
      *
-     *   - **The parent is the bound identifier.** The role key names *where* a
+     * Four properties, and each is a decision one of the two records made:
+     *
+     *   - **The parent is the bound data source.** The role key names *where* a
      *     page is created, so the thing it resolves to is the parent. Nothing
      *     here guesses a location, which is the whole reason the vocabulary had
      *     to grow before this method could exist.
-     *   - **The body is a structural copy of the template's top-level blocks
-     *     and nothing deeper.** The document tool has no template-instantiation
-     *     operation, so "from the template" is a copy — and a copy of nested
-     *     children is a document-tool feature prisme would be reimplementing.
-     *     The page body belongs to the document tool the moment it exists
-     *     (docs/11-ownership.md §3), so prisme writes nothing of its own into
-     *     it: no backlink block, no marker, nothing.
+     *   - **The title is the only property sent**, keyed by the title
+     *     property's id — found by type in the schema, because the column's name
+     *     is the workspace's. A template may set other properties; those are the
+     *     template's and the document tool's, and prisme does not read them back.
+     *   - **The template is applied by the document tool.** The resolved
+     *     identifier is sent as `template_id` — never `default`, so that what the
+     *     plan showed is what is sent — and no `children`, which the tool refuses
+     *     beside a template. The tool fills the body *after* answering, and this
+     *     neither waits for it nor reads it: the page belongs to the document
+     *     tool the moment it exists (docs/11-ownership.md §3), and prisme writes
+     *     nothing of its own into it — no backlink, no marker, nothing.
      *   - **It is level-triggered.** The document tool has no idempotency key,
-     *     so a retry after a timeout that had in fact succeeded cannot be
-     *     told apart from a first attempt — unless the question asked is "is
-     *     there already a page with this title under this parent", which is a
-     *     question about the world rather than about the request (ADR-0009).
-     *     That is what this does, and it is why the operation is safe to run
-     *     twice.
+     *     so a retry after a timeout that had in fact succeeded cannot be told
+     *     apart from a first attempt — unless the question asked is "is there
+     *     already a live entry with this title in this database", which is a
+     *     question about the world rather than about the request (ADR-0009,
+     *     ADR-0030 rule 6). That is what this does, and it is why the operation
+     *     is safe to run twice.
      */
     async createPage(input: CreatePageInput): Promise<DocPage> {
       const operation = 'create page';
       assertCreatable(input.role, operation);
-      // Read, so a template role that is write-only is refused for the right
-      // reason rather than by a 403 from the tool.
-      assertReadable(input.templateRole, operation);
 
-      const parentId = options.bindings.resolve(input.role);
-      const templateId = options.bindings.resolve(input.templateRole);
+      const dataSourceId = options.bindings.resolve(input.role);
+      const titleProperty = await titlePropertyOf(dataSourceId, operation);
 
-      const existing = await findChildPage(parentId, input.title, operation);
-      if (existing !== undefined) return existing;
-
-      const blocks = await fetchTemplateChildren(templateId, operation);
+      const existing = await findLiveEntry(dataSourceId, titleProperty, input.title, operation);
+      if (existing !== undefined) return entryOf(existing, operation);
 
       const body = await send('POST', '/v1/pages', operation, {
-        parent: { type: 'page_id', page_id: parentId },
+        parent: { type: 'data_source_id', data_source_id: dataSourceId },
         properties: {
-          title: { title: [{ type: 'text', text: { content: input.title } }] },
+          [titleProperty]: { title: [{ type: 'text', text: { content: input.title } }] },
         },
-        ...(blocks.length === 0 ? {} : { children: blocks }),
+        template: { type: 'template_id', template_id: input.templateId },
       });
 
-      const wirePage = parseOrThrow(wirePageSchema, body, {
-        tool: 'doc',
+      return entryOf(
+        parseOrThrow(wirePageSchema, body, { tool: 'doc', operation, shape: 'page' }),
         operation,
-        shape: 'page',
-      });
-      const record = mapPageContent(wirePage, operation);
-
-      return {
-        externalId: record.externalId,
-        title: record.title,
-        lastEditedAt: record.lastEditedAt,
-        createdAt: record.createdAt,
-        archived: record.archived,
-        blocks: [],
-        text: '',
-        urls: [],
-        skippedBlockTypes: [],
-        contentHash: record.contentHash,
-      };
+      );
     },
 
     fetchPage(id: string): Promise<DocPage> {

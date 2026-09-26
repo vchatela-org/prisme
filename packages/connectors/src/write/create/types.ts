@@ -67,21 +67,26 @@ export interface LooseTaskDraft {
 }
 
 /**
- * A narrative page in the document tool (ADR-0011, ADR-0019, ADR-0025).
+ * A narrative page in the document tool (ADR-0011, ADR-0019, ADR-0025, ADR-0030).
  *
- * `kind` rather than a role key: which store a page goes in and which template
- * it copies are prisme's decisions, and a draft carrying role keys would let a
- * caller choose them. The mapping is `PAGE_ROLE_FOR` in `../../role-key.ts`.
+ * `kind` rather than a role key: which database a page goes in is prisme's
+ * decision, and a draft carrying a role key would let a caller choose it. The
+ * mapping is `PAGE_ROLE_FOR` in `../../role-key.ts`.
  *
- * There is no body here, and that is the design. The page's content is a copy
- * of the template's top-level blocks; a marker, a backlink or a heading of
- * prisme's own would be prisme writing into a body the document tool owns
- * outright (docs/11-ownership.md §3).
+ * `templateId` is the template **as resolved** — one of that database's own,
+ * read from its live list by the pass that is about to send this, never a
+ * reference like "the default" (ADR-0030 rules 3 and 4). There is still no body
+ * here, and that is the design: the page's content is the template's, applied
+ * by the document tool, and a marker, a backlink or a heading of prisme's own
+ * would be prisme writing into a body the document tool owns outright
+ * (docs/11-ownership.md §3).
  */
 export interface PageDraft {
   readonly kind: PageKind;
   /** prisme owns the title of a thing it created. */
   readonly title: string;
+  /** One of the kind's database's templates, resolved from its list this pass. */
+  readonly templateId: string;
 }
 
 /**
@@ -102,8 +107,9 @@ export interface DocumentCreationWriter {
    *
    * `key` is carried for the ledger's sake and **is not sent** — the document
    * tool has no idempotency key. The operation is level-triggered instead: it
-   * asks whether a page with this title already exists under the parent, which
-   * is a question about the world and therefore safe to ask twice (ADR-0009).
+   * asks whether a live entry with this title already exists in the database,
+   * which is a question about the world and therefore safe to ask twice
+   * (ADR-0009, ADR-0030 rule 6).
    * See `doc-tool/client.ts` for the limitation that carries.
    */
   createPage(draft: PageDraft, key: IdempotencyKey): Promise<{ readonly externalId: string }>;

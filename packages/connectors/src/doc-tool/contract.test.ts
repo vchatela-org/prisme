@@ -388,12 +388,92 @@ describe('describing a store before it is bound', () => {
     expect(String(failure)).not.toContain('ds-0002');
   });
 
-  it('names a page from its title property, and reads none of its body', async () => {
+  it('says a page is the wrong kind, having read it as one, and reads none of its body', async () => {
+    // ADR-0030: a page store used to be a page, and a binding made then names
+    // one. The tool answers a data-source and a database read of a page's id as
+    // it answers an unshared object, so the difference is only knowable by
+    // reading the id as a page — properties only.
     const { client, requests } = describing({ '/v1/pages/doc-page-0001': page });
-    const described = await client.describe('doc-page-0001', 'page');
-    expect(described.externalId).toBe('doc-page-0001');
-    expect(described.linkId).toBe('doc-page-0001');
-    expect(described.title.length).toBeGreaterThan(0);
+    const failure = await client
+      .describe('doc-page-0001', 'data_source')
+      .catch((error: unknown) => error);
+    expect(isConnectorError(failure) && failure.failure).toBe('wrong_kind');
+    expect(String(failure)).not.toContain('doc-page-0001');
+    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+      '/v1/data_sources/doc-page-0001',
+      '/v1/databases/doc-page-0001',
+      '/v1/pages/doc-page-0001',
+    ]);
     expect(requests.some((request) => request.url.includes('/blocks/'))).toBe(false);
+  });
+
+  it('reports an object it cannot see as refused, not as the wrong kind', async () => {
+    // "Not shared" and "not a database" are the same answer from the tool when
+    // the page read fails too, and telling them apart would be a guess.
+    const { client } = describing({});
+    const failure = await client
+      .describe('unseen-0001', 'data_source')
+      .catch((error: unknown) => error);
+    expect(isConnectorError(failure) && failure.failure).toBe('refused');
+  });
+});
+
+describe('a page store’s templates (ADR-0030)', () => {
+  function listing(pages: readonly unknown[]) {
+    const requests: HttpRequest[] = [];
+    const client = createDocToolClient({
+      token: 'recorded-fixture-token',
+      bindings: createRecordedBindings(),
+      transport: (request) => {
+        requests.push(request);
+        const cursor = new URL(request.url).searchParams.get('start_cursor');
+        const body = pages[cursor === null ? 0 : Number(cursor)];
+        return Promise.resolve({ status: 200, headers: {}, body: JSON.stringify(body) });
+      },
+    });
+    return { client, requests };
+  }
+
+  it('lists every template across pages, sanitised and sorted, with the default marked', async () => {
+    const { client, requests } = listing([
+      {
+        templates: [{ id: 'tpl-2', name: 'Weekly\u202e notes\u0007', is_default: false }],
+        has_more: true,
+        next_cursor: '1',
+      },
+      {
+        templates: [{ id: 'tpl-1', name: 'Brief', is_default: true }],
+        has_more: false,
+        next_cursor: null,
+      },
+    ]);
+
+    const templates = await client.listTemplates('project_pages_db');
+
+    expect(templates.map((template) => template.id)).toEqual(['tpl-1', 'tpl-2']);
+    expect(templates[0]?.isDefault).toBe(true);
+    // A template's name is text a person typed; it is sanitised like a title —
+    // a direction override or a control character does not reach a screen.
+    expect(templates[1]?.name).toBe('Weekly notes');
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe(
+      '/v1/data_sources/recorded-project_pages_db/templates',
+    );
+    expect(new URL(requests[0]?.url ?? '').searchParams.get('page_size')).toBe('100');
+  });
+
+  it('refuses to list templates on a role prisme does not create in', async () => {
+    // One of the three reads `create` carries, and only on a role that carries
+    // it: a read store's templates are none of prisme's business.
+    const { client, requests } = listing([]);
+    await expect(client.listTemplates('objectives_db')).rejects.toThrow(/may not add to it/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('refuses a list that does not match rather than guessing a template', async () => {
+    const { client } = listing([{ results: [], has_more: false, next_cursor: null }]);
+    const failure = await client
+      .listTemplates('initiative_pages_db')
+      .catch((error: unknown) => error);
+    expect(isConnectorError(failure) && failure.failure).toBe('invalid_shape');
   });
 });

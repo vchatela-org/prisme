@@ -145,6 +145,41 @@ export const wireDataSourceSchema = z.object({
 });
 
 /**
+ * A data source's **schema**, read by the creating path for one fact: which of
+ * its properties is the title (ADR-0030 rule 1).
+ *
+ * A property is kept as its `id` and its `type` and nothing else. Its *name* is
+ * the workspace's — it is the key of this map, and it is never used: the title
+ * property is found by type and addressed by id, so that prisme neither needs
+ * nor sends what somebody called their title column. The rest of a property's
+ * configuration (options, formulas, relations) is not read.
+ */
+export const wireDataSourcePropertiesSchema = z.object({
+  object: z.literal('data_source'),
+  id: z.string().min(1),
+  properties: z.record(
+    z.string(),
+    z.object({ id: z.string().min(1), type: z.string().min(1) }).loose(),
+  ),
+});
+
+/**
+ * One page of a data source's **template list** (ADR-0030 rule 3).
+ *
+ * The list is under `templates`, not `results`, and carries no `object`
+ * discriminant — so it is its own schema rather than a variant of the query
+ * response. A template's `name` is text a person typed in the document tool: it
+ * is sanitised before anything else sees it, like every other title.
+ */
+export const wireTemplateListSchema = z.object({
+  templates: z.array(
+    z.object({ id: z.string().min(1), name: z.string(), is_default: z.boolean() }),
+  ),
+  next_cursor: z.string().nullable(),
+  has_more: z.boolean(),
+});
+
+/**
  * A database, read for one reason: a person pasted its link.
  *
  * A database link is what the tool's own *Copy link* gives, and prisme queries
@@ -166,6 +201,8 @@ export const wireTextBlockPayloadSchema = z.object({
 
 export type WirePage = z.infer<typeof wirePageSchema>;
 export type WireDataSource = z.infer<typeof wireDataSourceSchema>;
+export type WireDataSourceProperties = z.infer<typeof wireDataSourcePropertiesSchema>;
+export type WireTemplateList = z.infer<typeof wireTemplateListSchema>;
 export type WireDatabase = z.infer<typeof wireDatabaseSchema>;
 export type WireRichText = z.infer<typeof wireRichTextSchema>;
 export type WireBlock = z.infer<typeof wireBlockSchema>;

@@ -37,7 +37,7 @@ export function createFrozenCreationWriter(reason = 'the write freeze is on'): C
  *
  * It matters even more here than for the task tool. A frozen creator that
  * wrongly ran would add a task; this one would add a page to a knowledge base
- * somebody reads, and the page it added would be a copy of a template — so the
+ * somebody reads, and the document tool would fill it from a template — so the
  * mistake is not one object but a document nobody asked for, in a place its
  * author looks for their own writing.
  */
