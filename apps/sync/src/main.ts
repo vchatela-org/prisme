@@ -12,28 +12,13 @@
  *   prisme-sync create --plan | --apply
  *                             drain the creation ledger: what the UI asked to
  *                             exist outward, and does not yet
- *   prisme-sync bindings --from <path>
- *                             load the role bindings: which external store each
- *                             role key names, and which external locations fold
- *                             into each area
- *   prisme-sync areas --from <path> [--force]
- *                             load the areas and their year weights
  * ```
  *
- * `bindings` and `areas` are the **seed path**, and both are migration steps
- * rather than passes: they write prisme's own tables and reach no API. Together
- * they are what `docs/17-privacy.md` means when it says areas, weights, tool
- * mappings and external IDs load from `seed/` — and until this pair existed, it
- * was not true, so a live instance's areas and mappings could only be set by
- * hand-written calls. `pnpm seed:load` runs them in order, areas first: a
- * mapping names an area, so the areas have to be there.
- *
- * `bindings` is also what makes the document tool addressable at all. Until it
- * has run, the adoption scan reads the task tool alone and the backfill's
- * declared-duration tier is unavailable. Both commands report **counts and area
- * keys**, never an external identifier — except in one refusal that names a
- * conflicting location, because a refusal that cannot be acted on is not one
- * (`areas.ts`).
+ * Areas, their year weights, their mappings and the role bindings are **not**
+ * set here: they are instance configuration, entered in the application
+ * (Settings) and stored through the API. Until the role bindings are set, the
+ * adoption scan reads the task tool alone and the backfill's declared-duration
+ * tier is unavailable.
  *
  * `apply` also drains the ledger before it reconciles, in the same lock. The
  * order matters: a project created this pass has to have its external id
@@ -57,7 +42,6 @@ import {
   createTaskToolClient,
   PAGE_ROLE_FOR,
   PAGE_TEMPLATE_FOR,
-  ROLE_KEYS,
   type PageKind,
   type RoleBindings,
 } from '@prisme/connectors';
@@ -75,9 +59,8 @@ import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db
 import { createLogger, createMetrics, currentRunContext, withNewRun } from '@prisme/observability';
 import { adopt } from './adoption/run.js';
 import { createAdoptionStore } from './adoption/store.js';
-import { loadAreasFromFile, saveAreas, saveMappings } from './areas.js';
 import { backfillFrom } from './backfill/cli.js';
-import { loadBindingsFromFile, readBindings, saveBindings } from './bindings.js';
+import { readBindings } from './bindings.js';
 import { refreshCapacity } from './capacity-refresh.js';
 import { backfill } from './backfill/run.js';
 import { createBackfillStore } from './backfill/store.js';
@@ -85,7 +68,6 @@ import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
 import { converge } from './create/run.js';
 import { createCreationStore } from './create/store.js';
 import { createPostgresStore } from './state/postgres.js';
-import { areasArgsFrom, bindingsFrom, type AreasArgs } from './seed-cli.js';
 import { reconcile } from './run.js';
 import { shouldRunNow } from './window.js';
 
@@ -100,15 +82,13 @@ const metrics = createMetrics({ collectDefaults: false });
 
 function modeFrom(
   argv: readonly string[],
-): 'plan' | 'apply' | 'adopt' | 'backfill' | 'create' | 'bindings' | 'areas' | undefined {
+): 'plan' | 'apply' | 'adopt' | 'backfill' | 'create' | undefined {
   const [command] = argv.slice(2);
   if (command === undefined || command === 'apply') return 'apply';
   if (command === 'plan') return 'plan';
   if (command === 'adopt') return 'adopt';
   if (command === 'backfill') return 'backfill';
   if (command === 'create') return 'create';
-  if (command === 'bindings') return 'bindings';
-  if (command === 'areas') return 'areas';
   return undefined;
 }
 
@@ -197,7 +177,7 @@ async function main(): Promise<number> {
   const mode = modeFrom(process.argv);
   if (mode === undefined) {
     process.stderr.write(
-      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD|create --plan|--apply|bindings --from PATH|areas --from PATH [--force]]\n',
+      'usage: prisme-sync [plan|apply|adopt --plan|backfill --from YYYY-MM-DD|create --plan|--apply]\n',
     );
     return EXIT_FAILED;
   }
@@ -218,27 +198,6 @@ async function main(): Promise<number> {
       'usage: prisme-sync backfill --from YYYY-MM-DD\n' +
         'The start date is required: no default is right. A short one reports a measured\n' +
         'balance factor built on a fortnight, and a long one pages years off a rate-limited API.\n',
-    );
-    return EXIT_FAILED;
-  }
-
-  const bindingsPath = mode === 'bindings' ? bindingsFrom(process.argv) : undefined;
-  if (mode === 'bindings' && bindingsPath === undefined) {
-    process.stderr.write(
-      'usage: prisme-sync bindings --from PATH\n' +
-        'The path is required: the seed directory is gitignored and its mount point is\n' +
-        'deployment detail, so no default in this repository would be a real one.\n',
-    );
-    return EXIT_FAILED;
-  }
-
-  const areasArgs = mode === 'areas' ? areasArgsFrom(process.argv) : undefined;
-  if (mode === 'areas' && areasArgs === undefined) {
-    process.stderr.write(
-      'usage: prisme-sync areas --from PATH [--force]\n' +
-        'The path is required, for the reason `bindings --from` requires one. `--force`\n' +
-        'replaces a year whose stored weights differ from the file; without it such a\n' +
-        'year is refused, because a weight is fixed for a whole calendar year (ADR-0007).\n',
     );
     return EXIT_FAILED;
   }
@@ -320,69 +279,6 @@ async function main(): Promise<number> {
     });
 
   try {
-    if (mode === 'bindings') {
-      /*
-       * Writes prisme's own table and reaches no API, so no advisory lock: the
-       * lock exists to serialise passes that talk to the external tools, and
-       * this one talks to nothing. A pass reads the bindings once, at the start,
-       * so a load landing mid-pass changes the *next* pass and not this one —
-       * which is the behaviour a level-triggered design wants anyway.
-       */
-      const loaded = await loadBindingsFromFile(bindingsPath as string);
-      await saveBindings(database.client, loaded.bindings);
-      // The same file states where the areas' work lives. Written after the
-      // bindings and in the same run, because a file that is half-applied is
-      // worse than one that is applied whole: `saveMappings` refuses an area it
-      // cannot find, so the failure is a message rather than a mapping to an
-      // area that does not exist.
-      const mappings = await saveMappings(database.client, loaded.mappings);
-
-      // Keys and counts only. This line is printed to a terminal, and an
-      // identifier is instance data (docs/17-privacy.md).
-      logger.info('role bindings loaded', {
-        bound: loaded.roles,
-        unbound: ROLE_KEYS.filter((role) => !loaded.roles.includes(role)),
-        mappings: mappings.count,
-        mappedAreas: mappings.areas,
-      });
-      process.stdout.write(
-        `Bound ${String(loaded.roles.length)} of ${String(ROLE_KEYS.length)} roles: ${loaded.roles.join(', ')}\n`,
-      );
-      process.stdout.write(
-        `Mapped ${String(mappings.count)} external locations across ${String(mappings.areas.length)} areas: ${mappings.areas.join(', ')}\n`,
-      );
-      return EXIT_OK;
-    }
-
-    if (mode === 'areas') {
-      /*
-       * The other half of the seed path, and the same reasoning: prisme's own
-       * tables, no API, no advisory lock. Run before `bindings`, because a
-       * mapping names an area.
-       */
-      const args = areasArgs as AreasArgs;
-      const loaded = await loadAreasFromFile(args.path);
-      const saved = await saveAreas(database.client, loaded, { force: args.force });
-
-      logger.info('areas loaded', {
-        created: saved.created,
-        existing: saved.existing,
-        weightsWritten: saved.weightsWritten,
-        years: saved.years,
-        yearsAgreed: saved.yearsAgreed,
-      });
-      process.stdout.write(
-        `Created ${String(saved.created.length)} areas and found ${String(saved.existing.length)} already present: ${[...saved.created, ...saved.existing].sort().join(', ')}\n`,
-      );
-      process.stdout.write(
-        `Wrote ${String(saved.weightsWritten)} weights for ${saved.years.join(', ') || 'no'} years` +
-          (saved.yearsAgreed.length === 0
-            ? '\n'
-            : `; ${saved.yearsAgreed.join(', ')} already agreed with the file and were left alone\n`),
-      );
-      return EXIT_OK;
-    }
-
     if (mode === 'adopt') {
       // The same advisory lock as a reconciler pass, and for a reason beyond
       // tidiness: the scan reads what is unbound, and a pass binding things

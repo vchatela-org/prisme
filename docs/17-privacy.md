@@ -26,7 +26,7 @@ fix by deleting a file.
 
 Before committing any line, ask: **"could a stranger learn something about a specific person from
 this?"** If yes, it is instance data. Instance data has exactly two homes: the database, and
-`seed/` (gitignored).
+`seed/` (gitignored, for local notes and scratch data).
 
 ### Borderline cases, resolved
 
@@ -34,7 +34,7 @@ this?"** If yes, it is instance data. Instance data has exactly two homes: the d
   to external stores by **role key** — `objectives_db`, `takeaways_db`, `media_db`, `areas_db`,
   `processes_db`, `reviews_db`, and the page and template roles ADR-0025 and ADR-0028 added
   (`initiative_pages_db`, `project_pages_db`, `capture_pages_db` and their templates) — and binds
-  those to real IDs in `seed/`. This is better engineering anyway: the app works against any
+  those to real IDs in the database, through the Settings screens. This is better engineering anyway: the app works against any
   workspace, not one.
 - **Area names.** The model says "N areas". Which areas, and their weights, is configuration.
   Fixtures use an invented set that deliberately does not match any real one.
@@ -52,9 +52,9 @@ A rule nobody enforces is a wish. Six mechanisms, in order of how much they actu
 
 ### 2.1 Instance data lives outside git
 
-Areas, weights, tool mappings and external IDs load from `seed/` (gitignored) or from the
-deployment's secret store, straight into PostgreSQL. **There is no committed file that knows
-anything about a real person.** `seed/README.md` documents the format; the data never appears.
+Areas, weights, tool mappings and external IDs are entered in the application's Settings screens
+and stored in PostgreSQL; secrets come from the deployment's secret store. **There is no committed
+file that knows anything about a real person**, and no import file to commit by mistake.
 
 ### 2.2 Synthetic fixtures are the only data allowed anywhere else
 

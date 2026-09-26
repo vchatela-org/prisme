@@ -12,10 +12,8 @@ import { defineRoute, noQuery, type ApiRoute } from './kit.js';
 /**
  * What the Settings screens read and change that is not an area.
  *
- * The bindings used to be loadable only from `seed/bindings.json` by a CLI Job
- * (docs/15-runtime.md §2). The file still works; these are the same table from
- * a screen, with a check that reads the store's title so a binding says what it
- * points at. All three are `admin:settings` — a binding is an identifier from a
+ * The role bindings are set here and only here (docs/15-runtime.md §2), with a
+ * check that reads the store's title so a binding says what it points at. All three are `admin:settings` — a binding is an identifier from a
  * real workspace.
  */
 export const settingsRoutes: readonly ApiRoute[] = [

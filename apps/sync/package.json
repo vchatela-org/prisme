@@ -16,8 +16,7 @@
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "start": "node dist/main.js",
-    "seed:load": "node dist/main.js areas --from ../../seed/areas.json && node dist/main.js bindings --from ../../seed/bindings.json"
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@prisme/config": "workspace:*",

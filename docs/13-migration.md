@@ -172,12 +172,9 @@ Steps 1–7 are reversible by deleting a database. Step 8 is the first irreversi
 gated on two human checks: a person has read the plan, and **a database restore has been rehearsed
 at least once**.
 
-**Step 1 has a command**, and until it did, the step was a sentence describing something no shipped
-interface could do: `prisme-sync areas --from seed/areas.json` creates the areas and seeds their
-year weights, then `prisme-sync bindings --from seed/bindings.json` binds the role keys and maps the
-external locations onto those areas. That order, because a mapping names an area. `pnpm seed:load`
-runs both. Re-running is a no-op; a year whose stored weights differ from the file's is refused
-without `--force` ([`15-runtime.md`](15-runtime.md) §2).
+**Step 1 happens in the application**: create the areas and their mappings in **Settings → Areas**,
+set the year's weights, and bind the role keys in **Settings → Notion**. Areas first, because a
+mapping names an area. There is no file or command-line import ([`15-runtime.md`](15-runtime.md) §2).
 
 That second one is infrastructure work, done in the GitOps deployment repository as a dump CronJob
 alongside its other databases — never in this repository, which ships no backup capability at all
@@ -207,8 +204,8 @@ an instance whose reads are broken, which is exactly why this pass exists.
 
 | What | How |
 |---|---|
-| Role bindings — which store each role key names | **Settings → Notion**, or `prisme-sync bindings --from <path>` |
-| Area mappings — where each area's work lives in the task tool | **Settings → Areas**, or `PUT /areas/:key/mappings` |
+| Role bindings — which store each role key names | **Settings → Notion** |
+| Area mappings — where each area's work lives in the task tool | **Settings → Areas** (`PUT /areas/:key/mappings`) |
 | This year's weights | the Year Review, or the year's weight rows |
 
 Then, in order:

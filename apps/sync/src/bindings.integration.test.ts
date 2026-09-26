@@ -2,38 +2,33 @@
 // suites do it: the repository restricts the *global* `process` so that
 // configuration goes through `@prisme/config`, and a test harness choosing its
 // own database is not application configuration.
-import { readFileSync } from 'node:fs';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createDocToolClient, createRoleBindings, isConnectorError } from '@prisme/connectors';
+import { createDocToolClient, isConnectorError, type RoleBinding } from '@prisme/connectors';
 import {
   describeWithDatabase,
   openTestDatabase,
   type SyncTestDatabase,
 } from './test-support/database.js';
-import { parseBindingsFile, readBindings, saveBindings } from './bindings.js';
+import { readBindings } from './bindings.js';
 
 /**
  * The bindings, against a real PostgreSQL.
  *
- * The unit tests cover parsing a file. What they cannot cover is the property
- * the gap is really about: **that the document tool becomes addressable**. A
- * parsed file is an array of pairs; an addressable document tool is a
- * `RoleBindings` a `DocToolClient` resolves a store through, and the chain
- * between them runs through this table.
- *
- * So the assertions here are about the chain, not about rows: a round trip
- * through `saveBindings` and `readBindings`, and then a client built on the
- * result that resolves a bound role and refuses an unbound one. W12's scan and
- * W13's declared-duration tier both depend on exactly that, and both were
- * unreachable for want of it.
+ * The rows are written by the API (Settings → Notion); this suite inserts them
+ * directly and asserts the property the sync side depends on: **that the
+ * document tool becomes addressable**. An addressable document tool is a
+ * `RoleBindings` a `DocToolClient` resolves a store through, and the chain runs
+ * through this table — `readBindings`, then a client built on the result that
+ * resolves a bound role and refuses an unbound one. W12's scan and W13's
+ * declared-duration tier both depend on exactly that.
  *
  * The connection comes from `test-support/database.ts` — the shared helper,
  * which builds the application client through `createDatabase`. This suite
  * built its own bare client first, and the source-walk guard that refuses one
  * is what caught it.
  *
- * Fixture data only: `fixtures/bindings.json`'s identifiers are invented.
+ * Fixture data only: every identifier here is invented.
  */
 
 const describeOrSkip = describeWithDatabase === 'run' ? describe : describe.skip;
@@ -73,7 +68,29 @@ const TABLES = [
   'sync_cursor',
 ] as const;
 
-const FIXTURE = new URL('../../../fixtures/bindings.json', import.meta.url).pathname;
+/** Every role bound, with invented identifiers. */
+const ALL_ROLES: readonly RoleBinding[] = [
+  { role: 'objectives_db', externalId: 'binding-objectives-0001' },
+  { role: 'takeaways_db', externalId: 'binding-takeaways-0002' },
+  { role: 'media_db', externalId: 'binding-media-0003' },
+  { role: 'areas_db', externalId: 'binding-areas-0004' },
+  { role: 'processes_db', externalId: 'binding-processes-0005' },
+  { role: 'reviews_db', externalId: 'binding-reviews-0006' },
+  { role: 'initiative_pages_db', externalId: 'binding-initiative-pages-0007' },
+  { role: 'initiative_page_template', externalId: 'binding-initiative-template-0008' },
+  { role: 'project_pages_db', externalId: 'binding-project-pages-0009' },
+  { role: 'project_page_template', externalId: 'binding-project-template-0011' },
+  { role: 'capture_pages_db', externalId: 'binding-capture-pages-0012' },
+  { role: 'capture_page_template', externalId: 'binding-capture-template-0013' },
+];
+
+async function bind(client: postgres.Sql, bindings: readonly RoleBinding[]): Promise<void> {
+  for (const binding of bindings) {
+    await client`
+      insert into role_binding (role, external_id, tool)
+      values (${binding.role}, ${binding.externalId}, 'doc')`;
+  }
+}
 
 describeOrSkip('the role bindings against PostgreSQL', () => {
   let database: SyncTestDatabase;
@@ -92,7 +109,7 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     await database.truncate(TABLES);
   });
 
-  it('binds nothing at all on an instance that has never run the loader', async () => {
+  it('binds nothing at all on an instance whose settings are empty', async () => {
     // The state every deployment starts in, and the state the connectors must
     // handle: an empty binding set, not an error. `resolve` throws
     // `unbound_role` per role, and both callers turn that into "not read".
@@ -101,13 +118,12 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     expect(() => bindings.resolve('processes_db')).toThrow(/no binding for role processes_db/);
   });
 
-  it('round-trips a seed file into a document tool that addresses stores', async () => {
-    const loaded = parseBindingsFile(readFileSync(FIXTURE, 'utf8'), FIXTURE);
-    await saveBindings(client, loaded.bindings);
+  it('reads the stored bindings into a document tool that addresses stores', async () => {
+    await bind(client, ALL_ROLES);
 
     const bindings = await readBindings(client);
     // Twelve, not six: ADR-0025's and ADR-0028's page stores and templates are
-    // role bindings like any other, and a loader that skipped them would leave
+    // role bindings like any other, and a reader that skipped them would leave
     // an instance that bound them looking unbound.
     expect(bindings.bound()).toEqual([
       'areas_db',
@@ -130,7 +146,7 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     // And so does the creating path, which is what makes a page addressable.
     expect(bindings.resolve('project_pages_db')).toBe('binding-project-pages-0009');
     expect(bindings.resolve('project_page_template')).toBe('binding-project-template-0011');
-    // ADR-0028's pair, through the same loader and the same table.
+    // ADR-0028's pair, through the same table.
     expect(bindings.resolve('capture_pages_db')).toBe('binding-capture-pages-0012');
     expect(bindings.resolve('capture_page_template')).toBe('binding-capture-template-0013');
 
@@ -149,7 +165,7 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
   });
 
   it('refuses a role that is not bound, which is how "not read" is reported', async () => {
-    await saveBindings(client, [{ role: 'areas_db', externalId: 'binding-areas-only-0001' }]);
+    await bind(client, [{ role: 'areas_db', externalId: 'binding-areas-only-0001' }]);
 
     const bindings = await readBindings(client);
     expect(bindings.has('areas_db')).toBe(true);
@@ -167,22 +183,6 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     expect((thrown as Error).message).not.toContain('binding-areas-only-0001');
   });
 
-  it('replaces rather than merges, so removing a role from the file unbinds it', async () => {
-    // A merge would leave a role bound to a store the file no longer mentions,
-    // and the operator would have no way to unbind one short of truncating the
-    // table by hand.
-    await saveBindings(client, [
-      { role: 'areas_db', externalId: 'binding-areas-0001' },
-      { role: 'processes_db', externalId: 'binding-processes-0001' },
-    ]);
-    expect((await readBindings(client)).bound()).toEqual(['areas_db', 'processes_db']);
-
-    await saveBindings(client, [{ role: 'areas_db', externalId: 'binding-areas-0002' }]);
-    const after = await readBindings(client);
-    expect(after.bound()).toEqual(['areas_db']);
-    expect(after.resolve('areas_db')).toBe('binding-areas-0002');
-  });
-
   it('has one row per role, because two identifiers for one role is a refusal', async () => {
     await expect(
       client`insert into role_binding (role, external_id) values ('areas_db', 'one')`,
@@ -192,8 +192,8 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     ).rejects.toThrow(/duplicate key|unique/i);
   });
 
-  it('refuses an empty identifier in the table as well as in the file', async () => {
-    // Belt and braces: the loader refuses it, and so does the schema, so a row
+  it('refuses an empty identifier in the table', async () => {
+    // Belt and braces: the API refuses it, and so does the schema, so a row
     // inserted by hand cannot bind a role to nothing.
     await expect(
       client`insert into role_binding (role, external_id) values ('areas_db', '   ')`,
@@ -209,19 +209,5 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
 
     const bindings = await readBindings(client);
     expect(bindings.bound()).toEqual(['areas_db']);
-  });
-
-  it('builds the same resolver `createRoleBindings` builds, without a client', async () => {
-    // The loader's parsed pairs are exactly what the connector's own factory
-    // takes, which is what lets `saveBindings` store them and `readBindings`
-    // rebuild them with nothing lost in between.
-    const loaded = parseBindingsFile(readFileSync(FIXTURE, 'utf8'), FIXTURE);
-    const direct = createRoleBindings(loaded.bindings);
-    await saveBindings(client, loaded.bindings);
-
-    expect((await readBindings(client)).bound()).toEqual(direct.bound());
-    for (const role of direct.bound()) {
-      expect((await readBindings(client)).resolve(role)).toBe(direct.resolve(role));
-    }
   });
 });

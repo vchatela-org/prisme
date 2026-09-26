@@ -129,7 +129,7 @@ secret scans are green, and the pre-commit hook ran both.
   ADR-0025 and was two vocabularies stale.
 - [`packages/connectors/CLAUDE.md`](../../packages/connectors/CLAUDE.md) — the role list in the
   non-negotiables.
-- [`seed.example/bindings.json`](../../seed.example/bindings.json) — the documented format, and
-  [`fixtures/bindings.json`](../../fixtures/bindings.json) with it.
+- `seed.example/bindings.json` — the documented format, and
+  `fixtures/bindings.json` with it.
 - [`STATUS.md`](../../STATUS.md) and [`docs/50-journal/INDEX.md`](INDEX.md) — the register row and
   this entry.

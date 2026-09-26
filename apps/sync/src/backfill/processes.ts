@@ -70,7 +70,7 @@ export interface ProcessDurations {
    * which the caller already knows because it supplied them: no client, or no
    * duration property. A value appears only when the store was addressed and
    * the read came back refused or unbound, which is the distinction
-   * [`unread.ts`](../unread.ts) exists to keep: one is a seed file to fix, the
+   * [`unread.ts`](../unread.ts) exists to keep: one is a binding to set, the
    * other is a credential or an outage to go and look at.
    */
   readonly unread?: UnreadReason | undefined;

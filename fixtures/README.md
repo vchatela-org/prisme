@@ -25,7 +25,6 @@ someone to "just update it with the real numbers".
 | `objectives.json` | Annual and monthly objectives with key results |
 | `task-mirror.json` | The task tool's anchor subtrees, mirrored — what `progressComputed` is counted from |
 | `area-mappings.json` | External location → area — what makes a completion an **attributed** minute |
-| `bindings.json` | Role key → external store identifier, with **invented** identifiers |
 | `scoring/wsjf-balanced.golden.json` | Golden inputs → expected outputs for the shipped method |
 | `schedule/cpm-cases.json` | Four scheduling networks with **hand-computed** CPM results |
 | `connectors/` | Recorded external API responses — **redacted before saving** |
@@ -72,8 +71,8 @@ The mapping's external identifiers are the ones `connectors/task-tool.completion
 reports, which is what makes it reachable rather than decorative, and one entry refines a section
 that its project also covers so the precedence is exercised by a plain seed.
 
-**In a real instance this file has no counterpart.** A person's mappings live in `seed/`, are loaded
-by `prisme-sync bindings --from`, and never enter this repository ([`17-privacy.md`](../docs/17-privacy.md)).
+**In a real instance this file has no counterpart.** A person's mappings are set in Settings →
+Areas, live in the database, and never enter this repository ([`17-privacy.md`](../docs/17-privacy.md)).
 
 ## The two-year span is intentional
 
@@ -86,14 +85,6 @@ wrong in the KPI surface, and the fixture exists so it is caught by a test rathe
 `scoring/*.golden.json` pins scoring inputs to expected outputs. **A diff in a golden file requires
 a `version` bump on the scoring method** ([ADR-0006](../docs/20-decisions/0006-pluggable-scoring.md)).
 CI enforces the pairing — that check is what keeps method versioning honest rather than aspirational.
-
-## The bindings fixture is not the example file
-
-`seed.example/bindings.json` documents the format an instance copies, and every one of its
-identifiers is `REPLACE-ME`. The loader **refuses** a placeholder rather than binding to it — a store
-addressed by the literal string `REPLACE-ME` fails at the first query, which is nowhere near the file
-that caused it — so the example cannot double as a test fixture. `bindings.json` here is the same
-shape with invented identifiers, and it is what the loader's tests read.
 
 ## Recording connector fixtures
 

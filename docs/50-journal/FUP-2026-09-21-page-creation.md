@@ -119,6 +119,6 @@ in the wave: this is the first code path that addresses a page by identifier.
 
 [`docs/14-threat-model.md`](../14-threat-model.md) §5 — the least-privilege table gained two rows
 and a paragraph on why `create` is not `write`. [`packages/connectors/CLAUDE.md`](../..//packages/connectors/CLAUDE.md)
-lists the role vocabulary and gained ADR-0025's four. [`seed.example/bindings.json`](../../seed.example/bindings.json)
-shows an instance what to bind, and [`fixtures/bindings.json`](../../fixtures/bindings.json) does the
+lists the role vocabulary and gained ADR-0025's four. `seed.example/bindings.json`
+shows an instance what to bind, and `fixtures/bindings.json` does the
 same with invented identifiers.

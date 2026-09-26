@@ -47,7 +47,7 @@ export function unreadReason(error: unknown): UnreadReason {
  * prisme's own vocabulary, not the workspace's, and the header already prints
  * them for the stores that *were* read. The question the row asks is *why*, and
  * a count per reason answers it: one `unbound_role` is a store nobody bound,
- * four of them is a seed file that was never loaded. Naming each role would
+ * four of them is a Notion settings screen never filled in. Naming each role would
  * make the line longer without making that judgement different.
  */
 export function summariseUnread(reasons: readonly UnreadReason[]): string {

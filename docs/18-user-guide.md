@@ -285,9 +285,8 @@ store shared with the integration, and `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` set in t
 **Settings → Notion says *not readable*.** The page or database is not shared with the prisme
 integration yet (*⋯ → Connections* in Notion), or the link is of the wrong kind for that role.
 
-**Do I still need the seed files?** No. `seed/areas.json` and `seed/bindings.json` are for
-rebuilding an instance from scratch from a script. Loading them **replaces** what they name —
-including bindings set on the screen.
+**Is there a file or command to import areas and bindings?** No. Settings (and the API behind it)
+is the only way in.
 
 ---
 

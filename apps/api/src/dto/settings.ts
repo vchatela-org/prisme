@@ -7,9 +7,8 @@ import { instant } from './common.js';
  * What the Settings screens read and write that is not an area.
  *
  * Two things live here. The **role bindings** — which document-tool store each
- * of prisme's role keys names — were loadable only from `seed/bindings.json`
- * through a CLI Job; the table they live in is instance data, and these shapes
- * put it in front of its owner. The **task-tool locations** are the projects and
+ * of prisme's role keys names — are instance data, and these shapes put them in
+ * front of their owner; there is no other way to set them. The **task-tool locations** are the projects and
  * sections an area mapping is chosen from, by name, so nobody has to find an
  * identifier in a URL bar to say "my garden work lives here".
  *

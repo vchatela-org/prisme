@@ -4,8 +4,8 @@ import { ConnectorError } from './errors.js';
 /**
  * External stores are addressed by **role key**, never by name or ID.
  *
- * The identifiers themselves are instance data: they load from the seed path
- * into the database (docs/15-runtime.md §2, *External bindings*) and are handed
+ * The identifiers themselves are instance data: they are set in the application
+ * (Settings → Notion) and stored in the database (docs/15-runtime.md §2, *External bindings*) and are handed
  * to a client at construction. Nothing in this repository knows one, and this
  * module is the reason it does not have to — prisme works against any
  * workspace, which is better engineering than the privacy rule that forced it

@@ -58,8 +58,8 @@ describe('summariseUnread', () => {
   });
 
   it('orders by kind, so the line does not depend on scan order', () => {
-    // One `unbound_role` is a store nobody bound; four of them is a seed file
-    // that was never loaded. The count is what carries that judgement, and the
+    // One `unbound_role` is a store nobody bound; four of them is a Notion
+    // settings screen never filled in. The count is what carries that judgement, and the
     // order it is printed in must not depend on which role was scanned first.
     expect(summariseUnread(['refused', 'unbound_role', 'refused'])).toBe(
       '2 refused, 1 unbound_role',

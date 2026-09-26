@@ -103,7 +103,7 @@ describe('with no document-tool client', () => {
   });
 
   it('carries the failure kind, so an unbound store is not a refused read', async () => {
-    // The two call for opposite responses — a seed file to fix, or a credential
+    // The two call for opposite responses — a binding to set, or a credential
     // to go and look at — and the message that would say which names the role
     // binding, so only the kind is kept (`unread.ts`).
     const reasonOf = async (failure: ConnectorFailure) => {
