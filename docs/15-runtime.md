@@ -158,7 +158,6 @@ provider and produces a login that cannot work:
 | `CAPACITY_DEFAULT_TASK_MINUTES` | `25` | Fallback when no duration is recorded |
 | `CAPACITY_WINDOW_WEEKS` | `4` | Rolling window for `actual_share` |
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
-| `AREA_COLOR_PINS` | `{}` | Area key → palette slot, JSON: `{"craft":3,"health":1}`. **Web tier only**. A colour chosen on the Settings screen wins over it |
 | `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
 | `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` | *unset* | The takeaways store's select property whose value starts with *action* or *principle*. Unset, no takeaway is typed: none is proposed as an initiative and the Inbox shows none. **Sync and API** (the adoption scan runs in both) |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
@@ -167,26 +166,13 @@ provider and produces a login that cannot work:
 | `TASKTOOL_PROJECT_URL_TEMPLATE` | *unset* | The same for a task-tool **project**, for the links on the Settings screen. **Web tier**; unset names projects without linking them |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
 
-`AREA_COLOR_PINS` is **instance data carried as configuration**, and it is the one optional variable
-whose *keys* are. The palette has eight categorical slots and that ceiling is fixed — a ninth
-generated hue is indistinguishable from an existing one under colour-vision deficiency — so an
-instance with more than a handful of areas will hash two of them into the same slot; six keys
-collide most of the time. The map pins each area to a slot of its own. A slot outside `1`–`8` stops
-the process with the key named, because a colour the palette cannot paint is otherwise discovered
-on a chart as a missing swatch. An area the map does not name keeps the key-derived fallback, so the
-map is a partial answer rather than a replacement.
-
-**Most instances need neither.** An area's colour can be chosen on **Settings → Areas**, which
-stores it on the area and wins over this map; the map remains for an operator who prefers to pin
-colours in GitOps, and for areas nobody has given a colour.
-
-**You do not have to work the map out.** The **Areas** screen detects a clash — it can, because
-this variable is web-tier configuration and only the web tier can see both the pinning in force and
-the colours it produces — and when two areas share a hue it names them and prints the line to set,
-using the palette's own ceiling rather than a second copy of it. The proposed map **keeps whatever
-is already pinned and deals only the unpinned keys**, into the lowest free slots, because colour is
-identity: re-shuffling an area a reader has learned invalidates every chart they have read. That
-also means a configuration which pins two areas to one slot is *corrected* rather than echoed back.
+**Area colours are not configuration.** The palette has eight categorical slots and that ceiling is
+fixed — a ninth generated hue is indistinguishable from an existing one under colour-vision
+deficiency — so an area with no chosen colour takes one hashed from its key, and six keys collide
+most of the time. The colour is chosen per area on **Settings → Areas** and stored on the area; the
+**Areas** screen names any pair still sharing a hue and links each to its settings page. There is no
+environment variable for it: like every other piece of instance configuration, it enters through
+the UI and the API only.
 
 `DOCTOOL_DURATION_PROPERTY` is the middle tier of the duration preference order
 ([`12-scoring.md`](12-scoring.md) §4). It is configuration rather than seed data for the same reason

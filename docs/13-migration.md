@@ -216,19 +216,15 @@ Then, in order:
    **document tool** read. A tool that is not bound prints as *not read* rather than as an error,
    deliberately, because the message would otherwise carry a role binding. So `document tool   not
    read` has two causes that look identical and are not: **nothing is bound**, or **the query was
-   refused**. Step 1's bindings command is what tells them apart, and it is the first thing to check
+   refused**. Settings → Notion's check is what tells them apart, and it is the first thing to check
    rather than the last.
 3. **Open the screens before any decision is made.** `/focus` must show a `now` set drawn from real
    initiatives; `/areas` the area list with its declared-versus-observed chart; `/kpi` the same
    reading. **If a screen shows area *keys* where it means names, the area list did not parse** — a
    real defect once, fixed in W11 — and it is the cheapest tell that the two tiers disagree.
-   **`/areas` is also where the area colours are checked, and it is the only surface that can.** The
-   pinning is `AREA_COLOR_PINS`, web-tier configuration ([`15-runtime.md`](15-runtime.md) §2), so
-   nothing outside that tier can see both the pinning in force and the hues it produces. If the
-   notice appears, two areas are wearing one colour and the screen prints the map that fixes it —
-   and it **keeps what is already pinned**, so a colour a reader has learned does not move. The map is
-   instance data and goes to the web tier's configuration, never into this repository. **Nothing else
-   reports this**: no pass, no job and no gate goes red over it, so an instance configured completely
+   **`/areas` is also where the area colours are checked.** If the notice appears, two areas are
+   wearing one colour; it links each to Settings → Areas, where a colour of its own is chosen
+   ([`15-runtime.md`](15-runtime.md) §2). **Nothing else reports this**: no pass, no job and no gate goes red over it, so an instance configured completely
    by the three settings above still collides, and it took running this pass on a real instance to see it.
 4. **Work the adoption queue** ([`4. The adoption queue`](#4-the-adoption-queue)) and record the link
    coverage: how many candidates were linkable and how many had diverged. That number is what step 8
