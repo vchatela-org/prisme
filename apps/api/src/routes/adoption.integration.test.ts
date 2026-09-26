@@ -325,4 +325,25 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(ignore.status).toBe(403);
     });
   });
+  describe('a rescan', () => {
+    it('answers with counts, and never with the report and its titles', async () => {
+      const response = await api().request('POST', url('/adoption/scan'), {});
+      expect(response.status).toBe(200);
+      expect(Object.keys(response.body as object).sort()).toEqual([
+        'certain',
+        'queued',
+        'ran',
+        'scannedAt',
+      ]);
+    });
+
+    it('needs write:adoption', async () => {
+      const response = await api(identityWith(['read:adoption'])).request(
+        'POST',
+        url('/adoption/scan'),
+        {},
+      );
+      expect(response.status).toBe(403);
+    });
+  });
 });
