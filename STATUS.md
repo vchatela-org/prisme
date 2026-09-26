@@ -2,7 +2,7 @@
 
 *Where prisme is, in one screen. Updated by hand — agents update their own row on completion.*
 
-**Last updated:** 2026-09-25 · **Current phase:** P0 **frozen** — **every workstream has landed** and
+**Last updated:** 2026-09-26 · **Current phase:** P0 **frozen** — **every workstream has landed** and
 the follow-up wave has closed what they recorded. Waves 3 and 4 completed with W09
 ([#30](https://github.com/vchatela-org/prisme/pull/30)), W10
 ([#31](https://github.com/vchatela-org/prisme/pull/31)), W11
@@ -341,6 +341,8 @@ journal entry rather than a unit of planned work.
 | Cycle time is drawn nowhere — prisme records no moment at which an initiative started, and reconstructing one from the event log is aggregation the API owns | W09, W10 | ⏸ **deliberate, not outstanding** — an absence a reader would otherwise re-derive | — |
 | **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟢 (deployment repository, and applied there) · **confirmed by measurement 2026-09-24**: the deployed instance's database holds the schema, the role bindings and a populated adoption queue, and **zero** areas, weights and mappings — so the empty balance chart is not a risk, it is the state. **Root cause found 2026-09-25, and it is wider than the runbook**: `prisme-sync areas` exists in no tag before `v0.2.0`, and no earlier tag parses `areaMappings` either — so the instance could not have been configured by command at all, and the bindings Job the runbook *does* document (`v0.0.2`) would have loaded the bindings while silently ignoring the mappings. Steps written, and the pin moved, in the deployment repository's PR #1262. **Run 2026-09-25, and running them turned up a second gap in the same section**: §6 loads prisme's own model into its database and never touches the area colour pinning, which is web-tier configuration ([`15-runtime.md`](docs/15-runtime.md) §2) — so an instance configured completely by that section still painted several areas in one hue, with no job red and nothing saying so. The step is **§6e**, written in the deployment repository's PR #1266, and **applied 2026-09-25**: the map was taken from the screen's own pure function rather than composed, written to the web tier's Vault entry with every other key still present, confirmed byte-identical in the Kubernetes Secret **by hash and never printed**, and the web tier **rolled to it** — a new ReplicaSet and pod reading that secret, on VSO's own hourly refresh rather than a hurried `kubectl patch`. Nothing on this row is left open. The measurement now reads: 10 areas, 8 year weights summing to 100, 36 mappings, 5 role bindings, 16 capacity weeks, and the screens drawn from them — area *names* never keys, a real declared-against-observed balance, and no CSP violation in the console. [The entry](docs/50-journal/FUP-2026-09-25-live-read-path-and-six-e.md) | [#90](https://github.com/vchatela-org/prisme/pull/90) |
 | **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | [#73](https://github.com/vchatela-org/prisme/pull/73) |
+| **Nothing loads rituals** — `prisme-sync` has no `rituals` subcommand, `seed/` and `seed.example/` carry no ritual file, and `POST /rituals` (behind `write:ritual`) has **no UI caller**: `apps/web` reads `/rituals` in one place and creates none. A live instance's rituals can therefore only be set by hand-written calls — the shape [#74](https://github.com/vchatela-org/prisme/pull/74) closed for areas, weights and mappings. It is the **second precondition of the declared-duration tier**: naming `DOCTOOL_DURATION_PROPERTY` alone flips the report to *read* and still yields **zero** declared durations, because the tier joins a ritual's page to the recurring task it binds and both sides are empty — and ritual adherence is measured *over* rituals, so it is empty for the same reason | found running §7's restore rehearsal against the live instance (nobody had recorded it) | 🟡 open — needs a home, and a loader needs a seed format before it can have one · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | — |
+| **§7's rehearsal prints one figure, and on a fresh instance that figure is empty** — `entity_link` is the number the procedure names as the one that matters, and it is `0` until the adoption queue is worked, so the readout cannot distinguish *restored correctly* from *restored nothing*. Printing the row counts of the tables that currently hold judgement data beside it would make the rehearsal readable on exactly the instance it gates | found running §7 against the live instance (nobody had recorded it) | 🟡 **the deployment repository's** — the file is its runbook, so it is recorded here rather than changed from this tree · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | — |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -531,12 +533,34 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
       **Evidenced 2026-09-25, and deliberately still unticked**: the CronJob exists on the cluster,
       is scheduled daily in the instance's timezone, and has **three completed runs**. The tick
       itself stays a human's, which is what this section says it is
-- [ ] **A restore rehearsed at least once**, not merely scheduled
+- [ ] **A restore rehearsed at least once**, not merely scheduled. **Evidenced 2026-09-26, and
+      deliberately still unticked**: the deployment runbook's §7 ran against the live instance — a
+      throwaway database on the same server, `pg_restore --no-owner`, the table list read back, the
+      test database dropped — and **35 tables came back with eleven of them non-empty**, so the
+      restore carried the judgement data (capacity weeks, area mappings, year weights, role
+      bindings, completion history). The figure the procedure prints is `entity_link`, and it is
+      **0** here because no adoption decision has been made yet — so the run that *counts* is the
+      one **after** the queue is worked, and this tick stays a human's until then, as the backup row
+      above it does ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md))
 - [ ] `plan` read by hand, `create: 0` confirmed (ADR-0010 guard 3)
-- [ ] Adoption queue worked; link coverage reported (W12)
+- [ ] Adoption queue worked; link coverage reported (W12). **A re-scan comes first (measured
+      2026-09-26)**: the live queue is a single scan from **2026-09-22**, three days before any area
+      existed — so every candidate's `area_key` is null (the column's own "no mapping covers this"
+      finding, here for the blunter reason that there was nothing to map to) and none carries an
+      identity proposal. The scan runs under `prisme-sync adopt --plan` and nowhere else — the daily
+      pass is `apply` — so the queue does **not** refresh itself, and that command is also the gate
+      line below. It is the first action, not the last
+      ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md))
 - [ ] `prisme-sync adopt --plan` **run against the live instance** and read by hand. W12 built it and
       deliberately recorded no output: the plan carries real titles and cannot enter this repository
       (`apps/sync/CLAUDE.md`). A human runs it, confirms `Would create: 0`, and agrees with the plan
+
+**These lines have an order the list does not read in.** `prisme-sync adopt --plan` — the *last* line —
+is the **first** action: it is the queue's only writer, so it is what labels the queue with areas and
+produces the `Would create: 0` readout. Then the queue is worked, and that is what fills `entity_link`.
+Then the restore rehearsal means something, because `entity_link` is the figure it reads. An instance
+can therefore be completely configured, have run §7, and still be in the first-run state
+([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md)).
 
 ## Before the repository goes public
 
