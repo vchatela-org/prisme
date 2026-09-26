@@ -189,6 +189,16 @@ call them, and no instance's name may be compiled into this repository. Unset is
 deployment — the preference order simply has two tiers, and the backfill's report says so rather
 than passing a two-tier estimate off as a three-tier one.
 
+**Naming it is necessary and not sufficient, because the tier is a join rather than a lookup.** The
+property is read off a *process page*, and a process page is reached through the **ritual** that
+binds it: `ritual.external_page_id` for the page, joined to `entity_external_ref` for the recurring
+task it binds. An instance with no rituals defined therefore reads the store successfully and still
+reports **zero declared durations**, with `documentToolRead` true — so a half-configured instance
+looks like a read that found nothing rather than a tier that is off. Rituals are named by no
+subcommand and no seed file in this repository yet; an instance that has none leaves *both* the
+declared-duration tier and [`12-scoring.md`](12-scoring.md) §4's ritual adherence empty, and the two
+have the same cause.
+
 `DOCTOOL_BASE_URL` and `TASKTOOL_BASE_URL` are the **API hosts** the connectors call. They have no
 default *here* on purpose: the vendor hostname lives in [`packages/connectors`](../packages/connectors/CLAUDE.md),
 which is the only package that talks to either tool, and a second copy in the configuration schema
