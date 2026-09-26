@@ -137,9 +137,12 @@ The policy did not move. Colour now reaches HTML as a literal utility class and 
 attribute, both derived from the area's slot, and the balance meter's fill is an SVG `rect` because
 a length that comes from data is exact as an attribute. The repository's first component test
 renders the design system and asserts the markup carries no `style=`, so this cannot come back
-unseen. What is left on the gallery is twelve violations from Radix's own markup, recorded in
-[the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them make
-a hidden native control visible, so wave 4 should know.
+unseen. What was left on the gallery was twelve violations from Radix's own markup, recorded in
+[the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them made
+a hidden native control visible, which is what made them a rendering defect rather than console
+noise. **They are closed to zero**: five patches in `patches/`,
+each naming a class the token sheet generates, with four render cases that fail **by name** if a
+dependency bump invalidates one ([#41](https://github.com/vchatela-org/prisme/pull/41)).
 
 **W09 opens wave 4** ([#30](https://github.com/vchatela-org/prisme/pull/30)): Areas, area detail,
 the Year Review and the KPI dashboard — declared versus observed capacity, which is the view that
@@ -195,9 +198,12 @@ since W08 — so Focus, Backlog, Inbox, Adoption and initiative detail have all 
 choice. And **`fixtures/objectives.json` was loaded by nothing**: listed in the fixtures README,
 written with coverage notes naming this workstream, and never once put in a database — so it had
 drifted to three statuses the schema's CHECK constraint forbids. `seedFixtures` now loads it. Both
-are fixed here. What is **not** fixed: `fixtures/` still carries no task mirror, so
-`progressComputed` is null on every key result from a plain seed and ADR-0013's divergence — the
-behaviour this workstream exists to surface — cannot be exercised without hand-seeding rows.
+are fixed here. What was **not** fixed here: `fixtures/` carried no task mirror, so
+`progressComputed` was null on every key result from a plain seed and ADR-0013's divergence — the
+behaviour this workstream exists to surface — could only be reached by hand-seeding rows inside a
+test, which is a test of the hand-seeding rather than of the divergence. `fixtures/task-mirror.json`
+now carries one, six divergence cases among its rows
+([#36](https://github.com/vchatela-org/prisme/pull/36)).
 The harness was built and thrown away for the **fifth** time —
 [the entry](docs/50-journal/W11-2026-09-20-ui-objectives-reviews.md).
 
@@ -221,11 +227,15 @@ were wrong, and every fixture started on a Monday, which is the one case that ca
 table with a foreign key also turned **106 tests red in two suites nobody had touched**, which is
 the deliberate absence of `truncate … cascade` working as designed.
 
-What is **not** done: `capacity_week` has no reader yet — `/areas` and `/kpi` still aggregate
-`task_mirror` — and the **document tool is still not read**, so the declared-duration tier of the
-preference order is unavailable. That is W12's missing dependency, not a second one: nothing in this
-repository loads the role bindings, and the report says so rather than passing a two-tier estimate
-off as a three-tier one. [The entry](docs/50-journal/W13-2026-09-20-backfill.md).
+What was **not** done: `capacity_week` had no reader — `/areas` and `/kpi` still aggregated
+`task_mirror` — and the **document tool was not read**. Both were follow-up rows rather than gaps in
+W13, and **both are closed**: the dashboard reads the materialised weeks in preference to the anchor
+subtree ([#38](https://github.com/vchatela-org/prisme/pull/38)), and the role bindings load so both
+tools are read ([#39](https://github.com/vchatela-org/prisme/pull/39)). What the second closure does
+**not** buy is the declared-duration tier: it needs a bound `processes_db` *and* a named duration
+property, and an instance with neither leaves the preference order two-tier and says so rather than
+passing a two-tier estimate off as a three-tier one — the **rituals row below** names what is left.
+[The entry](docs/50-journal/W13-2026-09-20-backfill.md).
 
 **W15 closes wave 5, and the project's sixteen workstreams**
 ([#34](https://github.com/vchatela-org/prisme/pull/34)): quick capture, new initiative, new project,
@@ -253,12 +263,20 @@ Drizzle-wrapped client the API actually runs with — **invisible to an integrat
 a bare one**, which is now a follow-up in its own right — and a frozen deployment recording every
 intent as failed, so a correctly-configured instance showed a red CronJob every fifteen minutes.
 
-What is **not** done, and it is a decision rather than a gap: **ADR-0011's *Create page* cannot be
-implemented.** No role key names where a narrative page would live, none is a template, and the
-least-privilege table grants the document-tool token no capability that would cover it —
-[ADR-0025](docs/20-decisions/0025-page-creation-needs-a-role-vocabulary.md) proposes the vocabulary
-and is **Proposed, not Accepted**. The intent is recorded, the converge pass blocks it with the
-reason on the line, and *Link existing page* works today. [The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
+What was **not** done, and it was a decision rather than a gap: **ADR-0011's *Create page* could not
+be implemented** — no role key named where a narrative page would live, none was a template, and the
+least-privilege table granted the document-tool token no capability that would cover it. W15 recorded
+the intent, the converge pass blocked it with the reason on the line, and *Link existing page* worked.
+**The decision is taken and the gap closed.**
+[ADR-0025](docs/20-decisions/0025-page-creation-needs-a-role-vocabulary.md) is **Accepted 2026-09-21**,
+implemented in the pull request that accepted it — two role keys, two template bindings, and a
+`create` capability narrower than `write` — and
+[ADR-0028](docs/20-decisions/0028-capture-pages-get-a-role-pair.md) **Accepted 2026-09-24** gave a
+capture the pair it was missing. *Create page* works for an initiative, a project and a capture; the
+one block reason left is an unbound role, which `prisme-sync bindings --from <path>` fixes
+([#40](https://github.com/vchatela-org/prisme/pull/40),
+[#69](https://github.com/vchatela-org/prisme/pull/69)).
+[The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and
@@ -276,11 +294,14 @@ at a threshold of zero. And **the queue holds only what would become an entity**
 principle and a signal are counted and reported, never queued, because nobody works a queue of four
 thousand. A 4 020-object corpus produces a queue of five, asserted rather than hoped.
 
-The document-tool half of the classifier is built, unit-tested and **not reachable**: nothing in this
-repository loads the role bindings, so `createDocToolClient` still has no caller and the scan runs on
-the task tool alone — saying `document tool   not read` in its header rather than pretending
-otherwise. That is a missing dependency, recorded in
-[the entry](docs/50-journal/W12-2026-09-19-adoption.md), not a gap in W12.
+The document-tool half of the classifier was built and unit-tested but **not reachable** when W12
+landed: nothing in this repository loaded the role bindings, so `createDocToolClient` had no caller
+and the scan ran on the task tool alone — saying `document tool   not read` in its header rather than
+pretending otherwise. That was a missing dependency rather than a gap in W12, and it is closed: the
+bindings load, the adoption scan is handed a document-tool client
+([#39](https://github.com/vchatela-org/prisme/pull/39)), and an instance that has bound only some of
+the roles scans what it has and reports which role it did not read.
+[The entry](docs/50-journal/W12-2026-09-19-adoption.md).
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
@@ -342,8 +363,10 @@ journal entry rather than a unit of planned work.
 | **The deployment's bootstrap runbook has no step for areas, weights or mappings**, and none for the one-time backfill — so a freshly deployed instance is configured by hand-written calls and serves an empty balance chart | found preparing the functional phase (nobody had recorded it) | 🟢 (deployment repository, and applied there) · **confirmed by measurement 2026-09-24**: the deployed instance's database holds the schema, the role bindings and a populated adoption queue, and **zero** areas, weights and mappings — so the empty balance chart is not a risk, it is the state. **Root cause found 2026-09-25, and it is wider than the runbook**: `prisme-sync areas` exists in no tag before `v0.2.0`, and no earlier tag parses `areaMappings` either — so the instance could not have been configured by command at all, and the bindings Job the runbook *does* document (`v0.0.2`) would have loaded the bindings while silently ignoring the mappings. Steps written, and the pin moved, in the deployment repository's PR #1262. **Run 2026-09-25, and running them turned up a second gap in the same section**: §6 loads prisme's own model into its database and never touches the area colour pinning, which is web-tier configuration ([`15-runtime.md`](docs/15-runtime.md) §2) — so an instance configured completely by that section still painted several areas in one hue, with no job red and nothing saying so. The step is **§6e**, written in the deployment repository's PR #1266, and **applied 2026-09-25**: the map was taken from the screen's own pure function rather than composed, written to the web tier's Vault entry with every other key still present, confirmed byte-identical in the Kubernetes Secret **by hash and never printed**, and the web tier **rolled to it** — a new ReplicaSet and pod reading that secret, on VSO's own hourly refresh rather than a hurried `kubectl patch`. Nothing on this row is left open. The measurement now reads: 10 areas, 8 year weights summing to 100, 36 mappings, 5 role bindings, 16 capacity weeks, and the screens drawn from them — area *names* never keys, a real declared-against-observed balance, and no CSP violation in the console. [The entry](docs/50-journal/FUP-2026-09-25-live-read-path-and-six-e.md) | [#90](https://github.com/vchatela-org/prisme/pull/90) |
 | **Nine obligations were missing from this table**, and the file's own rule says a row here is an obligation rather than a note — eight lived in a journal entry, one in nothing at all | found reading the entries while preparing the functional phase (nobody had recorded it) | 🟢 every one of the nine is a row above | [#73](https://github.com/vchatela-org/prisme/pull/73) |
 | **Nothing loads rituals** — `prisme-sync` has no `rituals` subcommand, `seed/` and `seed.example/` carry no ritual file, and `POST /rituals` (behind `write:ritual`) has **no UI caller**: `apps/web` reads `/rituals` in one place and creates none. A live instance's rituals can therefore only be set by hand-written calls — the shape [#74](https://github.com/vchatela-org/prisme/pull/74) closed for areas, weights and mappings. It is the **second precondition of the declared-duration tier**: naming `DOCTOOL_DURATION_PROPERTY` alone flips the report to *read* and still yields **zero** declared durations, because the tier joins a ritual's page to the recurring task it binds and both sides are empty — and ritual adherence is measured *over* rituals, so it is empty for the same reason | found running §7's restore rehearsal against the live instance (nobody had recorded it) | 🟡 open — needs a home, and a loader needs a seed format before it can have one · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | [#91](https://github.com/vchatela-org/prisme/pull/91) |
-| **§7's rehearsal prints one figure, and on a fresh instance that figure is empty** — `entity_link` is the number the procedure names as the one that matters, and it is `0` until the adoption queue is worked, so the readout cannot distinguish *restored correctly* from *restored nothing*. The **deployment repository's** half is done: its Job now prints the table count and an exact per-table row count beside `entity_link` — exact counts deliberately, since `n_live_tup` reads 0 for a table nothing has queried yet — and its header no longer says §6e is unapplied. Verified by extracting the Job from the runbook and running it: 35 tables restored, 11 non-empty | found running §7 against the live instance (nobody had recorded it) | 🟢 deployment-repository PR [#1273](https://github.com/vchatela-org/homelab-gitops/pull/1273), merged · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | [#92](https://github.com/vchatela-org/prisme/pull/92) |
+| **§7's rehearsal prints one figure, and on a fresh instance that figure is empty** — `entity_link` is the number the procedure names as the one that matters, and it is `0` until the adoption queue is worked, so the readout cannot distinguish *restored correctly* from *restored nothing*. The **deployment repository's** half is done: its Job now prints the table count and an exact per-table row count beside `entity_link` — exact counts deliberately, since `n_live_tup` reads 0 for a table nothing has queried yet — and its header no longer says §6e is unapplied. Verified by extracting the Job from the runbook and running it: 35 tables restored, 11 non-empty | found running §7 against the live instance (nobody had recorded it) | 🟢 deployment-repository PR #1273, merged · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | [#92](https://github.com/vchatela-org/prisme/pull/92) |
 | **The planned instance reset is on no dashboard, and three open items take their timing from it** — the 2026-09-25 session recorded that the instance is *"expected to be reset before real data is loaded"*, and it lived in that entry's follow-up list alone. The **area keys** are the sharpest case: `saveAreas` matches a stored area by `key` and **never updates it**, so a key is settled the moment anything references it — and the mappings and the capacity weeks already do — which makes the reset the only cheap moment to choose them. The **restore rehearsal's meaningful run** and the **queue's first real work** follow from the same reset | found working the area-keys item (nobody had recorded it as an obligation) | 🟡 open — owner: the instance's operator · [the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md) | [#92](https://github.com/vchatela-org/prisme/pull/92) |
+| **A follow-up that closes a recorded gap also owes the paragraph above it** — the wave updated this table and left five workstream narratives still asserting the gap in the present tense, so the page's prose and its own register disagreed for five days: W07's twelve CSP violations on the gallery, W11's missing fixture task mirror, W12's callerless `createDocToolClient`, W13's readerless `capacity_week` beside an unread document tool, and W15's *"ADR-0025 … is **Proposed, not Accepted**"* — the last describing an **Accepted** ADR as undecided, which invites a reader to re-open a question that was settled. Nothing sees this class, and the reason is structural: a register row has a PR column to check it against, and a paragraph has nothing | found answering *what decisions remain* (nobody had recorded it) | 🟢 all five corrected in place, in the past tense, each naming the pull request that closed it — and the **journal entries deliberately still say *Proposed***, because they are dated records and a journal is append-only · [the entry](docs/50-journal/FUP-2026-09-26-status-prose-vs-register.md) | [#93](https://github.com/vchatela-org/prisme/pull/93) |
+| **A private repository's name was linked from this public page** — the §7 row carried its deployment-repository pull request as a full URL. The **local** deny-list caught it; CI cannot, because that supplement is gitignored by design — which is exactly why the local scan exists. The corollary is worth keeping: a green `privacy deny-list` check was never evidence that nothing private is in a diff | found by the local scan on the first commit of the row above | 🟡 **the worktree is clean and the history is not** — redacted to the prose form every other row in this file uses, but the name is still in `main`'s history ([#92](https://github.com/vchatela-org/prisme/pull/92), merged 2026-09-26). A rewrite is a force-push, which is the owner's call and not an agent's · [the entry](docs/50-journal/FUP-2026-09-26-status-prose-vs-register.md) | [#93](https://github.com/vchatela-org/prisme/pull/93) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
