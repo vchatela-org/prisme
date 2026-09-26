@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { CreationIntent, SearchMatch } from './contracts';
+import type { CreationIntent, PageTemplates, SearchMatch } from './contracts';
 import {
   ledgerAdvice,
   matchHref,
+  pageChoiceComplete,
   pageStateOf,
+  pageTemplateHint,
   parseSections,
   searchHeadline,
   similarityLabel,
   summariseLedger,
+  templateChoice,
 } from './create-view';
 
 function intent(overrides: Partial<CreationIntent> = {}): CreationIntent {
@@ -55,6 +58,48 @@ describe('the page button’s state', () => {
     expect(
       pageStateOf(null, [intent({ objectKind: 'page', tool: 'document', state: 'satisfied' })]),
     ).toBe('absent');
+  });
+});
+
+describe('which template a new page starts from (ADR-0030)', () => {
+  const ready = (templates: PageTemplates['templates']): PageTemplates => ({
+    kind: 'initiative',
+    state: 'ready',
+    failure: null,
+    templates,
+  });
+  const BRIEF = { id: 'tpl-brief', name: 'Brief', isDefault: false };
+  const NOTES = { id: 'tpl-notes', name: 'Notes', isDefault: false };
+
+  it('shows no choice for one template, or when the list could not be read', () => {
+    expect(templateChoice(ready([BRIEF]))).toEqual({ show: false, preselected: undefined });
+    expect(templateChoice(null)).toEqual({ show: false, preselected: undefined });
+  });
+
+  it('proposes several, with the marked default pre-selected', () => {
+    expect(templateChoice(ready([BRIEF, { ...NOTES, isDefault: true }]))).toEqual({
+      show: true,
+      preselected: 'tpl-notes',
+    });
+  });
+
+  it('pre-selects nothing when none is marked, and holds the form until one is chosen', () => {
+    const several = ready([BRIEF, NOTES]);
+    expect(templateChoice(several)).toEqual({ show: true, preselected: undefined });
+    expect(pageChoiceComplete({ mode: 'create' }, several)).toBe(false);
+    expect(pageChoiceComplete({ mode: 'create', templateId: 'tpl-brief' }, several)).toBe(true);
+    // Nothing to hold for any other decision.
+    expect(pageChoiceComplete({ mode: 'none' }, several)).toBe(true);
+  });
+
+  it('says the two blocked states differently, because their fixes differ', () => {
+    const unbound = pageTemplateHint({ ...ready([]), state: 'unbound' });
+    const empty = pageTemplateHint({ ...ready([]), state: 'no_template' });
+    expect(unbound).toMatch(/Settings → Notion/);
+    expect(empty).toMatch(/holds no template/);
+    expect(unbound).not.toBe(empty);
+    expect(pageTemplateHint(ready([BRIEF]))).toContain('“Brief”');
+    expect(pageTemplateHint(null)).toBeNull();
   });
 });
 
@@ -123,7 +168,7 @@ describe('what to do about a ledger row', () => {
     const advice = ledgerAdvice(intent({ tool: 'document', objectKind: 'page' }));
     expect(advice.retryable).toBe(false);
     expect(advice.sentence).toContain('blocked');
-    expect(advice.sentence).toContain('ADR-0028');
+    expect(advice.sentence).toContain('ADR-0030');
   });
 
   it('says a dependent row is waiting for what it belongs to', () => {

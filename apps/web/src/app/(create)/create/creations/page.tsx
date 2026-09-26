@@ -35,8 +35,9 @@ export const metadata = {
  * Pages used to be counted apart from `pending`, because ADR-0025 had not been
  * accepted and no pass could ever make one — a permanent state dressed as a
  * temporary one. They are ordinary `pending` rows now that a page is creatable,
- * and the one way a page still cannot be made is stated in the row's own
- * advice: this instance has not bound where that kind of page lives.
+ * and the ways a page still cannot be made are stated in the row's own advice:
+ * no database is bound for that kind of page, or the bound one holds no
+ * template (ADR-0030).
  *
  * ## No draft is displayed, because none is sent
  *

@@ -1,7 +1,7 @@
 import { Card, Section } from '@prisme/ui';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
-import { areaListSchema } from '@/lib/contracts';
+import { areaListSchema, pageTemplatesSchema } from '@/lib/contracts';
 import { NewProjectForm } from './project-form';
 
 export const metadata = {
@@ -10,7 +10,12 @@ export const metadata = {
 };
 
 export default async function NewProjectPage() {
-  const areas = await apiFetch({ path: '/areas', schema: areaListSchema });
+  const [areas, templates] = await Promise.all([
+    apiFetch({ path: '/areas', schema: areaListSchema }),
+    // What a new project page can start from (ADR-0030). Advisory: a failed
+    // read shows no choice, and the request asks for the default.
+    apiFetch({ path: '/page-kinds/project/templates', schema: pageTemplatesSchema }),
+  ]);
   if (!areas.ok) return <ApiFailureState failure={areas} surface="the areas" />;
 
   const rankable = areas.data.items.filter((area) => area.kind === 'area');
@@ -25,6 +30,7 @@ export default async function NewProjectPage() {
         <NewProjectForm
           areas={rankable.map((area) => ({ key: area.key, name: area.name }))}
           areaNames={areaNames}
+          pageTemplates={templates.ok ? templates.data : null}
         />
       </Card>
     </Section>

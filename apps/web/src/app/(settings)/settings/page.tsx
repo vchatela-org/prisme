@@ -16,7 +16,13 @@ import {
 } from '@/lib/contracts';
 import { pageUrl } from '@/lib/page-link';
 import { webRuntime } from '@/lib/runtime';
-import { ACCESS_LABEL, checkAdvice, nameLocation, roleCopy } from '@/lib/settings-view';
+import {
+  ACCESS_LABEL,
+  checkAdvice,
+  nameLocation,
+  roleCopy,
+  templateSummary,
+} from '@/lib/settings-view';
 import { CheckBindingsButton } from './check-bindings-button';
 
 export const metadata = {
@@ -371,6 +377,8 @@ function BindingRow({
   const copy = roleCopy(binding.role);
   const href = pageUrl(docTemplate, binding.linkId);
   const advice = binding.bound ? checkAdvice(binding.checkError) : null;
+  const held =
+    binding.bound && binding.checkError === null ? templateSummary(binding.templates) : null;
 
   return (
     <tr className="border-b border-border-hairline align-top last:border-b-0">
@@ -396,6 +404,17 @@ function BindingRow({
               >
                 {binding.title ?? 'Open in Notion'}
               </a>
+            )}
+            {held === null ? null : (
+              <p
+                className={
+                  held.warning
+                    ? 'mt-1 max-w-prose text-xs text-status-warning'
+                    : 'mt-1 max-w-prose text-xs text-ink-muted'
+                }
+              >
+                {held.text}
+              </p>
             )}
             {advice === null ? null : (
               <p className="mt-1 max-w-prose text-xs text-status-warning">{advice}</p>

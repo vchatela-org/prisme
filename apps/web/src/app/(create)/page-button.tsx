@@ -4,7 +4,8 @@ import { Button, FieldHint, Input, useToast } from '@prisme/ui';
 import { ExternalLink, FileText, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import type { PageState } from '@/lib/create-view';
+import type { PageTemplates } from '@/lib/contracts';
+import { pageTemplateHint, templateChoice, type PageState } from '@/lib/create-view';
 import { requestInitiativePage } from './create-actions';
 
 /**
@@ -32,17 +33,28 @@ import { requestInitiativePage } from './create-actions';
  *
  * ## Create says out loud where it can stall
  *
- * The button records an intention and a converge pass makes it, so the honest
- * thing the copy can say is what the pass needs: an instance that has bound the
- * store and the template for this kind of page gets one on the next pass, and
- * one that has not gets a plan that reports it blocked with that reason
- * (ADR-0025, ADR-0028). An option that silently does nothing is worse than one
- * that explains itself, and **Link existing** works today either way.
+ * The button records an intention and a converge pass makes it, from one of the
+ * templates the initiative pages database holds (ADR-0030). So the honest thing
+ * the copy can say is what the pass will find there — a template, none, or no
+ * database at all — and each blocked state names where it is fixed. An option
+ * that silently does nothing is worse than one that explains itself, and
+ * **Link existing** works today either way.
+ *
+ * ## A template choice, when the database holds several
+ *
+ * Beside **Create page**, and only then (ADR-0030 rule 3): the database's
+ * marked default pre-selected, or nothing — and the button waiting for a choice
+ * — when none is marked. The same choice stays offered while the page is
+ * `requested`, because a request that chose nothing among several unmarked
+ * templates, or chose one since deleted, is blocked until somebody chooses, and
+ * asking again with a choice is how they do. It rewrites the one waiting
+ * request; it never adds a second.
  */
 export function PageButton({
   initiativeId,
   state,
   href,
+  templates = null,
 }: {
   initiativeId: string;
   state: PageState;
@@ -56,14 +68,21 @@ export function PageButton({
    * of the browser bundle (`pageUrl` in `lib/page-link.ts`).
    */
   href?: string | undefined;
+  /** What the initiative pages database offers, read by the server component; `null` if not. */
+  templates?: PageTemplates | null;
 }) {
+  const choice = templateChoice(templates);
   const [linking, setLinking] = useState(false);
   const [externalId, setExternalId] = useState('');
+  const [templateId, setTemplateId] = useState<string | undefined>(choice.preselected);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
 
-  const send = (page: { mode: 'create' } | { mode: 'link'; externalId: string }): void => {
+  const send = (
+    page:
+      { mode: 'create'; templateId?: string | undefined } | { mode: 'link'; externalId: string },
+  ): void => {
     startTransition(async () => {
       const result = await requestInitiativePage({ initiativeId, page });
       toast({
@@ -112,27 +131,76 @@ export function PageButton({
     );
   }
 
+  /*
+   * The database's templates, as a select — rendered only when there are
+   * several to choose between. `null` otherwise, so each state below places it
+   * without repeating the condition.
+   */
+  const templateSelect =
+    choice.show && templates !== null ? (
+      <select
+        aria-label="Template for the page"
+        className="h-8 rounded-md border border-border-strong bg-surface-raised px-2 text-sm text-ink"
+        value={templateId ?? ''}
+        disabled={pending}
+        onChange={(event) => {
+          setTemplateId(event.target.value === '' ? undefined : event.target.value);
+        }}
+      >
+        {choice.preselected === undefined ? (
+          <option value="" disabled>
+            Choose a template…
+          </option>
+        ) : null}
+        {templates.templates.map((template) => (
+          <option key={template.id} value={template.id}>
+            {template.isDefault ? `${template.name} (default)` : template.name}
+          </option>
+        ))}
+      </select>
+    ) : null;
+  const waitingForChoice = choice.show && templateId === undefined;
+
   if (state === 'requested') {
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <span className="text-sm text-ink-secondary">A page has been asked for.</span>
         <FieldHint>
-          It is waiting on the converge pass. If this instance has not bound where this kind of page
-          lives, the plan reports it blocked with that reason, and running the bindings command from
-          the sync CLI is what fixes it (ADR-0025, ADR-0028). Linking an existing one works today.
+          It is waiting on the converge pass, which makes it from a template its Notion database
+          holds. While no database is bound for initiative pages, or it holds no template, or the
+          template asked for is gone, the plan reports it blocked with that reason — Settings →
+          Notion shows what the database holds (ADR-0030). Linking an existing one works today.
         </FieldHint>
+        {templateSelect === null ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            {templateSelect}
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pending || waitingForChoice}
+              onClick={() => {
+                send({ mode: 'create', templateId });
+              }}
+            >
+              {pending ? 'Asking…' : 'Ask again with this template'}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
+  const hint = pageTemplateHint(templates);
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
+        {templateSelect}
         <Button
           size="sm"
-          disabled={pending}
+          disabled={pending || waitingForChoice}
           onClick={() => {
-            send({ mode: 'create' });
+            send({ mode: 'create', templateId });
           }}
         >
           <FileText aria-hidden />
@@ -150,6 +218,8 @@ export function PageButton({
           Link an existing page
         </Button>
       </div>
+
+      {hint === null ? null : <FieldHint>{hint}</FieldHint>}
 
       {linking ? (
         <div className="flex flex-wrap items-end gap-2">

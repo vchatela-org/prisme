@@ -12,6 +12,8 @@ import {
 } from '@prisme/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import type { PageTemplates } from '@/lib/contracts';
+import { pageChoiceComplete } from '@/lib/create-view';
 import { createInitiative } from '../../create-actions';
 import { PageChoice, type PageDecision } from '../../page-choice';
 import { SearchBeforeCreate } from '../../search-before-create';
@@ -80,10 +82,13 @@ export function NewInitiativeForm({
   areas,
   projects,
   areaNames,
+  pageTemplates = null,
 }: {
   areas: readonly AreaChoice[];
   projects: readonly ProjectChoice[];
   areaNames: Readonly<Record<string, string>>;
+  /** What the initiative pages database offers (ADR-0030); `null` if it could not be read. */
+  pageTemplates?: PageTemplates | null;
 }) {
   const [title, setTitle] = useState('');
   const [areaKey, setAreaKey] = useState(areas[0]?.key ?? '');
@@ -100,7 +105,8 @@ export function NewInitiativeForm({
   const { toast } = useToast();
   const router = useRouter();
 
-  const ready = title.trim() !== '' && areaKey !== '' && !pending;
+  const ready =
+    title.trim() !== '' && areaKey !== '' && pageChoiceComplete(page, pageTemplates) && !pending;
 
   const submit = (): void => {
     if (!ready) return;
@@ -252,7 +258,7 @@ export function NewInitiativeForm({
         </div>
       </div>
 
-      <PageChoice value={page} onChange={setPage} disabled={pending} />
+      <PageChoice value={page} onChange={setPage} disabled={pending} templates={pageTemplates} />
 
       <div>
         <Button onClick={submit} disabled={!ready}>

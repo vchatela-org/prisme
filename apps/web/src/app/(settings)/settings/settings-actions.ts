@@ -207,7 +207,7 @@ export async function saveBinding(
     return refused(
       result,
       'this binding',
-      'Another role already reads this store, and this one would create pages inside it. Give page creation a page of its own.',
+      'Another role already reads this store, and this one would add pages to it. Give page creation a database of its own.',
     );
   }
   revalidatePath('/settings', 'layout');
@@ -217,7 +217,10 @@ export async function saveBinding(
     ? {
         ok: true,
         title: 'Saved and checked',
-        description: `Found “${result.data.title ?? 'untitled'}”.`,
+        description:
+          result.data.templates !== null && result.data.templates.length === 0
+            ? `Found “${result.data.title ?? 'untitled'}”, which holds no template yet — add one in Notion before asking for a page of this kind.`
+            : `Found “${result.data.title ?? 'untitled'}”.`,
         checkError: null,
       }
     : {

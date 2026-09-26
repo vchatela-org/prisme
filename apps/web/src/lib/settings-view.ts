@@ -21,7 +21,7 @@ export interface RoleCopy {
   readonly use: string;
   /** What to point it at. */
   readonly bind: string;
-  readonly group: 'read' | 'pages' | 'templates';
+  readonly group: 'read' | 'pages';
 }
 
 export const ROLE_COPY: Readonly<Record<string, RoleCopy>> = {
@@ -63,39 +63,21 @@ export const ROLE_COPY: Readonly<Record<string, RoleCopy>> = {
   },
   initiative_pages_db: {
     label: 'Initiative pages',
-    use: '“Create page” on an initiative adds a page here. prisme never edits a page after creating it.',
-    bind: 'A page you create for the purpose — not an existing database you maintain.',
+    use: '“Create page” on an initiative adds an entry here, started from one of its templates. prisme sets the title and never edits a page after creating it.',
+    bind: 'A database whose templates are how a new initiative page should start.',
     group: 'pages',
   },
   project_pages_db: {
     label: 'Project pages',
-    use: 'The new-project flow adds a page here.',
-    bind: 'A dedicated page; it may be the same one as initiative pages.',
+    use: 'The new-project flow adds an entry here, started from one of its templates.',
+    bind: 'A database with at least one template; it may be the same one as initiative pages.',
     group: 'pages',
   },
   capture_pages_db: {
     label: 'Capture pages',
-    use: 'A quick capture that asks for a page adds it here.',
-    bind: 'A dedicated page; it may be the same one as initiative pages.',
+    use: 'A quick capture that asks for a page adds an entry here, started from one of its templates.',
+    bind: 'A database with at least one template; it may be the same one as initiative pages.',
     group: 'pages',
-  },
-  initiative_page_template: {
-    label: 'Initiative template',
-    use: 'Its top-level blocks are copied into every new initiative page.',
-    bind: 'An ordinary page laid out the way a new initiative page should start.',
-    group: 'templates',
-  },
-  project_page_template: {
-    label: 'Project template',
-    use: 'Copied into every new project page.',
-    bind: 'An ordinary page, kept flat — nested blocks are not copied.',
-    group: 'templates',
-  },
-  capture_page_template: {
-    label: 'Capture template',
-    use: 'Copied into every new capture page.',
-    bind: 'An ordinary page, kept flat — nested blocks are not copied.',
-    group: 'templates',
   },
 };
 
@@ -120,13 +102,21 @@ export const ACCESS_LABEL: Readonly<Record<Binding['access'], string>> = {
 /**
  * What a failed check means, as advice. The API sends a failure *kind* and
  * never the tool's own message, so this is the whole explanation a person gets.
+ *
+ * `wrong_kind` and `refused` are two sentences because the API can tell them
+ * apart only sometimes, and says so: `wrong_kind` is sent when the link was
+ * read and is a page — a page store named under ADR-0025 is the usual case —
+ * while a page the integration cannot see is `refused`, like anything else it
+ * cannot see. So the `refused` advice still mentions the wrong kind of link.
  */
 export function checkAdvice(kind: string | null): string | null {
   switch (kind) {
     case null:
       return null;
+    case 'wrong_kind':
+      return 'That link is to a page, and this role needs a database. In Notion, open the database itself and use ⋯ → Copy link.';
     case 'refused':
-      return 'The document tool refused it. Either it is not shared with the prisme integration yet (⋯ → Connections in the tool), or the link is not the kind this role needs.';
+      return 'The document tool refused it. Either it is not shared with the prisme integration yet (⋯ → Connections in the tool), or the link is not to a database.';
     case 'invalid_token':
       return 'The integration token was rejected. That is deployment configuration (DOCTOOL_API_TOKEN), not this binding.';
     case 'rate_limited':
@@ -136,6 +126,34 @@ export function checkAdvice(kind: string | null): string | null {
     default:
       return `The check failed (${kind}).`;
   }
+}
+
+/**
+ * What a page store's database holds, in one line — or nothing, for a role
+ * that is not a page store or a check that did not get that far.
+ *
+ * No template is not a failed check (ADR-0030): the binding is right and the
+ * database is one template away from working, so it is said as a warning
+ * beside a store that was found, never as "not readable".
+ */
+export function templateSummary(
+  templates: Binding['templates'],
+): { readonly text: string; readonly warning: boolean } | null {
+  if (templates === null) return null;
+  if (templates.length === 0) {
+    return {
+      text: 'No template yet, so no page of this kind can be made. Add one to the database in Notion, then check again.',
+      warning: true,
+    };
+  }
+  const names = templates
+    .map((template) => (template.isDefault ? `${template.name} (default)` : template.name))
+    .join(' · ');
+  if (templates.length === 1) return { text: `Template: ${names}.`, warning: false };
+  return {
+    text: `Templates: ${names}. A new page asks which to start from.`,
+    warning: false,
+  };
 }
 
 // ---------------------------------------------------------------------------
