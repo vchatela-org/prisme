@@ -1,6 +1,6 @@
 # FUP · 2026-09-26 · Instance configuration has one way in: the UI and the API
 
-**Agent:** Claude · **Duration:** one session · **PR** PR-TBD · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#102](https://github.com/vchatela-org/prisme/pull/102) · **Outcome:** complete
 
 Settings → Areas, the Year Review and Settings → Notion now cover every table the seed path wrote:
 areas, year weights, area mappings and role bindings. The owner decided the file-and-command path
