@@ -1,5 +1,9 @@
 import type { AreaColorOverrides, SeriesSlot } from '@prisme/ui/server';
+import { cache } from 'react';
+import { apiFetch } from './api';
+import { settingsAreaListSchema } from './contracts';
 import { webRuntime } from './runtime';
+import { mergedAreaColors } from './settings-view';
 
 /**
  * The instance's area → palette slot pinning, from configuration.
@@ -35,6 +39,24 @@ import { webRuntime } from './runtime';
 export function areaColorPins(): AreaColorOverrides {
   return webRuntime().config.areaColorPins as AreaColorOverrides;
 }
+
+/**
+ * The colours the application paints with: a colour chosen on the Settings
+ * screen, else the environment's pin, else the key's hash.
+ *
+ * Read once per request (`cache`). When the area list cannot be read — the
+ * sign-in routes have no session, and an API outage should not take the
+ * palette with it — the environment's pins are the whole answer, which is
+ * exactly what every screen rendered before colours could be chosen.
+ */
+export const instanceAreaColors = cache(async (): Promise<AreaColorOverrides> => {
+  const pins = areaColorPins();
+  const areas = await apiFetch({ path: '/areas', schema: settingsAreaListSchema }).catch(
+    () => undefined,
+  );
+  if (areas === undefined || !areas.ok) return pins;
+  return mergedAreaColors(pins, areas.data.items);
+});
 
 /**
  * The pinning a server component should render with.

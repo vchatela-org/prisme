@@ -153,6 +153,32 @@ export const ROLE_ACCESS: Readonly<Record<RoleKey, RoleAccess>> = {
   capture_page_template: 'read',
 };
 
+/**
+ * What kind of object a role names in the document tool.
+ *
+ * The six original roles are queried as **data sources**; a page store is the
+ * **page** new pages are created under, and a template is a page whose blocks
+ * are copied (ADR-0025). The Settings screen needs the distinction to describe
+ * a binding, and a person pasting a link needs it to be told which kind to
+ * paste.
+ */
+export type StoreShape = 'data_source' | 'page';
+
+export const ROLE_SHAPE: Readonly<Record<RoleKey, StoreShape>> = {
+  objectives_db: 'data_source',
+  takeaways_db: 'data_source',
+  media_db: 'data_source',
+  areas_db: 'data_source',
+  processes_db: 'data_source',
+  reviews_db: 'data_source',
+  initiative_pages_db: 'page',
+  project_pages_db: 'page',
+  capture_pages_db: 'page',
+  initiative_page_template: 'page',
+  project_page_template: 'page',
+  capture_page_template: 'page',
+};
+
 export function isReadable(role: RoleKey): boolean {
   const access = ROLE_ACCESS[role];
   return access === 'read' || access === 'read_write';

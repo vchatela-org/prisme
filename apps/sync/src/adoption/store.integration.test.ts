@@ -335,4 +335,38 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       ).rejects.toThrow(/similarity_belongs_to_a_fuzzy_proposal/);
     });
   });
+  describe('mirrorTakeaways', () => {
+    async function mirrored() {
+      return client<{ external_page_id: string; kind: string; promoted_to: string | null }[]>`
+        select external_page_id, kind, promoted_to::text from takeaway order by external_page_id`;
+    }
+
+    it('inserts what it saw, refreshes a kind, and forgets what left the store', async () => {
+      const at = new Date('2026-09-26T09:00:00Z');
+      await store().mirrorTakeaways(
+        [
+          { externalPageId: 'tk-1', kind: 'action' },
+          { externalPageId: 'tk-2', kind: 'principle' },
+        ],
+        at,
+      );
+      await store().mirrorTakeaways([{ externalPageId: 'tk-1', kind: 'principle' }], at);
+      expect(await mirrored()).toEqual([
+        { external_page_id: 'tk-1', kind: 'principle', promoted_to: null },
+      ]);
+    });
+
+    it('keeps a promoted takeaway after its page has gone — the link is prisme’s', async () => {
+      const at = new Date('2026-09-26T09:00:00Z');
+      await store().mirrorTakeaways([{ externalPageId: 'tk-1', kind: 'action' }], at);
+      const rows = await client<{ id: string }[]>`
+        insert into initiative (title, area_key, status, value, time_criticality, risk, size, origin)
+        values ('An invented initiative', 'home', 'inbox', 3, 3, 3, 3, 'created_in_prisme')
+        returning id::text`;
+      await client`update takeaway set promoted_to = ${(rows[0] as { id: string }).id}::uuid`;
+
+      await store().mirrorTakeaways([], at);
+      expect(await mirrored()).toHaveLength(1);
+    });
+  });
 });

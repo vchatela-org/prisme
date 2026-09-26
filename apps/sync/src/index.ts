@@ -68,6 +68,7 @@ export type { WindowDecision, WindowOptions } from './window.js';
  * outward door for a caller to find.
  */
 export { adopt } from './adoption/run.js';
+export { readBindings } from './bindings.js';
 export type { AdoptOptions, AdoptResult } from './adoption/run.js';
 export { createAdoptionStore } from './adoption/store.js';
 export type { AdoptionStore } from './adoption/ports.js';

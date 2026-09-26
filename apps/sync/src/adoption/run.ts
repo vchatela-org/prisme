@@ -2,7 +2,7 @@ import type { DocToolClient, RoleKey, TaskToolClient } from '@prisme/connectors'
 import { isReadable, isTemplateRole, ROLE_KEYS } from '@prisme/connectors';
 import { adaptDocRecords, adaptProjects, adaptTasks, type AdaptOptions } from './adapt.js';
 import { coverage, type CoverageReport } from './coverage.js';
-import type { AdoptionStore } from './ports.js';
+import type { AdoptionStore, TakeawaySeen } from './ports.js';
 import { scan, type ScanResult } from './queue.js';
 import { formatAdoptionPlan } from './report.js';
 import type { ClassifierConfig } from './classify.js';
@@ -94,6 +94,7 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
 
   const docCounts: string[] = [];
   const docUnread: UnreadReason[] = [];
+  let takeaways: TakeawaySeen[] | undefined;
   if (options.docClient !== undefined) {
     for (const role of SCANNED_ROLES) {
       // One store at a time, and a store that is not bound is skipped rather
@@ -104,8 +105,19 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
         docUnread.push(read.reason);
         continue;
       }
-      objects.push(...adaptDocRecords(read.records, adaptOptions));
+      const adapted = adaptDocRecords(read.records, adaptOptions);
+      objects.push(...adapted);
       docCounts.push(`${role}=${String(read.records.length)}`);
+      if (role === 'takeaways_db') {
+        // Only a takeaway whose type the instance's property states: an
+        // untyped one is neither a principle nor an action, and guessing would
+        // be the wrong direction (see `takeawayTypeOf`).
+        takeaways = adapted.flatMap((object) =>
+          object.takeawayType === undefined || object.closed
+            ? []
+            : [{ externalPageId: object.externalId, kind: object.takeawayType }],
+        );
+      }
     }
   }
 
@@ -117,6 +129,7 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
 
   if (options.persist === true) {
     await options.store.replaceCandidates(result.queue, startedAt);
+    if (takeaways !== undefined) await options.store.mirrorTakeaways(takeaways, startedAt);
   }
 
   const source = [

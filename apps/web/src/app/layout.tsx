@@ -2,7 +2,7 @@ import { AreaColorProvider, CspNonceProvider, ThemeProvider } from '@prisme/ui';
 import { parseThemePreference, THEME_COOKIE } from '@prisme/ui/server';
 import { cookies, headers } from 'next/headers';
 import type { ReactNode } from 'react';
-import { areaColorPins } from '../lib/area-pins';
+import { instanceAreaColors } from '../lib/area-pins';
 import '../styles/globals.css';
 
 export const metadata = {
@@ -39,6 +39,9 @@ export const metadata = {
  * provider wins — which is what keeps the gallery showing its fixture colours
  * while every other screen gets the instance's.
  *
+ * The map is the instance's own: a colour chosen on the Settings screen, else
+ * the `AREA_COLOR_PINS` entry, else the key's hash (`instanceAreaColors`).
+ *
  * ## The nonce, and why it is read here
  *
  * `CspNonceProvider` carries the **per-request CSP nonce** so that the
@@ -55,6 +58,7 @@ export const metadata = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value);
   const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const areaColors = await instanceAreaColors();
 
   return (
     <html
@@ -64,7 +68,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <body>
         <CspNonceProvider nonce={nonce}>
-          <AreaColorProvider overrides={areaColorPins()}>
+          <AreaColorProvider overrides={areaColors}>
             <ThemeProvider initial={preference}>{children}</ThemeProvider>
           </AreaColorProvider>
         </CspNonceProvider>
