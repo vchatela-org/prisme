@@ -237,6 +237,27 @@ describe('parseMappingList', () => {
     expect(mappings).toHaveLength(2);
   });
 
+  it('carries the home location, and refuses two for one area', () => {
+    const mappings = parseMappingList(
+      [
+        { areaKey: 'alpha', externalProjectId: 'p1' },
+        { areaKey: 'alpha', externalProjectId: 'p2', home: true },
+      ],
+      'seed/bindings.json',
+    );
+    expect(mappings.map((mapping) => mapping.home === true)).toEqual([false, true]);
+
+    expect(() =>
+      parseMappingList(
+        [
+          { areaKey: 'alpha', externalProjectId: 'p1', home: true },
+          { areaKey: 'alpha', externalProjectId: 'p2', home: true },
+        ],
+        'seed/bindings.json',
+      ),
+    ).toThrow(/two home locations for "alpha", at areaMappings\[0\] and areaMappings\[1\]/);
+  });
+
   it('refuses a shape it does not know', () => {
     // An unknown *key* is named, which is more use than a shape dump — and it
     // is the same rule the areas file follows.
@@ -253,7 +274,7 @@ describe('parseMappingList', () => {
     // the message states.
     expect(() =>
       parseMappingList([{ areaKey: 42, externalProjectId: 'p1' }], 'seed/bindings.json'),
-    ).toThrow(/is not \{ areaKey, externalProjectId, externalSectionId\? \}/);
+    ).toThrow(/is not \{ areaKey, externalProjectId, externalSectionId\?, home\? \}/);
     expect(() => parseMappingList({}, 'seed/bindings.json')).toThrow(/is not an array/);
   });
 });

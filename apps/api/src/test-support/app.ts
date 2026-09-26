@@ -2,6 +2,7 @@ import type { Hono } from 'hono';
 import type postgres from 'postgres';
 import { createLogger, createMetrics } from '@prisme/observability';
 import type { Config } from '@prisme/config';
+import { ConnectorError, type DocStoreDescription, type TaskLocations } from '@prisme/connectors';
 import { createApp } from '../app.js';
 import { createConfirmationService, type ConfirmationService } from '../auth/confirmation.js';
 import { createPostgresAuthStore } from '../auth/postgres.js';
@@ -10,6 +11,7 @@ import type { Authorizer, Identity } from '../http/authorize.js';
 import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
 import { createServices, SERVICE_DEFAULTS, type Services } from '../services/index.js';
 import { createPostgresStore } from '../store/postgres.js';
+import type { ExternalDirectory } from '../sync/directory.js';
 import type { SyncRunner, SyncRunResult } from '../sync/port.js';
 
 /**
@@ -54,6 +56,34 @@ export const NO_SYNC_RESULT: SyncRunResult = {
   report: 'nothing to do',
 };
 
+/**
+ * A directory that answers from what the test says the tools hold.
+ *
+ * `describe` knows the identifiers it is given and refuses the rest the way
+ * the tool does — a `refused` connector failure — so a test can exercise the
+ * saved-but-unreadable binding without a transport.
+ */
+export function stubDirectory(
+  stores: Readonly<Record<string, DocStoreDescription>> = {},
+  locations: TaskLocations = { projects: [], sections: [] },
+): ExternalDirectory {
+  return {
+    taskLocations: () => Promise.resolve(locations),
+    describe: (externalId) => {
+      const found = stores[externalId];
+      return found === undefined
+        ? Promise.reject(
+            new ConnectorError('refused', 'no such store in this test', {
+              tool: 'doc',
+              operation: 'describe',
+              status: 404,
+            }),
+          )
+        : Promise.resolve(found);
+    },
+  };
+}
+
 export function stubRunner(result: SyncRunResult = NO_SYNC_RESULT): SyncRunner {
   return {
     run: (request) => Promise.resolve({ ...result, mode: request.mode }),
@@ -82,6 +112,7 @@ export interface TestAppOptions {
   readonly client: postgres.Sql;
   readonly identity?: Identity | undefined;
   readonly runner?: SyncRunner | undefined;
+  readonly directory?: ExternalDirectory | undefined;
   /** Pinned, so a ranking computed in a test is the same ranking tomorrow. */
   readonly now?: Date | undefined;
   /**
@@ -108,6 +139,7 @@ export function createTestApp(options: TestAppOptions): TestApp {
   const services = createServices({
     store: createPostgresStore(options.client),
     runner: options.runner ?? stubRunner(),
+    directory: options.directory ?? stubDirectory(),
     config: {
       timezone: 'UTC',
       capacityWindowWeeks: 4,

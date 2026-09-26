@@ -31,7 +31,7 @@ route — a component in the shared package merges cleanly; an edit to someone e
 
 - Server components for reads; optimistic updates for score and status changes.
 - Route groups per surface: `(focus)`, `(backlog)`, `(inbox)`, `(areas)`, `(kpi)`, `(timeline)`,
-  `(objectives)`, `(review)`, `(adoption)`, `(create)`.
+  `(objectives)`, `(review)`, `(adoption)`, `(create)`, `(settings)`.
 - Every screen needs loading, empty, error and permission-denied states. The empty states matter
   most — a first-run empty backlog should explain how to fill it.
 - Keyboard-first: every action reachable without a mouse, and every drag interaction has a keyboard

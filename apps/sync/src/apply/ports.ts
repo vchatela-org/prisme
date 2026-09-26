@@ -1,5 +1,11 @@
 import type { ExternalTask } from '@prisme/connectors';
-import type { InitiativeId, InitiativeStatus, MatchConfidence, MatchRule } from '@prisme/domain';
+import type {
+  CalendarDate,
+  InitiativeId,
+  InitiativeStatus,
+  MatchConfidence,
+  MatchRule,
+} from '@prisme/domain';
 import type {
   ConflictRecord,
   DesiredState,
@@ -87,6 +93,8 @@ export interface CaptureInput {
   readonly externalId: string;
   readonly title: string;
   readonly areaKey: string;
+  /** The task's own deadline, taken over rather than cleared. */
+  readonly deadline?: CalendarDate | undefined;
   readonly at: Date;
 }
 
@@ -100,6 +108,15 @@ export interface ReconcilerStore {
   bindExternalRef(input: BindRefInput): Promise<void>;
   /** The intent channel's capture: a prisme row for a task that already exists. */
   captureInitiative(input: CaptureInput): Promise<InitiativeId>;
+  /**
+   * An adopted task's deadline, taken into prisme. Only ever onto an initiative
+   * with none — the planner decides that, and the SQL repeats it.
+   */
+  adoptDeadline(input: {
+    readonly initiativeId: InitiativeId;
+    readonly deadline: CalendarDate;
+    readonly at: Date;
+  }): Promise<void>;
   setStatus(input: {
     readonly initiativeId: InitiativeId;
     readonly from: InitiativeStatus;

@@ -62,6 +62,7 @@ export const areaRoutes: readonly ApiRoute[] = [
         active: context.body.active,
         externalPageId: context.body.externalPageId,
         runBudgetHoursPerWeek: context.body.runBudgetHoursPerWeek,
+        colorSlot: context.body.colorSlot,
         mappings: context.body.mappings,
       }),
   }),
@@ -82,9 +83,9 @@ export const areaRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/areas/:key',
     scope: 'admin:areas',
-    summary: 'Rename or deactivate an area',
+    summary: 'Rename, recolour or deactivate an area',
     description:
-      'The key and the kind are immutable: renaming touches `name`, and turning an area into a lane would rewrite the meaning of every past capacity measurement.',
+      'The key and the kind are immutable: renaming touches `name`, and turning an area into a lane would rewrite the meaning of every past capacity measurement. `colorSlot: null` returns the area to its configured or hashed colour.',
     params: keyParam,
     body: updateAreaBody,
     response: AreaDto,
@@ -98,7 +99,7 @@ export const areaRoutes: readonly ApiRoute[] = [
     scope: 'admin:areas',
     summary: 'Replace the external projects and sections that fold into this area',
     description:
-      'Many-to-one: several external locations may map to one area, and that is how several disagreeing lists of "areas" fold into one key without restructuring anything.',
+      'Many-to-one: several external locations may map to one area, and that is how several disagreeing lists of "areas" fold into one key without restructuring anything. At most one mapping is `isHome` — where prisme creates new work for the area; with none, the most specific mapping is used.',
     params: keyParam,
     body: replaceAreaMappingsBody,
     response: AreaDto,

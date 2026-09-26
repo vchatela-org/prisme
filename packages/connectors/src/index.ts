@@ -41,6 +41,7 @@ export {
   PAGE_ROLES,
   PAGE_TEMPLATE_FOR,
   ROLE_ACCESS,
+  ROLE_SHAPE,
   ROLE_KEYS,
   roleBindingSchema,
   roleBindingsSchema,
@@ -48,6 +49,7 @@ export {
   TEMPLATE_ROLES,
   type PageKind,
   type RoleAccess,
+  type StoreShape,
   type RoleBinding,
   type RoleBindings,
   type RoleKey,
@@ -127,6 +129,7 @@ export type {
   ExternalTaskId,
   SyncResult,
   TaskChange,
+  TaskLocations,
   TaskSnapshot,
   TaskToolClient,
 } from './task-tool/types.js';
@@ -145,5 +148,6 @@ export type {
   DocPage,
   DocPropertyValue,
   DocRecord,
+  DocStoreDescription,
   DocToolClient,
 } from './doc-tool/types.js';
