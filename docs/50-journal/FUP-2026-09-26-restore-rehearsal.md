@@ -1,6 +1,6 @@
 # FUP · 2026-09-26 · §7 rehearsed, and the duration tier needs two things, not one
 
-**Agent:** Claude · **Duration:** one session · **PR** — · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#91](https://github.com/vchatela-org/prisme/pull/91) · **Outcome:** complete
 
 The gate line that had nothing behind it now has a rehearsal behind it. Running it produced two
 corrections: the rehearsal's own figure is empty on the very instance it gates, and
