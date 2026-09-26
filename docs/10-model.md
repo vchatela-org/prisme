@@ -285,6 +285,11 @@ a score, in prisme, where it is recomputed on every run.
 Promotion creates an initiative linked back to the takeaway. It does not copy the takeaway's text,
 and does not delete or modify it.
 
+The mirror is filled by the adoption scan from the takeaways store: a takeaway's kind comes from the
+select property named in `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` (a value starting *action*, or *principle* /
+*principe*). An untyped takeaway is neither and is not mirrored — guessing would risk a principle in
+the backlog. A takeaway gone from the store leaves the mirror unless it was promoted.
+
 ---
 
 ## 9. Lanes: Run, Signals, Ritual

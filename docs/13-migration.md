@@ -132,6 +132,11 @@ and moved the task — each as a first-time `update` rather than a conflict, so 
 *Ignore* is what makes the queue converge. A queue that re-proposes the same 200 items every week
 gets abandoned in a fortnight, and then the model quietly diverges from reality.
 
+**The queue is re-read once a day**, by the first full pass in the sync window, and on demand with
+*Rescan* on the Adoption screen (`POST /adoption/scan`) or `prisme-sync adopt --plan`. All three are
+the same scan: they read both tools and replace the candidate list — prisme's own table — and write
+nothing outward. Rescan after labelling a task or changing an area's locations.
+
 ### What becomes what
 
 | Found in the wild | Becomes |

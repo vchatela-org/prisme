@@ -160,6 +160,7 @@ provider and produces a login that cannot work:
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
 | `AREA_COLOR_PINS` | `{}` | Area key → palette slot, JSON: `{"craft":3,"health":1}`. **Web tier only**. A colour chosen on the Settings screen wins over it |
 | `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
+| `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` | *unset* | The takeaways store's select property whose value starts with *action* or *principle*. Unset, no takeaway is typed: none is proposed as an initiative and the Inbox shows none. **Sync and API** (the adoption scan runs in both) |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
 | `TASKTOOL_BASE_URL` | *the vendor's public API* | The task tool's **API host**, for the same reason |
 | `DOCTOOL_PAGE_URL_TEMPLATE` | *unset* | Where a page **opens** — the browser-facing host, with a literal `{id}` where the identifier goes. **Web tier**; unset leaves *Open page* disabled, and the Settings screen names stores without linking them |
