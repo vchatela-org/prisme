@@ -1,6 +1,6 @@
 # FUP · 2026-09-26 · `v0.4.0` cut — the screens an instance was missing, and the guide that could describe them
 
-**Agent:** Claude · **Duration:** one session · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session · **PR** [#99](https://github.com/vchatela-org/prisme/pull/99) · **Outcome:** complete
 
 Asked, in one line, to cut a new `v0.4.0` following the last merge. The version asked for and the
 version the release rule allows agree, which is not something to assume: the check that confirms it
@@ -50,6 +50,18 @@ pinned — the deployment still runs `v0.2.0`"*, and the pods say otherwise: bot
 A register that disagrees with the cluster is the class #93 was about, and updating the table for
 `v0.4.0` without correcting the row above it would have shipped a dashboard that contradicts itself.
 
+## Surprises
+
+**The release record ran the local deny-list, and it caught something already on `main`.** A fresh
+worktree has no `.github/privacy-denylist.local.txt` — it is gitignored — so the scan there reports
+"clean" against the 23 public patterns alone and says nothing about the class the supplement exists
+for. Copying the supplement in and re-running surfaced a **French area name inside a web test**,
+committed by `bf14961` (#94): the string appears nowhere else in the repository, and every fixture
+uses the deliberate English vocabulary instead. The name is not reproduced here. It is a
+history-remediation question rather than a file-editing one, so it is reported and left for the
+owner; what this run records is that **a clean scan in a worktree is not the same control as a clean
+scan with the supplement**, and the difference is invisible unless the file is copied in.
+
 ## Follow-ups
 
 1. **The pin is the deployment's, not this repository's.** `v0.4.0` is published and **not pinned**;
@@ -60,6 +72,11 @@ A register that disagrees with the cluster is the class #93 was about, and updat
 2. **Tagging discharges no open row.** The rituals still have no loader, the adoption queue has not
    been worked, and the property that would unblock declared durations is not set. A version
    publishes code; it does not close a register row.
+
+3. **The privacy finding is reported and unfixed, and the owner owns it.** Fixing it forward is a
+   small pull request and does not remove the string from `main`'s history, which is permanent and
+   shared with every clone; the only remediation that does is a force-push, which is the owner's
+   call and was not taken.
 
 ## Specs touched
 
