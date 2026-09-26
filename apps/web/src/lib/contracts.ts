@@ -944,3 +944,106 @@ export const ritualSchema = z.object({
 export type Ritual = z.infer<typeof ritualSchema>;
 
 export const ritualListSchema = z.object({ items: z.array(ritualSchema) });
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+/**
+ * An area as the Settings screens edit it: every field, every mapping.
+ *
+ * Its own schema rather than a widening of `areaSchema`, for the reason given
+ * at `areaDetailSchema` — Focus must not fail to load because Settings wanted
+ * a colour.
+ */
+export const settingsAreaSchema = z.object({
+  key: areaKey,
+  name: z.string(),
+  kind: areaKind,
+  active: z.boolean(),
+  rankable: z.boolean(),
+  runBudgetHoursPerWeek: z.number().nullable(),
+  colorSlot: z.number().int().min(1).max(8).nullable().default(null),
+  mappings: z.array(
+    z.object({
+      externalProjectId: z.string(),
+      externalSectionId: z.string().nullable(),
+      isHome: z.boolean().default(false),
+    }),
+  ),
+});
+
+export type SettingsArea = z.infer<typeof settingsAreaSchema>;
+
+export const settingsAreaListSchema = z.object({ items: z.array(settingsAreaSchema) });
+
+export const ROLE_ACCESSES = ['read', 'write', 'read_write', 'create'] as const;
+
+export const bindingSchema = z.object({
+  role: z.string(),
+  shape: z.enum(['data_source', 'page']),
+  access: z.enum(ROLE_ACCESSES),
+  bound: z.boolean(),
+  externalId: z.string().nullable(),
+  title: z.string().nullable(),
+  linkId: z.string().nullable(),
+  checkedAt: instant.nullable(),
+  checkError: z.string().nullable(),
+});
+
+export type Binding = z.infer<typeof bindingSchema>;
+
+export const bindingListSchema = z.object({ items: z.array(bindingSchema) });
+
+export const taskLocationsSchema = z.object({
+  projects: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      parentId: z.string().nullable(),
+      archived: z.boolean(),
+      sections: z.array(z.object({ id: z.string(), name: z.string(), archived: z.boolean() })),
+    }),
+  ),
+  failure: z.string().nullable(),
+});
+
+export type TaskLocations = z.infer<typeof taskLocationsSchema>;
+
+/** `GET /settings` — the deployment configuration prisme is running under. */
+export const instanceSettingsSchema = z.object({
+  timezone: z.string(),
+  scoring: z.object({
+    activeMethodId: z.string(),
+    activeMethodVersion: z.number().int(),
+    shadowMethodIds: z.array(z.string()),
+  }),
+  capacity: z.object({
+    windowWeeks: z.number().int(),
+    defaultTaskMinutes: z.number().int(),
+    balanceClamp: z.tuple([z.number(), z.number()]),
+  }),
+  selection: z.object({
+    maxNow: z.number().int(),
+    maxNowPerArea: z.number().int(),
+    openQuestion: z.string(),
+  }),
+  sync: z.object({
+    enabled: z.boolean(),
+    writeEnabled: z.boolean(),
+    createThreshold: z.number().int(),
+    windowStart: z.number().int(),
+    windowEnd: z.number().int(),
+  }),
+});
+
+export type InstanceSettings = z.infer<typeof instanceSettingsSchema>;
+
+/** `GET /write-switch` — the runtime kill switch. */
+export const writeSwitchSchema = z.object({
+  engaged: z.boolean(),
+  mode: z.enum(['outward', 'all']),
+  changedAt: instant.nullable(),
+  changedBy: z.string().nullable(),
+  reason: z.string().nullable(),
+});

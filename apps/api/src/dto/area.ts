@@ -16,7 +16,28 @@ import { AREA_READ_ONLY, AREA_WEIGHT_READ_ONLY } from './ownership.js';
 export const areaMappingDto = z.object({
   externalProjectId: z.string(),
   externalSectionId: z.string().nullable(),
+  /** Where prisme creates new work for the area — anchors and captures alike. */
+  isHome: z.boolean(),
 });
+
+/**
+ * A palette slot, 1 to 8. The palette's ceiling is fixed: a ninth generated hue
+ * is indistinguishable from an existing one under colour-vision deficiency.
+ */
+const colorSlot = z.int().min(1).max(8);
+
+const mappingInput = z.strictObject({
+  externalProjectId: z.string().min(1).max(200),
+  externalSectionId: z.string().min(1).max(200).optional(),
+  isHome: z.boolean().optional(),
+});
+
+/** New work for an area goes to one place, so one mapping at most is its home. */
+const mappingList = z
+  .array(mappingInput)
+  .refine((mappings) => mappings.filter((mapping) => mapping.isHome === true).length <= 1, {
+    error: 'at most one mapping can be the home location',
+  });
 
 export const areaDto = z.object({
   key: areaKey,
@@ -28,6 +49,12 @@ export const areaDto = z.object({
   externalPageId: z.string().nullable(),
   /** Upkeep is budgeted in hours per week, not a share of capacity. */
   runBudgetHoursPerWeek: z.number().nullable(),
+  /**
+   * The palette slot chosen on the Settings screen, or `null` for "not chosen"
+   * — the environment's pin applies then, else the key's hash. Lanes paint grey
+   * whatever this says.
+   */
+  colorSlot: colorSlot.nullable(),
   mappings: z.array(areaMappingDto),
 });
 
@@ -71,14 +98,8 @@ export const createAreaBody = defineWrite(
       active: z.boolean().default(true),
       externalPageId: z.string().min(1).max(200).optional(),
       runBudgetHoursPerWeek: z.number().min(0).max(168).optional(),
-      mappings: z
-        .array(
-          z.strictObject({
-            externalProjectId: z.string().min(1).max(200),
-            externalSectionId: z.string().min(1).max(200).optional(),
-          }),
-        )
-        .default([]),
+      colorSlot: colorSlot.optional(),
+      mappings: mappingList.default([]),
     })
     .refine((value) => value.runBudgetHoursPerWeek === undefined || value.kind === 'run', {
       error: 'an hours-per-week budget belongs to the Run lane',
@@ -102,6 +123,7 @@ export const updateAreaBody = defineWrite(
     active: z.boolean().optional(),
     externalPageId: z.string().min(1).max(200).nullable().optional(),
     runBudgetHoursPerWeek: z.number().min(0).max(168).nullable().optional(),
+    colorSlot: colorSlot.nullable().optional(),
   }),
   AREA_READ_ONLY,
 );
@@ -114,14 +136,7 @@ export const putAreaWeightBody = defineWrite(
 
 export const replaceAreaMappingsBody = defineWrite(
   'ReplaceAreaMappings',
-  z.strictObject({
-    mappings: z.array(
-      z.strictObject({
-        externalProjectId: z.string().min(1).max(200),
-        externalSectionId: z.string().min(1).max(200).optional(),
-      }),
-    ),
-  }),
+  z.strictObject({ mappings: mappingList }),
 );
 
 /**

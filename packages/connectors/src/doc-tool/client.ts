@@ -7,9 +7,25 @@ import { contentHash } from '../hash.js';
 import type { ConnectorMetrics } from '../metrics.js';
 import { parseOrThrow } from '../parse.js';
 import { assertCreatable, assertReadable, type RoleBindings, type RoleKey } from '../role-key.js';
+import type { StoreShape } from '../role-key.js';
+import { sanitisePlainText } from '../sanitise.js';
 import { mapBlock, mapPage, mapPageContent } from './map.js';
-import type { CreatePageInput, DocBlock, DocPage, DocRecord, DocToolClient } from './types.js';
-import { wireBlockListSchema, wirePageSchema, wireQueryResponseSchema } from './wire.js';
+import type {
+  CreatePageInput,
+  DocBlock,
+  DocPage,
+  DocRecord,
+  DocStoreDescription,
+  DocToolClient,
+} from './types.js';
+import {
+  wireBlockListSchema,
+  wireDatabaseSchema,
+  wireDataSourceSchema,
+  wirePageSchema,
+  wireQueryResponseSchema,
+  type WireRichText,
+} from './wire.js';
 
 /**
  * The live document-tool client.
@@ -319,7 +335,69 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
     });
   }
 
+  /**
+   * A data source by id — or, when the id is a database, the one data source
+   * inside it.
+   *
+   * The tool's *Copy link* on a database gives the **database**, and prisme
+   * queries the **data source**; the two ids differ and a person cannot see the
+   * second anywhere. So a database is resolved when that is unambiguous, and a
+   * database holding several data sources is refused with a count rather than
+   * bound to whichever the tool happened to list first.
+   */
+  async function describeDataSource(id: string, operation: string): Promise<DocStoreDescription> {
+    let body: unknown;
+    try {
+      body = await send('GET', `/v1/data_sources/${encodeURIComponent(id)}`, operation);
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+      const database = parseOrThrow(
+        wireDatabaseSchema,
+        await send('GET', `/v1/databases/${encodeURIComponent(id)}`, operation),
+        { tool: 'doc', operation, shape: 'database' },
+      );
+      const [only, ...others] = database.data_sources;
+      if (only === undefined || others.length > 0) {
+        throw new ConnectorError(
+          'refused',
+          `that database holds ${String(database.data_sources.length)} data sources; bind one of them rather than the database`,
+          { tool: 'doc', operation },
+        );
+      }
+      return {
+        externalId: only.id,
+        title: plain(database.title) || only.name,
+        linkId: database.id,
+      };
+    }
+
+    const source = parseOrThrow(wireDataSourceSchema, body, {
+      tool: 'doc',
+      operation,
+      shape: 'data source',
+    });
+    return {
+      externalId: source.id,
+      title: plain(source.title),
+      linkId: source.parent.database_id ?? source.id,
+    };
+  }
+
   return {
+    async describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription> {
+      const operation = `describe ${shape}`;
+      if (shape === 'data_source') return describeDataSource(externalId, operation);
+
+      // Properties only. A page's blocks are its body, and describing a page
+      // store is not a reason to read what anybody wrote under it.
+      const body = await send('GET', `/v1/pages/${encodeURIComponent(externalId)}`, operation);
+      const page = mapPageContent(
+        parseOrThrow(wirePageSchema, body, { tool: 'doc', operation, shape: 'page' }),
+        operation,
+      );
+      return { externalId: page.externalId, title: page.title, linkId: page.externalId };
+    },
+
     async queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]> {
       const operation = `query ${role}`;
       assertReadable(role, operation);
@@ -447,4 +525,17 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       return readPageById(id, 'fetch page');
     },
   };
+}
+
+/** A 404, or the 400 the tool answers when an id names an object of another kind. */
+function isNotFound(error: unknown): boolean {
+  return (
+    error instanceof ConnectorError &&
+    error.failure === 'refused' &&
+    (error.status === 404 || error.status === 400)
+  );
+}
+
+function plain(runs: readonly WireRichText[]): string {
+  return sanitisePlainText(runs.map((run) => run.plain_text).join('')).trim();
 }
