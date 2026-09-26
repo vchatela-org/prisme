@@ -1,6 +1,6 @@
 # FUP · 2026-09-26 · `v0.4.1` cut on rewritten history, and `v0.4.0` deleted rather than re-pointed
 
-**Agent:** Claude · **Duration:** one session (same run as the purge) · **Outcome:** complete
+**Agent:** Claude · **Duration:** one session (same run as the purge) · **PR** [#101](https://github.com/vchatela-org/prisme/pull/101) · **Outcome:** complete
 
 Asked to keep the release moving after the instance-vocabulary purge. `v0.4.0` could not survive it:
 its commit was a **descendant** of the one that carried the value, so rewriting that history changed
