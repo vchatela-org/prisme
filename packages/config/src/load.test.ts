@@ -305,6 +305,21 @@ describe('loadConfig', () => {
       expect(requiredFor('web')).not.toContain('DOCTOOL_PAGE_URL_TEMPLATE');
       expect(requiredFor('api')).not.toContain('DOCTOOL_PAGE_URL_TEMPLATE');
     });
+
+    it('has a task-tool counterpart held to the same rule', () => {
+      const config = loadConfig({
+        env: { ...WEB, TASKTOOL_PROJECT_URL_TEMPLATE: 'https://tasks.example.com/project/{id}' },
+        service: 'web',
+      });
+      expect(config.tasktoolProjectUrlTemplate).toBe('https://tasks.example.com/project/{id}');
+      expect(() =>
+        loadConfig({
+          env: { ...WEB, TASKTOOL_PROJECT_URL_TEMPLATE: 'https://tasks.example.com/projects' },
+          service: 'web',
+        }),
+      ).toThrow(/TASKTOOL_PROJECT_URL_TEMPLATE/);
+      expect(requiredFor('web')).not.toContain('TASKTOOL_PROJECT_URL_TEMPLATE');
+    });
   });
 
   /*

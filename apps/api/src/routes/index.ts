@@ -9,6 +9,7 @@ import { metaRoutes } from './meta.js';
 import { objectiveRoutes } from './objectives.js';
 import { opsRoutes } from './ops.js';
 import { projectRoutes } from './projects.js';
+import { settingsRoutes } from './settings.js';
 import { viewRoutes } from './views.js';
 
 /**
@@ -51,6 +52,7 @@ export function createRoutes(info: OpenApiInfo = API_INFO, auth?: AuthDeps): rea
     ...objectiveRoutes,
     ...laneRoutes,
     ...opsRoutes,
+    ...settingsRoutes,
     ...createAuthRoutes(auth),
   ];
 

@@ -130,6 +130,34 @@ export const wireBlockListSchema = z.object({
   has_more: z.boolean(),
 });
 
+/**
+ * A data source, as far as a person needs to recognise one.
+ *
+ * Read for the Settings screen and nothing else: the title, and the database
+ * that holds it — which is what a browser opens, because a data source has no
+ * page of its own. `properties` and the rest of the object are not read.
+ */
+export const wireDataSourceSchema = z.object({
+  object: z.literal('data_source'),
+  id: z.string().min(1),
+  title: wireRichTextArraySchema,
+  parent: z.object({ type: z.string(), database_id: z.string().min(1).optional() }).loose(),
+});
+
+/**
+ * A database, read for one reason: a person pasted its link.
+ *
+ * A database link is what the tool's own *Copy link* gives, and prisme queries
+ * the **data source** inside it. A database holding exactly one is resolved to
+ * it; one holding several is refused rather than guessed.
+ */
+export const wireDatabaseSchema = z.object({
+  object: z.literal('database'),
+  id: z.string().min(1),
+  title: wireRichTextArraySchema,
+  data_sources: z.array(z.object({ id: z.string().min(1), name: z.string() })),
+});
+
 /** The text-bearing payload shared by paragraphs, headings, list items and the rest. */
 export const wireTextBlockPayloadSchema = z.object({
   rich_text: wireRichTextArraySchema,
@@ -137,5 +165,7 @@ export const wireTextBlockPayloadSchema = z.object({
 });
 
 export type WirePage = z.infer<typeof wirePageSchema>;
+export type WireDataSource = z.infer<typeof wireDataSourceSchema>;
+export type WireDatabase = z.infer<typeof wireDatabaseSchema>;
 export type WireRichText = z.infer<typeof wireRichTextSchema>;
 export type WireBlock = z.infer<typeof wireBlockSchema>;

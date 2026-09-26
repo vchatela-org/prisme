@@ -45,6 +45,65 @@ export interface AreaMapping {
   readonly areaKey: AreaKey;
   readonly externalProjectId: string;
   readonly externalSectionId?: string | undefined;
+  /** Where new work for the area is created. At most one per area. */
+  readonly isHome?: boolean | undefined;
+}
+
+/**
+ * Where prisme creates new work for an area — an anchor or a capture alike.
+ *
+ * `area_mapping` is many-to-one, so an area can have several locations and one
+ * of them has to be chosen. Before this rule there were two: the reconciler took
+ * the first mapping in key order and the capture flow the most specific, so the
+ * same area sent new work to two places and neither was a decision anybody made.
+ *
+ * The order is:
+ *
+ * 1. **the home** — the mapping a person marked on the Settings screen;
+ * 2. **the most specific** — a section says more about where things go than a
+ *    whole project;
+ * 3. **the first by identifier** — stable, so two creations a second apart do
+ *    not land in different places.
+ *
+ * `undefined` when the area is mapped nowhere. That is not a failure to route
+ * around with a default: prisme has no idea where the work belongs, and the
+ * caller refuses and says which area needs a mapping.
+ */
+export function homeLocation<T extends AreaMappingShape>(
+  areaKey: AreaKey,
+  mappings: readonly T[],
+): T | undefined {
+  const candidates = mappings
+    .filter((mapping) => mapping.areaKey === areaKey)
+    .sort((left, right) => {
+      const home = Number(right.isHome === true) - Number(left.isHome === true);
+      if (home !== 0) return home;
+      const specificity = Number(hasSection(right)) - Number(hasSection(left));
+      if (specificity !== 0) return specificity;
+      if (left.externalProjectId !== right.externalProjectId) {
+        return left.externalProjectId < right.externalProjectId ? -1 : 1;
+      }
+      const leftSection = left.externalSectionId ?? '';
+      const rightSection = right.externalSectionId ?? '';
+      return leftSection < rightSection ? -1 : leftSection > rightSection ? 1 : 0;
+    });
+  return candidates[0];
+}
+
+/**
+ * The fields {@link homeLocation} reads. Structural, so a database row whose
+ * absent section is `null` and a domain mapping whose absent section is
+ * `undefined` are both accepted without a conversion at every call site.
+ */
+export interface AreaMappingShape {
+  readonly areaKey: AreaKey;
+  readonly externalProjectId: string;
+  readonly externalSectionId?: string | null | undefined;
+  readonly isHome?: boolean | undefined;
+}
+
+function hasSection(mapping: AreaMappingShape): boolean {
+  return mapping.externalSectionId !== undefined && mapping.externalSectionId !== null;
 }
 
 export const areaSchema: z.ZodType<Area> = z.object({
