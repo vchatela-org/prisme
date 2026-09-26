@@ -72,8 +72,8 @@ the backfill report lists those projects so you can map them.
 ### 2.3 Notion — which database is which
 
 **Settings → Notion.** prisme never uses a Notion database by name. It knows **roles**, and you
-point each role at a database or page by pasting its link (in Notion: *⋯ → Copy link*). prisme
-checks it and shows its title.
+point each role at a database by pasting its link (in Notion: *⋯ → Copy link*). prisme checks it and
+shows its title — and, for the databases it adds pages to, the templates each one holds.
 
 | Role | Point it at | prisme… |
 |---|---|---|
@@ -83,8 +83,7 @@ checks it and shows its title.
 | Life areas | one page per area | reads it, for each area's narrative |
 | Processes | procedures and routines | reads it; a ritual's duration comes from its page |
 | Reviews | where review summaries should go | nothing yet |
-| Initiative / Project / Capture pages | **a page you create for prisme**, not a database you keep | adds pages there when you ask for one |
-| Initiative / Project / Capture template | an ordinary page laid out as a new page should start | copies its top-level blocks |
+| Initiative / Project / Capture pages | **a database with at least one template** — how a new page of that kind should start | adds a page to it when you ask for one, from one of its templates |
 
 Two things to know:
 
@@ -92,7 +91,10 @@ Two things to know:
   this itself: anything not shared is invisible to prisme. A binding that is saved but not shared
   says *not readable* with the reason.
 - A database link is enough; prisme finds the data source inside it. If a database holds several,
-  it asks you to link the one you mean.
+  it asks you to link the one you mean. A link to a page is refused as *not a database*.
+- **Templates are Notion's own.** Create and edit them in the database, in Notion — prisme picks up
+  a new or renamed template, or a changed default, the next time it looks. A pages database with no
+  template says so beside it: no page of that kind can be made until it holds one.
 
 For takeaways to reach prisme, the deployment also needs `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` — the name
 of your takeaways' *type* property, whose values start with *Action* or *Principle*.
@@ -175,8 +177,11 @@ under its anchor, and its Notion page.
   to do it and stays yours, in Todoist.
 - **Dependencies** — *Edit dependencies* and tick what it waits on. The timeline replans around
   it; a loop is refused.
-- **Narrative page** — *Create page* adds a page under your *Initiative pages* location from the
-  template; *Link an existing page* just records a link. prisme never edits a page afterwards.
+- **Narrative page** — *Create page* adds a page to your *Initiative pages* database, and Notion
+  fills it from one of that database's templates. If the database holds several, you choose which
+  beside the button, with Notion's default already selected. The page appears on the next pass, and
+  its content a moment after that — Notion applies the template itself. *Link an existing page* just
+  records a link. prisme sets the title and never edits a page afterwards.
 
 ---
 
@@ -282,8 +287,16 @@ adopted until you map that project to an area and rescan.
 **The Inbox never shows anything from my reading.** Takeaways need the *Takeaways* role bound, the
 store shared with the integration, and `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` set in the deployment.
 
-**Settings → Notion says *not readable*.** The page or database is not shared with the prisme
-integration yet (*⋯ → Connections* in Notion), or the link is of the wrong kind for that role.
+**Settings → Notion says *not readable*.** The database is not shared with the prisme integration
+yet (*⋯ → Connections* in Notion), or the link is not to a database. When prisme can see that the
+link is to a page, it says so instead: every role names a database, the page stores included.
+
+**I asked for a page and nothing appeared.** Pages are made by the next pass, and only once the
+kind's database is bound *and* holds a template — Settings → Notion shows both. If the database holds
+several templates and none is Notion's default, prisme waits for you to choose one: the initiative's
+*Narrative page* section offers the choice again. A template you chose and then deleted in Notion is
+not swapped for another; choose again. The page's content arrives a moment after the page itself,
+because Notion applies the template.
 
 **Is there a file or command to import areas and bindings?** No. Settings (and the API behind it)
 is the only way in.

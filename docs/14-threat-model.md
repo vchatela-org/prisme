@@ -167,19 +167,27 @@ capability each requires:
 | `takeaways_db` | read-only |
 | `objectives_db` | read/write — prisme owns specific fields |
 | `reviews_db` | write — review summaries |
-| `initiative_page_template`, `project_page_template`, `capture_page_template` | read-only — prisme copies their blocks and writes none |
-| `initiative_pages_db`, `project_pages_db`, `capture_pages_db` | **`create`** — it may add a page under the bound parent and may not read or edit anything (ADR-0025, ADR-0028) |
+| `initiative_pages_db`, `project_pages_db`, `capture_pages_db` | **`create`** — it may add an entry to the bound database, and may read the database's schema, its template list and its entries' titles; it may edit nothing that exists, the entry it created included (ADR-0025, ADR-0028, ADR-0030) |
 
 Read-only wherever prisme owns nothing is not a formality: it is the difference between a bug
 corrupting a field and a bug corrupting an archive.
 
 **`create` is narrower than `write`, and the difference is the point.** A bug with `write` edits a
 page somebody has been writing in for months; a bug in the creating path adds a page, which a person
-deletes in a second. It is deliberately not readable either — prisme has no business reading the
-store it adds pages to, and a verb that implied both would be `write` with a nicer name. Both
-capabilities are enforced in `packages/connectors/src/role-key.ts` (`assertReadable`,
-`assertCreatable`) rather than trusted to the integration's sharing settings, which are instance
-configuration this repository cannot check.
+deletes in a second. It is not readable as a store either — no entry is queried as work and no page
+body is read — and it carries exactly **three reads**, each because creating cannot be done honestly
+without it (ADR-0030 rule 7):
+
+- **the schema**, to find the title property by its type rather than by a name the workspace chose;
+- **the template list**, because the page is made from one of the database's own templates, applied
+  by the document tool — prisme copies no blocks;
+- **entries' titles**, filtered to the title being created and returning the title property alone,
+  because the no-duplicate guard asks whether that entry already exists before adding it.
+
+A verb that implied reading anything more would be `write` with a nicer name. Both capabilities are
+enforced in `packages/connectors/src/role-key.ts` (`assertReadable`, `assertCreatable` — the three
+reads sit behind the second) rather than trusted to the integration's sharing settings, which are
+instance configuration this repository cannot check.
 
 
 Both tokens are rotatable without a redeploy, and a kill switch disables outward writes entirely

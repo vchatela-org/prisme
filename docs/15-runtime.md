@@ -293,18 +293,23 @@ process exits rather than starting without its secrets.
 The identifiers of external databases are **instance data**, not configuration in git. They live
 in the database, keyed by role, and reach it one way — the **Settings → Notion** screen, which
 checks each store as it is saved and records its title: `objectives_db`, `takeaways_db`,
-`media_db`, `areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and ADR-0028 — the store
-and template role for each kind of narrative page (`initiative_pages_db`, `project_pages_db`,
-`capture_pages_db` and their templates). See [`17-privacy.md`](17-privacy.md).
+`media_db`, `areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and ADR-0028 — the
+database each kind of narrative page is created in (`initiative_pages_db`, `project_pages_db`,
+`capture_pages_db`). Every role names a data source. See [`17-privacy.md`](17-privacy.md).
 
-A page kind is addressable only when **both** its store and its template are bound. One without the
-other is not a half-working feature: the plan blocks that kind's pages with a sentence naming the
-screen, rather than creating a page with no parent or an empty one.
+A page store's templates are **not** a binding: they are the templates its database holds, kept and
+edited in the document tool, and the check lists them beside the title (ADR-0030). A page kind is
+addressable when its store is bound **and its database holds at least one template**. An unbound
+store and a store with no template each block that kind's pages with a sentence naming the screen,
+and the two sentences differ because the fixes differ — rather than creating a page with no parent
+or an empty one. Which template a page gets is resolved from the live list when the page is made:
+the one there is, the one chosen where the page was asked for, or the database's marked default.
 
 The screen accepts a copied link as well as an identifier, and resolves a *database* link to the one
 data source inside it — refusing, with a count, a database that holds several. A binding whose check
 fails is still saved, with the failure kind beside it: the usual cause is a store not yet shared
-with the integration.
+with the integration. A link to a *page* the integration can see fails as `wrong_kind`; one it cannot
+see fails as `refused`, like anything else it cannot see.
 
 **A role with no binding is not addressable**, and the connectors report it rather than guessing: a
 scan says `document tool   not read`, and the backfill reports the declared-duration tier as
