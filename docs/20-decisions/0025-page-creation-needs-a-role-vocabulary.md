@@ -1,6 +1,8 @@
 # ADR-0025 · Creating a page needs role keys that do not exist yet
 
-**Status:** Accepted · 2026-09-20, accepted 2026-09-21
+**Status:** Accepted · 2026-09-20, accepted 2026-09-21 · rules 2 and 4 superseded by
+[ADR-0030](0030-page-stores-are-databases-with-native-templates.md) 2026-09-26 — a store is a database,
+and its templates are the document tool's own
 
 ## Context
 
