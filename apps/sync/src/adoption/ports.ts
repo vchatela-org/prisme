@@ -46,4 +46,21 @@ export interface AdoptionStore {
    * nobody can answer.
    */
   replaceCandidates(candidates: readonly Candidate[], scannedAt: Date): Promise<void>;
+
+  /**
+   * The takeaway mirror, from a read of the takeaways store (G10).
+   *
+   * Level-triggered like the candidates: the rows are what the store holds now.
+   * A takeaway whose type is readable is inserted or has its kind refreshed; one
+   * that has left the store is removed **unless it was promoted**, because the
+   * promotion link is prisme's and outlives the page. Called only after a
+   * successful read — an unread store says nothing about what it holds.
+   */
+  mirrorTakeaways(takeaways: readonly TakeawaySeen[], observedAt: Date): Promise<void>;
+}
+
+/** A takeaway as the scan saw it. No text: the words stay in the document tool. */
+export interface TakeawaySeen {
+  readonly externalPageId: string;
+  readonly kind: 'action' | 'principle';
 }

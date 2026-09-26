@@ -101,6 +101,8 @@ export interface Config {
    * than presenting an estimate as a measurement.
    */
   readonly doctoolDurationProperty: string | undefined;
+  /** The takeaways store's type property. See `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` in `schema.ts`. */
+  readonly doctoolTakeawayTypeProperty: string | undefined;
   /**
    * The **API host** each connector calls. Absent on an instance that has not
    * overridden one, which is every instance by default: the client then uses its
@@ -361,6 +363,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     scoringActiveMethod: parsed['SCORING_ACTIVE_METHOD'] as string,
     areaColorPins: parsed['AREA_COLOR_PINS'] as Readonly<Record<string, number>>,
     doctoolDurationProperty: parsed['DOCTOOL_DURATION_PROPERTY'] as string | undefined,
+    doctoolTakeawayTypeProperty: parsed['DOCTOOL_TAKEAWAY_TYPE_PROPERTY'] as string | undefined,
     doctoolBaseUrl: parsed['DOCTOOL_BASE_URL'] as string | undefined,
     tasktoolBaseUrl: parsed['TASKTOOL_BASE_URL'] as string | undefined,
     doctoolPageUrlTemplate: parsed['DOCTOOL_PAGE_URL_TEMPLATE'] as string | undefined,
