@@ -202,8 +202,8 @@ an instance whose reads are broken, which is exactly why this pass exists.
 
 | What | How |
 |---|---|
-| Role bindings — which store each role key names | `prisme-sync bindings --from <path>` |
-| Area mappings — where each area's work lives in the task tool | `PUT /areas/:key/mappings`, or the Areas screen |
+| Role bindings — which store each role key names | **Settings → Notion**, or `prisme-sync bindings --from <path>` |
+| Area mappings — where each area's work lives in the task tool | **Settings → Areas**, or `PUT /areas/:key/mappings` |
 | This year's weights | the Year Review, or the year's weight rows |
 
 Then, in order:

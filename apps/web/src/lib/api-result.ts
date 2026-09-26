@@ -34,6 +34,12 @@ export interface ApiFailure {
    * (docs/14-threat-model.md §5).
    */
   readonly correlationId: string | null;
+  /**
+   * The HTTP status, when the API answered at all. A write form needs it to
+   * tell "that key is taken" (409) from "that value is refused" (400); the
+   * four kinds above deliberately fold both into `unavailable`.
+   */
+  readonly status?: number | undefined;
 }
 
 export interface ApiSuccess<T> {

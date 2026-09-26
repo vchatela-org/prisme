@@ -38,8 +38,10 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | `key`, `name`, `kind`, `active` | **P** | — | |
 | `weight_pct` per year | **P** | — | Never mid-year. See [`10-model.md`](10-model.md#weights-are-year-scoped) |
 | `run_budget_hours_per_week` | **P** | — | Only for `kind = run` |
+| `color_slot` | **P** | — | Palette slot 1–8, chosen on the Settings screen. Presentation only; never leaves prisme |
 | Narrative description of the area | **D** | ← | What the area *means*; prose |
-| `area_mapping` → external project/section | **P** | — | Config, many-to-one |
+| `area_mapping` → external project/section | **P** | — | Config, many-to-one. Nothing moves in the task tool when it changes |
+| `area_mapping.is_home` | **P** | — | Where prisme creates new work for the area (anchors, captures). At most one per area |
 | `actual_share`, `balance_factor` | **∂** | — | From completions in the last 4 weeks |
 
 ## 3. Project

@@ -110,6 +110,7 @@ const rawMappingSchema = z
     areaKey: z.string().min(1),
     externalProjectId: z.string().min(1),
     externalSectionId: z.string().min(1).optional(),
+    home: z.boolean().optional(),
   })
   .strict();
 
@@ -135,6 +136,8 @@ export interface MappingSeed {
   readonly areaKey: string;
   readonly externalProjectId: string;
   readonly externalSectionId?: string | undefined;
+  /** Where new work for the area is created — the Settings screen's *Home*. */
+  readonly home?: boolean | undefined;
 }
 
 export interface AreasLoadResult {
@@ -175,7 +178,7 @@ export function parseMappingList(value: unknown, path: string): readonly Mapping
       const bad = dataKeys(entry).find((key) => !(key in rawMappingSchema.shape));
       throw new Error(
         bad === undefined
-          ? `${where} is not { areaKey, externalProjectId, externalSectionId? }`
+          ? `${where} is not { areaKey, externalProjectId, externalSectionId?, home? }`
           : `${where} has an unrecognised key "${bad}"`,
       );
     }
@@ -205,6 +208,20 @@ export function parseMappingList(value: unknown, path: string): readonly Mapping
     }
     seen.set(location, index);
     mappings.push(mapping);
+  });
+
+  // At most one home per area — the database refuses a second by a partial
+  // unique index, and a file that says two is a file that has not decided.
+  const homes = new Map<string, number>();
+  mappings.forEach((mapping, index) => {
+    if (mapping.home !== true) return;
+    const first = homes.get(mapping.areaKey);
+    if (first !== undefined) {
+      throw new Error(
+        `${path} marks two home locations for "${mapping.areaKey}", at areaMappings[${String(first)}] and areaMappings[${String(index)}]: new work for an area goes to one place`,
+      );
+    }
+    homes.set(mapping.areaKey, index);
   });
 
   return mappings;
@@ -564,8 +581,9 @@ export async function saveMappings(
     }
     for (const mapping of mappings) {
       await tx`
-        insert into area_mapping (area_key, external_project_id, external_section_id)
-        values (${mapping.areaKey}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null})`;
+        insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+        values (${mapping.areaKey}, ${mapping.externalProjectId}, ${mapping.externalSectionId ?? null},
+                ${mapping.home ?? false})`;
     }
   });
 

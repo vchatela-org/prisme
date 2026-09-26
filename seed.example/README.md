@@ -10,6 +10,15 @@ databases. None of it belongs in a public repository
 This directory documents the **shape** so that anyone — including a future you — can build a `seed/`
 without reverse-engineering the loader. The values here are invented.
 
+## You may not need this at all
+
+Everything here can also be done from the application: **Settings → Areas** creates and renames
+areas, picks their colours and the task-tool projects their work lives in, and **Settings → Notion**
+binds each role to a store by pasting its link. The seed files are for an instance you rebuild from
+scratch — after a database reset, say — or configure from a script. Both write the same tables, and
+**loading a file replaces what it names**: the bindings file replaces every binding, and the mappings
+of each area it mentions.
+
 ## Setting up
 
 ```bash
