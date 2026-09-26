@@ -107,12 +107,17 @@ Capacity is measured in **time where known** (task duration when set) and estima
 ### Mapping to the task tool
 
 ```
-area_mapping (area_key, external_project_id, external_section_id?)
+area_mapping (area_key, external_project_id, external_section_id?, is_home)
 ```
 
 Many-to-one: several projects and sections may map to one area. This is how several disagreeing
 lists of "areas" across tools fold into one key **without restructuring anything**. Restructuring
 the external tools later is optional, and does not change the model.
+
+When prisme has to *create* something for an area — an initiative's anchor task, a capture — it goes
+to the area's **home** mapping; with none marked, to the most specific mapping (a section beats a
+whole project), then the first by identifier. One rule, `homeLocation` in `packages/domain`, for
+both paths. Mappings, the home and an area's colour are edited on the **Settings** screen.
 
 ---
 
@@ -279,6 +284,11 @@ a score, in prisme, where it is recomputed on every run.
 
 Promotion creates an initiative linked back to the takeaway. It does not copy the takeaway's text,
 and does not delete or modify it.
+
+The mirror is filled by the adoption scan from the takeaways store: a takeaway's kind comes from the
+select property named in `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` (a value starting *action*, or *principle* /
+*principe*). An untyped takeaway is neither and is not mirrored — guessing would risk a principle in
+the backlog. A takeaway gone from the store leaves the mirror unless it was promoted.
 
 ---
 

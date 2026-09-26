@@ -8,6 +8,7 @@ import {
   type Area,
 } from '@/lib/contracts';
 import { CandidateDecisions } from './adoption-actions';
+import { RescanButton } from './rescan-button';
 
 export const metadata = {
   title: 'Adoption · prisme',
@@ -80,7 +81,7 @@ export default async function AdoptionPage() {
       {total === 0 ? (
         <ClearedState
           title="The queue is empty"
-          description="Every external object prisme can see is either linked, ignored, or something the scan decided to leave where it is. Run `prisme-sync adopt --plan` to look again."
+          description="Every external object prisme can see is either linked, ignored, or something the scan decided to leave where it is. Rescan to look again."
         />
       ) : null}
 
@@ -200,11 +201,18 @@ function ruleLabel(rule: string | null): string {
 
 function Header({ subtitle }: { subtitle?: string }) {
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-ink">Adoption</h1>
-      <p className="text-sm text-ink-secondary">
-        {subtitle ?? 'External work with no prisme link.'}
-      </p>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="text-xl font-semibold text-ink">Adoption</h1>
+        <p className="text-sm text-ink-secondary">
+          {subtitle ?? 'External work with no prisme link.'}
+        </p>
+        <p className="text-xs text-ink-muted">
+          The queue is re-read once a day. Rescan after labelling a task or changing an area’s
+          locations.
+        </p>
+      </div>
+      <RescanButton />
     </div>
   );
 }

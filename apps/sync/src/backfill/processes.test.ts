@@ -40,6 +40,7 @@ function client(records: readonly DocRecord[], failOn?: RoleKey): DocToolClient 
     // Required by the interface since ADR-0025 made pages creatable; these
     // fakes are readers, so reaching it is a test error rather than a no-op.
     createPage: () => Promise.reject(new Error('not used')),
+    describe: () => Promise.reject(new Error('not used')),
   };
 }
 

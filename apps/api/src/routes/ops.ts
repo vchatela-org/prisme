@@ -6,6 +6,8 @@ import {
   AdoptionEntryDto,
   AdoptionPageDto,
   AdoptionQueuePageDto,
+  AdoptionScanDto,
+  scanAdoptionBody,
   ignoreCandidateBody,
   ConflictDto,
   ConflictPageDto,
@@ -182,6 +184,20 @@ export const opsRoutes: readonly ApiRoute[] = [
         context.identity,
         context.now,
       ),
+  }),
+
+  defineRoute({
+    operationId: 'scanAdoption',
+    method: 'post',
+    path: '/adoption/scan',
+    scope: 'write:adoption',
+    summary: 'Re-read both tools into the adoption queue',
+    description:
+      'What `prisme-sync adopt --plan` does, in process and behind the reconciler’s lock: reads both tools, replaces the candidate list and the takeaway mirror, and writes nothing outward. The daily full pass runs it too. Answers with counts only — the scan’s report carries real titles. `ran: false` means a pass held the lock.',
+    body: scanAdoptionBody,
+    status: 200,
+    response: AdoptionScanDto,
+    handle: (context, services) => services.ops.scanAdoption(context.now),
   }),
 
   defineRoute({
