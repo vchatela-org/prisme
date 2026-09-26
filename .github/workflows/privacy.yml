@@ -21,13 +21,44 @@ jobs:
         with:
           fetch-depth: 0   # the history scan needs every blob
 
+      - name: Materialise the local deny-list supplement
+        # The supplement holds the instance's own vocabulary, so it cannot be
+        # committed — it is gitignored — and that left this job blind to exactly
+        # the class it exists for. A real area name passed the public patterns and
+        # only an operator's machine could see it. It comes from a repository
+        # secret instead, so CI runs the same patterns without publishing them.
+        #
+        # Fork pull requests receive no secrets, which is why the missing-supplement
+        # case is a warning here and a hard failure on `main` below: a pull request
+        # still gets a truthful report of what it did and did not cover, while the
+        # branch that everything merges into never runs blind.
+        env:
+          SUPPLEMENT: ${{ secrets.PRIVACY_DENYLIST_LOCAL }}
+        run: |
+          if [[ -n "$SUPPLEMENT" ]]; then
+            printf '%s\n' "$SUPPLEMENT" > .github/privacy-denylist.local.txt
+            echo "local supplement: present"
+          else
+            echo "::warning title=Partial privacy scan::PRIVACY_DENYLIST_LOCAL is unset (fork PR?), so this run covers the public patterns only."
+          fi
+
+      - name: The scan must not run blind on main
+        if: github.event_name != 'pull_request'
+        run: |
+          if [[ ! -s .github/privacy-denylist.local.txt ]]; then
+            echo "::error::PRIVACY_DENYLIST_LOCAL is unset — the deny-list scan would report 'clean' with half its patterns missing."
+            exit 1
+          fi
+
       - name: Scan working tree
-        run: ./scripts/privacy-scan.sh
+        # `--redact-hits`: on a public run the matched content IS the leak, and a
+        # gate that prints it publishes what it exists to prevent.
+        run: ./scripts/privacy-scan.sh --redact-hits
 
       - name: Scan full history
         # History is permanent on a public repository, so a clean working tree
         # is not enough — a leak three commits back is still a leak.
-        run: ./scripts/privacy-scan.sh --history
+        run: ./scripts/privacy-scan.sh --history --redact-hits
 
   gitleaks:
     name: gitleaks
