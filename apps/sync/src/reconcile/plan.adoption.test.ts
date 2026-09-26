@@ -68,7 +68,10 @@ const AREAS = [
   [OTHER_PROJECT, undefined, 'craft'],
 ] as const;
 
-function twoPasses(start: World): { readonly first: Action[]; readonly second: Action[] } {
+function twoPasses(start: World): {
+  readonly first: readonly Action[];
+  readonly second: readonly Action[];
+} {
   const firstPlan = plan(start.desired, start.observed, start.lastApplied, CONFIG);
   const world = applyInMemory(start, firstPlan);
   const secondPlan = plan(world.desired, world.observed, world.lastApplied, CONFIG);
