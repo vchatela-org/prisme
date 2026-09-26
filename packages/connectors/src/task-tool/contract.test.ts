@@ -35,6 +35,20 @@ function taskById(tasks: readonly ExternalTask[], id: string): ExternalTask {
   return found;
 }
 
+describe('the location read', () => {
+  it('reads projects and sections, and asks for nothing else', async () => {
+    const recorded = client();
+    const locations = await recorded.client.fetchLocations();
+    expect(locations.projects).toHaveLength(3);
+    expect(locations.sections).toHaveLength(2);
+
+    // A Settings screen lists where work can live. Asking the tool for every
+    // task to render a few dozen names would be the wrong trade.
+    const form = new URLSearchParams(recorded.transport.requests[0]?.body ?? '');
+    expect(JSON.parse(form.get('resource_types') ?? '[]')).toEqual(['projects', 'sections']);
+  });
+});
+
 describe('the full fetch', () => {
   it('reads projects, sections, labels and tasks', async () => {
     const snapshot = await client().client.fetchAll();

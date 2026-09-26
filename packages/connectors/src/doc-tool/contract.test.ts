@@ -316,3 +316,84 @@ describe('a response that does not match', () => {
     }
   });
 });
+
+describe('describing a store before it is bound', () => {
+  const richText = (text: string) => [{ plain_text: text, href: null }];
+  const dataSource = {
+    object: 'data_source',
+    id: 'ds-0001',
+    title: richText('Reading notes'),
+    parent: { type: 'database_id', database_id: 'db-0001' },
+  };
+  const database = (sources: readonly string[]) => ({
+    object: 'database',
+    id: 'db-0001',
+    title: richText('Reading notes'),
+    data_sources: sources.map((id) => ({ id, name: 'Reading notes' })),
+  });
+
+  function describing(routes: Readonly<Record<string, unknown>>) {
+    const requests: HttpRequest[] = [];
+    const client = createDocToolClient({
+      token: 'recorded-fixture-token',
+      bindings: createRecordedBindings(),
+      transport: (request) => {
+        requests.push(request);
+        const path = new URL(request.url).pathname;
+        const body = routes[path];
+        return Promise.resolve(
+          body === undefined
+            ? { status: 404, headers: {}, body: JSON.stringify({ code: 'object_not_found' }) }
+            : { status: 200, headers: {}, body: JSON.stringify(body) },
+        );
+      },
+      retry: { maxAttempts: 1, baseDelayMs: 0, maxDelayMs: 0 },
+      sleep: () => Promise.resolve(),
+    });
+    return { client, requests };
+  }
+
+  it('names a data source, and links to the database a person opens', async () => {
+    const { client } = describing({ '/v1/data_sources/ds-0001': dataSource });
+    await expect(client.describe('ds-0001', 'data_source')).resolves.toEqual({
+      externalId: 'ds-0001',
+      title: 'Reading notes',
+      linkId: 'db-0001',
+    });
+  });
+
+  it('resolves a pasted database to the one data source inside it', async () => {
+    const { client, requests } = describing({ '/v1/databases/db-0001': database(['ds-0001']) });
+    await expect(client.describe('db-0001', 'data_source')).resolves.toEqual({
+      externalId: 'ds-0001',
+      title: 'Reading notes',
+      linkId: 'db-0001',
+    });
+    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+      '/v1/data_sources/db-0001',
+      '/v1/databases/db-0001',
+    ]);
+  });
+
+  it('refuses a database holding several data sources rather than picking one', async () => {
+    const { client } = describing({
+      '/v1/databases/db-0001': database(['ds-0001', 'ds-0002']),
+    });
+    const failure = await client
+      .describe('db-0001', 'data_source')
+      .catch((error: unknown) => error);
+    expect(isConnectorError(failure) && failure.failure).toBe('refused');
+    // A count, never an identifier: this message can reach a screen.
+    expect(String(failure)).toContain('holds 2 data sources');
+    expect(String(failure)).not.toContain('ds-0002');
+  });
+
+  it('names a page from its title property, and reads none of its body', async () => {
+    const { client, requests } = describing({ '/v1/pages/doc-page-0001': page });
+    const described = await client.describe('doc-page-0001', 'page');
+    expect(described.externalId).toBe('doc-page-0001');
+    expect(described.linkId).toBe('doc-page-0001');
+    expect(described.title.length).toBeGreaterThan(0);
+    expect(requests.some((request) => request.url.includes('/blocks/'))).toBe(false);
+  });
+});

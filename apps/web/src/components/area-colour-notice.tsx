@@ -1,4 +1,5 @@
 import { Card } from '@prisme/ui';
+import Link from 'next/link';
 import { pinsToEnvValue, type PinProposal } from '@/lib/area-pin-proposal';
 
 /** One area, as the notice names it: a key for the map and a name for a person. */
@@ -27,13 +28,12 @@ export interface AreaColourNoticeProps {
  * pinning map; what was still missing is that an operator had to *invent* that
  * map — *"`AREA_COLOR_PINS` must be set by hand and nothing generates it"*.
  *
- * ## Why the notice is on this screen and not a build step
+ * ## The fix is a click now
  *
- * Only the web tier can read `AREA_COLOR_PINS`, so only the web tier can tell
- * that the pinning in force still collides; and only the web tier can read the
- * palette's ceiling without a second copy of it (see `area-pin-proposal.ts`).
- * A check that ran anywhere else would be reporting on a configuration it
- * cannot see.
+ * Until colours could be chosen on the Settings screen, the only remedy was a
+ * pinning map in the web tier's environment, which this notice generated. It
+ * now links each clashing area to its settings page, and keeps the generated
+ * map as the alternative for an operator who would rather pin in GitOps.
  *
  * ## `role="status"`, like the year gate
  *
@@ -45,45 +45,55 @@ export function AreaColourNotice({ collisions, proposal }: AreaColourNoticeProps
   const sharing = collisions
     .map((group) => group.map((area) => area.name).join(' and '))
     .join('; ');
+  const sharers = collisions.flat();
 
   return (
     <Card role="status" className="flex flex-col gap-3 border-status-warning p-4 text-sm text-ink">
       <p>
         <span className="font-medium">Some areas are painting in the same colour: {sharing}.</span>{' '}
         <span className="text-ink-secondary">
-          An area&rsquo;s colour is derived from its key and hashed into eight slots, so two keys
-          land on one hue — which is the birthday problem rather than a bad hash, and it stays until
-          the areas are pinned.
+          An area nobody has given a colour gets one derived from its key, and two keys can land on
+          the same hue.
         </span>
+      </p>
+
+      <p className="text-ink-secondary">
+        Give one of them a colour of its own:{' '}
+        {sharers.map((area, index) => (
+          <span key={area.key}>
+            {index > 0 ? ', ' : ''}
+            <Link
+              className="font-medium text-ink underline underline-offset-2"
+              href={`/settings/areas/${encodeURIComponent(area.key)}`}
+            >
+              {area.name}
+            </Link>
+          </span>
+        ))}
+        .
       </p>
 
       {proposal.exhausted ? (
         <p className="text-ink-secondary">
           There are more ranked areas than the palette has hues, so at least one pair has to share.
-          The map below gives every area it can its own hue; which pair shares is then a choice
-          rather than an accident. A ninth hue is not generated on purpose: it would be
-          indistinguishable from an existing one for a reader with colour-vision deficiency.
+          A ninth hue is not generated on purpose: it would be indistinguishable from an existing
+          one for a reader with colour-vision deficiency.
         </p>
       ) : null}
 
-      <p className="text-ink-secondary">
-        Set this on the <span className="font-medium text-ink">web tier</span> and restart it:
-      </p>
-
-      {/*
-        A `<pre>` and not a `<code>` with a line break: this is a value to copy
-        entire, and whitespace inside `<code>` collapses.
-      */}
-      <pre className="overflow-x-auto rounded-md bg-surface-raised px-3 py-2 text-xs text-ink">
-        <code>AREA_COLOR_PINS={pinsToEnvValue(proposal.pins)}</code>
-      </pre>
-
-      <p className="text-xs text-ink-muted">
-        Colours do not move once they are pinned: the map is keyed by area, so adding an area later
-        leaves every existing one exactly as it is. An area that already has a hue keeps it — only
-        the unpinned ones are dealt — which is what stops this from re-shuffling a chart somebody
-        has learned to read.
-      </p>
+      <details className="text-xs text-ink-muted">
+        <summary className="cursor-pointer">Or pin them in the deployment instead</summary>
+        <p className="mt-2">
+          A colour chosen in Settings wins over this. Set it on the web tier and restart it:
+        </p>
+        {/*
+          A `<pre>` and not a `<code>` with a line break: this is a value to copy
+          entire, and whitespace inside `<code>` collapses.
+        */}
+        <pre className="mt-2 overflow-x-auto rounded-md bg-surface-raised px-3 py-2 text-xs text-ink">
+          <code>AREA_COLOR_PINS={pinsToEnvValue(proposal.pins)}</code>
+        </pre>
+      </details>
     </Card>
   );
 }
