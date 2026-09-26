@@ -453,6 +453,17 @@ export const VARIABLES = {
     schema: pageUrlTemplate('DOCTOOL_PAGE_URL_TEMPLATE'),
     required: [],
   },
+  /*
+   * `DOCTOOL_PAGE_URL_TEMPLATE`'s counterpart for the task tool, and for the
+   * same reasons: the browser-facing host and the path shape are vendor
+   * knowledge the operator supplies, and prisme supplies only the identifier.
+   * It turns a mapped project into a link on the Settings screens. Unset, the
+   * project is named and not linked.
+   */
+  TASKTOOL_PROJECT_URL_TEMPLATE: {
+    schema: pageUrlTemplate('TASKTOOL_PROJECT_URL_TEMPLATE'),
+    required: [],
+  },
   SCORING_ACTIVE_METHOD: {
     schema: nonEmpty('SCORING_ACTIVE_METHOD'),
     required: [],

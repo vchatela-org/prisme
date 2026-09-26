@@ -96,6 +96,7 @@ function taskClientOf(snapshot: TaskSnapshot = snapshotOf()): TaskToolClient {
       throw new Error('a scan never advances a cursor');
     },
     fetchCompletions: () => Promise.resolve([]),
+    fetchLocations: () => Promise.resolve({ projects: [], sections: [] }),
   };
 }
 
@@ -189,6 +190,7 @@ describe('the adoption pass', () => {
       // Required by the interface since ADR-0025 made pages creatable; these
       // fakes are readers, so reaching it is a test error rather than a no-op.
       createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     const result = await adopt({
@@ -221,6 +223,7 @@ describe('the adoption pass', () => {
       ),
       fetchPage: () => Promise.reject(new Error('not used')),
       createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
     });
 
     const { store } = storeOf();
@@ -255,6 +258,7 @@ describe('the adoption pass', () => {
       // Required by the interface since ADR-0025 made pages creatable; these
       // fakes are readers, so reaching it is a test error rather than a no-op.
       createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     await adopt({ store, taskClient: taskClientOf(), docClient, now: () => NOW });

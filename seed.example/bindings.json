@@ -38,7 +38,7 @@
       "_comment": "Many-to-one: several projects and sections may map to one area key. This is how disagreeing area lists across two tools fold into one canonical list WITHOUT restructuring either tool.",
       "areaKey": "alpha", "externalProjectId": "REPLACE-ME", "externalSectionId": "REPLACE-ME"
     },
-    { "areaKey": "alpha", "externalProjectId": "REPLACE-ME" },
+    { "areaKey": "alpha", "externalProjectId": "REPLACE-ME", "home": true, "_home": "Optional. Where prisme creates new work for the area — at most one per area. Without one, the most specific mapping is used." },
     { "areaKey": "beta",  "externalProjectId": "REPLACE-ME", "externalSectionId": "REPLACE-ME" },
     { "areaKey": "run",   "externalProjectId": "REPLACE-ME" }
   ],

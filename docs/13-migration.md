@@ -114,6 +114,21 @@ Lists every external object with no prisme link. Three outcomes:
 | **Ignore** | Recorded permanently. The item never reappears |
 | **Merge** | Binds an additional external reference to an existing prisme entity |
 
+### Adopting links, and does not rewrite
+
+Adoption creates nothing (guard 2), and it must not *erase* either. A task adopted as an initiative
+keeps what somebody set on it by hand, on every pass after the link:
+
+| On the task | After adoption |
+|---|---|
+| Its deadline | Taken into prisme as the initiative's deadline, so nothing is written back. A deadline prisme already holds wins, as the owner of the field |
+| Its priority | Left alone while the initiative is `inbox` or `later`; prisme's from `next` on |
+| Its location | Left alone while it sits anywhere its area is mapped; moved only if it has left the area, or away from an initiative's own project |
+| Labels, description | prisme's anchor label is added, and its backlink line goes **above** the existing notes |
+
+Without these, a first writing pass would have cleared the deadline, reset the priority to the lowest
+and moved the task — each as a first-time `update` rather than a conflict, so silently.
+
 *Ignore* is what makes the queue converge. A queue that re-proposes the same 200 items every week
 gets abandoned in a fortnight, and then the model quietly diverges from reality.
 
@@ -192,8 +207,8 @@ an instance whose reads are broken, which is exactly why this pass exists.
 
 | What | How |
 |---|---|
-| Role bindings — which store each role key names | `prisme-sync bindings --from <path>` |
-| Area mappings — where each area's work lives in the task tool | `PUT /areas/:key/mappings`, or the Areas screen |
+| Role bindings — which store each role key names | **Settings → Notion**, or `prisme-sync bindings --from <path>` |
+| Area mappings — where each area's work lives in the task tool | **Settings → Areas**, or `PUT /areas/:key/mappings` |
 | This year's weights | the Year Review, or the year's weight rows |
 
 Then, in order:

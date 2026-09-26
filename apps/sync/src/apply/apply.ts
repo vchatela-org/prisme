@@ -191,11 +191,21 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
         return undefined;
       }
 
+      case 'adopt_deadline': {
+        await options.store.adoptDeadline({
+          initiativeId: operation.initiativeId,
+          deadline: operation.deadline,
+          at,
+        });
+        return undefined;
+      }
+
       case 'capture_initiative': {
         const initiativeId = await options.store.captureInitiative({
           externalId: operation.externalId,
           title: operation.title,
           areaKey: operation.areaKey,
+          ...(operation.deadline === undefined ? {} : { deadline: operation.deadline }),
           at,
         });
         await options.store.bindExternalRef({
