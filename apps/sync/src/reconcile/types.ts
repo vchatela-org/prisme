@@ -63,6 +63,13 @@ export interface DesiredAnchor {
   readonly priority: TaskPriority;
   /** The anchor's project and section, from the initiative's project or its area mapping. */
   readonly location?: TaskLocation | undefined;
+  /**
+   * Where {@link location} came from. An area's home is where prisme *creates*
+   * an anchor; it is not a claim that every other location of the same area is
+   * wrong, so a linked anchor already sitting in one is left there. A project's
+   * location is a claim, and is enforced.
+   */
+  readonly locationSource?: 'project' | 'area' | undefined;
   /** The external task bound to this initiative — `entity_external_ref`. */
   readonly externalAnchorId?: string | undefined;
   /**
@@ -139,6 +146,21 @@ export type Operation =
       readonly externalId: string;
       readonly title: string;
       readonly areaKey: string;
+      /** The task's own deadline, taken over rather than cleared on the next pass. */
+      readonly deadline?: CalendarDate | undefined;
+    }
+  /**
+   * prisme-side only: take over the deadline an adopted task already carries.
+   *
+   * `deadline` is prisme's field (docs/11-ownership.md §4), and on a task nobody
+   * has adopted yet it was set by hand. Adoption links without creating; it
+   * must also link without *erasing* — so the value comes into prisme, and the
+   * next pass finds nothing to write.
+   */
+  | {
+      readonly type: 'adopt_deadline';
+      readonly initiativeId: InitiativeId;
+      readonly deadline: CalendarDate;
     }
   | {
       readonly type: 'set_status';
