@@ -59,7 +59,7 @@ obvious-looking designs are wrong.
 ```
 docs/                  the specification — numbered, stable paths, cite them by path
   00-vision      10-model      11-ownership   12-scoring    13-migration
-  14-threat-model 15-runtime   16-sync        17-privacy
+  14-threat-model 15-runtime   16-sync        17-privacy     18-user-guide
   20-decisions/  ADRs + OPEN.md        30-roadmap.md
   40-workstreams/  one brief per workstream — your contract if you are a workstream agent
   50-journal/      append-only run notes + INDEX.md
