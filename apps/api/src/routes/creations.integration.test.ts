@@ -11,7 +11,7 @@ import {
   openTestDatabase,
   type TestDatabase,
 } from '../test-support/database.js';
-import { createTestApp, identityWith, stubRunner } from '../test-support/app.js';
+import { createTestApp, identityWith, stubDirectory, stubRunner } from '../test-support/app.js';
 import { seedFixtures } from '../test-support/seed.js';
 import { API_BASE_PATH } from './index.js';
 
@@ -76,11 +76,27 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
       values (${MAPPED_AREA}, ${MAPPED_PROJECT}, ${MAPPED_SECTION})`;
   });
 
+  /**
+   * The initiative pages database, as the directory answers for it: two
+   * templates, one marked the default. Invented identifiers, and not UUIDs —
+   * the deny-list refuses any.
+   */
+  const PAGES_STORE = 'initiative-pages-store-0001';
+  const EMPTY_STORE = 'project-pages-store-0002';
+  const TEMPLATES = [
+    { id: 'tpl-brief', name: 'Brief', isDefault: true },
+    { id: 'tpl-notes', name: 'Notes', isDefault: false },
+  ];
+
   function api(identity?: ReturnType<typeof identityWith>) {
     return createTestApp({
       client: database.client,
       ...(identity === undefined ? {} : { identity }),
       runner: stubRunner(),
+      directory: stubDirectory({}, undefined, {
+        [PAGES_STORE]: TEMPLATES,
+        [EMPTY_STORE]: [],
+      }),
     });
   }
 
@@ -681,6 +697,74 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
       expect(await intentsOf(id)).toHaveLength(1);
     });
 
+    it('records a chosen template, once it is one of the database’s own', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('initiative_pages_db', ${PAGES_STORE})`;
+      const id = await initiative();
+
+      const response = await api().request('POST', url(`/initiatives/${id}/page`), {
+        page: { mode: 'create', templateId: 'tpl-notes' },
+      });
+
+      expect(response.status).toBe(200);
+      const rows = await database.client<{ template_id: string | null }[]>`
+        select template_id from creation_intent where entity_id = ${id}::uuid`;
+      expect(rows.map((row) => row.template_id)).toEqual(['tpl-notes']);
+    });
+
+    it('records no choice when none is made, which asks for the default', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('initiative_pages_db', ${PAGES_STORE})`;
+      const id = await initiative();
+
+      await api().request('POST', url(`/initiatives/${id}/page`), { page: { mode: 'create' } });
+
+      const rows = await database.client<{ template_id: string | null }[]>`
+        select template_id from creation_intent where entity_id = ${id}::uuid`;
+      expect(rows.map((row) => row.template_id)).toEqual([null]);
+    });
+
+    it('refuses a template that is not one of the database’s, and records nothing', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('initiative_pages_db', ${PAGES_STORE})`;
+      const id = await initiative();
+
+      const response = await api().request('POST', url(`/initiatives/${id}/page`), {
+        page: { mode: 'create', templateId: 'tpl-somebody-else' },
+      });
+
+      expect(response.status).toBe(422);
+      expect(await intentsOf(id)).toHaveLength(0);
+    });
+
+    it('refuses a choice when no database is bound to choose from', async () => {
+      const id = await initiative();
+
+      const response = await api().request('POST', url(`/initiatives/${id}/page`), {
+        page: { mode: 'create', templateId: 'tpl-brief' },
+      });
+
+      expect(response.status).toBe(422);
+      expect(JSON.stringify(response.body)).toContain('Settings → Notion');
+    });
+
+    it('asking again with another template changes the choice, not the count', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('initiative_pages_db', ${PAGES_STORE})`;
+      const id = await initiative();
+
+      await api().request('POST', url(`/initiatives/${id}/page`), {
+        page: { mode: 'create', templateId: 'tpl-brief' },
+      });
+      await api().request('POST', url(`/initiatives/${id}/page`), {
+        page: { mode: 'create', templateId: 'tpl-notes' },
+      });
+
+      const rows = await database.client<{ template_id: string | null }[]>`
+        select template_id from creation_intent where entity_id = ${id}::uuid`;
+      expect(rows.map((row) => row.template_id)).toEqual(['tpl-notes']);
+    });
+
     it('refuses `none`, because it would read as detaching a page', async () => {
       const id = await initiative();
       const response = await api().request('POST', url(`/initiatives/${id}/page`), {
@@ -698,6 +782,60 @@ describeOrSkip('the creation flows against PostgreSQL', () => {
 
       expect(response.status).toBe(400);
       expect(JSON.stringify(response.body)).toContain('mode');
+    });
+  });
+
+  describe('a page kind’s templates (ADR-0030)', () => {
+    interface TemplatesBody {
+      kind: string;
+      state: string;
+      failure: string | null;
+      templates: { id: string; name: string; isDefault: boolean }[];
+    }
+
+    it('says a kind with no database bound is unbound', async () => {
+      const response = await api().request('GET', url('/page-kinds/project/templates'));
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        kind: 'project',
+        state: 'unbound',
+        failure: null,
+        templates: [],
+      });
+    });
+
+    it('lists a bound database’s templates, with the default marked', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('initiative_pages_db', ${PAGES_STORE})`;
+      const response = await api().request('GET', url('/page-kinds/initiative/templates'));
+      expect(response.body).toMatchObject({ state: 'ready', templates: TEMPLATES });
+    });
+
+    it('says a readable database with no template holds none — its own state', async () => {
+      // ADR-0030 rule 5: not a failure of the binding, and not "unbound"
+      // either. The kind is one template away from addressable.
+      await database.client`
+        insert into role_binding (role, external_id) values ('project_pages_db', ${EMPTY_STORE})`;
+      const response = await api().request('GET', url('/page-kinds/project/templates'));
+      expect(response.body).toMatchObject({ state: 'no_template', failure: null, templates: [] });
+    });
+
+    it('says a bound database it cannot read is unreadable, by failure kind alone', async () => {
+      await database.client`
+        insert into role_binding (role, external_id) values ('capture_pages_db', 'unshared-0001')`;
+      const response = await api().request('GET', url('/page-kinds/capture/templates'));
+      const body = response.body as TemplatesBody;
+      expect(body.state).toBe('unreadable');
+      expect(body.failure).toBe('refused');
+      expect(JSON.stringify(body)).not.toContain('unshared-0001');
+    });
+
+    it('is closed to a credential that cannot read the backlog', async () => {
+      const response = await api(identityWith(['write:capture'])).request(
+        'GET',
+        url('/page-kinds/capture/templates'),
+      );
+      expect(response.status).toBe(403);
     });
   });
 

@@ -4,6 +4,7 @@ import type {
   captureDto,
   creationIntentDto,
   ExternalRequest,
+  PageDecision,
   searchMatchDto,
 } from '../dto/create.js';
 import { ApiError, notFound } from '../http/errors.js';
@@ -24,6 +25,7 @@ import {
   type PlannedIntent,
   type SearchCandidate,
 } from './create-plan.js';
+import type { PageTemplateService } from './page-templates.js';
 
 /**
  * The three creation flows (W15).
@@ -76,7 +78,7 @@ export interface CreateServiceConfig {
 export interface CreateCaptureRequest {
   readonly title: string;
   readonly areaKey: string;
-  readonly page: ExternalRequest;
+  readonly page: PageDecision;
 }
 
 export interface PromoteCaptureRequest {
@@ -91,7 +93,7 @@ export interface PromoteCaptureRequest {
 
 export interface ProjectStructureRequest {
   readonly taskProject: ExternalRequest;
-  readonly page: ExternalRequest;
+  readonly page: PageDecision;
 }
 
 export interface CreateService {
@@ -100,11 +102,16 @@ export interface CreateService {
   capture(input: CreateCaptureRequest): Promise<CaptureShape>;
   promote(id: string, input: PromoteCaptureRequest, now: Date): Promise<string>;
 
-  /** ADR-0011's *create page*, for an entity that already exists. */
+  /**
+   * ADR-0011's *create page*, for an entity that already exists. `templateId`
+   * is a choice among the kind's database's templates, checked against its
+   * live list; absent, the page gets the default (ADR-0030 rule 3).
+   */
   requestPage(
     kind: IntentEntityKind,
     entityId: string,
     title: string,
+    templateId?: string,
   ): Promise<CreationIntentShape>;
   /** ADR-0019's structure, for a project that already exists. */
   requestProjectStructure(
@@ -179,7 +186,11 @@ function toIntentDto(record: CreationIntentRecord): CreationIntentShape {
   };
 }
 
-export function createCreateService(store: ApiStore, config: CreateServiceConfig): CreateService {
+export function createCreateService(
+  store: ApiStore,
+  templates: PageTemplateService,
+  config: CreateServiceConfig,
+): CreateService {
   /**
    * The idempotency key for one ledger slot.
    *
@@ -217,6 +228,20 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
     if (!outcome.ok) throw new ApiError('conflict', outcome.reason);
   }
 
+  /**
+   * A page decision with its template choice checked (ADR-0030 rule 3).
+   *
+   * Before anything is written, so a refused choice leaves no row behind — the
+   * capture, the project's structure and the page are each one transaction, and
+   * a check made inside it would hold that transaction open across a call to
+   * the document tool.
+   */
+  async function checkedPage(kind: IntentEntityKind, page: PageDecision): Promise<PageDecision> {
+    if (page.mode !== 'create') return page;
+    const templateId = await templates.check(kind, page.templateId);
+    return templateId === undefined ? { mode: 'create' } : { mode: 'create', templateId };
+  }
+
   return {
     async listCaptures(promoted, page): Promise<Paged<CaptureShape>> {
       const result = await store.creations.listCaptures({ promoted }, page);
@@ -248,6 +273,8 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
         );
       }
 
+      const page = await checkedPage('capture', input.page);
+
       /*
        * The plan is a *function* of the new id, run inside the store's
        * transaction. The intents carry a backlink containing the capture's
@@ -268,7 +295,7 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
             location,
             baseUrl: config.baseUrl,
             captureLabel: config.captureLabel,
-            page: input.page,
+            page,
           }),
         keyFor,
       });
@@ -294,11 +321,12 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
       return outcome.initiativeId;
     },
 
-    async requestPage(kind, entityId, title): Promise<CreationIntentShape> {
+    async requestPage(kind, entityId, title, templateId): Promise<CreationIntentShape> {
+      const chosen = await templates.check(kind, templateId);
       const written = await store.creations.recordIntents({
         entityKind: kind,
         entityId,
-        intents: [planPage({ title })],
+        intents: [planPage({ title, templateId: chosen })],
         keyFor,
       });
       const intent = written[0];
@@ -316,11 +344,12 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
      * not being created.
      */
     async requestProjectStructure(projectId, name, sections, input, now) {
+      const page = await checkedPage('project', input.page);
       if (input.taskProject.mode === 'link') {
         await bind('project', projectId, 'project', input.taskProject.externalId, now);
       }
-      if (input.page.mode === 'link') {
-        await bind('project', projectId, 'page', input.page.externalId, now);
+      if (page.mode === 'link') {
+        await bind('project', projectId, 'page', page.externalId, now);
       }
 
       const planned = planProject({
@@ -329,7 +358,7 @@ export function createCreateService(store: ApiStore, config: CreateServiceConfig
         sections,
         baseUrl: config.baseUrl,
         taskProject: input.taskProject,
-        page: input.page,
+        page,
       });
 
       if (planned.length === 0) return [];

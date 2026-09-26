@@ -4,14 +4,16 @@ import {
   createRoleBindings,
   createTaskToolClient,
   type DocStoreDescription,
+  type DocTemplate,
+  type RoleKey,
   type StoreShape,
   type TaskLocations,
 } from '@prisme/connectors';
 
 /**
- * The two reads a Settings screen makes of the outside world, as a port.
+ * The reads a screen makes of the outside world, as a port.
  *
- * Neither is part of a pass. Listing the task tool's projects so a person can
+ * None is part of a pass. Listing the task tool's projects so a person can
  * pick one for an area, and reading a store's title so a binding says what it
  * points at, are questions a screen asks — so they do not take the reconciler's
  * lock, write no state of the reconciler's, and are made from this process
@@ -30,6 +32,13 @@ export interface ExternalDirectory {
    * its failure kind: the message can carry the identifier.
    */
   describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription>;
+  /**
+   * The templates a page store's database holds (ADR-0030) — for the Settings
+   * check, and for the screen that asks for a page. Takes the identifier the
+   * caller already holds, for the same reason `describe` does; throws a
+   * `ConnectorError` reduced to its failure kind by the caller.
+   */
+  templates(role: RoleKey, externalId: string): Promise<readonly DocTemplate[]>;
 }
 
 export interface ExternalDirectoryOptions {
@@ -59,6 +68,19 @@ export function createExternalDirectory(options: ExternalDirectoryOptions): Exte
         bindings: createRoleBindings([]),
         transport: createFetchTransport(),
       }).describe(externalId, shape);
+    },
+
+    templates(role, externalId) {
+      // Exactly one role bound, and it is a page store: the client refuses to
+      // list templates on anything that is not (`assertCreatable`), and a
+      // client holding only a creating role cannot read a store's rows either —
+      // `queryByRole` refuses it. So this door opens on template names only.
+      return createDocToolClient({
+        token: options.docToolToken,
+        baseUrl: options.docToolBaseUrl,
+        bindings: createRoleBindings([{ role, externalId }]),
+        transport: createFetchTransport(),
+      }).listTemplates(role);
     },
   };
 }

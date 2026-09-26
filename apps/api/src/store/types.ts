@@ -57,6 +57,12 @@ export interface RoleBindingRecord {
   readonly checkedAt: Date | null;
   /** A connector failure kind, never an upstream message. */
   readonly checkError: string | null;
+  /**
+   * A page store's templates as the check read them — names and the default
+   * mark, no identifier (ADR-0030). `[]` is a readable store with none; `null`
+   * is not a page store, or not checked that far.
+   */
+  readonly templates: readonly { readonly name: string; readonly isDefault: boolean }[] | null;
 }
 
 export interface AreaWeightRecord {
@@ -410,6 +416,8 @@ export interface CreationIntentRecord {
   readonly requires: string | null;
   readonly attempts: number;
   readonly lastError: string | null;
+  /** The template chosen for a page (ADR-0030); `null` asks for the default. */
+  readonly templateId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -427,6 +435,8 @@ export interface CreationIntentInput {
   readonly ordinal: number;
   readonly draft: Readonly<Record<string, unknown>>;
   readonly requiresIndex?: number | undefined;
+  /** A page's chosen template, already checked against its database's list. */
+  readonly templateId?: string | undefined;
 }
 
 export interface ConflictRecord {

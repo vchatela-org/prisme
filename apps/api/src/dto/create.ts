@@ -43,6 +43,29 @@ export const externalRequest = z.discriminatedUnion('mode', [
 
 export type ExternalRequest = z.infer<typeof externalRequest>;
 
+/**
+ * The same three states, for a **page** — whose `create` may name a template.
+ *
+ * A page is created from one of the templates its kind's database holds
+ * (ADR-0030 rule 3). When the database holds several, the screen asking for the
+ * page proposes the choice, and the choice travels here as the template's
+ * identifier. **Leaving it out is not an error**: it asks for the default — the
+ * one template, or the database's marked one — resolved when the page is made,
+ * which is what an MCP call or an API caller that has not looked means.
+ *
+ * A given identifier is checked against the database's live list when the
+ * request is made, and refused if it is not one of them; it is checked again
+ * when the page is created, and a template deleted in between blocks the page
+ * rather than falling back to another.
+ */
+export const pageDecision = z.discriminatedUnion('mode', [
+  z.strictObject({ mode: z.literal('none') }),
+  z.strictObject({ mode: z.literal('create'), templateId: z.string().min(1).max(200).optional() }),
+  z.strictObject({ mode: z.literal('link'), externalId: z.string().min(1).max(200) }),
+]);
+
+export type PageDecision = z.infer<typeof pageDecision>;
+
 // ---------------------------------------------------------------------------
 // Capture
 // ---------------------------------------------------------------------------
@@ -72,7 +95,7 @@ export const createCaptureBody = defineWrite(
     title: z.string().min(1).max(500),
     areaKey,
     /** A capture is a task. Asking for a page is the one decision it may defer to. */
-    page: externalRequest.default({ mode: 'none' }),
+    page: pageDecision.default({ mode: 'none' }),
   }),
   {
     value: 'a capture is not scored — promote it to an initiative first (ADR-0004)',
@@ -129,7 +152,7 @@ export const projectStructureBody = defineWrite(
   'ProjectStructure',
   z.strictObject({
     taskProject: externalRequest.default({ mode: 'none' }),
-    page: externalRequest.default({ mode: 'none' }),
+    page: pageDecision.default({ mode: 'none' }),
   }),
   {
     sections:
@@ -138,14 +161,40 @@ export const projectStructureBody = defineWrite(
 );
 
 /** ADR-0011's page button, for an entity that already exists. */
-export const pageRequestBody = defineWrite(
-  'PageRequest',
-  z.strictObject({ page: externalRequest }),
-  {
-    externalPageId:
-      'say `{"page":{"mode":"link","externalId":"…"}}` instead: the three states are create, link and none, and an identifier alone cannot say which you mean (ADR-0011)',
-  },
-);
+export const pageRequestBody = defineWrite('PageRequest', z.strictObject({ page: pageDecision }), {
+  externalPageId:
+    'say `{"page":{"mode":"link","externalId":"…"}}` instead: the three states are create, link and none, and an identifier alone cannot say which you mean (ADR-0011)',
+});
+
+// ---------------------------------------------------------------------------
+// A page kind's templates
+// ---------------------------------------------------------------------------
+
+/**
+ * What a kind's database offers to start a page from (ADR-0030 rule 3).
+ *
+ * Read live, for the screen that asks for a page: it shows a template choice
+ * when, and only when, `templates` holds several, with the one marked
+ * `isDefault` pre-selected. `state` says why there is nothing to choose from,
+ * because the fixes differ — and all three name Settings → Notion:
+ *
+ *   - `unbound` — no database is bound for this kind of page;
+ *   - `unreadable` — one is bound and could not be read; `failure` is the
+ *     connector failure kind, never the tool's prose;
+ *   - `no_template` — it was read and holds no template, so a page of this kind
+ *     cannot be made yet (ADR-0030 rule 5);
+ *   - `ready` — at least one template.
+ *
+ * A template's `name` is what somebody typed in the document tool, sanitised.
+ */
+export const pageTemplatesDto = z.object({
+  kind: z.enum(['initiative', 'project', 'capture']),
+  state: z.enum(['unbound', 'unreadable', 'no_template', 'ready']),
+  failure: z.string().nullable(),
+  templates: z.array(z.object({ id: z.string(), name: z.string(), isDefault: z.boolean() })),
+});
+
+export const PageTemplatesDto = named('PageTemplates', pageTemplatesDto);
 
 // ---------------------------------------------------------------------------
 // The creation ledger

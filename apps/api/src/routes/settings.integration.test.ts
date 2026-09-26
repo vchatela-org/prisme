@@ -34,7 +34,11 @@ const invented = (digit: string): string =>
 
 const DATA_SOURCE = invented('a');
 const DATABASE = invented('b');
-const PAGE = invented('c');
+/** A pages database, and the data source inside it (ADR-0030). */
+const PAGES_DATABASE = invented('c');
+const PAGES_SOURCE = invented('e');
+/** A pages database that holds no template yet. */
+const EMPTY_SOURCE = invented('f');
 
 describeOrSkip('the Settings screens against PostgreSQL', () => {
   let database: TestDatabase;
@@ -63,7 +67,12 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
           // A database pasted where a data source is wanted, already resolved
           // by the directory — the connector's contract test covers how.
           [DATABASE]: { externalId: DATA_SOURCE, title: 'Reading notes', linkId: DATABASE },
-          [PAGE]: { externalId: PAGE, title: 'prisme pages', linkId: PAGE },
+          [PAGES_DATABASE]: {
+            externalId: PAGES_SOURCE,
+            title: 'prisme pages',
+            linkId: PAGES_DATABASE,
+          },
+          [EMPTY_SOURCE]: { externalId: EMPTY_SOURCE, title: 'Bare', linkId: EMPTY_SOURCE },
         },
         {
           projects: [
@@ -73,6 +82,13 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
           sections: [
             { externalId: 's-1', projectId: 'p-1', name: 'A section', archived: false, order: 1 },
           ],
+        },
+        {
+          [PAGES_SOURCE]: [
+            { id: 'tpl-brief', name: 'Brief', isDefault: true },
+            { id: 'tpl-notes', name: 'Notes', isDefault: false },
+          ],
+          [EMPTY_SOURCE]: [],
         },
       ),
     });
@@ -91,6 +107,7 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
     title: string | null;
     linkId: string | null;
     checkError: string | null;
+    templates: { name: string; isDefault: boolean }[] | null;
   }
 
   describe('an area', () => {
@@ -138,8 +155,53 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
       const response = await api().request('GET', url('/bindings'));
       expect(response.status).toBe(200);
       const items = (response.body as { items: BindingBody[] }).items;
-      expect(items.length).toBeGreaterThanOrEqual(12);
+      // Nine: six read roles and three page stores. ADR-0030 removed the three
+      // template roles — a store's templates are the ones its database holds.
+      expect(items).toHaveLength(9);
+      expect(items.some((item) => item.role.includes('template'))).toBe(false);
       expect(items.every((item) => !item.bound)).toBe(true);
+    });
+
+    it('checks a page store as a database, and lists its templates without their ids', async () => {
+      const response = await api().request('PUT', url('/bindings/initiative_pages_db'), {
+        externalId: PAGES_DATABASE,
+      });
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        shape: 'data_source',
+        externalId: PAGES_SOURCE,
+        linkId: PAGES_DATABASE,
+        checkError: null,
+        templates: [
+          { name: 'Brief', isDefault: true },
+          { name: 'Notes', isDefault: false },
+        ],
+      });
+      // Names for a screen; a creation resolves identifiers from the live list.
+      expect(JSON.stringify(response.body)).not.toContain('tpl-');
+
+      // And the check is kept, so the overview shows it without asking again.
+      const listed = await api().request('GET', url('/bindings'));
+      const kept = (listed.body as { items: BindingBody[] }).items.find(
+        (item) => item.role === 'initiative_pages_db',
+      );
+      expect(kept?.templates).toHaveLength(2);
+    });
+
+    it('reports a page store with no template as found, holding none — not as a failure', async () => {
+      // ADR-0030 rule 5: the binding is right, and the database is one template
+      // away from working.
+      const response = await api().request('PUT', url('/bindings/project_pages_db'), {
+        externalId: EMPTY_SOURCE,
+      });
+      expect(response.body).toMatchObject({ checkError: null, title: 'Bare', templates: [] });
+    });
+
+    it('lists no templates for a role that is not a page store', async () => {
+      const response = await api().request('PUT', url('/bindings/takeaways_db'), {
+        externalId: DATABASE,
+      });
+      expect(response.body).toMatchObject({ checkError: null, templates: null });
     });
 
     it('resolves a pasted database link to the data source it holds', async () => {
@@ -181,13 +243,13 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
       expect(response.status).toBe(409);
     });
 
-    it('lets page stores share one location, as ADR-0025 allows', async () => {
+    it('lets page stores share one database, as ADR-0025 allows', async () => {
       const app = api();
       const first = await app.request('PUT', url('/bindings/initiative_pages_db'), {
-        externalId: PAGE,
+        externalId: PAGES_DATABASE,
       });
       const second = await app.request('PUT', url('/bindings/project_pages_db'), {
-        externalId: PAGE,
+        externalId: PAGES_DATABASE,
       });
       expect([first.status, second.status]).toEqual([200, 200]);
     });

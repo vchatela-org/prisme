@@ -15,6 +15,7 @@ import { createLaneService, type LaneService } from './lanes.js';
 import { createMeasureService, type MeasureService } from './measure.js';
 import { createObjectiveService, type ObjectiveService } from './okr.js';
 import { createOpsService, type OpsService } from './ops.js';
+import { createPageTemplateService, type PageTemplateService } from './page-templates.js';
 import { createSettingsService, type SettingsService } from './settings.js';
 import { createWorkService, type WorkService } from './work.js';
 
@@ -85,6 +86,8 @@ export interface Services {
   readonly lanes: LaneService;
   readonly ops: OpsService;
   readonly settings: SettingsService;
+  /** What each kind of page can start from, read live (ADR-0030). */
+  readonly pageTemplates: PageTemplateService;
   readonly config: ServiceConfig;
 }
 
@@ -115,9 +118,11 @@ export function createServices(options: CreateServicesOptions): Services {
     workingWeekdays: config.workingWeekdays,
   });
 
+  const pageTemplates = createPageTemplateService(store, options.directory);
+
   return {
     catalogue: createCatalogueService(store),
-    create: createCreateService(store, {
+    create: createCreateService(store, pageTemplates, {
       baseUrl: config.baseUrl,
       captureLabel: CAPTURE_LABEL,
     }),
@@ -134,6 +139,7 @@ export function createServices(options: CreateServicesOptions): Services {
       sync: config.sync,
     }),
     settings: createSettingsService(store, options.directory),
+    pageTemplates,
     config,
   };
 }
@@ -145,6 +151,7 @@ export type {
   MeasureService,
   ObjectiveService,
   OpsService,
+  PageTemplateService,
   SettingsService,
   WorkService,
 };
