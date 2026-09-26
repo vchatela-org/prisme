@@ -325,14 +325,33 @@ export function plan(
       return;
     }
 
+    // The task's deadline was set by hand before prisme knew it. prisme owns the
+    // field from now on, but adopting must not erase it: take it over, so the
+    // next pass has nothing to write (G1). A deadline prisme already holds is
+    // prisme's decision and is not replaced.
+    const takeDeadline = anchor.deadline === undefined && target.deadline !== undefined;
+
     actions.push({
       tag: 'adopt',
       subject: 'initiative',
       initiativeId: anchor.initiativeId,
       externalId,
       title: anchor.title,
-      detail: 'link to the existing task — creates nothing',
-      operations: [{ type: 'bind_ref', initiativeId: anchor.initiativeId, externalId }],
+      detail: takeDeadline
+        ? `link to the existing task and keep its deadline ${String(target.deadline)} — creates nothing`
+        : 'link to the existing task — creates nothing',
+      operations: [
+        { type: 'bind_ref', initiativeId: anchor.initiativeId, externalId },
+        ...(takeDeadline && target.deadline !== undefined
+          ? [
+              {
+                type: 'adopt_deadline' as const,
+                initiativeId: anchor.initiativeId,
+                deadline: target.deadline,
+              },
+            ]
+          : []),
+      ],
       lastApplied: [],
     });
   }
@@ -342,6 +361,14 @@ export function plan(
   function planFields(anchor: DesiredAnchor, task: ExternalTask): void {
     const diffs: FieldDiff[] = [];
     const externalId = task.externalId;
+
+    // An anchor at `inbox` or `later` whose priority prisme has never written
+    // exists only because an existing task was adopted. Writing "lowest" onto it
+    // would erase a priority somebody chose, for a ranking prisme has not made
+    // yet (G2) — so it is left alone until the initiative reaches `next`. Once
+    // prisme has written it, prisme keeps it: a demoted initiative is lowered.
+    const assertsPriority =
+      needsAnchor(anchor.status) || lastValueOf(ANCHOR, task.externalId, 'priority') !== undefined;
 
     const desiredDescription = composeDescription(
       task.description.text,
@@ -359,7 +386,7 @@ export function plan(
       ),
       diff(
         'priority',
-        anchor.priority,
+        assertsPriority ? anchor.priority : task.priority,
         task.priority,
         lastValueOf(ANCHOR, externalId, 'priority'),
         `priority ${task.priority} → ${anchor.priority}`,
@@ -494,6 +521,17 @@ export function plan(
     const sectionDiffers =
       location.sectionId !== undefined && task.sectionId !== location.sectionId;
     if (!projectDiffers && !sectionDiffers) return false;
+
+    // The area's home is where an anchor is *created*. A task already filed in
+    // another location of the same area is where somebody put it, and the area
+    // is all prisme owns here — so it stays (G3). Only a task outside its area
+    // is moved, and a project's location is a claim that is always enforced.
+    if (anchor.locationSource !== 'project') {
+      const areaHere =
+        desired.areaByLocation.get(locationKey(task.projectId, task.sectionId)) ??
+        desired.areaByLocation.get(locationKey(task.projectId, undefined));
+      if (areaHere === anchor.areaKey) return false;
+    }
 
     const externalId = task.externalId;
     const desiredValue = locationKey(location.projectId, location.sectionId);
@@ -720,6 +758,7 @@ export function plan(
             externalId: task.externalId,
             title: task.content,
             areaKey,
+            ...(task.deadline === undefined ? {} : { deadline: task.deadline }),
           },
         ],
         lastApplied: [],

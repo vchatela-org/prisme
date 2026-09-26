@@ -220,9 +220,9 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
       );
 
       const anchors: DesiredAnchor[] = initiatives.map((row) => {
-        const location =
-          (row.project_id === null ? undefined : projectLocation.get(row.project_id)) ??
-          locationByArea.get(row.area_key);
+        const fromProject =
+          row.project_id === null ? undefined : projectLocation.get(row.project_id);
+        const location = fromProject ?? locationByArea.get(row.area_key);
 
         return {
           initiativeId: row.id,
@@ -232,7 +232,9 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
           origin: row.origin,
           priority: priorities.get(row.id) ?? 'lowest',
           ...(row.deadline === null ? {} : { deadline: row.deadline as CalendarDate }),
-          ...(location === undefined ? {} : { location }),
+          ...(location === undefined
+            ? {}
+            : { location, locationSource: fromProject === undefined ? 'area' : 'project' }),
           ...(row.external_anchor_id === null ? {} : { externalAnchorId: row.external_anchor_id }),
           ...(pendingByInitiative.has(row.id)
             ? { pendingExternalId: pendingByInitiative.get(row.id) as string }
@@ -334,10 +336,10 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
     async captureInitiative(input: CaptureInput): Promise<InitiativeId> {
       const rows = await client<{ id: string }[]>`
         insert into initiative
-          (title, area_key, status, value, time_criticality, risk, size, origin)
+          (title, area_key, status, value, time_criticality, risk, size, origin, deadline)
         values (${input.title}, ${input.areaKey}, 'inbox',
                 ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE},
-                'adopted')
+                'adopted', ${input.deadline ?? null}::date)
         returning id::text`;
 
       const created = rows[0];
@@ -347,6 +349,15 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
         );
       }
       return created.id;
+    },
+
+    async adoptDeadline(input): Promise<void> {
+      // `deadline is null` repeats the planner's rule where the row is: a
+      // deadline prisme already holds is a decision, and is never replaced.
+      await client`
+        update initiative
+        set deadline = ${input.deadline}::date, updated_at = now()
+        where id = ${input.initiativeId}::uuid and deadline is null`;
     },
 
     async setStatus(input): Promise<void> {

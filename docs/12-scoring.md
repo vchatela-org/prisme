@@ -175,7 +175,10 @@ Scoring ranks; selection decides. They are separate steps on purpose.
 2. **Free slots fill from the top of the ranking**, skipping areas that already have a `now`.
 3. **Work in progress is capped** — see OQ-2 in [`20-decisions/OPEN.md`](20-decisions/OPEN.md).
 4. **Priority is written outward**: top 3 → highest, remaining `now` → high, `next` anchors →
-   medium, everything else → lowest.
+   medium, everything else → lowest. One exception: an **adopted** task still at `inbox` or `later`
+   whose priority prisme has never written keeps the priority it was given by hand — prisme has
+   made no ranking decision about it yet. From `next` on, or once prisme has written it, the rule
+   applies.
 
 The per-area cap is what keeps one busy area from occupying every slot — the same reasoning as the
 balance factor, applied to selection instead of ranking.

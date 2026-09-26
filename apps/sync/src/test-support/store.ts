@@ -27,6 +27,7 @@ export interface RecordingStore extends ReconcilerStore {
   readonly binds: readonly BindRefInput[];
   readonly captures: readonly CaptureInput[];
   readonly statuses: readonly { readonly initiativeId: InitiativeId; readonly to: string }[];
+  readonly deadlines: readonly { readonly initiativeId: InitiativeId; readonly deadline: string }[];
   readonly rollups: readonly { readonly initiativeId: InitiativeId; readonly rollup: Rollup }[];
   readonly lastAppliedWrites: readonly LastAppliedWrite[];
   readonly conflicts: readonly ConflictRecord[];
@@ -43,6 +44,7 @@ export function createRecordingStore(
   const binds: BindRefInput[] = [];
   const captures: CaptureInput[] = [];
   const statuses: { initiativeId: InitiativeId; to: string }[] = [];
+  const deadlines: { initiativeId: InitiativeId; deadline: string }[] = [];
   const rollups: { initiativeId: InitiativeId; rollup: Rollup }[] = [];
   const lastAppliedWrites: LastAppliedWrite[] = [];
   const conflicts: ConflictRecord[] = [];
@@ -54,6 +56,7 @@ export function createRecordingStore(
     binds,
     captures,
     statuses,
+    deadlines,
     rollups,
     lastAppliedWrites,
     conflicts,
@@ -75,6 +78,10 @@ export function createRecordingStore(
     captureInitiative: (input) => {
       captures.push(input);
       return Promise.resolve(`init-captured-${String(captures.length)}`);
+    },
+    adoptDeadline: (input) => {
+      deadlines.push({ initiativeId: input.initiativeId, deadline: input.deadline });
+      return Promise.resolve();
     },
     setStatus: (input) => {
       statuses.push({ initiativeId: input.initiativeId, to: input.to });
