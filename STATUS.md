@@ -137,9 +137,12 @@ The policy did not move. Colour now reaches HTML as a literal utility class and 
 attribute, both derived from the area's slot, and the balance meter's fill is an SVG `rect` because
 a length that comes from data is exact as an attribute. The repository's first component test
 renders the design system and asserts the markup carries no `style=`, so this cannot come back
-unseen. What is left on the gallery is twelve violations from Radix's own markup, recorded in
-[the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them make
-a hidden native control visible, so wave 4 should know.
+unseen. What was left on the gallery was twelve violations from Radix's own markup, recorded in
+[the entry](docs/50-journal/W07-2026-09-19-csp-inline-style.md) with its options — two of them made
+a hidden native control visible, which is what made them a rendering defect rather than console
+noise. **They are closed to zero**: five patches in `patches/`,
+each naming a class the token sheet generates, with four render cases that fail **by name** if a
+dependency bump invalidates one ([#41](https://github.com/vchatela-org/prisme/pull/41)).
 
 **W09 opens wave 4** ([#30](https://github.com/vchatela-org/prisme/pull/30)): Areas, area detail,
 the Year Review and the KPI dashboard — declared versus observed capacity, which is the view that
@@ -195,9 +198,12 @@ since W08 — so Focus, Backlog, Inbox, Adoption and initiative detail have all 
 choice. And **`fixtures/objectives.json` was loaded by nothing**: listed in the fixtures README,
 written with coverage notes naming this workstream, and never once put in a database — so it had
 drifted to three statuses the schema's CHECK constraint forbids. `seedFixtures` now loads it. Both
-are fixed here. What is **not** fixed: `fixtures/` still carries no task mirror, so
-`progressComputed` is null on every key result from a plain seed and ADR-0013's divergence — the
-behaviour this workstream exists to surface — cannot be exercised without hand-seeding rows.
+are fixed here. What was **not** fixed here: `fixtures/` carried no task mirror, so
+`progressComputed` was null on every key result from a plain seed and ADR-0013's divergence — the
+behaviour this workstream exists to surface — could only be reached by hand-seeding rows inside a
+test, which is a test of the hand-seeding rather than of the divergence. `fixtures/task-mirror.json`
+now carries one, six divergence cases among its rows
+([#36](https://github.com/vchatela-org/prisme/pull/36)).
 The harness was built and thrown away for the **fifth** time —
 [the entry](docs/50-journal/W11-2026-09-20-ui-objectives-reviews.md).
 
@@ -221,11 +227,15 @@ were wrong, and every fixture started on a Monday, which is the one case that ca
 table with a foreign key also turned **106 tests red in two suites nobody had touched**, which is
 the deliberate absence of `truncate … cascade` working as designed.
 
-What is **not** done: `capacity_week` has no reader yet — `/areas` and `/kpi` still aggregate
-`task_mirror` — and the **document tool is still not read**, so the declared-duration tier of the
-preference order is unavailable. That is W12's missing dependency, not a second one: nothing in this
-repository loads the role bindings, and the report says so rather than passing a two-tier estimate
-off as a three-tier one. [The entry](docs/50-journal/W13-2026-09-20-backfill.md).
+What was **not** done: `capacity_week` had no reader — `/areas` and `/kpi` still aggregated
+`task_mirror` — and the **document tool was not read**. Both were follow-up rows rather than gaps in
+W13, and **both are closed**: the dashboard reads the materialised weeks in preference to the anchor
+subtree ([#38](https://github.com/vchatela-org/prisme/pull/38)), and the role bindings load so both
+tools are read ([#39](https://github.com/vchatela-org/prisme/pull/39)). What the second closure does
+**not** buy is the declared-duration tier: it needs a bound `processes_db` *and* a named duration
+property, and an instance with neither leaves the preference order two-tier and says so rather than
+passing a two-tier estimate off as a three-tier one — the **rituals row below** names what is left.
+[The entry](docs/50-journal/W13-2026-09-20-backfill.md).
 
 **W15 closes wave 5, and the project's sixteen workstreams**
 ([#34](https://github.com/vchatela-org/prisme/pull/34)): quick capture, new initiative, new project,
@@ -253,12 +263,20 @@ Drizzle-wrapped client the API actually runs with — **invisible to an integrat
 a bare one**, which is now a follow-up in its own right — and a frozen deployment recording every
 intent as failed, so a correctly-configured instance showed a red CronJob every fifteen minutes.
 
-What is **not** done, and it is a decision rather than a gap: **ADR-0011's *Create page* cannot be
-implemented.** No role key names where a narrative page would live, none is a template, and the
-least-privilege table grants the document-tool token no capability that would cover it —
-[ADR-0025](docs/20-decisions/0025-page-creation-needs-a-role-vocabulary.md) proposes the vocabulary
-and is **Proposed, not Accepted**. The intent is recorded, the converge pass blocks it with the
-reason on the line, and *Link existing page* works today. [The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
+What was **not** done, and it was a decision rather than a gap: **ADR-0011's *Create page* could not
+be implemented** — no role key named where a narrative page would live, none was a template, and the
+least-privilege table granted the document-tool token no capability that would cover it. W15 recorded
+the intent, the converge pass blocked it with the reason on the line, and *Link existing page* worked.
+**The decision is taken and the gap closed.**
+[ADR-0025](docs/20-decisions/0025-page-creation-needs-a-role-vocabulary.md) is **Accepted 2026-09-21**,
+implemented in the pull request that accepted it — two role keys, two template bindings, and a
+`create` capability narrower than `write` — and
+[ADR-0028](docs/20-decisions/0028-capture-pages-get-a-role-pair.md) **Accepted 2026-09-24** gave a
+capture the pair it was missing. *Create page* works for an initiative, a project and a capture; the
+one block reason left is an unbound role, which `prisme-sync bindings --from <path>` fixes
+([#40](https://github.com/vchatela-org/prisme/pull/40),
+[#69](https://github.com/vchatela-org/prisme/pull/69)).
+[The entry](docs/50-journal/W15-2026-09-20-creation-flows.md).
 
 **W12 closed wave 3** ([#29](https://github.com/vchatela-org/prisme/pull/29)): the adoption path,
 which is the highest-risk workstream in the project and the one thing standing between prisme and
@@ -276,11 +294,14 @@ at a threshold of zero. And **the queue holds only what would become an entity**
 principle and a signal are counted and reported, never queued, because nobody works a queue of four
 thousand. A 4 020-object corpus produces a queue of five, asserted rather than hoped.
 
-The document-tool half of the classifier is built, unit-tested and **not reachable**: nothing in this
-repository loads the role bindings, so `createDocToolClient` still has no caller and the scan runs on
-the task tool alone — saying `document tool   not read` in its header rather than pretending
-otherwise. That is a missing dependency, recorded in
-[the entry](docs/50-journal/W12-2026-09-19-adoption.md), not a gap in W12.
+The document-tool half of the classifier was built and unit-tested but **not reachable** when W12
+landed: nothing in this repository loaded the role bindings, so `createDocToolClient` had no caller
+and the scan ran on the task tool alone — saying `document tool   not read` in its header rather than
+pretending otherwise. That was a missing dependency rather than a gap in W12, and it is closed: the
+bindings load, the adoption scan is handed a document-tool client
+([#39](https://github.com/vchatela-org/prisme/pull/39)), and an instance that has bound only some of
+the roles scans what it has and reports which role it did not read.
+[The entry](docs/50-journal/W12-2026-09-19-adoption.md).
 
 **The API now has a caller.** Until W14, every route declared a scope and no authorizer was
 installed, so the API answered `401` to everything. #23 installs the mechanism: a verified identity-
