@@ -162,3 +162,70 @@ is a count that cannot be zero on a real restore.
   the order two-tier; it now says what the tier *also* needs.
 - **No code and no migration.** Everything this session changed is a cluster Job, a throwaway
   database and this repository's own records.
+
+---
+
+## Addendum — 2026-09-26 · the queue re-scanned, and an area key cannot be renamed
+
+The entry above recorded the queue as stale and unlabelled and left the re-scan to its owner; it was
+run. Two things changed, and the third changed what *settle the keys* means. **No real value appears
+here either** — the numbers are counts.
+
+### The queue is 94, not 85, and twelve candidates now carry an area
+
+`adopt --plan`, run from the deployment repository's own CronJob spec with the argument added, and its
+report deliberately **not read** — it prints real titles by construction, so the counts below come
+from the database instead. Nine candidates appeared that the earlier scan did not have, and they are
+all `task`-kind: the scan that produced 85 was missing the **task** tool's half, not the document
+tool's. It also confirms that the 2026-09-24 local run's 94 was not a different world — the same scan
+over the same instance produces the same number, which is the sort of thing worth knowing before two
+figures are read as a backlog that moved.
+
+Twelve candidates now carry an area, across six areas. Before, none did, and for a reason that had
+nothing to do with the mappings.
+
+### And 79 of the remaining 82 cannot carry one at all
+
+The attribution is not evenly missing:
+
+| Candidate kind | With an area | Without |
+|---|---|---|
+| `page` (document tool) | 0 | 79 |
+| `project` (task tool) | 3 | 3 |
+| `task` (task tool) | 9 | 0 |
+
+`area_mapping`'s only location columns are `external_project_id` and `external_section_id` — both
+task-tool vocabulary — so a document-tool page has no location that a mapping can name, and none of
+the 79 can be labelled by area at all. The queue's own comment says the attribution is there *"so the
+queue can be worked one area at a time"*; measured, that holds for the fifteen task-tool candidates
+and not for the 79 pages, which are 84% of the queue. Whether that is intended is a question about the
+mapping vocabulary rather than about this instance, so it is **recorded and not changed** — inventing
+a mapping shape to have something to do would be the wrong fix.
+
+### An area key cannot be renamed, so the keys are settled at the reset or not at all
+
+The keys item turned out to have a constraint that decides it. `saveAreas` matches a stored area by
+`key` and updates `name`, `kind`, `active`, `external_page_id` and the run-lane budget — **never the
+key**. A key is settled the moment anything references it, and on this instance things already do: the
+mappings and the materialised capacity weeks. So the "proposal" in the gitignored seed file is no
+longer a proposal *for this instance* — changing a key now is hand-written SQL, not a re-run of
+`prisme-sync areas`.
+
+That would close the item with a shrug, except for one thing already on the record: the 2026-09-25
+session recorded that **the instance is expected to be reset before real data is loaded**. The reset
+is therefore when the keys are chosen, and the only moment they are cheap. Both facts are now in the
+seed file's own `_open_questions`, where the person deciding will read them — which is the right home
+for instance data that must not enter this repository.
+
+**The reset itself was on no dashboard.** It lived in one journal entry's follow-up list and nowhere
+else, which is the shape `STATUS.md`'s own rule calls an *obligation* rather than a note. It is a
+register row now, because three open items take their timing from it: the keys, the rehearsal's
+meaningful run, and the queue's first real work.
+
+### Specs touched, addendum
+
+- [`STATUS.md`](../../STATUS.md) — the adoption-queue line corrected in place (it said the queue was
+  stale; it is not any more), the `adopt --plan` line gains the evidence that the scan has been run,
+  and a new row for the planned reset.
+- `seed/areas.json` (gitignored) — `_open_questions` gains the two facts that decide the keys item.
+- **No code and no migration.**
