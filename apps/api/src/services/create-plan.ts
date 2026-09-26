@@ -1,4 +1,5 @@
 import { fuzzyMatch, normalise, similarity } from '@prisme/sync';
+import { homeLocation } from '@prisme/domain';
 import type { ExternalRequest } from '../dto/create.js';
 import type { AreaMappingRecord } from '../store/types.js';
 
@@ -27,35 +28,16 @@ export interface ExternalLocation {
 /**
  * The location a capture's task should be created in.
  *
- * `area_mapping` is many-to-one — several external locations fold into one
- * area — so an area can have more than one, and one of them has to be chosen.
- * The rule is **the most specific mapping, then the first by identifier**:
- * a mapping naming a section is a more deliberate statement about where things
- * go than one naming a whole project, and the tie-break is stable so two
- * captures a second apart do not land in different places.
- *
- * `undefined` when the area is mapped nowhere. That is not a failure to route
- * around with a default — prisme has no idea where the task belongs, and
- * guessing would put somebody's capture in an unrelated project. The caller
- * refuses and says which area needs a mapping.
+ * The area's home location, by the one rule the reconciler's anchor creation
+ * uses too — {@link homeLocation} in the domain package says what it is and
+ * why there is only one. `undefined` when the area is mapped nowhere; the
+ * caller refuses and says which area needs a mapping.
  */
 export function locationForArea(
   areaKey: string,
   mappings: readonly AreaMappingRecord[],
 ): ExternalLocation | undefined {
-  const candidates = mappings
-    .filter((mapping) => mapping.areaKey === areaKey)
-    .sort((left, right) => {
-      const specificity =
-        Number(right.externalSectionId !== null) - Number(left.externalSectionId !== null);
-      if (specificity !== 0) return specificity;
-      if (left.externalProjectId !== right.externalProjectId) {
-        return left.externalProjectId < right.externalProjectId ? -1 : 1;
-      }
-      return (left.externalSectionId ?? '') < (right.externalSectionId ?? '') ? -1 : 1;
-    });
-
-  const chosen = candidates[0];
+  const chosen = homeLocation(areaKey, mappings);
   if (chosen === undefined) return undefined;
   return {
     externalProjectId: chosen.externalProjectId,
