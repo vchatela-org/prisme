@@ -30,12 +30,33 @@ export interface AreaRecord {
   readonly active: boolean;
   readonly externalPageId: string | null;
   readonly runBudgetHoursPerWeek: number | null;
+  /** 1–8, chosen on the Settings screen. `null`: the environment's pin, else the key's hash. */
+  readonly colorSlot: number | null;
 }
 
 export interface AreaMappingRecord {
   readonly areaKey: string;
   readonly externalProjectId: string;
   readonly externalSectionId: string | null;
+  /** Where prisme creates new work for the area. At most one per area. */
+  readonly isHome: boolean;
+}
+
+/** One mapping as a write names it. */
+export interface AreaMappingInput {
+  readonly externalProjectId: string;
+  readonly externalSectionId?: string | undefined;
+  readonly isHome?: boolean | undefined;
+}
+
+export interface RoleBindingRecord {
+  readonly role: string;
+  readonly externalId: string;
+  readonly title: string | null;
+  readonly linkId: string | null;
+  readonly checkedAt: Date | null;
+  /** A connector failure kind, never an upstream message. */
+  readonly checkError: string | null;
 }
 
 export interface AreaWeightRecord {
@@ -75,10 +96,8 @@ export interface CreateAreaInput {
   readonly active: boolean;
   readonly externalPageId?: string | undefined;
   readonly runBudgetHoursPerWeek?: number | undefined;
-  readonly mappings: readonly {
-    externalProjectId: string;
-    externalSectionId?: string | undefined;
-  }[];
+  readonly colorSlot?: number | undefined;
+  readonly mappings: readonly AreaMappingInput[];
 }
 
 export interface UpdateAreaInput {
@@ -86,6 +105,7 @@ export interface UpdateAreaInput {
   readonly active?: boolean | undefined;
   readonly externalPageId?: string | null | undefined;
   readonly runBudgetHoursPerWeek?: number | null | undefined;
+  readonly colorSlot?: number | null | undefined;
 }
 
 export interface InitiativeRecord {
@@ -448,10 +468,21 @@ export interface ApiStore {
     mappings(): Promise<readonly AreaMappingRecord[]>;
     replaceMappings(
       key: string,
-      mappings: readonly { externalProjectId: string; externalSectionId?: string | undefined }[],
+      mappings: readonly AreaMappingInput[],
     ): Promise<readonly AreaMappingRecord[]>;
     weights(year?: number): Promise<readonly AreaWeightRecord[]>;
     putWeight(areaKey: string, year: number, weightPct: number): Promise<number | null>;
+  };
+
+  /**
+   * `role_binding` — which document-tool store each role key names, and what a
+   * check last found there. Instance data end to end: nothing read through this
+   * port is logged.
+   */
+  readonly bindings: {
+    list(): Promise<readonly RoleBindingRecord[]>;
+    put(record: RoleBindingRecord): Promise<void>;
+    remove(role: string): Promise<boolean>;
   };
 
   /**

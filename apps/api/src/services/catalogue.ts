@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import { resolveWeights, type AreaWeight, type Year } from '@prisme/domain';
 import type { areaListDto, areaWeightsDto } from '../dto/area.js';
 import { ApiError, notFound } from '../http/errors.js';
-import type { ApiStore, PageRequest } from '../store/types.js';
+import type { ApiStore, AreaMappingInput, PageRequest } from '../store/types.js';
 import type { Identity } from '../http/authorize.js';
 import { toAreaDto, toProjectDto, type AreaDtoShape, type ProjectDtoShape } from './convert.js';
 
@@ -27,10 +27,7 @@ export interface CatalogueService {
   getArea(key: string): Promise<AreaDtoShape>;
   createArea(input: CreateAreaRequest): Promise<AreaDtoShape>;
   updateArea(key: string, input: UpdateAreaRequest): Promise<AreaDtoShape>;
-  replaceMappings(
-    key: string,
-    mappings: readonly { externalProjectId: string; externalSectionId?: string | undefined }[],
-  ): Promise<AreaDtoShape>;
+  replaceMappings(key: string, mappings: readonly AreaMappingInput[]): Promise<AreaDtoShape>;
   weights(year: number): Promise<AreaWeightsShape>;
   putWeight(
     key: string,
@@ -56,10 +53,8 @@ export interface CreateAreaRequest {
   readonly active: boolean;
   readonly externalPageId?: string | undefined;
   readonly runBudgetHoursPerWeek?: number | undefined;
-  readonly mappings: readonly {
-    externalProjectId: string;
-    externalSectionId?: string | undefined;
-  }[];
+  readonly colorSlot?: number | undefined;
+  readonly mappings: readonly AreaMappingInput[];
 }
 
 export interface UpdateAreaRequest {
@@ -67,6 +62,7 @@ export interface UpdateAreaRequest {
   readonly active?: boolean | undefined;
   readonly externalPageId?: string | null | undefined;
   readonly runBudgetHoursPerWeek?: number | null | undefined;
+  readonly colorSlot?: number | null | undefined;
 }
 
 export interface CreateProjectRequest {
