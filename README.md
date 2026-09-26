@@ -70,6 +70,7 @@ The core ideas:
 | [`docs/15-runtime.md`](docs/15-runtime.md) | Images, config contract, deployment interface |
 | [`docs/16-sync.md`](docs/16-sync.md) | Sync cadence, conflict policy, the intent channel |
 | [`docs/17-privacy.md`](docs/17-privacy.md) | What may and may not be committed here |
+| [`docs/18-user-guide.md`](docs/18-user-guide.md) | **Using prisme** — setup, the daily loop, the reviews |
 | [`docs/20-decisions/`](docs/20-decisions/) | ADRs, plus `OPEN.md` for what's still undecided |
 | [`docs/30-roadmap.md`](docs/30-roadmap.md) | Phases and exit criteria |
 | [`docs/40-workstreams/`](docs/40-workstreams/) | One brief per workstream — the unit of work |
