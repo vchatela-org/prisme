@@ -282,6 +282,43 @@ async function main(): Promise<number> {
     },
   };
 
+  /**
+   * The adoption scan, as the `adopt` command and the daily full pass both run
+   * it. The caller holds the reconciler's advisory lock.
+   *
+   * Plan-only by construction: it reads both tools and replaces the candidate
+   * list and the takeaway mirror — prisme's own tables — and never writes
+   * outward. That is why the full pass may run it with the write freeze on.
+   */
+  const scanAdoption = async () =>
+    adopt({
+      store: createAdoptionStore(database.client),
+      taskClient: createTaskToolClient({
+        token: config.tasktoolApiToken as string,
+        baseUrl: config.tasktoolBaseUrl,
+        transport,
+        metrics: connectorMetrics,
+      }),
+      /*
+       * A store the bindings do not name throws `unbound_role` from the
+       * client, which `readRole` catches and reports as "not read" — so an
+       * instance that has bound only some of the stores scans what it has and
+       * says so, rather than failing a pass over a store it never claimed.
+       */
+      docClient: createDocToolClient({
+        token: config.doctoolApiToken as string,
+        baseUrl: config.doctoolBaseUrl,
+        bindings: await readBindings(database.client),
+        transport,
+        metrics: connectorMetrics,
+      }),
+      now: () => new Date(),
+      persist: true,
+      ...(config.doctoolTakeawayTypeProperty === undefined
+        ? {}
+        : { takeawayTypeProperty: config.doctoolTakeawayTypeProperty }),
+    });
+
   try {
     if (mode === 'bindings') {
       /*
@@ -353,33 +390,7 @@ async function main(): Promise<number> {
       // while the scan was looking elsewhere.
       const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
         logger.info('adoption scan started');
-        return adopt({
-          store: createAdoptionStore(database.client),
-          taskClient: createTaskToolClient({
-            token: config.tasktoolApiToken as string,
-            baseUrl: config.tasktoolBaseUrl,
-            transport,
-            metrics: connectorMetrics,
-          }),
-          /*
-           * The document tool, now that the bindings are loadable.
-           *
-           * A store the bindings do not name throws `unbound_role` from the
-           * client, which `readRole` catches and reports as "not read" — so an
-           * instance that has bound only some of the six scans what it has and
-           * says so, rather than failing a pass over a store it never claimed
-           * (W12's finding, closed).
-           */
-          docClient: createDocToolClient({
-            token: config.doctoolApiToken as string,
-            baseUrl: config.doctoolBaseUrl,
-            bindings: await readBindings(database.client),
-            transport,
-            metrics: connectorMetrics,
-          }),
-          now: () => new Date(),
-          persist: true,
-        });
+        return scanAdoption();
       });
 
       if (!outcome.acquired) {
@@ -650,6 +661,24 @@ async function main(): Promise<number> {
           });
         } catch (error: unknown) {
           logger.error('capacity refresh failed', { error });
+        }
+
+        /*
+         * The adoption scan, once a day (G9). It ran only when somebody ran
+         * `prisme-sync adopt --plan`, so a task labelled in the task tool, or a
+         * mapping added on the Settings screen, changed nothing on /adoption
+         * until then. Same reasoning as the capacity refresh above: prisme's
+         * own tables, no outward write, and a failure here does not fail the
+         * pass that has already done its job.
+         */
+        try {
+          const scanned = await scanAdoption();
+          logger.info('adoption scan complete', {
+            queue: scanned.scan.queue.length,
+            certain: scanned.scan.autoLinkable.length,
+          });
+        } catch (error: unknown) {
+          logger.error('adoption scan failed', { error });
         }
       }
 

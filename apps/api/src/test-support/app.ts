@@ -85,7 +85,10 @@ export function stubDirectory(
 }
 
 export function stubRunner(result: SyncRunResult = NO_SYNC_RESULT): SyncRunner {
-  return { run: (request) => Promise.resolve({ ...result, mode: request.mode }) };
+  return {
+    run: (request) => Promise.resolve({ ...result, mode: request.mode }),
+    scanAdoption: () => Promise.resolve({ ran: true, queued: 0, certain: 0 }),
+  };
 }
 
 const TEST_CONFIG = {

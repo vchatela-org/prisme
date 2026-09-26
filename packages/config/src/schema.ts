@@ -403,6 +403,17 @@ export const VARIABLES = {
    */
   DOCTOOL_DURATION_PROPERTY: { schema: nonEmpty('DOCTOOL_DURATION_PROPERTY'), required: [] },
   /*
+   * The takeaways store's property holding a takeaway's type — a select whose
+   * value starts with "action" or "principle" (French "principe" too). Instance
+   * data for the same reason as the duration property. Unset, no takeaway has a
+   * type: the adoption scan proposes none as an initiative and the Inbox's
+   * readings half stays empty, which is the safe direction.
+   */
+  DOCTOOL_TAKEAWAY_TYPE_PROPERTY: {
+    schema: nonEmpty('DOCTOOL_TAKEAWAY_TYPE_PROPERTY'),
+    required: [],
+  },
+  /*
    * The **API host** each connector calls — not the browser-facing host, and
    * the distinction matters: `https://api.notion.com` serves JSON and a person
    * cannot open a page at it.
