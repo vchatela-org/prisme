@@ -555,11 +555,12 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
       deliberately recorded no output: the plan carries real titles and cannot enter this repository
       (`apps/sync/CLAUDE.md`). A human runs it, confirms `Would create: 0`, and agrees with the plan
 
-**Two of these lines are ordered, and the order is not the one the list reads in.** The restore
-rehearsal's own figure is `entity_link`, which is empty until the adoption queue is worked — so
-*rehearsed at least once* is satisfiable **mechanically** at any time and **meaningfully** only after
-*worked the queue*. An instance can therefore be completely configured, have run §7, and still be in
-the first-run state ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md)).
+**These lines have an order the list does not read in.** `prisme-sync adopt --plan` — the *last* line —
+is the **first** action: it is the queue's only writer, so it is what labels the queue with areas and
+produces the `Would create: 0` readout. Then the queue is worked, and that is what fills `entity_link`.
+Then the restore rehearsal means something, because `entity_link` is the figure it reads. An instance
+can therefore be completely configured, have run §7, and still be in the first-run state
+([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md)).
 
 ## Before the repository goes public
 
