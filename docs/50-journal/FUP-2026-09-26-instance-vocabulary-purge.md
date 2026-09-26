@@ -1,6 +1,6 @@
 # FUP · 2026-09-26 · The instance vocabulary that reached `main`, the purge, and the gate that could not see it
 
-**Agent:** Claude · **Duration:** one session · **Outcome:** complete (with one accepted residual)
+**Agent:** Claude · **Duration:** one session · **PR** [#100](https://github.com/vchatela-org/prisme/pull/100) · **Outcome:** complete (with one accepted residual)
 
 A real **area name from the private instance** was in `apps/web/src/lib/settings-view.test.ts` on
 `main`, used as the input to a slug test. It was introduced by `bf14961` — the Settings screens
