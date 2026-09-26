@@ -123,6 +123,8 @@ export interface Config {
    * vendor's URL shape (see `DOCTOOL_PAGE_URL_TEMPLATE` in `schema.ts`).
    */
   readonly doctoolPageUrlTemplate: string | undefined;
+  /** The same, for a task-tool project. See `TASKTOOL_PROJECT_URL_TEMPLATE` in `schema.ts`. */
+  readonly tasktoolProjectUrlTemplate: string | undefined;
 }
 
 export interface ConfigProblem {
@@ -364,6 +366,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     doctoolBaseUrl: parsed['DOCTOOL_BASE_URL'] as string | undefined,
     tasktoolBaseUrl: parsed['TASKTOOL_BASE_URL'] as string | undefined,
     doctoolPageUrlTemplate: parsed['DOCTOOL_PAGE_URL_TEMPLATE'] as string | undefined,
+    tasktoolProjectUrlTemplate: parsed['TASKTOOL_PROJECT_URL_TEMPLATE'] as string | undefined,
   };
 }
 
