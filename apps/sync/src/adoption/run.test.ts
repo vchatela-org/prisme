@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConnectorError } from '@prisme/connectors';
-import type { DocToolClient, RoleKey, TaskSnapshot, TaskToolClient } from '@prisme/connectors';
+import type {
+  DocRecord,
+  DocToolClient,
+  RoleKey,
+  TaskSnapshot,
+  TaskToolClient,
+} from '@prisme/connectors';
 import { locationKey } from '../reconcile/types.js';
 import type { AuditableEntity } from './coverage.js';
-import type { AdoptionStore } from './ports.js';
+import type { AdoptionStore, TakeawaySeen } from './ports.js';
 import { adopt } from './run.js';
 import type { Candidate, DecidedSet, MatchTarget } from './types.js';
 
@@ -20,6 +26,7 @@ import type { Candidate, DecidedSet, MatchTarget } from './types.js';
 interface Recorded {
   readonly candidates: Candidate[];
   readonly scannedAt: Date[];
+  readonly takeaways: (readonly TakeawaySeen[])[];
 }
 
 function storeOf(
@@ -29,7 +36,7 @@ function storeOf(
     auditable?: readonly AuditableEntity[];
   } = {},
 ): { store: AdoptionStore; recorded: Recorded } {
-  const recorded: Recorded = { candidates: [], scannedAt: [] };
+  const recorded: Recorded = { candidates: [], scannedAt: [], takeaways: [] };
   const store: AdoptionStore = {
     loadTargets: () => Promise.resolve(overrides.targets ?? []),
     loadDecided: () =>
@@ -43,6 +50,10 @@ function storeOf(
     replaceCandidates: (candidates, scannedAt) => {
       recorded.candidates.push(...candidates);
       recorded.scannedAt.push(scannedAt);
+      return Promise.resolve();
+    },
+    mirrorTakeaways: (takeaways) => {
+      recorded.takeaways.push(takeaways);
       return Promise.resolve();
     },
   };
@@ -254,6 +265,60 @@ describe('the adoption pass', () => {
     // `reviews_db` is write-only: prisme pushes summaries there and has no
     // business reading them back.
     expect(queried).not.toContain('reviews_db');
+  });
+
+  it('mirrors the typed takeaways it read, and only when it read them (G10)', async () => {
+    const page = (id: string, type: string | null, archived = false): DocRecord => ({
+      role: 'takeaways_db',
+      externalId: id,
+      lastEditedAt: NOW,
+      createdAt: NOW,
+      archived,
+      title: `An invented reading note ${id}`,
+      properties: new Map(
+        type === null ? [] : [['Kind', { kind: 'select' as const, value: type }]],
+      ),
+      urls: [],
+      contentHash: id,
+    });
+    const docClient: DocToolClient = {
+      queryByRole: (role) =>
+        Promise.resolve(
+          role === 'takeaways_db'
+            ? [
+                page('tk-1', 'Action'),
+                page('tk-2', 'Principle'),
+                page('tk-3', null),
+                page('tk-4', 'Action', true),
+              ]
+            : [],
+        ),
+      fetchPage: () => Promise.reject(new Error('not used')),
+      createPage: () => Promise.reject(new Error('not used')),
+    };
+
+    const { store, recorded } = storeOf();
+    await adopt({
+      store,
+      taskClient: taskClientOf(),
+      docClient,
+      now: () => NOW,
+      persist: true,
+      takeawayTypeProperty: 'Kind',
+    });
+    // The untyped one is neither, and the archived one is gone from the store.
+    expect(recorded.takeaways).toEqual([
+      [
+        { externalPageId: 'tk-1', kind: 'action' },
+        { externalPageId: 'tk-2', kind: 'principle' },
+      ],
+    ]);
+
+    // A store that could not be read says nothing about what it holds, so the
+    // mirror is left alone rather than emptied.
+    const unread = storeOf();
+    await adopt({ store: unread.store, taskClient: taskClientOf(), now: () => NOW, persist: true });
+    expect(unread.recorded.takeaways).toEqual([]);
   });
 
   it('is idempotent: two passes over an unchanged world agree exactly', async () => {

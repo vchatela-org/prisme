@@ -2,7 +2,7 @@ import type postgres from 'postgres';
 import type { Origin } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
 import type { AuditableEntity } from './coverage.js';
-import type { AdoptionStore } from './ports.js';
+import type { AdoptionStore, TakeawaySeen } from './ports.js';
 import { externalKey, type Candidate, type DecidedSet, type MatchTarget } from './types.js';
 
 /**
@@ -202,6 +202,31 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
         }));
 
         await tx`insert into adoption_candidate ${tx(rows)}`;
+      });
+    },
+
+    async mirrorTakeaways(takeaways: readonly TakeawaySeen[], observedAt: Date): Promise<void> {
+      const at = stamp(observedAt);
+      const seen = takeaways.map((takeaway) => takeaway.externalPageId);
+      await client.begin(async (tx) => {
+        // Gone from the store, and never promoted: nothing of prisme's hangs
+        // off it, so the mirror forgets it. A promoted one keeps its row —
+        // the link to the initiative is prisme's.
+        await tx`
+          delete from takeaway
+          where promoted_to is null
+            and not (external_page_id = any(${seen}::text[]))`;
+
+        for (const takeaway of takeaways) {
+          const updated = await tx`
+            update takeaway set kind = ${takeaway.kind}
+            where external_page_id = ${takeaway.externalPageId}
+            returning id`;
+          if (updated.length > 0) continue;
+          await tx`
+            insert into takeaway (kind, external_page_id, observed_at)
+            values (${takeaway.kind}, ${takeaway.externalPageId}, ${at}::timestamptz)`;
+        }
       });
     },
   };

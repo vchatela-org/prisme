@@ -1,8 +1,18 @@
 import type postgres from 'postgres';
-import { createFetchTransport, createTaskToolClient } from '@prisme/connectors';
+import {
+  createDocToolClient,
+  createFetchTransport,
+  createTaskToolClient,
+} from '@prisme/connectors';
 import { createFrozenWriter, createTaskToolWriter } from '@prisme/connectors/write';
 import { RECONCILER_LOCK_ID, withAdvisoryLock } from '@prisme/db';
-import { createPostgresStore, reconcile } from '@prisme/sync';
+import {
+  adopt,
+  createAdoptionStore,
+  createPostgresStore,
+  readBindings,
+  reconcile,
+} from '@prisme/sync';
 import type { SyncRunRequest, SyncRunResult, SyncRunner } from './port.js';
 
 /**
@@ -43,6 +53,11 @@ export interface SyncRunnerOptions {
    * instance it meant to write to and write to the vendor's.
    */
   readonly taskToolBaseUrl: string | undefined;
+  /** The document tool, for the adoption scan. */
+  readonly docToolToken: string;
+  readonly docToolBaseUrl: string | undefined;
+  /** `DOCTOOL_TAKEAWAY_TYPE_PROPERTY`, when the instance names one. */
+  readonly takeawayTypeProperty: string | undefined;
   readonly writeEnabled: boolean;
   readonly createThreshold: number;
   readonly baseUrl: string;
@@ -54,6 +69,44 @@ const NO_COUNTS: Readonly<Record<string, number>> = {};
 
 export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
   return {
+    async scanAdoption() {
+      const transport = createFetchTransport();
+      // The same lock as a pass, and for the reason `prisme-sync adopt` gives:
+      // a pass binding things underneath the scan would produce a queue
+      // proposing work that was decided while the scan looked elsewhere.
+      const outcome = await withAdvisoryLock(options.client, RECONCILER_LOCK_ID, async () =>
+        adopt({
+          store: createAdoptionStore(options.client),
+          taskClient: createTaskToolClient({
+            token: options.taskToolToken,
+            baseUrl: options.taskToolBaseUrl,
+            transport,
+          }),
+          docClient: createDocToolClient({
+            token: options.docToolToken,
+            baseUrl: options.docToolBaseUrl,
+            bindings: await readBindings(options.client),
+            transport,
+          }),
+          now: options.now,
+          persist: true,
+          ...(options.takeawayTypeProperty === undefined
+            ? {}
+            : { takeawayTypeProperty: options.takeawayTypeProperty }),
+        }),
+      );
+      if (!outcome.acquired || outcome.result === undefined) {
+        return { ran: false, queued: 0, certain: 0 };
+      }
+      // Counts only. The rendered report carries real titles, and this answer
+      // goes to a browser.
+      return {
+        ran: true,
+        queued: outcome.result.scan.queue.length,
+        certain: outcome.result.scan.autoLinkable.length,
+      };
+    },
+
     async run(request: SyncRunRequest): Promise<SyncRunResult> {
       const startedAt = options.now();
       const transport = createFetchTransport();

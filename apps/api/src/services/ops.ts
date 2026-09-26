@@ -117,6 +117,10 @@ export interface OpsService {
   settings(): SettingsShape;
   syncStatus(): Promise<SyncStatusShape>;
   runSync(mode: 'plan' | 'apply', full: boolean): Promise<SyncRunShape>;
+  /** Re-read both tools into the adoption queue. prisme's own tables only. */
+  scanAdoption(
+    now: Date,
+  ): Promise<{ ran: boolean; queued: number; certain: number; scannedAt: string }>;
 }
 
 export function createOpsService(
@@ -301,6 +305,11 @@ export function createOpsService(
         unresolvedConflicts: state.unresolvedConflicts,
         lastRunAt: state.updatedAt?.toISOString() ?? null,
       };
+    },
+
+    async scanAdoption(now) {
+      const result = await runner.scanAdoption();
+      return { ...result, scannedAt: now.toISOString() };
     },
 
     async runSync(mode, full): Promise<SyncRunShape> {
