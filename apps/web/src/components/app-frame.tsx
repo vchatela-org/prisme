@@ -18,6 +18,7 @@ import {
   LayoutList,
   PackagePlus,
   Scale,
+  Settings,
   Target,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -89,6 +90,9 @@ const NAV: readonly NavGroup[] = [
       // there does not match what prisme says, and both become empty on
       // purpose.
       { label: 'Creations', href: '/create/creations', icon: <PackagePlus aria-hidden /> },
+      // Settings last: what the instance is connected to, read when setting it
+      // up or when a name or a link looks wrong.
+      { label: 'Settings', href: '/settings', icon: <Settings aria-hidden /> },
     ],
   },
 ];
@@ -166,6 +170,15 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         keywords: ['ledger', 'pending', 'queued', 'failed', 'outstanding'],
         run: () => {
           router.push('/create/creations');
+        },
+      },
+      {
+        id: 'go-settings',
+        label: 'Go to Settings',
+        group: 'Navigate',
+        keywords: ['areas', 'colour', 'color', 'notion', 'todoist', 'mapping', 'configuration'],
+        run: () => {
+          router.push('/settings');
         },
       },
       {

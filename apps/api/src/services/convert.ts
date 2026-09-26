@@ -135,11 +135,13 @@ export function toAreaDto(
     rankable: isRankable(toDomainArea(record)),
     externalPageId: record.externalPageId,
     runBudgetHoursPerWeek: record.runBudgetHoursPerWeek,
+    colorSlot: record.colorSlot,
     mappings: mappings
       .filter((mapping) => mapping.areaKey === record.key)
       .map((mapping) => ({
         externalProjectId: mapping.externalProjectId,
         externalSectionId: mapping.externalSectionId,
+        isHome: mapping.isHome,
       })),
   };
 }

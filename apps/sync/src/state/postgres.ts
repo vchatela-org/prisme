@@ -1,5 +1,11 @@
 import type postgres from 'postgres';
-import type { CalendarDate, InitiativeId, InitiativeStatus, Origin } from '@prisme/domain';
+import {
+  homeLocation,
+  type CalendarDate,
+  type InitiativeId,
+  type InitiativeStatus,
+  type Origin,
+} from '@prisme/domain';
 import { anchorPriorities } from '../reconcile/priority.js';
 import { rollupFromCounts } from '../reconcile/subtree.js';
 import {
@@ -106,6 +112,7 @@ interface MappingRow {
   readonly area_key: string;
   readonly external_project_id: string;
   readonly external_section_id: string | null;
+  readonly is_home: boolean;
 }
 
 interface MirrorRow {
@@ -137,7 +144,7 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
         order by id`;
 
       const mappings = await client<MappingRow[]>`
-        select area_key, external_project_id, external_section_id
+        select area_key, external_project_id, external_section_id, is_home
         from area_mapping
         order by area_key, external_project_id, external_section_id nulls first`;
 
@@ -178,16 +185,27 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
         group by anchor_for`;
 
       const areaByLocation = new Map<string, string>();
-      const locationByArea = new Map<string, { projectId: string; sectionId?: string }>();
       for (const row of mappings) {
         const key = locationKey(row.external_project_id, row.external_section_id ?? undefined);
         areaByLocation.set(key, row.area_key);
-        if (!locationByArea.has(row.area_key)) {
-          locationByArea.set(row.area_key, {
-            projectId: row.external_project_id,
-            ...(row.external_section_id === null ? {} : { sectionId: row.external_section_id }),
-          });
-        }
+      }
+
+      // Where an anchor is created: the area's home, by the one rule the
+      // capture flow uses too (`homeLocation`, packages/domain).
+      const shapes = mappings.map((row) => ({
+        areaKey: row.area_key,
+        externalProjectId: row.external_project_id,
+        externalSectionId: row.external_section_id,
+        isHome: row.is_home,
+      }));
+      const locationByArea = new Map<string, { projectId: string; sectionId?: string }>();
+      for (const areaKey of new Set(shapes.map((shape) => shape.areaKey))) {
+        const home = homeLocation(areaKey, shapes);
+        if (home === undefined) continue;
+        locationByArea.set(areaKey, {
+          projectId: home.externalProjectId,
+          ...(home.externalSectionId === null ? {} : { sectionId: home.externalSectionId }),
+        });
       }
 
       const projectLocation = new Map<string, { projectId: string }>();
