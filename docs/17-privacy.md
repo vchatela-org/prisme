@@ -119,8 +119,29 @@ down is the row that broke. Every workstream brief repeats this rule for that re
 3. If **personal content** leaked: assess reach (was it pushed? for how long? is the repo forked or
    indexed?), then rewrite history with `git filter-repo` and force-push, or — if the repository is
    young — delete and recreate it, which is cleaner and faster.
-4. Record what happened and what changed to prevent it, in an ADR or a journal entry. Describe the
+4. **A rewrite does not reach everything, and the gap is on GitHub's side.** Deleting the branch,
+   the tag and the rewritten commit is not the end: GitHub keeps `refs/pull/<n>/head` for **every**
+   pull request as a hidden ref, which cannot be deleted or overwritten from a client
+   (`deny updating a hidden ref`), and a **merged pull request cannot be deleted at all**. So the
+   pre-rewrite blob stays reachable by anyone who fetches that ref, and a pull request's
+   *Files changed* page keeps rendering it. Measured on 2026-09-26: `main`, every branch and every
+   tag scanned clean, while six PR refs and one PR diff still carried the value. The only *complete*
+   removal is **deleting and recreating the repository** — or a GitHub Support request to purge the
+   cached refs, which is why that option is worth taking seriously for a credential even when the
+   history rewrite succeeds. Decide explicitly whether the residual is acceptable, and write the
+   decision down; do not assume the rewrite closed it.
+5. Record what happened and what changed to prevent it, in an ADR or a journal entry. Describe the
    *class* of mistake, not the leaked content.
+
+**The gate that should have caught it is only as wide as its pattern list.** The public deny-list
+covers generic shapes; the *instance's own vocabulary* lives in the gitignored
+`.github/privacy-denylist.local.txt`, which by construction never reaches CI — so a real value passed
+every check and was visible only on an operator's machine. That supplement now reaches CI from the
+`PRIVACY_DENYLIST_LOCAL` repository secret (`privacy.yml`), and `privacy-scan.sh --require-local`
+makes a job fail rather than report a `clean` it did not earn. Two consequences worth keeping: **a
+clean scan in a fresh worktree is not the same control** as one run with the supplement present, and
+**a failing public scan must not print what it matched** — hence `--redact-hits`, because on a public
+run the matched content *is* the leak, and a helpful gate would publish it.
 
 ---
 
