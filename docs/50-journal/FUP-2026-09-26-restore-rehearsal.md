@@ -1,12 +1,14 @@
-# FUP · 2026-09-26 · §7 rehearsed, and the duration tier needs two things, not one
+# FUP · 2026-09-26 · §7 rehearsed, the duration tier needs two things, and the queue does not refresh itself
 
 **Agent:** Claude · **Duration:** one session · **PR** [#91](https://github.com/vchatela-org/prisme/pull/91) · **Outcome:** complete
 
-The gate line that had nothing behind it now has a rehearsal behind it. Running it produced two
-corrections: the rehearsal's own figure is empty on the very instance it gates, and
+The gate line that had nothing behind it now has a rehearsal behind it. Running it produced three
+corrections: the rehearsal's own figure is empty on the very instance it gates,
 `DOCTOOL_DURATION_PROPERTY` — recorded twice as *"the whole of 100% of these minutes are estimated"* —
-is a **precondition of** that share rather than the whole of it. **No real value appears in this
-entry**: no area key, weight, external id, property name or title. The numbers are counts.
+is a **precondition of** that share rather than the whole of it, and the adoption queue is a single
+scan from before any area existed, refreshed by a command that does not run on its own.
+**No real value appears in this entry**: no area key, weight, external id, property name or title.
+The numbers are counts.
 
 ## The gap this closes
 
@@ -78,6 +80,32 @@ a decision rather than a chore.
 This is not only the declared-duration tier's problem. Ritual adherence — W13's other output — is
 measured *over rituals*, so with none defined it has nothing to measure either.
 
+## The adoption queue does not refresh itself, and it is unlabelled
+
+The queue is the owner's step, and measuring it changed what that step is. The live database's 85
+`adoption_candidate` rows all carry **one** `scanned_at` — a single scan, on **2026-09-22**, three
+days before §6a–§6c put any area in the database. Every row's `area_key` is therefore **null**, and
+null on that column has a meaning of its own: the migration's own comment says it is *"null when no
+`area_mapping` covers its location — which is itself a finding, not an error"*. Here it is not that
+finding; it is the older one — there was no area to map to. All 85 also carry no identity proposal
+(`match_rule` null), so they are the manual remainder in full.
+
+**And nothing refreshes them.** The scan runs under `prisme-sync adopt --plan` and nowhere else: the
+daily pass is `apply`, and `main.ts` reaches the scan only on the `adopt` command. So the queue is not
+stale because a schedule stopped — it is stale because its only writer is a command nobody has run
+since 2026-09-22.
+
+**Which reorders the owner's next step.** Working the queue as it stands means deciding 85 rows with
+no area attribution, and `area_key` is what the queue exists to group by: its comment says the
+attribution is there *"so the queue can be worked one area at a time"*. `prisme-sync adopt --plan` is
+read-only outward, is **already one of the gate lines**, and repopulates the queue from the world as
+it is now that the mappings exist — so it refreshes the queue *and* produces the `Would create: 0`
+readout that line asks for. It is the first action, not the last.
+
+**It was not run here.** The gate says a human runs it and reads it, and its output carries real
+titles by construction (`apps/sync/CLAUDE.md`), so running it would neither satisfy that line nor be
+mine to satisfy.
+
 ## A surprise worth carrying
 
 Writing the count pass meant copying the runbook's Job and hand-editing it, and the copy dropped its
@@ -99,8 +127,14 @@ is a count that cannot be zero on a real restore.
 - **Did not set `DOCTOOL_DURATION_PROPERTY`.** Naming the property is a workspace decision, and on
   its own it would change a log line without changing a number.
 - **Did not build a ritual loader.** It needs a seed format decision; the gap is registered instead.
-- **Did not work the adoption queue.** It is the owner's step, and it is now the keystone one: it is
-  what makes `entity_link` non-zero, which is what makes the restore rehearsal mean anything.
+- **Did not work the adoption queue, and did not re-scan it.** Both are the owner's, and the re-scan
+  is a command the gate says a human runs and reads. What this session established is that the
+  re-scan comes **first** — the queue is one scan from before any area existed.
+- **Did not reconcile the queue's count with the read-path entry's.** That entry recorded 94
+  candidates; the live table holds 85, and its single `scanned_at` is 2026-09-22 — so the run that
+  produced 94 did not write this database. `STATUS.md` records that run as *"run on 2026-09-24,
+  locally, against the live tools"*, which is where it went. Worth knowing before the two numbers are
+  read as a backlog that shrank.
 - **Did not improve the runbook's Job.** Printing the counts of the tables that currently hold
   judgement data beside `entity_link` would make the readout informative before the queue is worked —
   but the file is the deployment repository's, so it is recorded here as a follow-up rather than
@@ -113,13 +147,17 @@ is a count that cannot be zero on a real restore.
   Owner: the deployment repository.
 - **Rituals have no loader** (new register row): no subcommand, no seed file, no UI caller. It gates
   the declared-duration tier and ritual adherence at once.
-- **The queue still has to be worked before the gate closes.** Unchanged by this entry, and now
-  known to be upstream of the rehearsal rather than parallel to it.
+- **`prisme-sync adopt --plan` is the first action of the gate, not the last.** It refreshes the queue
+  (its only writer), labels it with areas now that the mappings exist, and produces the `Would create:
+  0` readout its own gate line asks for — all read-only outward. Owner: the human who will read it.
+- **The queue still has to be worked before the gate closes.** Unchanged by this entry, and now known
+  to be upstream of the rehearsal rather than parallel to it.
 
 ## Specs touched
 
 - [`STATUS.md`](../../STATUS.md) — the restore line gains its evidence and a note that the meaningful
-  rehearsal follows the queue; two new follow-up rows (the unloadable rituals, and §7's readout).
+  rehearsal follows the queue; the adoption-queue line gains the measurement that says a re-scan comes
+  first; two new follow-up rows (the unloadable rituals, and §7's readout).
 - [`docs/15-runtime.md`](../15-runtime.md) — `DOCTOOL_DURATION_PROPERTY` said only that unset leaves
   the order two-tier; it now says what the tier *also* needs.
 - **No code and no migration.** Everything this session changed is a cluster Job, a throwaway
