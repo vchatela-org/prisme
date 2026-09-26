@@ -4,7 +4,14 @@ import { createRefusingTransport, type Transport } from '../http/transport.js';
 import type { ConnectorMetrics } from '../metrics.js';
 import { parseOrThrow } from '../parse.js';
 import { mapCompletion, mapLabel, mapProject, mapSection, mapTask } from './map.js';
-import type { Completion, SyncResult, TaskChange, TaskSnapshot, TaskToolClient } from './types.js';
+import type {
+  Completion,
+  SyncResult,
+  TaskChange,
+  TaskLocations,
+  TaskSnapshot,
+  TaskToolClient,
+} from './types.js';
 import { wireCompletedResponseSchema, wireSyncResponseSchema } from './wire.js';
 import type { RetryPolicy } from '../http/backoff.js';
 import { trimTrailing } from '../util/trim.js';
@@ -30,6 +37,9 @@ export const DEFAULT_TASK_TOOL_BASE_URL = 'https://api.todoist.com';
 const FULL_SYNC_TOKEN = '*';
 
 const RESOURCE_TYPES = ['items', 'projects', 'sections', 'labels'] as const;
+
+/** A Settings screen lists where work can live; it has no use for the work itself. */
+const LOCATION_TYPES = ['projects', 'sections'] as const;
 
 /**
  * The two paths prisme reads, both under the tool's `v1` API.
@@ -115,10 +125,14 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
 
   const now = options.now ?? ((): Date => new Date());
 
-  const sync = async (token: string, operation: string) => {
+  const sync = async (
+    token: string,
+    operation: string,
+    resourceTypes: readonly string[] = RESOURCE_TYPES,
+  ) => {
     const form = new URLSearchParams({
       sync_token: token,
-      resource_types: JSON.stringify(RESOURCE_TYPES),
+      resource_types: JSON.stringify(resourceTypes),
     });
     const body = await post(SYNC_PATH, form, operation);
     return parseOrThrow(wireSyncResponseSchema, body, {
@@ -172,6 +186,15 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
         tasks: (response.items ?? [])
           .filter((item) => !item.is_deleted)
           .map((item) => mapTask(item, operation)),
+      };
+    },
+
+    async fetchLocations(): Promise<TaskLocations> {
+      const operation = 'fetch locations';
+      const response = await sync(FULL_SYNC_TOKEN, operation, LOCATION_TYPES);
+      return {
+        projects: (response.projects ?? []).filter((p) => !p.is_deleted).map(mapProject),
+        sections: (response.sections ?? []).filter((s) => !s.is_deleted).map(mapSection),
       };
     },
 

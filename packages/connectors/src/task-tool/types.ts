@@ -105,6 +105,18 @@ export interface TaskSnapshot {
 }
 
 /**
+ * Where work can live in the task tool, and nothing else.
+ *
+ * What a person picks an area mapping from. A separate read from
+ * {@link TaskSnapshot} because it is asked on a Settings screen, where fetching
+ * every task to list a few dozen project names would be the wrong trade.
+ */
+export interface TaskLocations {
+  readonly projects: readonly ExternalProject[];
+  readonly sections: readonly ExternalSection[];
+}
+
+/**
  * A completed task, from the completion history.
  *
  * The one thing neither tool computes and prisme cannot do without: per-area
@@ -162,4 +174,6 @@ export interface TaskToolClient {
    * handing one out — never when a page comes back shorter than the page size.
    */
   fetchCompletions(since: Date, until?: Date): Promise<Completion[]>;
+  /** Projects and sections, archived ones included and marked. Reads no task. */
+  fetchLocations(): Promise<TaskLocations>;
 }
