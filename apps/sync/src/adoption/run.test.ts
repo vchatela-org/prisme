@@ -299,6 +299,7 @@ describe('the adoption pass', () => {
         ),
       fetchPage: () => Promise.reject(new Error('not used')),
       createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
     };
 
     const { store, recorded } = storeOf();
