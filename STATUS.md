@@ -543,7 +543,14 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
       one **after** the queue is worked, and this tick stays a human's until then, as the backup row
       above it does ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md))
 - [ ] `plan` read by hand, `create: 0` confirmed (ADR-0010 guard 3)
-- [ ] Adoption queue worked; link coverage reported (W12)
+- [ ] Adoption queue worked; link coverage reported (W12). **A re-scan comes first (measured
+      2026-09-26)**: the live queue is a single scan from **2026-09-22**, three days before any area
+      existed — so every candidate's `area_key` is null (the column's own "no mapping covers this"
+      finding, here for the blunter reason that there was nothing to map to) and none carries an
+      identity proposal. The scan runs under `prisme-sync adopt --plan` and nowhere else — the daily
+      pass is `apply` — so the queue does **not** refresh itself, and that command is also the gate
+      line below. It is the first action, not the last
+      ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md))
 - [ ] `prisme-sync adopt --plan` **run against the live instance** and read by hand. W12 built it and
       deliberately recorded no output: the plan carries real titles and cannot enter this repository
       (`apps/sync/CLAUDE.md`). A human runs it, confirms `Would create: 0`, and agrees with the plan
