@@ -182,7 +182,7 @@ export async function apiFetch<T>(call: ApiCall<T>): Promise<ApiResult<T>> {
     const kind = classifyStatus(response.status);
     const correlationId = correlationIdOf(payload);
     logger.warn('api request refused', { path: call.path, status: response.status, kind });
-    return { ok: false, kind, correlationId };
+    return { ok: false, kind, correlationId, status: response.status };
   }
 
   const parsed = call.schema.safeParse(payload);

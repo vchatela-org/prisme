@@ -25,6 +25,7 @@ import {
   type OrphanInitiative,
 } from '@/lib/objectives-view';
 import type { StepPanel as StepPanelKind } from '@/lib/review-wizard';
+import { ConflictResolve } from './conflict-resolve';
 
 /**
  * The data a step is about, rendered inside the step.
@@ -322,13 +323,23 @@ async function ConflictsPanel() {
         <StatTile label="Fields involved" value={String(byField.size)} />
       </StatRow>
 
-      <ul className="flex flex-col gap-1">
+      <ul className="flex flex-col divide-y divide-border-hairline">
         {unresolved.slice(0, 20).map((row) => (
-          <li key={row.id} className="text-sm text-ink">
-            <span className="font-medium">{row.field}</span>{' '}
-            <span className="text-xs text-ink-muted">
-              detected {row.detectedAt.slice(0, 10)} · by {row.actor}
-            </span>
+          <li key={row.id} className="flex flex-col gap-1 py-2 text-sm text-ink">
+            <div>
+              <span className="font-medium">{row.field}</span> on{' '}
+              <Link className="underline underline-offset-2" href={`/initiative/${row.entityId}`}>
+                the initiative
+              </Link>{' '}
+              <span className="text-xs text-ink-muted">
+                detected {row.detectedAt.slice(0, 10)} · by {row.actor}
+              </span>
+            </div>
+            <div className="text-xs text-ink-secondary">
+              prisme: <code>{row.prismeValue ?? 'none'}</code> · task tool:{' '}
+              <code>{row.externalValue ?? 'none'}</code>
+            </div>
+            <ConflictResolve id={row.id} entityId={row.entityId} />
           </li>
         ))}
       </ul>

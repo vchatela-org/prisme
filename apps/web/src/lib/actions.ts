@@ -284,6 +284,90 @@ export async function forceSync(): Promise<ActionResult> {
   };
 }
 
+const dependenciesSchema = z.object({
+  id: z.string().min(1).max(200),
+  dependsOn: z.array(z.string().min(1).max(200)).max(200),
+});
+
+/**
+ * Replace what an initiative waits on.
+ *
+ * A cycle is refused by the API (422) with the path in its message; that
+ * message is not shown here (`lib/api.ts` rule 3), so the refusal is named in
+ * words instead — a cycle is the only thing that answer means for this call.
+ */
+export async function saveDependencies(input: {
+  id: string;
+  dependsOn: readonly string[];
+}): Promise<ActionResult> {
+  const parsed = dependenciesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'That set of dependencies is not valid.' };
+  }
+  if (parsed.data.dependsOn.includes(parsed.data.id)) {
+    return { ok: false, title: 'Not saved', description: 'An initiative cannot wait on itself.' };
+  }
+
+  const result = await apiFetch({
+    path: `/initiatives/${encodeURIComponent(parsed.data.id)}/dependencies`,
+    method: 'PUT',
+    body: { dependsOn: parsed.data.dependsOn },
+    schema: initiativeSchema,
+  });
+  if (!result.ok) {
+    if (result.status === 422) {
+      return {
+        ok: false,
+        title: 'That would make a loop',
+        description:
+          'One of these already waits, directly or not, on this initiative. Remove it, or remove the dependency on the other side first.',
+      };
+    }
+    return failed(result, 'this initiative');
+  }
+
+  revalidateInitiative(parsed.data.id);
+  revalidatePath('/timeline');
+  return {
+    ok: true,
+    message:
+      parsed.data.dependsOn.length === 0
+        ? 'It waits on nothing now.'
+        : `It waits on ${String(parsed.data.dependsOn.length)}; the timeline is replanned.`,
+  };
+}
+
+const conflictSchema = z.object({
+  id: z.string().regex(/^\d+$/),
+  resolution: z.enum(['prisme_wins', 'external_wins']),
+});
+
+/** Record who was right about a conflicting field. Moves no value. */
+export async function resolveConflict(input: {
+  id: string;
+  resolution: 'prisme_wins' | 'external_wins';
+}): Promise<ActionResult> {
+  const parsed = conflictSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not resolved', description: 'That is not a conflict.' };
+  }
+  const result = await apiFetch({
+    path: `/conflicts/${parsed.data.id}/resolve`,
+    method: 'POST',
+    body: { resolution: parsed.data.resolution },
+    schema: z.object({ id: z.string() }).loose(),
+  });
+  if (!result.ok) return failed(result, 'this conflict');
+  revalidatePath('/review', 'layout');
+  return {
+    ok: true,
+    message:
+      parsed.data.resolution === 'prisme_wins'
+        ? 'prisme’s value stands; it was already written back.'
+        : 'Now change the field on the initiative, so prisme writes the right value.',
+  };
+}
+
 const promoteSchema = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(500),
