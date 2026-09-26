@@ -40,8 +40,6 @@ import {
   createDocToolClient,
   createFetchTransport,
   createTaskToolClient,
-  PAGE_ROLE_FOR,
-  PAGE_TEMPLATE_FOR,
   type PageKind,
   type RoleBindings,
 } from '@prisme/connectors';
@@ -65,6 +63,7 @@ import { refreshCapacity } from './capacity-refresh.js';
 import { backfill } from './backfill/run.js';
 import { createBackfillStore } from './backfill/store.js';
 import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
+import { readPageStores } from './create/page-stores.js';
 import { converge } from './create/run.js';
 import { createCreationStore } from './create/store.js';
 import { createPostgresStore } from './state/postgres.js';
@@ -110,27 +109,40 @@ function creationWriter(
 }
 
 /**
- * The page kinds this instance can actually create (ADR-0025).
+ * What each kind's page store holds, for the converge pass (ADR-0030).
  *
- * A kind is addressable when **both** its store and its template are bound.
- * One without the other is not a half-working feature: a page with no parent
- * has nowhere to go, and a page with no template is an empty page, which
- * ADR-0011 says is worse than no page — "a workspace full of empty pages makes
- * the ones that matter harder to find". So the pair is the unit, and a half-
- * bound kind blocks with a reason rather than creating something nobody wants.
+ * A kind is addressable when its store is bound **and its database holds at
+ * least one template**. Under ADR-0025 this was a set computed from the
+ * bindings — store and template role both bound — and that no longer answers
+ * the question: whether a database holds a template is a fact about the
+ * document tool, and the template a page is sent with is resolved from what it
+ * holds *now*. So this is a read, handed to the pass as a function it calls once
+ * for the kinds it has pages for.
+ *
+ * A **read client**, not the creating writer: it runs under the write freeze as
+ * well, because the plan names each page's template and `plan` is when somebody
+ * wants to see it. It lists template names and nothing else — the client
+ * refuses `listTemplates` on any role that does not carry `create`.
+ *
+ * The kinds come from the ledger rather than from a list repeated here, and
+ * `PAGE_ROLE_FOR` maps them — so a fourth kind is a compile error in the
+ * vocabulary, not a kind this call site forgets.
  */
-function addressablePageKinds(bindings: RoleBindings): ReadonlySet<PageKind> {
-  const kinds = new Set<PageKind>();
-  // The kinds come from the vocabulary rather than from a list repeated here.
-  // A hardcoded pair is how ADR-0028's third kind would have been added to
-  // `PAGE_ROLE_FOR` and forgotten at this one call site — bound, and planned as
-  // unbound, with nothing failing.
-  for (const kind of Object.keys(PAGE_ROLE_FOR) as PageKind[]) {
-    if (bindings.has(PAGE_ROLE_FOR[kind]) && bindings.has(PAGE_TEMPLATE_FOR[kind])) {
-      kinds.add(kind);
-    }
-  }
-  return kinds;
+function pageStoreReader(
+  bindings: RoleBindings,
+  transport: ReturnType<typeof createFetchTransport>,
+  metrics: {
+    recordRequest: (sample: { tool: string; status: string }) => void;
+  },
+): (kinds: ReadonlySet<PageKind>) => ReturnType<typeof readPageStores> {
+  const client = createDocToolClient({
+    token: config.doctoolApiToken as string,
+    baseUrl: config.doctoolBaseUrl,
+    bindings,
+    transport,
+    metrics,
+  });
+  return (kinds) => readPageStores(client, bindings, kinds);
 }
 
 /**
@@ -401,7 +413,7 @@ async function main(): Promise<number> {
           store: createCreationStore(database.client),
           writer: creationWriter(transport, connectorMetrics),
           documents: documentCreationWriter(bindings, transport, connectorMetrics),
-          addressablePageKinds: addressablePageKinds(bindings),
+          readPageStores: pageStoreReader(bindings, transport, connectorMetrics),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
           now: () => new Date(),
@@ -465,7 +477,7 @@ async function main(): Promise<number> {
           store: createCreationStore(database.client),
           writer: creationWriter(transport, connectorMetrics),
           documents: documentCreationWriter(bindings, transport, connectorMetrics),
-          addressablePageKinds: addressablePageKinds(bindings),
+          readPageStores: pageStoreReader(bindings, transport, connectorMetrics),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
           now: () => new Date(),

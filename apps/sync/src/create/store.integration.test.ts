@@ -187,6 +187,45 @@ describeOrSkip('the creation store against PostgreSQL', () => {
       expect(outstanding.find((intent) => intent.id === parent)?.externalId).toBe('made-project');
     });
 
+    it('reads a page’s chosen template, and none when none was chosen', async () => {
+      // ADR-0030 rule 3: the choice is a column, and its absence asks for the
+      // default — which the pass resolves, not the row.
+      const projectId = await makeProject();
+      await makeIntent({
+        entityKind: 'project',
+        entityId: projectId,
+        tool: 'document',
+        objectKind: 'page',
+        draft: { title: 'A large effort' },
+      });
+      const chosen = await makeIntent({
+        entityKind: 'project',
+        entityId: projectId,
+        tool: 'document',
+        objectKind: 'page',
+        ordinal: 1,
+        draft: { title: 'A large effort' },
+      });
+      await client`update creation_intent set template_id = 'tpl-brief' where id = ${chosen}::uuid`;
+
+      const outstanding = await createCreationStore(client).loadOutstanding();
+      expect(outstanding.find((intent) => intent.id === chosen)?.templateId).toBe('tpl-brief');
+      expect(outstanding.find((intent) => intent.id !== chosen)).not.toHaveProperty('templateId');
+    });
+
+    it('refuses a template on anything but a page', async () => {
+      const projectId = await makeProject();
+      const section = await makeIntent({
+        entityKind: 'project',
+        entityId: projectId,
+        objectKind: 'project',
+        draft: { name: 'A large effort' },
+      });
+      await expect(
+        client`update creation_intent set template_id = 'tpl-brief' where id = ${section}::uuid`,
+      ).rejects.toThrow(/only_pages_choose_a_template/);
+    });
+
     it('leaves out a satisfied intent nothing waits on', async () => {
       const projectId = await makeProject();
       const alone = await makeIntent({

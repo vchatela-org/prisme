@@ -1,3 +1,4 @@
+import type { DocTemplate } from '@prisme/connectors';
 import type {
   LooseTaskDraft,
   PageDraft,
@@ -43,7 +44,27 @@ export interface Intent {
   readonly externalId?: string | undefined;
   readonly requires?: string | undefined;
   readonly attempts: number;
+  /**
+   * The template chosen where the page was asked for (ADR-0030 rule 3).
+   * Absent asks for the default. Either way it is resolved against the
+   * database's list as the pass reads it, never trusted from the row.
+   */
+  readonly templateId?: string | undefined;
 }
+
+/**
+ * What a pass knows about one kind's page store, read once at its start.
+ *
+ * Three states, because each blocks a page for a different reason with a
+ * different fix (ADR-0030 rule 5): nothing is bound; something is bound and
+ * could not be read (`failure` is a connector failure kind — never the tool's
+ * prose, never the binding); or it was read, and here is what it holds — which
+ * may be nothing, a state of its own.
+ */
+export type PageStore =
+  | { readonly state: 'unbound' }
+  | { readonly state: 'unreadable'; readonly failure: string }
+  | { readonly state: 'bound'; readonly templates: readonly DocTemplate[] };
 
 /**
  * What prisme already knows about the entity an intent belongs to.
@@ -65,8 +86,12 @@ export type Creation =
    * A narrative page in the document tool. Resolvable only since ADR-0025 was
    * accepted and its role keys existed — before that every page intent was
    * blocked with a reason, because no role key named where one would go.
+   *
+   * `templateName` is the resolved template as its database lists it, carried
+   * so the plan can name what will be applied (ADR-0030 rule 4). Instance
+   * data: it is printed, never logged.
    */
-  | { readonly kind: 'page'; readonly draft: PageDraft };
+  | { readonly kind: 'page'; readonly draft: PageDraft; readonly templateName: string };
 
 /**
  * One line of the pass's plan.

@@ -4,7 +4,7 @@ import type { PageKind } from '@prisme/connectors';
 import { applyOutcome, orderConvergence } from './order.js';
 import type { CreationStore } from './ports.js';
 import { formatConvergePlan } from './report.js';
-import type { ConvergePlan, Intent, Step, StepOutcome } from './types.js';
+import type { ConvergePlan, Intent, PageStore, Step, StepOutcome } from './types.js';
 
 /**
  * One converge pass: drain the creation ledger.
@@ -47,11 +47,18 @@ export interface ConvergeOptions {
   /** The document tool's creating port. Frozen on the same terms. */
   readonly documents: DocumentCreationWriter;
   /**
-   * The page kinds this instance has bound a store and a template for
-   * (ADR-0025). Empty until a `bindings` run has named them, which is the
-   * state the plan describes rather than fails on.
+   * Reads what each named kind's page store holds (ADR-0030) — once per pass,
+   * and only for the kinds an outstanding page intent belongs to, so a pass
+   * with no page to make asks the document tool nothing.
+   *
+   * A **read**, and the pass makes it under the write freeze too: the plan
+   * names the template each page would be made from, and `plan` is exactly
+   * when somebody wants to see that. It is not the creating writer, which is
+   * frozen; it is the question the writer's caller has to answer first.
    */
-  readonly addressablePageKinds: ReadonlySet<PageKind>;
+  readonly readPageStores: (
+    kinds: ReadonlySet<PageKind>,
+  ) => Promise<ReadonlyMap<PageKind, PageStore>>;
   readonly writeEnabled: boolean;
   /**
    * The most creations one pass will attempt.
@@ -139,11 +146,21 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
     ...new Set(intents.map((intent) => intent.entityId)),
   ]);
 
-  const initial = orderConvergence({
-    intents,
-    refsByEntity,
-    addressablePageKinds: options.addressablePageKinds,
-  });
+  /*
+   * The page stores, read once, before the first plan — so `plan` and `apply`
+   * resolve every page's template from the same list, and the list a page is
+   * sent with is at most one pass old (ADR-0030 rule 3: re-resolved when the
+   * intent is applied, never trusted from when it was asked for).
+   */
+  const pageKinds = new Set<PageKind>(
+    intents
+      .filter((intent) => intent.tool === 'document' && intent.state !== 'satisfied')
+      .map((intent) => intent.entityKind),
+  );
+  const pageStores: ReadonlyMap<PageKind, PageStore> =
+    pageKinds.size === 0 ? new Map() : await options.readPageStores(pageKinds);
+
+  const initial = orderConvergence({ intents, refsByEntity, pageStores });
 
   /*
    * A frozen deployment does not *attempt* anything.
@@ -194,12 +211,7 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
   let stopped: string | undefined;
 
   for (;;) {
-    const plan = orderConvergence({
-      intents,
-      refsByEntity,
-      attempted,
-      addressablePageKinds: options.addressablePageKinds,
-    });
+    const plan = orderConvergence({ intents, refsByEntity, attempted, pageStores });
     const next = plan.steps.find((step) => step.kind === 'run');
     if (next === undefined) break;
 
@@ -247,11 +259,7 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
 
   // The closing plan is computed *without* `attempted`, so it reports what is
   // genuinely still outstanding rather than what this pass has left to do.
-  const finalPlan = orderConvergence({
-    intents,
-    refsByEntity,
-    addressablePageKinds: options.addressablePageKinds,
-  });
+  const finalPlan = orderConvergence({ intents, refsByEntity, pageStores });
 
   return {
     plan: finalPlan,

@@ -368,6 +368,7 @@ describe('the report', () => {
       fetchPage: () => Promise.reject(new Error('not used')),
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
     };
 
     const result = await backfill({

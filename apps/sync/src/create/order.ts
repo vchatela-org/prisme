@@ -1,5 +1,5 @@
-import type { PageKind } from '@prisme/connectors';
-import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.js';
+import type { DocTemplate, PageKind } from '@prisme/connectors';
+import type { Creation, ConvergePlan, EntityRefs, Intent, PageStore, Step } from './types.js';
 
 /**
  * Which intents can run now, in what order, and why the rest cannot.
@@ -15,10 +15,11 @@ import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.j
  *    The edge is stored (`requires`), not inferred from ordering, so a section
  *    whose project failed is *blocked with a reason* rather than sent with an
  *    empty parent.
- * 3. **A page needs an addressable store.** ADR-0025's and ADR-0028's role keys
- *    name where each kind of page goes and what it copies, and if the instance
- *    has not bound them the page intent is blocked with a reason — see the note
- *    below.
+ * 3. **A page needs an addressable store, and a template from it.** A kind's
+ *    store is the database ADR-0025's role key names, and it is addressable
+ *    when it is bound and holds at least one template (ADR-0030 rule 5). Which
+ *    template is the pass's decision too, made from the database's list as this
+ *    pass read it — see {@link resolveTemplate}.
  * 4. **A draft must parse.** The draft is `unknown` in the ledger, and a shape
  *    that does not match its object kind is a blocked step rather than a
  *    crash mid-pass with half the sections made.
@@ -29,17 +30,18 @@ import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.j
  * named where a page would go and none carried the capability to create one, so
  * the only honest thing the plan could say was that prisme had nowhere to
  * write. That is no longer true, and what remains is a property of the
- * *instance* rather than of the vocabulary: an installation that has not bound a
- * kind's store and its template has no addressable store for that kind, and the
- * plan says so per intent rather than sending a creation at a parent nobody
- * chose.
+ * *instance* rather than of the vocabulary — and every block has a fix a person
+ * can make, each named in its sentence: bind the database, share it, give it a
+ * template, mark a default or choose one. A reason nobody can act on is worse
+ * than no reason, because it teaches a reader to skip the column (ADR-0028).
  *
- * **ADR-0028 closed the last vocabulary gap.** A capture's page used to be
- * blocked by the *kind* — ADR-0025 named an initiative's page and a project's
- * page, and a capture is neither, so the plan reported the gap rather than
- * guessing which of the two it meant. All three kinds are addressable now, and
- * every remaining block is the bindings one, which is a deployment step a human
- * can take (Settings → Notion) and not a missing decision.
+ * **The template is re-resolved on every pass, never trusted from the row.** A
+ * request records a choice, or none; what is sent is decided here, against the
+ * list as it stands, so a template deleted since the choice blocks the page
+ * rather than being replaced by another nobody chose (ADR-0030 rule 3). And
+ * the identifier resolved is what is sent — never "the default" — so a default
+ * re-marked between the plan and the write cannot apply something the plan did
+ * not show (rule 4).
  */
 
 /** Projects first, then sections in order, then everything else. Stable. */
@@ -51,16 +53,66 @@ const KIND_ORDER: Readonly<Record<string, number>> = {
 };
 
 /**
- * Why a page cannot be created, when it cannot.
+ * Why a page cannot be created, when it cannot — one sentence per fix.
  *
- * One sentence, because there is one situation left: an unbound role is a
- * setting a human can fill in. The second sentence this constant used to
- * have a sibling for — a capture's page, blocked because no role key named one
- * — is gone with ADR-0028, which is why the message names all three kinds
- * rather than two.
+ * An unbound store and a store with no template differ in what a person does
+ * about them, so they are two sentences (ADR-0030 rule 5), and both point at
+ * Settings → Notion, which shows the binding and what its database holds.
  */
 export const PAGE_UNBOUND =
-  'the document tool has no bound store for this kind of page: bind the page and template roles (ADR-0025, ADR-0028) in Settings → Notion';
+  'no database is bound for this kind of page: bind one in Settings → Notion (ADR-0030)';
+
+export const PAGE_NO_TEMPLATE =
+  'this kind’s database holds no template, and a page made from nothing is the empty page ADR-0011 refuses: add a template to the database in the document tool — Settings → Notion shows what it holds (ADR-0030)';
+
+export const PAGE_CHOOSE_TEMPLATE =
+  'this kind’s database holds several templates, marks none as the default, and none was chosen: ask for the page again choosing one, or mark a default in the document tool (ADR-0030)';
+
+export const PAGE_TEMPLATE_GONE =
+  'the template chosen for this page is no longer in its database, and another is not substituted for it: ask for the page again choosing one that is (ADR-0030)';
+
+export function pageStoreUnreadable(failure: string): string {
+  return `this kind’s database could not be read (${failure}): Settings → Notion says why (ADR-0030)`;
+}
+
+/**
+ * Which template a page is made from, or why it cannot be made (ADR-0030 rule 3).
+ *
+ * | The database holds | No choice was made | A choice was made |
+ * |---|---|---|
+ * | nothing | blocked — no template | blocked — no template |
+ * | one template | it | it, if it is the one chosen; blocked otherwise |
+ * | several | the one marked default; blocked if none is | it, if it is still there; blocked otherwise |
+ *
+ * A choice that has vanished is never quietly replaced by the default: the
+ * person chose a template, and a page built from another is a page they did not
+ * ask for. Pure — the list is read by the caller, once per pass.
+ */
+export function resolveTemplate(
+  store: PageStore | undefined,
+  chosen: string | undefined,
+): { readonly template: DocTemplate } | { readonly reason: string } {
+  if (store === undefined || store.state === 'unbound') return { reason: PAGE_UNBOUND };
+  if (store.state === 'unreadable') return { reason: pageStoreUnreadable(store.failure) };
+
+  const { templates } = store;
+  if (templates.length === 0) return { reason: PAGE_NO_TEMPLATE };
+
+  if (chosen !== undefined) {
+    const found = templates.find((template) => template.id === chosen);
+    return found === undefined ? { reason: PAGE_TEMPLATE_GONE } : { template: found };
+  }
+
+  const [only, ...others] = templates;
+  if (only !== undefined && others.length === 0) return { template: only };
+
+  const marked = templates.filter((template) => template.isDefault);
+  const [byDefault, ...alsoMarked] = marked;
+  // Two marked defaults is not a state the tool describes, and picking one of
+  // them would be the guess this function exists to refuse.
+  if (byDefault !== undefined && alsoMarked.length === 0) return { template: byDefault };
+  return { reason: PAGE_CHOOSE_TEMPLATE };
+}
 
 function text(draft: Readonly<Record<string, unknown>>, field: string): string | undefined {
   const value = draft[field];
@@ -85,6 +137,7 @@ export function resolveCreation(
   intent: Intent,
   parentExternalId: string | undefined,
   refs: EntityRefs,
+  template?: DocTemplate,
 ): Creation | { readonly error: string } {
   if (intent.objectKind === 'project') {
     const name = text(intent.draft, 'name');
@@ -146,7 +199,12 @@ export function resolveCreation(
     // now a `PageKind` (ADR-0028), so this is a widening and not a cast — if a
     // fourth entity kind is ever added without a page kind to go with it, this
     // line stops compiling rather than silently mapping to the wrong store.
-    return { kind: 'page', draft: { kind: intent.entityKind, title } };
+    if (template === undefined) return { error: 'no template was resolved for this page' };
+    return {
+      kind: 'page',
+      draft: { kind: intent.entityKind, title, templateId: template.id },
+      templateName: template.name,
+    };
   }
 
   /*
@@ -161,14 +219,14 @@ export function resolveCreation(
 export interface OrderInput {
   readonly intents: readonly Intent[];
   /**
-   * The page kinds this instance can actually create.
+   * What each kind's page store holds, as this pass read it (ADR-0030).
    *
-   * Empty on every instance that has not bound ADR-0025's roles, which is the
-   * state the plan must describe rather than fail on. Passed in rather than
-   * derived, because it is a property of the *bindings* — instance data this
-   * pure function must not read.
+   * A kind absent from the map is unbound, which is the state of every
+   * instance that has not bound ADR-0025's roles and the one the plan must
+   * describe rather than fail on. Passed in rather than read, because it is a
+   * read of the document tool — I/O this pure function must not do.
    */
-  readonly addressablePageKinds: ReadonlySet<PageKind>;
+  readonly pageStores: ReadonlyMap<PageKind, PageStore>;
   /** Each entity's external references, keyed by entity id. */
   readonly refsByEntity: ReadonlyMap<string, EntityRefs>;
   /**
@@ -209,9 +267,14 @@ export function orderConvergence(input: OrderInput): ConvergePlan {
      * mistake, not a plan this function should accommodate.
      */
     const isPage = intent.tool === 'document';
-    if (isPage && !input.addressablePageKinds.has(intent.entityKind)) {
-      steps.push({ kind: 'blocked', intent, reason: PAGE_UNBOUND });
-      continue;
+    let template: DocTemplate | undefined;
+    if (isPage) {
+      const resolved = resolveTemplate(input.pageStores.get(intent.entityKind), intent.templateId);
+      if ('reason' in resolved) {
+        steps.push({ kind: 'blocked', intent, reason: resolved.reason });
+        continue;
+      }
+      template = resolved.template;
     }
 
     let parentExternalId: string | undefined;
@@ -240,6 +303,7 @@ export function orderConvergence(input: OrderInput): ConvergePlan {
       intent,
       parentExternalId,
       input.refsByEntity.get(intent.entityId) ?? {},
+      template,
     );
     if ('error' in resolved) {
       steps.push({ kind: 'blocked', intent, reason: resolved.error });

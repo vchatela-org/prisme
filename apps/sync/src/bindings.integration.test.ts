@@ -77,11 +77,8 @@ const ALL_ROLES: readonly RoleBinding[] = [
   { role: 'processes_db', externalId: 'binding-processes-0005' },
   { role: 'reviews_db', externalId: 'binding-reviews-0006' },
   { role: 'initiative_pages_db', externalId: 'binding-initiative-pages-0007' },
-  { role: 'initiative_page_template', externalId: 'binding-initiative-template-0008' },
   { role: 'project_pages_db', externalId: 'binding-project-pages-0009' },
-  { role: 'project_page_template', externalId: 'binding-project-template-0011' },
   { role: 'capture_pages_db', externalId: 'binding-capture-pages-0012' },
-  { role: 'capture_page_template', externalId: 'binding-capture-template-0013' },
 ];
 
 async function bind(client: postgres.Sql, bindings: readonly RoleBinding[]): Promise<void> {
@@ -122,19 +119,17 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     await bind(client, ALL_ROLES);
 
     const bindings = await readBindings(client);
-    // Twelve, not six: ADR-0025's and ADR-0028's page stores and templates are
-    // role bindings like any other, and a reader that skipped them would leave
-    // an instance that bound them looking unbound.
+    // Nine, not six: ADR-0025's and ADR-0028's page stores are role bindings
+    // like any other, and a reader that skipped them would leave an instance
+    // that bound them looking unbound. There is no template role any more —
+    // a store's templates are the ones its database holds (ADR-0030).
     expect(bindings.bound()).toEqual([
       'areas_db',
-      'capture_page_template',
       'capture_pages_db',
-      'initiative_page_template',
       'initiative_pages_db',
       'media_db',
       'objectives_db',
       'processes_db',
-      'project_page_template',
       'project_pages_db',
       'reviews_db',
       'takeaways_db',
@@ -145,10 +140,8 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
     expect(bindings.resolve('processes_db')).toBe('binding-processes-0005');
     // And so does the creating path, which is what makes a page addressable.
     expect(bindings.resolve('project_pages_db')).toBe('binding-project-pages-0009');
-    expect(bindings.resolve('project_page_template')).toBe('binding-project-template-0011');
-    // ADR-0028's pair, through the same table.
+    // ADR-0028's store, through the same table.
     expect(bindings.resolve('capture_pages_db')).toBe('binding-capture-pages-0012');
-    expect(bindings.resolve('capture_page_template')).toBe('binding-capture-template-0013');
 
     // And a client built on it is addressable — the thing that did not exist
     // before this module. No transport, so any request would fail; what is
@@ -162,6 +155,18 @@ describeOrSkip('the role bindings against PostgreSQL', () => {
       transport: () => Promise.reject(new Error('never called')),
     });
     expect(typeof docClient.queryByRole).toBe('function');
+  });
+
+  it('ignores a row whose role the vocabulary no longer names', async () => {
+    // Migration 0012 deletes ADR-0025's template bindings; a row that somehow
+    // survived resolves to nothing rather than failing the pass that reads it.
+    await client`
+      insert into role_binding (role, external_id, tool)
+      values ('project_page_template', 'binding-retired-0001', 'doc')`;
+    await bind(client, [{ role: 'project_pages_db', externalId: 'binding-project-pages-0009' }]);
+
+    const bindings = await readBindings(client);
+    expect(bindings.bound()).toEqual(['project_pages_db']);
   });
 
   it('refuses a role that is not bound, which is how "not read" is reported', async () => {
