@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
-import { entityId, instant, page, reviewCadence } from './common.js';
+import { calendarDate, entityId, instant, page, reviewCadence } from './common.js';
 import { REVIEW_READ_ONLY } from './ownership.js';
 
 /**
@@ -116,6 +116,48 @@ export const adoptionCandidateDto = z.object({
   /** 0–1, only for a fuzzy proposal — shown so the human can disagree with it. */
   similarity: z.number().nullable(),
   scannedAt: instant,
+  /**
+   * The document-tool store a page was read from (a role key); `null` for a
+   * task-tool object, and for a row scanned before stores were recorded.
+   */
+  sourceRole: z.string().nullable(),
+  /**
+   * The period the store's chosen date property names (Settings → Notion), as
+   * calendar days. A single date is a one-day period. Both `null` when the
+   * store has no date property chosen or the entry leaves it empty.
+   */
+  startsOn: calendarDate.nullable(),
+  endsOn: calendarDate.nullable(),
+});
+
+/** A queue row: a candidate, and the period it falls in today. */
+export const adoptionQueueItemDto = adoptionCandidateDto.extend({
+  period: z.enum(['current', 'upcoming', 'undated', 'ended']),
+});
+
+const facetCount = z.object({ key: z.string(), count: z.int().min(0) });
+
+/**
+ * The queue, filtered, with a count beside every filter value. Each count is
+ * over the candidates matching every *other* filter, so it is the number of
+ * rows choosing that value would show.
+ */
+export const adoptionQueuePageDto = page(adoptionQueueItemDto).extend({
+  /** The day periods were judged on, in the instance's timezone. */
+  today: calendarDate,
+  facets: z.object({
+    when: z.object({
+      open: z.int().min(0),
+      current: z.int().min(0),
+      upcoming: z.int().min(0),
+      undated: z.int().min(0),
+      ended: z.int().min(0),
+      all: z.int().min(0),
+    }),
+    source: z.array(facetCount),
+    /** `key: null` counts the candidates outside every mapped area. */
+    area: z.array(facetCount.extend({ key: z.string().nullable() })),
+  }),
 });
 
 export const settingsDto = z.object({
@@ -204,7 +246,7 @@ export const ReviewSessionDto = named('ReviewSession', reviewSessionDto);
 export const ReviewSessionPageDto = named('ReviewSessionPage', page(reviewSessionDto));
 export const EventPageDto = named('EventPage', page(eventDto));
 export const AdoptionPageDto = named('AdoptionPage', page(adoptionEntryDto));
-export const AdoptionQueuePageDto = named('AdoptionQueuePage', page(adoptionCandidateDto));
+export const AdoptionQueuePageDto = named('AdoptionQueuePage', adoptionQueuePageDto);
 export const AdoptionCandidateDto = named('AdoptionCandidate', adoptionCandidateDto);
 export const AdoptionEntryDto = named('AdoptionEntry', adoptionEntryDto);
 export const ConflictDto = named('Conflict', conflictDto);

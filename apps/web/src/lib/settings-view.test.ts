@@ -3,6 +3,7 @@ import type { SettingsArea, TaskLocations } from './contracts';
 import {
   AREA_KEY_PATTERN,
   checkAdvice,
+  dateChoice,
   holders,
   keyFromName,
   chosenAreaColors,
@@ -149,5 +150,34 @@ describe('the words', () => {
   it('proposes a key the API will accept', () => {
     expect(keyFromName('Café & Théâtre')).toBe('cafe-theatre');
     expect(AREA_KEY_PATTERN.test(keyFromName('Café & Théâtre'))).toBe(true);
+  });
+});
+
+describe('dateChoice', () => {
+  const binding = (over: Partial<Parameters<typeof dateChoice>[0]> = {}) => ({
+    role: 'objectives_db',
+    bound: true,
+    dateProperty: null,
+    dateProperties: ['Due', 'Period'],
+    ...over,
+  });
+
+  it('offers the store’s date columns, with what is chosen', () => {
+    expect(dateChoice(binding({ dateProperty: 'Period' }))).toEqual({
+      state: 'choose',
+      options: ['Due', 'Period'],
+      chosen: 'Period',
+    });
+  });
+
+  it('is hidden for a store nothing of which reaches Adoption, and for an unbound one', () => {
+    expect(dateChoice(binding({ role: 'media_db' }))).toEqual({ state: 'hidden' });
+    expect(dateChoice(binding({ role: 'initiative_pages_db' }))).toEqual({ state: 'hidden' });
+    expect(dateChoice(binding({ bound: false }))).toEqual({ state: 'hidden' });
+  });
+
+  it('asks for a check before it can offer anything, and says when there is nothing', () => {
+    expect(dateChoice(binding({ dateProperties: null }))).toEqual({ state: 'unchecked' });
+    expect(dateChoice(binding({ dateProperties: [] }))).toEqual({ state: 'none', chosen: null });
   });
 });

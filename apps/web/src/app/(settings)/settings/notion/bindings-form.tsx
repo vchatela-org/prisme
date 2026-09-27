@@ -1,17 +1,30 @@
 'use client';
 
-import { Badge, Button, Card, Input, Section, useToast } from '@prisme/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Section,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useToast,
+} from '@prisme/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { Binding } from '@/lib/contracts';
 import {
   ACCESS_LABEL,
   checkAdvice,
+  dateChoice,
   roleCopy,
   templateSummary,
   type RoleCopy,
 } from '@/lib/settings-view';
-import { saveBinding } from '../settings-actions';
+import { saveBinding, saveDateProperty } from '../settings-actions';
 
 type Row = Binding & { readonly href: string | null };
 
@@ -158,6 +171,79 @@ function BindingEditor({ binding }: { binding: Row }) {
         </p>
       ) : null}
       {advice === null ? null : <p className="text-xs text-status-warning">{advice}</p>}
+      <DateColumn binding={binding} />
+    </div>
+  );
+}
+
+/** Radix refuses an empty item value, so "no column" needs a value of its own. */
+const NO_COLUMN = '__none__';
+
+/**
+ * Which of the store's date properties says when an entry's period runs.
+ *
+ * Optional. With one chosen, Adoption hides an entry whose date has passed —
+ * an objective for a year long gone is over rather than archived, and nothing
+ * else tells it apart from this year's. Chosen from the columns the last check
+ * found, never typed: a name that does not resolve would date nothing, and
+ * nothing would say so.
+ */
+function DateColumn({ binding }: { binding: Row }) {
+  const choice = dateChoice(binding);
+  const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
+  const selectId = `date-column-${binding.role}`;
+
+  if (choice.state === 'hidden') return null;
+
+  const save = (property: string | null): void => {
+    startTransition(async () => {
+      const result = await saveDateProperty({ role: binding.role, property });
+      toast({
+        title: result.title,
+        description: result.description,
+        tone: result.ok ? 'success' : 'error',
+      });
+      if (result.ok) router.refresh();
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-border-hairline pt-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={selectId} className="text-sm text-ink">
+          Date column <span className="text-ink-muted">(optional)</span>
+        </label>
+        {choice.state === 'choose' ? (
+          <Select
+            value={choice.chosen ?? NO_COLUMN}
+            disabled={pending}
+            onValueChange={(value) => {
+              save(value === NO_COLUMN ? null : value);
+            }}
+          >
+            <SelectTrigger id={selectId} className="w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_COLUMN}>None — entries are undated</SelectItem>
+              {choice.options.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+      </div>
+      <p className="text-xs text-ink-muted">
+        {choice.state === 'unchecked'
+          ? 'Check this database (Check again on Settings) to list its date columns.'
+          : choice.state === 'none'
+            ? 'This database has no date column.'
+            : 'Adoption hides an entry whose date has passed. A range counts until its end.'}
+      </p>
     </div>
   );
 }

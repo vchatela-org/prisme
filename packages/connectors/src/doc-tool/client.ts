@@ -73,6 +73,20 @@ const MAX_PAGES = 100;
 /** How far block recursion goes. A page body is nested lists, not a filesystem. */
 const MAX_BLOCK_DEPTH = 3;
 
+/**
+ * The names of a schema's date properties, sorted so the list a screen offers
+ * does not reorder itself between two checks. Only the tool's own `date` type:
+ * a formula or a rollup that happens to produce a date is not a column a person
+ * sets, and the created/edited times say when a row was touched, not when its
+ * period runs.
+ */
+function datePropertyNames(properties: Readonly<Record<string, { readonly type: string }>>) {
+  return Object.entries(properties)
+    .filter(([, property]) => property.type === 'date')
+    .map(([name]) => name)
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export interface DocToolClientOptions {
   /** The integration token. Held here, logged nowhere (docs/14-threat-model.md §1, A1). */
   readonly token: string;
@@ -388,10 +402,27 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
           { tool: 'doc', operation },
         );
       }
+      // The database object carries no schema; its one data source does. A
+      // failure here costs the date choice and nothing else — the binding is
+      // right, and refusing it for an optional list would be refusing a store
+      // prisme can read.
+      let dateProperties: readonly string[] | undefined;
+      try {
+        const source = parseOrThrow(
+          wireDataSourceSchema,
+          await send('GET', `/v1/data_sources/${encodeURIComponent(only.id)}`, operation),
+          { tool: 'doc', operation, shape: 'data source' },
+        );
+        dateProperties =
+          source.properties === undefined ? undefined : datePropertyNames(source.properties);
+      } catch {
+        dateProperties = undefined;
+      }
       return {
         externalId: only.id,
         title: plain(database.title) || only.name,
         linkId: database.id,
+        ...(dateProperties === undefined ? {} : { dateProperties }),
       };
     }
 
@@ -404,6 +435,9 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       externalId: source.id,
       title: plain(source.title),
       linkId: source.parent.database_id ?? source.id,
+      ...(source.properties === undefined
+        ? {}
+        : { dateProperties: datePropertyNames(source.properties) }),
     };
   }
 

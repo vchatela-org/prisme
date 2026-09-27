@@ -385,6 +385,9 @@ export function toCandidateDto(record: AdoptionCandidateRecord): CandidateDtoSha
     proposedId: record.proposedId,
     similarity: record.similarity,
     scannedAt: iso(record.scannedAt),
+    sourceRole: record.sourceRole,
+    startsOn: record.startsOn,
+    endsOn: record.endsOn,
   };
 }
 

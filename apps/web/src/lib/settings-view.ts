@@ -92,6 +92,39 @@ export function roleCopy(role: string): RoleCopy {
   );
 }
 
+/**
+ * The stores whose entries are proposed in Adoption, and so the ones a date
+ * column is offered for. The media library and the life areas are read too,
+ * but nothing of theirs reaches the queue.
+ */
+export const DATED_ROLES: ReadonlySet<string> = new Set([
+  'objectives_db',
+  'takeaways_db',
+  'processes_db',
+]);
+
+/** What the date-column control shows for one binding. */
+export type DateChoice =
+  | { readonly state: 'hidden' }
+  /** Bound, and not read yet — a check lists the choices. */
+  | { readonly state: 'unchecked' }
+  /** Read, and holds no date property: nothing to choose. */
+  | { readonly state: 'none'; readonly chosen: string | null }
+  | {
+      readonly state: 'choose';
+      readonly options: readonly string[];
+      readonly chosen: string | null;
+    };
+
+export function dateChoice(
+  binding: Pick<Binding, 'role' | 'bound' | 'dateProperty' | 'dateProperties'>,
+): DateChoice {
+  if (!DATED_ROLES.has(binding.role) || !binding.bound) return { state: 'hidden' };
+  if (binding.dateProperties === null) return { state: 'unchecked' };
+  if (binding.dateProperties.length === 0) return { state: 'none', chosen: binding.dateProperty };
+  return { state: 'choose', options: binding.dateProperties, chosen: binding.dateProperty };
+}
+
 export const ACCESS_LABEL: Readonly<Record<Binding['access'], string>> = {
   read: 'reads',
   write: 'writes',

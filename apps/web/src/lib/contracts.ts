@@ -443,6 +443,12 @@ export const eventPageSchema = z.object({
   offset: z.number().int(),
 });
 
+/** Where a candidate's period stands today (`GET /adoption/queue`). */
+export const QUEUE_PERIODS = ['current', 'upcoming', 'undated', 'ended'] as const;
+/** The queue's date filter. `open`, the default, is everything that has not ended. */
+export const QUEUE_WHEN = ['open', 'current', 'upcoming', 'undated', 'ended', 'all'] as const;
+export type QueueWhen = (typeof QUEUE_WHEN)[number];
+
 /**
  * One row of the adoption queue (W12).
  *
@@ -478,15 +484,31 @@ export const adoptionCandidateSchema = z.object({
   proposedId: z.string().nullable(),
   similarity: z.number().nullable(),
   scannedAt: z.string(),
+  /** The Notion database a page was read from, by role key; `null` for Todoist. */
+  sourceRole: z.string().nullable().default(null),
+  /** The period the database's chosen date property names, as calendar days. */
+  startsOn: z.string().nullable().default(null),
+  endsOn: z.string().nullable().default(null),
+  /** Where that period stands today, in the instance's timezone. */
+  period: z.enum(QUEUE_PERIODS).default('undated'),
 });
 
 export type AdoptionCandidate = z.infer<typeof adoptionCandidateSchema>;
+
+const facetCountSchema = z.object({ key: z.string(), count: z.number().int() });
 
 export const adoptionQueueSchema = z.object({
   items: z.array(adoptionCandidateSchema),
   total: z.number().int(),
   limit: z.number().int(),
   offset: z.number().int(),
+  today: z.string(),
+  /** A count beside every filter value: the rows choosing it would show. */
+  facets: z.object({
+    when: z.record(z.enum(QUEUE_WHEN), z.number().int()),
+    source: z.array(facetCountSchema),
+    area: z.array(facetCountSchema.extend({ key: z.string().nullable() })),
+  }),
 });
 
 export type AdoptionQueue = z.infer<typeof adoptionQueueSchema>;
@@ -1035,6 +1057,10 @@ export const bindingSchema = z.object({
     .array(z.object({ name: z.string(), isDefault: z.boolean() }))
     .nullable()
     .default(null),
+  /** The date property Adoption reads this store's periods from. Instance data. */
+  dateProperty: z.string().nullable().default(null),
+  /** The store's date properties as the last check read them; `null` if not read. */
+  dateProperties: z.array(z.string()).nullable().default(null),
 });
 
 export type Binding = z.infer<typeof bindingSchema>;

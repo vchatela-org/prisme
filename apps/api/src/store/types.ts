@@ -70,6 +70,13 @@ export interface RoleBindingRecord {
    * is not a page store, or not checked that far.
    */
   readonly templates: readonly { readonly name: string; readonly isDefault: boolean }[] | null;
+  /**
+   * The date property the adoption queue reads this store's periods from,
+   * chosen on Settings → Notion. A name, and instance data like `title`.
+   */
+  readonly dateProperty: string | null;
+  /** The store's date properties as the last check read them; `null` if unchecked. */
+  readonly dateProperties: readonly string[] | null;
 }
 
 export interface AreaWeightRecord {
@@ -386,6 +393,11 @@ export interface AdoptionCandidateRecord {
   readonly proposedId: string | null;
   readonly similarity: number | null;
   readonly scannedAt: Date;
+  /** The document-tool store a page came from; `null` for a task-tool object. */
+  readonly sourceRole: string | null;
+  /** The period the store's date property names, as `YYYY-MM-DD`; both or neither. */
+  readonly startsOn: string | null;
+  readonly endsOn: string | null;
 }
 
 /**
@@ -566,6 +578,8 @@ export interface ApiStore {
     list(): Promise<readonly RoleBindingRecord[]>;
     put(record: RoleBindingRecord): Promise<void>;
     remove(role: string): Promise<boolean>;
+    /** Set or clear one binding's date property; `false` when the role is not bound. */
+    setDateProperty(role: string, property: string | null): Promise<boolean>;
   };
 
   /**
@@ -858,10 +872,14 @@ export interface ApiStore {
       decidedAt: Date;
     }): Promise<AdoptionRecord>;
 
-    /** The queue: candidates the scan found, minus everything already decided. */
+    /**
+     * The queue: candidates the scan found, minus everything already decided.
+     * Without a page, the whole of it — which the queue screen filters and
+     * counts in one place (`services/adoption-queue.ts`).
+     */
     adoptionQueue(
       filter: { readonly areaKey?: string | undefined; readonly kind?: string | undefined },
-      page: PageRequest,
+      page?: PageRequest,
     ): Promise<Paged<AdoptionCandidateRecord>>;
     /**
      * Adopt a candidate: one entity with `origin = 'adopted'`, and the link to

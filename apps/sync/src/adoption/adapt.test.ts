@@ -8,7 +8,13 @@ import type {
 } from '@prisme/connectors';
 import { parseCalendarDate } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
-import { adaptDocRecords, adaptProjects, adaptTasks, type AdaptOptions } from './adapt.js';
+import {
+  adaptDocRecords,
+  adaptProjects,
+  adaptTasks,
+  periodOf,
+  type AdaptOptions,
+} from './adapt.js';
 
 /**
  * The adapter is the only file that knows either tool's vocabulary, so these
@@ -187,5 +193,61 @@ describe('document records', () => {
   it('carries the role, which is what the classifier keys on', () => {
     const [object] = adaptDocRecords([recordOf()], OPTIONS);
     expect(object).toMatchObject({ kind: 'page', role: 'takeaways_db' });
+  });
+
+  describe('the period a chosen date property names', () => {
+    const dated = (start: string | null, end: string | null = null) =>
+      recordOf([
+        [
+          'When',
+          {
+            kind: 'date',
+            start: start === null ? null : parseCalendarDate(start),
+            end: end === null ? null : parseCalendarDate(end),
+          },
+        ],
+      ]);
+
+    it('reads a range as it is, and a single date as a one-day period', () => {
+      expect(periodOf(dated('2024-01-01', '2024-12-31'), 'When')).toEqual({
+        startsOn: '2024-01-01',
+        endsOn: '2024-12-31',
+      });
+      expect(periodOf(dated('2026-10-01'), 'When')).toEqual({
+        startsOn: '2026-10-01',
+        endsOn: '2026-10-01',
+      });
+    });
+
+    it('puts a backwards range in order rather than refusing it', () => {
+      expect(periodOf(dated('2024-12-31', '2024-01-01'), 'When')).toEqual({
+        startsOn: '2024-01-01',
+        endsOn: '2024-12-31',
+      });
+    });
+
+    it('is no date at all when the property is empty, missing, not a date, or not chosen', () => {
+      expect(periodOf(dated(null), 'When')).toBeUndefined();
+      expect(periodOf(dated('2024-01-01'), 'Another column')).toBeUndefined();
+      expect(periodOf(recordOf([['When', { kind: 'select', value: '2024' }]]), 'When')).toBe(
+        undefined,
+      );
+      expect(periodOf(dated('2024-01-01'), undefined)).toBeUndefined();
+    });
+
+    it('reads the property chosen for the record’s own store, and no other', () => {
+      const record = dated('2024-01-01', '2024-12-31');
+      const [chosen] = adaptDocRecords([record], {
+        ...OPTIONS,
+        datePropertyByRole: new Map([['takeaways_db', 'When']]),
+      });
+      expect(chosen).toMatchObject({ startsOn: '2024-01-01', endsOn: '2024-12-31' });
+
+      const [elsewhere] = adaptDocRecords([record], {
+        ...OPTIONS,
+        datePropertyByRole: new Map([['objectives_db', 'When']]),
+      });
+      expect(elsewhere?.startsOn).toBeUndefined();
+    });
   });
 });

@@ -132,6 +132,110 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
     });
   });
 
+  describe('dates, sources and the counts beside each filter', () => {
+    interface FilteredBody {
+      items: {
+        externalId: string;
+        sourceRole: string | null;
+        startsOn: string | null;
+        endsOn: string | null;
+        period: string;
+      }[];
+      total: number;
+      today: string;
+      facets: {
+        when: Record<string, number>;
+        source: { key: string; count: number }[];
+        area: { key: string | null; count: number }[];
+      };
+    }
+
+    /**
+     * Three pages from two stores, dated against the pinned clock: one period
+     * long over, one running, one not started — plus the four undated rows the
+     * suite seeds. Invented titles.
+     */
+    beforeEach(async () => {
+      const at = new Date('2026-09-19T09:00:00Z').toISOString();
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason,
+           scanned_at, source_role, starts_on, ends_on)
+        values
+          ('page', 'ext-ended', 'An invented goal from long ago', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2024-01-01', '2024-12-31'),
+          ('page', 'ext-running', 'An invented goal for this year', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2026-01-01', '2026-12-31'),
+          ('page', 'ext-later', 'An invented habit that starts later', null, 'ritual',
+           'held in the processes store', ${at}::timestamptz, 'processes_db',
+           '2099-01-01', '2099-01-01')`;
+    });
+
+    const queue = async (query = ''): Promise<FilteredBody> =>
+      (await api().request('GET', url(`/adoption/queue${query}`))).body as FilteredBody;
+
+    it('leaves out what has ended by default, and counts it', async () => {
+      const payload = await queue();
+      const ids = payload.items.map((item) => item.externalId);
+      expect(ids).not.toContain('ext-ended');
+      expect(ids).toContain('ext-running');
+      expect(payload.total).toBe(6);
+      expect(payload.facets.when).toMatchObject({ open: 6, ended: 1, all: 7, current: 1 });
+    });
+
+    it('says which period each row is in, and reads the dates back as days', async () => {
+      const payload = await queue('?when=all');
+      const byId = new Map(payload.items.map((item) => [item.externalId, item]));
+      expect(byId.get('ext-ended')).toMatchObject({
+        period: 'ended',
+        startsOn: '2024-01-01',
+        endsOn: '2024-12-31',
+        sourceRole: 'objectives_db',
+      });
+      expect(byId.get('ext-later')?.period).toBe('upcoming');
+      expect(byId.get('ext-initiative')).toMatchObject({ period: 'undated', sourceRole: null });
+      expect(payload.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('shows only the ended ones when asked', async () => {
+      const payload = await queue('?when=ended');
+      expect(payload.items.map((item) => item.externalId)).toEqual(['ext-ended']);
+    });
+
+    it('filters by the store a page came from, and by the task tool’s kind', async () => {
+      const objectives = await queue('?source=objectives_db&when=all');
+      expect(objectives.items.map((item) => item.externalId).sort()).toEqual([
+        'ext-ended',
+        'ext-running',
+      ]);
+      const tasks = await queue('?source=task');
+      expect(tasks.items.map((item) => item.externalId).sort()).toEqual([
+        'ext-initiative',
+        'ext-unmapped',
+      ]);
+      // The source counts respect the date filter: the ended goal is not counted.
+      expect(objectives.facets.source).toContainEqual({ key: 'objectives_db', count: 2 });
+      expect(tasks.facets.source).toContainEqual({ key: 'objectives_db', count: 1 });
+    });
+
+    it('filters to the candidates outside every mapped area', async () => {
+      const payload = await queue('?areaKey=_none');
+      expect(payload.items.map((item) => item.externalId).sort()).toEqual([
+        'ext-later',
+        'ext-running',
+        'ext-unmapped',
+      ]);
+      expect(payload.facets.area).toContainEqual({ key: null, count: 3 });
+    });
+
+    it('refuses a period it does not know', async () => {
+      const response = await api().request('GET', url('/adoption/queue?when=someday'));
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe('adopting', () => {
     it('creates one entity with origin adopted, and links it — and nothing more', async () => {
       const { status, body } = await api().request('POST', url('/adoption/adopt'), {

@@ -4,6 +4,7 @@ import {
   BindingListDto,
   checkBindingsBody,
   putBindingBody,
+  putDatePropertyBody,
   roleKey,
   TaskLocationsDto,
 } from '../dto/settings.js';
@@ -44,6 +45,22 @@ export const settingsRoutes: readonly ApiRoute[] = [
     response: BindingDto,
     handle: (context, services) =>
       services.settings.putBinding(context.params.role, context.body.externalId, context.now),
+  }),
+
+  defineRoute({
+    operationId: 'putBindingDateProperty',
+    method: 'put',
+    path: '/bindings/:role/date-property',
+    scope: 'admin:settings',
+    summary: 'Choose which date property says when a store’s entries run',
+    description:
+      "Optional, and for a store prisme reads. The adoption queue dates each candidate from this store with the property's period and hides one whose period has ended. The name must be one of the binding's `dateProperties` from its last check — chosen, never typed; `null` clears it.",
+    params: z.strictObject({ role: roleKey }),
+    body: putDatePropertyBody,
+    status: 200,
+    response: BindingDto,
+    handle: (context, services) =>
+      services.settings.setDateProperty(context.params.role, context.body.property),
   }),
 
   defineRoute({

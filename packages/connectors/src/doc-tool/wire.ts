@@ -133,15 +133,18 @@ export const wireBlockListSchema = z.object({
 /**
  * A data source, as far as a person needs to recognise one.
  *
- * Read for the Settings screen and nothing else: the title, and the database
- * that holds it — which is what a browser opens, because a data source has no
- * page of its own. `properties` and the rest of the object are not read.
+ * Read for the Settings screen and nothing else: the title, the database that
+ * holds it — which is what a browser opens, because a data source has no page
+ * of its own — and each property's **type**, so the screen can offer the
+ * store's date properties to choose from. A property's configuration (options,
+ * formulas, relations) is not read.
  */
 export const wireDataSourceSchema = z.object({
   object: z.literal('data_source'),
   id: z.string().min(1),
   title: wireRichTextArraySchema,
   parent: z.object({ type: z.string(), database_id: z.string().min(1).optional() }).loose(),
+  properties: z.record(z.string(), z.object({ type: z.string().min(1) }).loose()).optional(),
 });
 
 /**

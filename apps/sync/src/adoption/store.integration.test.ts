@@ -244,6 +244,17 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
     });
   });
 
+  describe('loadDateProperties', () => {
+    it('reads the chosen date property of each store that has one', async () => {
+      await client`
+        insert into role_binding (role, external_id, date_property) values
+          ('objectives_db', 'store-objectives', 'When'),
+          ('takeaways_db', 'store-takeaways', null)`;
+      const chosen = await store().loadDateProperties();
+      expect([...chosen]).toEqual([['objectives_db', 'When']]);
+    });
+  });
+
   describe('replaceCandidates', () => {
     const at = new Date('2026-09-19T09:00:00Z');
 
@@ -305,6 +316,51 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       const rows = await client<{ external_id: string }[]>`
         select external_id from adoption_candidate`;
       expect(rows.map((row) => row.external_id)).toEqual(['ext-first']);
+    });
+
+    it('writes a page’s store and period, and neither on a task', async () => {
+      await store().replaceCandidates(
+        [
+          candidateOf({
+            kind: 'page',
+            externalId: 'page-1',
+            areaKey: undefined,
+            role: 'objectives_db',
+            startsOn: '2024-01-01',
+            endsOn: '2024-12-31',
+          }),
+          candidateOf({ externalId: 'task-1' }),
+        ],
+        at,
+      );
+
+      const rows = await client<
+        {
+          external_id: string;
+          source_role: string | null;
+          starts_on: string | null;
+          ends_on: string | null;
+        }[]
+      >`select external_id, source_role, starts_on::text, ends_on::text
+        from adoption_candidate order by external_id`;
+      expect(rows).toEqual([
+        {
+          external_id: 'page-1',
+          source_role: 'objectives_db',
+          starts_on: '2024-01-01',
+          ends_on: '2024-12-31',
+        },
+        { external_id: 'task-1', source_role: null, starts_on: null, ends_on: null },
+      ]);
+    });
+
+    it('refuses a period that runs backwards, at the database', async () => {
+      await expect(
+        store().replaceCandidates(
+          [candidateOf({ kind: 'page', startsOn: '2024-12-31', endsOn: '2024-01-01' })],
+          at,
+        ),
+      ).rejects.toThrow(/a_period_runs_forward/);
     });
 
     it('accepts a candidate outside every mapped area', async () => {

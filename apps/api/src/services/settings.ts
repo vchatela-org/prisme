@@ -1,6 +1,7 @@
 import {
   canCreate,
   isConnectorError,
+  isReadable,
   ROLE_ACCESS,
   ROLE_KEYS,
   ROLE_SHAPE,
@@ -40,6 +41,15 @@ import type { ExternalDirectory } from '../sync/directory.js';
  * names a page, as ADR-0025's did, fails as `wrong_kind` when the tool lets
  * that be seen.
  *
+ * ## A read store's check lists its date properties
+ *
+ * So the adoption queue can be told which of them says when an entry's period
+ * runs (`date_property`), chosen from a list rather than typed. A re-check
+ * keeps the choice while the store still holds a date property of that name,
+ * and drops it once it does not: a name that no longer resolves would date
+ * nothing, silently. A failed check keeps it — the store was not read, so
+ * nothing is known to have changed.
+ *
  * ## Nothing upstream reaches the caller
  *
  * A connector error's message can carry the identifier it was about. What is
@@ -55,6 +65,8 @@ export interface SettingsService {
   listBindings(): Promise<BindingListShape>;
   putBinding(role: RoleKey, externalId: string | null, now: Date): Promise<BindingShape>;
   checkBindings(now: Date): Promise<BindingListShape>;
+  /** Choose, or clear, the date property the adoption queue reads for this store. */
+  setDateProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
   taskLocations(): Promise<TaskLocationsShape>;
 }
 
@@ -74,7 +86,24 @@ function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): Bin
         name: template.name,
         isDefault: template.isDefault,
       })) ?? null,
+    dateProperty: record?.dateProperty ?? null,
+    dateProperties: record?.dateProperties ? [...record.dateProperties] : null,
   };
+}
+
+/**
+ * The date property a binding keeps after a check found `found`.
+ *
+ * Kept while the store still has a date property of that name; dropped once it
+ * does not. `null` found means the check did not read the schema, which says
+ * nothing about the property, so the choice stands.
+ */
+export function carriedDateProperty(
+  previous: string | null,
+  found: readonly string[] | null,
+): string | null {
+  if (previous === null || found === null) return previous;
+  return found.includes(previous) ? previous : null;
 }
 
 /** A failure a screen can explain, and nothing a log line would need redacting. */
@@ -86,7 +115,12 @@ export function createSettingsService(
   store: ApiStore,
   directory: ExternalDirectory,
 ): SettingsService {
-  async function checked(role: RoleKey, externalId: string, now: Date): Promise<RoleBindingRecord> {
+  async function checked(
+    role: RoleKey,
+    externalId: string,
+    now: Date,
+    previous: RoleBindingRecord | undefined,
+  ): Promise<RoleBindingRecord> {
     let described;
     try {
       described = await directory.describe(externalId, ROLE_SHAPE[role]);
@@ -99,15 +133,21 @@ export function createSettingsService(
         checkedAt: now,
         checkError: failureKind(error),
         templates: null,
+        dateProperty: previous?.dateProperty ?? null,
+        dateProperties: null,
       };
     }
 
+    // Only a store prisme reads has entries to date.
+    const dateProperties = isReadable(role) ? (described.dateProperties ?? null) : null;
     const found = {
       role,
       externalId: described.externalId,
       title: described.title === '' ? null : described.title,
       linkId: described.linkId,
       checkedAt: now,
+      dateProperty: carriedDateProperty(previous?.dateProperty ?? null, dateProperties),
+      dateProperties,
     };
     if (!canCreate(role)) return { ...found, checkError: null, templates: null };
 
@@ -144,8 +184,14 @@ export function createSettingsService(
         return toBindingDto(role, undefined);
       }
 
-      const record = await checked(role, externalId, now);
-      const holder = (await store.bindings.list()).find(
+      const existing = await store.bindings.list();
+      const record = await checked(
+        role,
+        externalId,
+        now,
+        existing.find((other) => other.role === role),
+      );
+      const holder = existing.find(
         (other) => other.role !== role && other.externalId === record.externalId,
       );
       // Two roles may share a store (ADR-0025 says so for page stores), but a
@@ -171,12 +217,37 @@ export function createSettingsService(
       for (const record of await store.bindings.list()) {
         if (!(ROLE_KEYS as readonly string[]).includes(record.role)) continue;
         const role = record.role as RoleKey;
-        const result = await checked(role, record.externalId, now);
+        const result = await checked(role, record.externalId, now, record);
         // A re-check never rewrites the identifier: resolving a pasted database
         // is a decision made when a person saves, not one a button makes later.
         await store.bindings.put({ ...result, externalId: record.externalId });
       }
       return list();
+    },
+
+    async setDateProperty(role, property): Promise<BindingShape> {
+      const record = (await store.bindings.list()).find((binding) => binding.role === role);
+      if (record === undefined) {
+        throw new ApiError(
+          'conflict',
+          `${role} is not bound — bind the store before choosing its date`,
+        );
+      }
+      if (!isReadable(role)) {
+        throw new ApiError('unprocessable', `${role} is not a store prisme reads entries from`);
+      }
+      // Chosen from what the last check found, never typed: a name that is not
+      // one of the store's date properties would date nothing, and nothing would
+      // say so.
+      if (property !== null && !(record.dateProperties ?? []).includes(property)) {
+        throw new ApiError(
+          'unprocessable',
+          'that is not one of this store’s date properties — check the binding to refresh the list',
+        );
+      }
+
+      await store.bindings.setDateProperty(role, property);
+      return toBindingDto(role, { ...record, dateProperty: property });
     },
 
     async taskLocations(): Promise<TaskLocationsShape> {

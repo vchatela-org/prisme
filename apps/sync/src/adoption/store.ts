@@ -172,6 +172,12 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
       return { areaByLocation, laneByArea };
     },
 
+    async loadDateProperties() {
+      const rows = await client<{ role: string; date_property: string }[]>`
+        select role, date_property from role_binding where date_property is not null`;
+      return new Map(rows.map((row) => [row.role, row.date_property]));
+    },
+
     /**
      * Replace the mirror, in one transaction.
      *
@@ -199,6 +205,10 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
           proposed_id: candidate.proposal?.prismeId ?? null,
           similarity: candidate.proposal?.similarity ?? null,
           scanned_at: at,
+          // Only a page has a store; the table refuses a role on anything else.
+          source_role: candidate.object.kind === 'page' ? (candidate.object.role ?? null) : null,
+          starts_on: candidate.object.startsOn ?? null,
+          ends_on: candidate.object.endsOn ?? null,
         }));
 
         await tx`insert into adoption_candidate ${tx(rows)}`;

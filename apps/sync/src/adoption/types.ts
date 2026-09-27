@@ -115,6 +115,14 @@ export interface ExternalObject {
   /** The document tool's store this came from, when it came from there. */
   readonly role?: string | undefined;
   /**
+   * The period the store's chosen date property names, as calendar days
+   * (`YYYY-MM-DD`). A single date is a one-day period, so both are set or
+   * neither is. Absent when the store has no date property chosen, or the
+   * entry leaves it empty. Used to filter the queue, never to classify.
+   */
+  readonly startsOn?: string | undefined;
+  readonly endsOn?: string | undefined;
+  /**
    * The takeaway's own type, from the document tool. `action` is a backlog
    * candidate; `principle` never is, and that distinction is the whole reason
    * this field is carried rather than inferred from the text.

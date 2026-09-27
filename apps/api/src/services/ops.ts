@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { CANDIDATE_SELECTION_LIMITS, SCHEDULE_DEFAULTS, type Registry } from '@prisme/domain';
-import type { settingsDto, syncRunDto, syncStatusDto } from '../dto/ops.js';
+import type { adoptionQueuePageDto, settingsDto, syncRunDto, syncStatusDto } from '../dto/ops.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { Identity } from '../http/authorize.js';
 import type { ApiStore, PageRequest } from '../store/types.js';
@@ -17,6 +17,7 @@ import {
   type EventDtoShape,
   type ReviewDtoShape,
 } from './convert.js';
+import { calendarDayIn, periodOf, queueView, type QueueFilter } from './adoption-queue.js';
 import type { MeasureService } from './measure.js';
 
 /**
@@ -32,6 +33,8 @@ import type { MeasureService } from './measure.js';
 export type SettingsShape = z.infer<typeof settingsDto>;
 export type SyncStatusShape = z.infer<typeof syncStatusDto>;
 export type SyncRunShape = z.infer<typeof syncRunDto>;
+/** The queue page without the paging echo, which the route adds. */
+export type QueuePageShape = Omit<z.infer<typeof adoptionQueuePageDto>, 'limit' | 'offset'>;
 
 export interface OpsConfig {
   readonly timezone: string;
@@ -94,10 +97,7 @@ export interface OpsService {
     now: Date,
   ): Promise<AdoptionDtoShape>;
 
-  adoptionQueue(
-    filter: { areaKey?: string | undefined; kind?: string | undefined },
-    page: PageRequest,
-  ): Promise<{ items: CandidateDtoShape[]; total: number }>;
+  adoptionQueue(filter: QueueFilter, page: PageRequest, now: Date): Promise<QueuePageShape>;
   adoptCandidate(
     input: { externalKind: string; externalId: string },
     identity: Identity,
@@ -201,9 +201,25 @@ export function createOpsService(
       return toAdoptionDto(decided);
     },
 
-    async adoptionQueue(filter, page) {
-      const paged = await store.ops.adoptionQueue(filter, page);
-      return { items: paged.items.map(toCandidateDto), total: paged.total };
+    // The whole undecided set, then one pure function filters, counts and pages
+    // it — so a count beside a filter and the rows it shows cannot disagree.
+    async adoptionQueue(filter, page, now) {
+      const everything = await store.ops.adoptionQueue({});
+      const today = calendarDayIn(config.timezone, now);
+      const view = queueView(everything.items, filter, today, page);
+      return {
+        items: view.items.map((record) => ({
+          ...toCandidateDto(record),
+          period: periodOf(record, today),
+        })),
+        total: view.total,
+        today,
+        facets: {
+          when: view.facets.when,
+          source: [...view.facets.source],
+          area: [...view.facets.area],
+        },
+      };
     },
 
     /**
