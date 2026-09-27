@@ -3,7 +3,13 @@ import type { Completion, TaskToolClient } from '@prisme/connectors';
 import { locationKey } from '../../reconcile/types.js';
 import type { BackfillStore } from '../ports.js';
 import type { Cursor } from '../slices.js';
-import type { AdherencePeriod, CapacityWeek, RitualRecord, StoredCompletion } from '../types.js';
+import type {
+  AdherencePeriod,
+  AttributedCompletion,
+  CapacityWeek,
+  RitualRecord,
+  StoredCompletion,
+} from '../types.js';
 
 /**
  * An in-memory {@link BackfillStore}, and a task client that answers from a
@@ -11,7 +17,7 @@ import type { AdherencePeriod, CapacityWeek, RitualRecord, StoredCompletion } fr
  *
  * The store is a real implementation of the port rather than a stub with
  * assertions in it: `recordSlice` upserts on the same key the table's primary
- * key uses, and `replaceCapacityWeeks` deletes its range before inserting. That
+ * key uses, and `replaceMaterialised` deletes its range before inserting. That
  * is what makes the idempotence test in `run.test.ts` mean something — a fake
  * that merely counted calls would pass whether or not the pass double-counts.
  *
@@ -22,6 +28,8 @@ export interface FakeStoreState {
   cursor?: Cursor | undefined;
   readonly completions: Map<string, StoredCompletion>;
   readonly weeks: Map<string, CapacityWeek>;
+  /** `capacity_completion`, keyed like its primary key. */
+  readonly attributed: Map<string, AttributedCompletion>;
   readonly adherence: Map<string, AdherencePeriod>;
   /** How many times each write method was called, for the resume assertions. */
   readonly calls: { recordSlice: number };
@@ -48,7 +56,10 @@ const DEFAULT_KINDS = new Map<AreaKey, AreaKind>([
   ['noise', 'signals'],
 ]);
 
-function completionKey(completion: StoredCompletion): string {
+function completionKey(completion: {
+  readonly externalTaskId: string;
+  readonly completedAt: Date;
+}): string {
   return `${completion.externalTaskId}@${completion.completedAt.toISOString()}`;
 }
 
@@ -60,6 +71,7 @@ export function createFakeStore(options: FakeStoreOptions = {}): {
     cursor: options.cursor,
     completions: new Map(),
     weeks: new Map(),
+    attributed: new Map(),
     adherence: new Map(),
     calls: { recordSlice: 0 },
   };
@@ -115,10 +127,26 @@ export function createFakeStore(options: FakeStoreOptions = {}): {
      * found it. A fake that silently overwrites cannot catch a key collision,
      * so this one does not.
      */
-    replaceCapacityWeeks(rows, fromWeek, toWeek) {
+    replaceMaterialised({ weeks: rows, completions, fromWeek, toWeek }) {
       for (const [key, row] of state.weeks) {
         if (row.weekStart >= fromWeek && row.weekStart < toWeek) state.weeks.delete(key);
       }
+
+      const from = new Date(`${fromWeek}T00:00:00.000Z`);
+      const to = new Date(`${toWeek}T00:00:00.000Z`);
+      for (const [key, row] of state.attributed) {
+        if (row.completedAt >= from && row.completedAt < to) state.attributed.delete(key);
+      }
+      for (const completion of completions) {
+        const key = completionKey(completion);
+        if (state.attributed.has(key)) {
+          return Promise.reject(
+            new Error(`capacity_completion_pkey: (external_task_id, completed_at)=(${key})`),
+          );
+        }
+        state.attributed.set(key, completion);
+      }
+
       for (const row of rows) {
         const key = `${row.weekStart}/${row.areaKey}`;
         if (state.weeks.has(key)) {

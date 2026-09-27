@@ -20,6 +20,11 @@ export interface StoredCompletion {
   readonly completedAt: Date;
   readonly externalProjectId?: string | undefined;
   readonly externalSectionId?: string | undefined;
+  /**
+   * The title the task had, sanitised by the connector (ADR-0032). **Instance
+   * data**; carried only so the area screen can say which tasks it counted.
+   */
+  readonly content?: string | undefined;
   /** Minutes, and only when the tool recorded minutes. */
   readonly recordedMinutes?: number | undefined;
   /** The unit the tool used. `day` means a block-out, which is not an effort. */

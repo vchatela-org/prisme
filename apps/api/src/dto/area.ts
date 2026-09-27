@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
-import { areaKey, areaKind, calendarDate, page, percentage, year as yearSchema } from './common.js';
+import {
+  areaKey,
+  areaKind,
+  calendarDate,
+  instant,
+  page,
+  percentage,
+  year as yearSchema,
+} from './common.js';
 import { AREA_READ_ONLY, AREA_WEIGHT_READ_ONLY } from './ownership.js';
 
 /**
@@ -199,3 +207,54 @@ export const balanceDto = z.object({
 });
 
 export const BalanceDto = named('Balance', balanceDto);
+
+/**
+ * One completion an area's observed share was made of.
+ *
+ * `content` is the task's title as it read when it was fetched (ADR-0032) —
+ * instance data, rendered to the owner and never logged. It is null for a
+ * completion fetched before titles were kept, and always null when the window
+ * was measured from the anchor subtree, which mirrors no title by design.
+ */
+export const areaCompletionDto = z.object({
+  externalTaskId: z.string(),
+  completedAt: instant,
+  content: z.string().nullable(),
+  /** Attributed minutes. Zero for Signals, which is volume and no time (ADR-0014). */
+  minutes: z.int().min(0),
+  /** The duration tier the minutes came from; null where the area counts no time. */
+  minutesSource: z.enum(['recorded', 'declared', 'default']).nullable(),
+  /** The completion is an instance of a ritual — a habit's, not a one-off's. */
+  ritual: z.boolean(),
+});
+
+/**
+ * The completions behind one area's row of `/balance`, over the same window.
+ *
+ * The window fields are `/balance`'s, decided by the same code, so a list read
+ * beside the balance is a list of what that balance counted. `totals` is the
+ * list's own sum: equal to the balance row's `completions` and `minutes` when
+ * the itemised record is complete, and short of them — visibly — while it is
+ * still being built.
+ */
+export const areaCompletionsDto = z.object({
+  areaKey,
+  from: calendarDate,
+  to: calendarDate,
+  windowWeeks: z.int(),
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  observedThrough: calendarDate.nullable(),
+  totals: z.object({
+    completions: z.int(),
+    minutes: z.int(),
+    minutesBySource: z.object({
+      recorded: z.int(),
+      declared: z.int(),
+      default: z.int(),
+    }),
+  }),
+  /** Newest first. */
+  completions: z.array(areaCompletionDto),
+});
+
+export const AreaCompletionsDto = named('AreaCompletions', areaCompletionsDto);

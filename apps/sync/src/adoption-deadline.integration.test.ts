@@ -25,6 +25,7 @@ const TABLES = [
   'confirmation_token',
   'creation_intent',
   'capture',
+  'capacity_completion',
   'capacity_week',
   'completion_history',
   'backfill_cursor',

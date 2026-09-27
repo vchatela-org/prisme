@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  AreaCompletionsDto,
   AreaDto,
   AreaListDto,
   AreaWeightsDto,
@@ -20,6 +21,12 @@ import { defineRoute, keyParam, noQuery, yearOr, yearQuery, type ApiRoute } from
  * for weights is a different question from asking about one area, and a weight
  * endpoint hanging off an area would invite a caller to ask for "the" weight.
  */
+/** The window a balance reading covers. Shared, so the list of what it counted is asked the same way. */
+const measurementQuery = z.strictObject({
+  year: yearQuery.shape.year,
+  weeks: z.coerce.number().int().min(1).max(52).optional(),
+});
+
 export const areaRoutes: readonly ApiRoute[] = [
   defineRoute({
     operationId: 'listAreas',
@@ -140,13 +147,30 @@ export const areaRoutes: readonly ApiRoute[] = [
     summary: 'Declared versus observed capacity, per area',
     description:
       'What each area was allocated, what it actually received, and the balance factor between them. Run carries hours against its budget; Signals carries volume and no time at all. This measures attention routed through tasks, not hours lived.',
-    query: z.strictObject({
-      year: yearQuery.shape.year,
-      weeks: z.coerce.number().int().min(1).max(52).optional(),
-    }),
+    query: measurementQuery,
     response: BalanceDto,
     handle: (context, services) =>
       services.measure.balance(
+        yearOr(context.now, context.query.year),
+        context.query.weeks,
+        context.now,
+      ),
+  }),
+
+  defineRoute({
+    operationId: 'listAreaCompletions',
+    method: 'get',
+    path: '/areas/:key/completions',
+    scope: 'read:areas',
+    summary: 'The completions behind one area’s observed share',
+    description:
+      'Every completion `/balance` counted for this area, over the same window and from the same record, newest first — with the minutes each contributed and which tier of the duration preference order they came from. `totals` is the list’s own sum; it falls short of the balance row while the itemised record is still being built. `content` is the task’s title as it was fetched (ADR-0032).',
+    params: keyParam,
+    query: measurementQuery,
+    response: AreaCompletionsDto,
+    handle: (context, services) =>
+      services.measure.areaCompletions(
+        context.params.key,
         yearOr(context.now, context.query.year),
         context.query.weeks,
         context.now,

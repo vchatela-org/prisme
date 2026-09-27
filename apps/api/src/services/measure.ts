@@ -4,6 +4,7 @@ import {
   computeCapacity,
   computeCapacityFrom,
   computeProgress,
+  countCompletions,
   parseCalendarDate,
   resolveWeights,
   type AreaObservation,
@@ -12,9 +13,15 @@ import {
   type CalendarDate,
   type Year,
 } from '@prisme/domain';
-import type { balanceDto } from '../dto/area.js';
+import type { areaCompletionsDto, balanceDto } from '../dto/area.js';
+import { notFound } from '../http/errors.js';
 import type { kpiDto } from '../dto/views.js';
-import type { ApiStore, BackfillCoverageRecord, CapacityWeekRecord } from '../store/types.js';
+import type {
+  ApiStore,
+  BackfillCoverageRecord,
+  CapacityWeekRecord,
+  CompletionRecord,
+} from '../store/types.js';
 import { toDomainArea } from './convert.js';
 
 /**
@@ -40,6 +47,7 @@ import { toDomainArea } from './convert.js';
  */
 
 export type BalanceShape = z.infer<typeof balanceDto>;
+export type AreaCompletionsShape = z.infer<typeof areaCompletionsDto>;
 export type KpiShape = z.infer<typeof kpiDto>;
 
 export interface MeasureConfig {
@@ -49,6 +57,16 @@ export interface MeasureConfig {
 
 export interface MeasureService {
   balance(year: number, weeks: number | undefined, now: Date): Promise<BalanceShape>;
+  /**
+   * The completions behind one area's row of {@link balance}, over the window
+   * it measured — the same arguments, answered by the same window code.
+   */
+  areaCompletions(
+    areaKey: string,
+    year: number,
+    weeks: number | undefined,
+    now: Date,
+  ): Promise<AreaCompletionsShape>;
   /** The range is explicit, so this one needs no clock of its own. */
   kpi(from: string, to: string, bucket: 'week' | 'month'): Promise<KpiShape>;
 }
@@ -124,6 +142,12 @@ interface ObservedCapacity {
   readonly source: ObservedSource;
   /** The first instant the numbers actually cover. */
   readonly from: Date;
+  /**
+   * The end of the weeks read, exclusive — for `capacity_week`, the Monday
+   * after the week `asOf` falls in. Unused by the anchor-subtree fallback,
+   * whose window ends at `asOf` inclusive.
+   */
+  readonly until: Date;
   readonly observations: readonly AreaObservation[];
   readonly coveredThrough: Date | undefined;
 }
@@ -153,6 +177,7 @@ async function observedCapacity(options: {
     return {
       source: 'task_mirror',
       from: windowStart,
+      until: asOf,
       observations: [],
       coveredThrough: coverage?.coveredThrough,
     };
@@ -161,6 +186,7 @@ async function observedCapacity(options: {
   return {
     source: 'capacity_week',
     from: firstWeekStart,
+    until: afterLastWeek,
     observations: observationsFromWeeks(rows),
     coveredThrough: coverage?.coveredThrough,
   };
@@ -192,12 +218,46 @@ function observationsFromWeeks(rows: readonly CapacityWeekRecord[]): readonly Ar
   }));
 }
 
+/**
+ * The window a balance reading covers: how long, ending when, and from where.
+ *
+ * One function, called by both the balance and the list of what it counted, so
+ * the two can never measure different weeks.
+ */
+function measurementWindow(
+  year: number,
+  weeks: number | undefined,
+  now: Date,
+  defaultWeeks: number,
+): { readonly windowWeeks: number; readonly asOf: Date; readonly windowStart: Date } {
+  const windowWeeks = weeks ?? defaultWeeks;
+  const asOf =
+    year === now.getUTCFullYear() ? now : new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+  return {
+    windowWeeks,
+    asOf,
+    windowStart: new Date(asOf.getTime() - windowWeeks * 7 * MS_PER_DAY),
+  };
+}
+
+function toDomainCompletion(completion: CompletionRecord) {
+  return {
+    id: completion.id,
+    areaKey: completion.areaKey,
+    completedAt: completion.completedAt,
+    recordedMinutes: completion.recordedMinutes,
+  };
+}
+
 export function createMeasureService(store: ApiStore, config: MeasureConfig): MeasureService {
   return {
     async balance(year: number, weeks: number | undefined, now: Date): Promise<BalanceShape> {
-      const windowWeeks = weeks ?? config.capacityWindowWeeks;
-      const asOf =
-        year === now.getUTCFullYear() ? now : new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+      const { windowWeeks, asOf, windowStart } = measurementWindow(
+        year,
+        weeks,
+        now,
+        config.capacityWindowWeeks,
+      );
 
       const [areaRecords, weightRecords, coverage] = await Promise.all([
         store.areas.list(),
@@ -212,7 +272,6 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
         weightPct: record.weightPct,
       }));
 
-      const windowStart = new Date(asOf.getTime() - windowWeeks * 7 * MS_PER_DAY);
       const windowSpec = {
         ...CAPACITY_WINDOW_DEFAULTS,
         weeks: windowWeeks,
@@ -232,12 +291,7 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
         observed.source === 'capacity_week'
           ? computeCapacityFrom(observed.observations, areas, windowSpec, asOf)
           : computeCapacity(
-              (await store.initiatives.completions(windowStart)).map((completion) => ({
-                id: completion.id,
-                areaKey: completion.areaKey,
-                completedAt: completion.completedAt,
-                recordedMinutes: completion.recordedMinutes,
-              })),
+              (await store.initiatives.completions(windowStart)).map(toDomainCompletion),
               areas,
               windowSpec,
               asOf,
@@ -271,6 +325,85 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
           runHoursPerWeek: entry.runHoursPerWeek ?? null,
           runBudgetHoursPerWeek: entry.runBudgetHoursPerWeek ?? null,
         })),
+      };
+    },
+
+    async areaCompletions(areaKey, year, weeks, now): Promise<AreaCompletionsShape> {
+      const { windowWeeks, asOf, windowStart } = measurementWindow(
+        year,
+        weeks,
+        now,
+        config.capacityWindowWeeks,
+      );
+
+      const [areaRecords, coverage] = await Promise.all([
+        store.areas.list(),
+        store.capacity.coverage(),
+      ]);
+      if (!areaRecords.some((record) => record.key === areaKey)) throw notFound('area', areaKey);
+
+      // The same choice of record the balance makes, made by the same code —
+      // so this lists the window the balance measured, from the record it read.
+      const observed = await observedCapacity({
+        store,
+        windowWeeks,
+        windowStart,
+        asOf,
+        coverage,
+      });
+
+      const completions: AreaCompletionsShape['completions'] =
+        observed.source === 'capacity_week'
+          ? (await store.capacity.completions(areaKey, observed.from, observed.until)).map(
+              (row) => ({
+                externalTaskId: row.externalTaskId,
+                completedAt: row.completedAt.toISOString(),
+                content: row.content,
+                minutes: row.minutes,
+                // The backfill labels a Signals completion `recorded` with no
+                // minutes, because its column needs a value; there is no tier
+                // to name for time that was never counted.
+                minutesSource: row.lane === 'signals' ? null : row.minutesSource,
+                ritual: row.lane === 'ritual',
+              }),
+            )
+          : countCompletions(
+              (await store.initiatives.completions(windowStart)).map(toDomainCompletion),
+              areaRecords.map(toDomainArea),
+              { weeks: windowWeeks, defaultMinutes: config.defaultTaskMinutes },
+              asOf,
+            )
+              .filter((row) => row.areaKey === areaKey)
+              .reverse()
+              .map((row) => ({
+                externalTaskId: row.id,
+                completedAt: row.completedAt.toISOString(),
+                // The anchor subtree mirrors no title (docs/11-ownership.md §5).
+                content: null,
+                minutes: row.minutes,
+                minutesSource: row.source ?? null,
+                ritual: false,
+              }));
+
+      const minutesBySource = { recorded: 0, declared: 0, default: 0 };
+      for (const row of completions) {
+        if (row.minutesSource !== null) minutesBySource[row.minutesSource] += row.minutes;
+      }
+
+      return {
+        areaKey,
+        from: dayText(observed.from),
+        to: dayText(asOf),
+        windowWeeks,
+        observedSource: observed.source,
+        observedThrough:
+          observed.coveredThrough === undefined ? null : dayText(observed.coveredThrough),
+        totals: {
+          completions: completions.length,
+          minutes: completions.reduce((total, row) => total + row.minutes, 0),
+          minutesBySource,
+        },
+        completions,
       };
     },
 

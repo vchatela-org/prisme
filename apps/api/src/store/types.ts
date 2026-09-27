@@ -96,6 +96,25 @@ export interface CapacityWeekRecord {
   readonly minutesDefault: number;
 }
 
+/**
+ * One attributed completion from `capacity_completion`, with the title
+ * `completion_history` holds for it.
+ *
+ * The rows `capacity_week` sums, written by the same run in the same
+ * transaction — so they are read, never re-derived, for the same reason the
+ * weeks are.
+ */
+export interface CapacityCompletionRecord {
+  readonly externalTaskId: string;
+  readonly completedAt: Date;
+  readonly areaKey: string;
+  readonly lane: 'change' | 'run' | 'signals' | 'ritual';
+  readonly minutes: number;
+  readonly minutesSource: 'recorded' | 'declared' | 'default';
+  /** Instance data. `null` for a completion fetched before titles were kept (ADR-0032). */
+  readonly content: string | null;
+}
+
 /** Where a backfill run's coverage begins and ends. Both exclusive-free ends. */
 export interface BackfillCoverageRecord {
   readonly coveredFrom: Date;
@@ -561,6 +580,12 @@ export interface ApiStore {
   readonly capacity: {
     /** Rows whose week starts in `[from, to)`. Half-open, like every other range here. */
     weeks(from: CalendarDateText, to: CalendarDateText): Promise<readonly CapacityWeekRecord[]>;
+    /** One area's attributed completions in `[from, to)`, newest first. */
+    completions(
+      areaKey: string,
+      from: Date,
+      to: Date,
+    ): Promise<readonly CapacityCompletionRecord[]>;
     /** `undefined` when no backfill has ever run — a fresh instance. */
     coverage(): Promise<BackfillCoverageRecord | undefined>;
   };

@@ -575,12 +575,16 @@ async function main(): Promise<number> {
        * --from <date>`, a command a person runs, so the declared-against-
        * observed chart read correctly on the day of the backfill and drifted
        * from then on while still naming `capacity_week` as its source. This
-       * keeps the trailing window current from what the pass already has.
+       * keeps the trailing window current — and since ADR-0032 it reads that
+       * window's completions from the task tool first, because re-materialising
+       * a history nothing had added to since the backfill was current in name
+       * only.
        *
        * **Full passes only**, because the window the view reads is four weeks
        * and a pass runs every fifteen minutes: daily is current with days to
        * spare, and it keeps the declared-duration read this can make to about
-       * once a day. **It writes prisme's own table and reaches no API** — with
+       * once a day. **It writes prisme's own tables and writes to no API** — it
+       * reads the completion history and nothing more — so with
        * the write freeze on, which is the state of every instance until the
        * first outward write is authorised, this still runs. The chart has to
        * work during the read-only phase; that is the phase it is for.
@@ -595,6 +599,16 @@ async function main(): Promise<number> {
         try {
           const refreshed = await refreshCapacity({
             store: createBackfillStore(database.client),
+            // The read path, and only it: the refresh records the trailing
+            // window's completions into prisme's own history before it
+            // re-materialises, so the balance stops depending on somebody
+            // re-running the backfill. No writer is reachable from here.
+            taskClient: createTaskToolClient({
+              token: config.tasktoolApiToken as string,
+              baseUrl: config.tasktoolBaseUrl,
+              transport,
+              metrics: connectorMetrics,
+            }),
             docClient: createDocToolClient({
               token: config.doctoolApiToken as string,
               baseUrl: config.doctoolBaseUrl,
@@ -610,6 +624,10 @@ async function main(): Promise<number> {
             now: new Date(),
           });
           logger.info('capacity refreshed', {
+            ...(refreshed.fetched === undefined ? {} : { fetched: refreshed.fetched }),
+            ...(refreshed.taskToolUnread === undefined
+              ? {}
+              : { taskToolUnread: refreshed.taskToolUnread }),
             weeks: refreshed.weeks,
             attributed: refreshed.attributed,
             documentToolRead: refreshed.documentToolRead,

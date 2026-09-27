@@ -1,4 +1,4 @@
-import type { DocToolClient, TaskToolClient } from '@prisme/connectors';
+import type { Completion, DocToolClient, TaskToolClient } from '@prisme/connectors';
 import { attribute, type AttributionResult } from './attribute.js';
 import { reconstructAdherence } from './adherence.js';
 import { declaredMinutesFromProcesses } from './processes.js';
@@ -93,6 +93,35 @@ function weekBounds(covered: { readonly from: Date; readonly to: Date }): [strin
   return [dayText(first), dayText(new Date(last.getTime() + 7 * MS_PER_DAY))];
 }
 
+/**
+ * A completion as the connector read it, reduced to what `completion_history`
+ * keeps.
+ *
+ * Field by field rather than spread, so a field the connector adds later does
+ * not start landing in history without anyone deciding it should — the title
+ * arrived here by ADR-0032, and the description never will.
+ */
+export function toStoredCompletion(completion: Completion): StoredCompletion {
+  return {
+    externalTaskId: completion.externalTaskId,
+    completedAt: completion.completedAt,
+    ...(completion.projectId === undefined ? {} : { externalProjectId: completion.projectId }),
+    ...(completion.sectionId === undefined ? {} : { externalSectionId: completion.sectionId }),
+    ...(completion.content === undefined ? {} : { content: completion.content }),
+    ...(completion.recordedMinutes === undefined
+      ? {}
+      : { recordedMinutes: completion.recordedMinutes }),
+    ...(completion.recordedDuration === undefined
+      ? {}
+      : { durationScale: completion.recordedDuration.unit }),
+  };
+}
+
+/** Midnight UTC on a `YYYY-MM-DD` week start — the instant `weekBounds`' text names. */
+function mondayInstant(day: string): Date {
+  return new Date(`${day}T00:00:00.000Z`);
+}
+
 export async function backfill(options: BackfillOptions): Promise<BackfillResult> {
   const to = options.now();
   const sliceDays = options.sliceDays ?? SLICE_DAYS;
@@ -104,18 +133,7 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
   for (const [index, slice] of plan.slices.entries()) {
     const completions = await options.taskClient.fetchCompletions(slice.since, slice.until);
 
-    const rows: StoredCompletion[] = completions.map((completion) => ({
-      externalTaskId: completion.externalTaskId,
-      completedAt: completion.completedAt,
-      ...(completion.projectId === undefined ? {} : { externalProjectId: completion.projectId }),
-      ...(completion.sectionId === undefined ? {} : { externalSectionId: completion.sectionId }),
-      ...(completion.recordedMinutes === undefined
-        ? {}
-        : { recordedMinutes: completion.recordedMinutes }),
-      ...(completion.recordedDuration === undefined
-        ? {}
-        : { durationScale: completion.recordedDuration.unit }),
-    }));
+    const rows = completions.map(toStoredCompletion);
 
     // The cursor claims only what has been fetched *so far*, never the whole
     // plan: a run that dies on window nine must leave a cursor describing eight.
@@ -195,12 +213,20 @@ export interface MaterialiseResult {
  * that began the Monday before it. That asymmetry is where W13's off-by-one
  * lived; it is stated here because a caller passing a four-week window is
  * touching it.
+ *
+ * **So what is attributed is whole weeks too.** Every week in the range is
+ * deleted and rewritten, so every stored completion in those weeks has to be
+ * read — reading only from the instant given rewrote the first week from the
+ * part of it after that instant. The trailing refresh starts mid-week on six
+ * days out of seven, so the week it began in lost its earlier days every
+ * night. Adherence keeps the instant range: it filters to it itself.
  */
 export async function materialise(options: MaterialiseOptions): Promise<MaterialiseResult> {
   const covered = { from: options.from, to: options.to };
+  const [fromWeek, toWeek] = weekBounds(covered);
 
   const [stored, areaMap, rituals] = await Promise.all([
-    options.store.loadCompletions(covered.from, covered.to),
+    options.store.loadCompletions(mondayInstant(fromWeek), mondayInstant(toWeek)),
     options.store.loadAreaMap(),
     options.store.loadRituals(),
   ]);
@@ -228,7 +254,12 @@ export async function materialise(options: MaterialiseOptions): Promise<Material
   const weeks = weeklyCapacity(attribution.attributed);
   const adherence = reconstructAdherence(rituals, attribution.attributed, covered);
 
-  await options.store.replaceCapacityWeeks(weeks, ...weekBounds(covered));
+  await options.store.replaceMaterialised({
+    weeks,
+    completions: attribution.attributed,
+    fromWeek,
+    toWeek,
+  });
   await options.store.recordAdherence(adherence);
 
   return {

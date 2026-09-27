@@ -703,6 +703,156 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  /**
+   * The list behind one area's row of `/balance`.
+   *
+   * Asserted **against `/balance` itself** rather than against numbers written
+   * here, wherever that is possible: the point of the endpoint is that a
+   * reader can take a percentage apart, and two sets of expected numbers can
+   * both be edited to match a regression. All synthetic — invented titles.
+   */
+  describe('the completions behind a balance row', () => {
+    beforeEach(async () => {
+      await database.client`delete from task_mirror`;
+    });
+
+    /** Four attributed completions for `health` in the window, and one outside it. */
+    async function itemisedHealth(): Promise<void> {
+      await database.client`
+        insert into completion_history (external_task_id, completed_at, external_project_id, content)
+        values
+          ('t-run', '2026-09-15T07:00:00Z', 'p-1', 'Interval run'),
+          ('t-stretch', '2026-09-16T07:00:00Z', 'p-1', 'Stretching'),
+          ('t-early', '2026-08-25T07:00:00Z', 'p-1', null),
+          ('t-before', '2026-08-10T07:00:00Z', 'p-1', 'Before the window')`;
+      await database.client`
+        insert into capacity_completion
+          (external_task_id, completed_at, area_key, lane, minutes, minutes_source)
+        values
+          ('t-run', '2026-09-15T07:00:00Z', 'health', 'change', 120, 'recorded'),
+          ('t-stretch', '2026-09-16T07:00:00Z', 'health', 'ritual', 40, 'declared'),
+          ('t-early', '2026-08-25T07:00:00Z', 'health', 'change', 80, 'recorded'),
+          ('t-before', '2026-08-10T07:00:00Z', 'health', 'change', 999, 'recorded'),
+          ('t-other', '2026-09-15T08:00:00Z', 'home', 'change', 30, 'default')`;
+      await database.client`
+        insert into capacity_week
+          (week_start, area_key, completions, minutes,
+           minutes_recorded, minutes_declared, minutes_default)
+        values
+          ('2026-08-24', 'health', 1, 80, 80, 0, 0),
+          ('2026-09-14', 'health', 2, 160, 120, 40, 0),
+          ('2026-09-14', 'home', 1, 30, 0, 0, 30),
+          ('2026-08-10', 'health', 1, 999, 999, 0, 0)`;
+      await database.client`
+        insert into backfill_cursor (id, covered_from, covered_through)
+        values ('singleton', '2026-01-05T00:00:00Z', '2026-09-17T00:00:00Z')`;
+    }
+
+    it('lists what the balance counted, over its window, and adds up to its row', async () => {
+      const app = api();
+      await itemisedHealth();
+
+      const balance = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+        to: string;
+        areas: { areaKey: string; completions: number; minutes: number }[];
+      };
+      const { status, body } = await app.request('GET', url('/areas/health/completions?year=2026'));
+      const list = body as {
+        from: string;
+        to: string;
+        observedSource: string;
+        totals: { completions: number; minutes: number; minutesBySource: Record<string, number> };
+        completions: {
+          externalTaskId: string;
+          content: string | null;
+          minutes: number;
+          minutesSource: string | null;
+          ritual: boolean;
+        }[];
+      };
+
+      expect(status).toBe(200);
+      expect(list.observedSource).toBe('capacity_week');
+      // The same window, from the same code.
+      expect([list.from, list.to]).toEqual([balance.from, balance.to]);
+
+      const row = balance.areas.find((area) => area.areaKey === 'health');
+      expect(list.totals.completions).toBe(row?.completions);
+      expect(list.totals.minutes).toBe(row?.minutes);
+      expect(list.totals.minutesBySource).toEqual({ recorded: 200, declared: 40, default: 0 });
+
+      // Newest first; this area only; nothing before the window.
+      expect(list.completions.map((entry) => entry.externalTaskId)).toEqual([
+        't-stretch',
+        't-run',
+        't-early',
+      ]);
+      expect(list.completions[0]).toMatchObject({
+        content: 'Stretching',
+        minutes: 40,
+        minutesSource: 'declared',
+        ritual: true,
+      });
+      // Fetched before titles were kept: listed, and says it has no title.
+      expect(list.completions[2]?.content).toBeNull();
+    });
+
+    it('lists from the anchor subtree, without titles, before any backfill has run', async () => {
+      const app = api();
+      await seedCompletions(database.client, [
+        {
+          initiativeId: fixtureId('init-001'),
+          areaKey: 'health',
+          completedAt: new Date('2026-09-10T09:00:00.000Z'),
+          minutes: 60,
+        },
+        {
+          initiativeId: fixtureId('init-002'),
+          areaKey: 'health',
+          completedAt: new Date('2026-09-12T09:00:00.000Z'),
+        },
+        {
+          // Outside the window, which the fallback filters by the day.
+          initiativeId: fixtureId('init-003'),
+          areaKey: 'health',
+          completedAt: new Date('2026-07-01T09:00:00.000Z'),
+          minutes: 999,
+        },
+      ]);
+
+      const balance = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+        areas: { areaKey: string; completions: number; minutes: number }[];
+      };
+      const list = (await app.request('GET', url('/areas/health/completions?year=2026'))).body as {
+        from: string;
+        observedSource: string;
+        totals: { completions: number; minutes: number };
+        completions: { content: string | null; minutesSource: string | null }[];
+      };
+
+      expect(list.observedSource).toBe('task_mirror');
+      expect(list.from).toBe(balance.from);
+      const row = balance.areas.find((area) => area.areaKey === 'health');
+      expect(list.totals.completions).toBe(row?.completions);
+      expect(list.totals.minutes).toBe(row?.minutes);
+      expect(list.completions.map((entry) => entry.minutesSource)).toEqual(['default', 'recorded']);
+      expect(list.completions.every((entry) => entry.content === null)).toBe(true);
+    });
+
+    it('answers an unknown area with 404', async () => {
+      const response = await api().request('GET', url('/areas/nowhere/completions'));
+      expect(response.status).toBe(404);
+    });
+
+    it('needs the areas read scope, like the balance it explains', async () => {
+      const focusOnly = api(identityWith(['read:focus']));
+      const response = await focusOnly.request('GET', url('/areas/health/completions'));
+      expect(response.status).toBe(403);
+    });
+  });
+
   describe('kpi', () => {
     it('has no integration coverage of its own before this, and reads the same source the balance does', async () => {
       const app = api();

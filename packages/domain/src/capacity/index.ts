@@ -119,36 +119,52 @@ function sumOfSources(bySource: Readonly<Record<DurationSource, number>>): numbe
 }
 
 /**
- * Per-area capacity actuals and balance factors over a rolling window.
+ * One completion as a capacity window counts it.
  *
- * The window is half-open, `(now − weeks, now]`, so two consecutive windows
- * never count the same completion twice.
+ * The rows `computeCapacity` totals, before it totals them — so a screen that
+ * lists what an area's observed share was made of lists exactly what was
+ * counted, rather than re-deciding the window or the duration rule beside it.
  */
-export function computeCapacity(
-  completions: readonly Completion[],
-  areas: readonly Area[],
-  window: CapacityWindow,
-  now: Date,
-): readonly AreaCapacity[] {
+export interface CountedCompletion {
+  readonly id: string;
+  readonly areaKey: AreaKey;
+  readonly completedAt: Date;
+  /** Attributed minutes. Zero where the area counts volume and no time. */
+  readonly minutes: number;
+  /** The duration tier the minutes came from; `undefined` for a volume-only area. */
+  readonly source: DurationSource | undefined;
+}
+
+function assertWindow(window: Pick<CapacityWindow, 'weeks'>): void {
   if (window.weeks <= 0) {
     throw new InvariantError(
       'invalid_share',
       `the capacity window must be at least one week, not ${String(window.weeks)}`,
     );
   }
+}
+
+/**
+ * Every completion inside the window `(now − weeks, now]`, with the minutes it
+ * contributes and where they came from.
+ *
+ * The window, the Signals rule and the duration preference order are decided
+ * here and nowhere else in this module: {@link computeCapacity} totals what
+ * this returns.
+ */
+export function countCompletions(
+  completions: readonly Completion[],
+  areas: readonly Area[],
+  window: Pick<CapacityWindow, 'weeks' | 'defaultMinutes'>,
+  now: Date,
+): readonly CountedCompletion[] {
+  assertWindow(window);
 
   const areaByKey = new Map<AreaKey, Area>();
   for (const area of areas) areaByKey.set(area.key, area);
 
   const windowStart = subtractDays(now, window.weeks * 7);
-
-  const observations = new Map<
-    AreaKey,
-    { completions: number; minutes: Record<DurationSource, number> }
-  >();
-  for (const area of areas) {
-    observations.set(area.key, { completions: 0, minutes: { ...NO_MINUTES } });
-  }
+  const counted: CountedCompletion[] = [];
 
   for (const completion of completions) {
     const area = areaByKey.get(completion.areaKey);
@@ -160,16 +176,51 @@ export function computeCapacity(
     }
     if (completion.completedAt <= windowStart || completion.completedAt > now) continue;
 
-    const observed = observations.get(area.key);
-    if (observed === undefined) continue;
-    observed.completions += 1;
-
     // Signals are counted as volume and contribute no time: responding to an
     // alert is not a choice about how to spend a week.
-    if (!countsTowardCapacity(area)) continue;
+    const { minutes, source } = countsTowardCapacity(area)
+      ? attribute(completion, window.defaultMinutes)
+      : { minutes: 0, source: undefined };
 
-    const { minutes: attributed, source } = attribute(completion, window.defaultMinutes);
-    observed.minutes[source] += attributed;
+    counted.push({
+      id: completion.id,
+      areaKey: area.key,
+      completedAt: completion.completedAt,
+      minutes,
+      source,
+    });
+  }
+
+  return counted;
+}
+
+/**
+ * Per-area capacity actuals and balance factors over a rolling window.
+ *
+ * The window is half-open, `(now − weeks, now]`, so two consecutive windows
+ * never count the same completion twice.
+ */
+export function computeCapacity(
+  completions: readonly Completion[],
+  areas: readonly Area[],
+  window: CapacityWindow,
+  now: Date,
+): readonly AreaCapacity[] {
+  assertWindow(window);
+
+  const observations = new Map<
+    AreaKey,
+    { completions: number; minutes: Record<DurationSource, number> }
+  >();
+  for (const area of areas) {
+    observations.set(area.key, { completions: 0, minutes: { ...NO_MINUTES } });
+  }
+
+  for (const completion of countCompletions(completions, areas, window, now)) {
+    const observed = observations.get(completion.areaKey);
+    if (observed === undefined) continue;
+    observed.completions += 1;
+    if (completion.source !== undefined) observed.minutes[completion.source] += completion.minutes;
   }
 
   return computeCapacityFrom(

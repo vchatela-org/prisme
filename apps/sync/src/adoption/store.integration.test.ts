@@ -48,6 +48,7 @@ const TABLES = [
   // W13's three (migration 0006). `capacity_week` references `area`, so leaving
   // it out makes this `truncate` refuse the whole statement rather than merely
   // leaving rows behind.
+  'capacity_completion',
   'capacity_week',
   'completion_history',
   'backfill_cursor',

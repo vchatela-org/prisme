@@ -43,6 +43,7 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | `area_mapping` → external project/section | **P** | — | Config, many-to-one. Nothing moves in the task tool when it changes |
 | `area_mapping.is_home` | **P** | — | Where prisme creates new work for the area (anchors, captures). At most one per area |
 | `actual_share`, `balance_factor` | **∂** | — | From completions in the last 4 weeks |
+| The completions behind `actual_share` (`capacity_completion`) | **∂** | — | One row per attributed completion; rebuilt with the weekly sums on every run, never stored as a mapping decision ([ADR-0032](20-decisions/0032-completed-task-titles-are-recorded.md)) |
 
 ## 3. Project
 
@@ -84,7 +85,8 @@ prose, and prose belongs where prose is written. prisme has nothing to say in it
 
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
-| Content, description, subtasks at any depth | **T** | ← | Never mirrored, only counted |
+| Content of a **completed** task (its title) | **T** | ← | Recorded read-only in completion history, so the capacity figures can be itemised; a re-fetch refreshes it, prisme never writes it ([ADR-0032](20-decisions/0032-completed-task-titles-are-recorded.md)) |
+| Content of an open task; description, subtasks at any depth | **T** | ← | Never mirrored, only counted |
 | `due` date, recurrence | **T** | ← | Yours. Read for planned-vs-done only |
 | Labels other than the anchor marker | **T** | ← | |
 | Comments, attachments | **T** | — | Not read at all |

@@ -100,7 +100,9 @@ const TABLES = [
   // W13's three (migration 0006). `capacity_week` references `area`, so
   // omitting it does not merely leave stale rows — it makes `truncate` refuse
   // the whole statement, which is the no-`cascade` rule above doing its job:
-  // adding a table to the schema is adding it here.
+  // adding a table to the schema is adding it here. `capacity_completion`
+  // (migration 0014) references `area` the same way.
+  'capacity_completion',
   'capacity_week',
   'completion_history',
   'backfill_cursor',

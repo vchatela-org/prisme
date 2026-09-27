@@ -3,7 +3,7 @@ import type { AreaKey, AreaKind } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
 import type { BackfillStore } from './ports.js';
 import type { Cursor } from './slices.js';
-import type { AdherencePeriod, CapacityWeek, RitualRecord, StoredCompletion } from './types.js';
+import type { AdherencePeriod, RitualRecord, StoredCompletion } from './types.js';
 
 /**
  * The {@link BackfillStore} backed by PostgreSQL.
@@ -33,6 +33,7 @@ interface CompletionRow {
   readonly completed_at: Date | string;
   readonly external_project_id: string | null;
   readonly external_section_id: string | null;
+  readonly content: string | null;
   readonly recorded_minutes: number | null;
   readonly duration_scale: string | null;
 }
@@ -81,18 +82,22 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
           await tx`
             insert into completion_history
               (external_task_id, completed_at, external_project_id, external_section_id,
-               recorded_minutes, duration_scale)
+               content, recorded_minutes, duration_scale)
             select * from unnest(
               ${completions.map((c) => c.externalTaskId)}::text[],
               cast(${completions.map((c) => stamp(c.completedAt))}::text[] as timestamptz[]),
               ${completions.map((c) => c.externalProjectId ?? null)}::text[],
               ${completions.map((c) => c.externalSectionId ?? null)}::text[],
+              ${completions.map((c) => c.content ?? null)}::text[],
               ${completions.map((c) => c.recordedMinutes ?? null)}::integer[],
               ${completions.map((c) => c.durationScale ?? null)}::text[]
             )
             on conflict (external_task_id, completed_at) do update set
               external_project_id = excluded.external_project_id,
               external_section_id = excluded.external_section_id,
+              -- A re-fetch refreshes a renamed title; a response without one
+              -- never erases the title already held (ADR-0032).
+              content             = coalesce(excluded.content, completion_history.content),
               recorded_minutes    = excluded.recorded_minutes,
               duration_scale      = excluded.duration_scale,
               fetched_at          = now()`;
@@ -112,7 +117,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
     async loadCompletions(from: Date, to: Date): Promise<readonly StoredCompletion[]> {
       const rows = await client<CompletionRow[]>`
         select external_task_id, completed_at, external_project_id, external_section_id,
-               recorded_minutes, duration_scale
+               content, recorded_minutes, duration_scale
         from completion_history
         where completed_at >= ${stamp(from)}::timestamptz
           and completed_at <  ${stamp(to)}::timestamptz
@@ -123,6 +128,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
         completedAt: instant(row.completed_at),
         ...(row.external_project_id === null ? {} : { externalProjectId: row.external_project_id }),
         ...(row.external_section_id === null ? {} : { externalSectionId: row.external_section_id }),
+        ...(row.content === null ? {} : { content: row.content }),
         ...(row.recorded_minutes === null ? {} : { recordedMinutes: row.recorded_minutes }),
         ...(row.duration_scale === null
           ? {}
@@ -198,16 +204,35 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
      * nothing overwrote it describes a week that may no longer have any
      * completions in it at all.
      */
-    async replaceCapacityWeeks(
-      rows: readonly CapacityWeek[],
-      fromWeek: string,
-      toWeek: string,
-    ): Promise<void> {
+    async replaceMaterialised({ weeks: rows, completions, fromWeek, toWeek }): Promise<void> {
       await client.begin(async (tx) => {
         await tx`
           delete from capacity_week
           where week_start >= ${fromWeek}::date
             and week_start <  ${toWeek}::date`;
+
+        // The same weeks, read as instants: a completion belongs to the range
+        // when it falls between the first Monday and the one after the last.
+        // `::date` then `::timestamptz` is midnight UTC only because the
+        // session's time zone is UTC — so the bound is spelled out instead.
+        await tx`
+          delete from capacity_completion
+          where completed_at >= ${`${fromWeek}T00:00:00.000Z`}::timestamptz
+            and completed_at <  ${`${toWeek}T00:00:00.000Z`}::timestamptz`;
+
+        if (completions.length > 0) {
+          await tx`
+            insert into capacity_completion
+              (external_task_id, completed_at, area_key, lane, minutes, minutes_source)
+            select * from unnest(
+              ${completions.map((c) => c.externalTaskId)}::text[],
+              cast(${completions.map((c) => stamp(c.completedAt))}::text[] as timestamptz[]),
+              ${completions.map((c) => c.areaKey)}::text[],
+              ${completions.map((c) => c.lane)}::text[],
+              ${completions.map((c) => c.minutes)}::integer[],
+              ${completions.map((c) => c.source)}::text[]
+            )`;
+        }
 
         if (rows.length === 0) return;
 

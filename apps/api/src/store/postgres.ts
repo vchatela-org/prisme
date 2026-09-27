@@ -11,6 +11,7 @@ import type {
   AreaRecord,
   AreaWeightRecord,
   BackfillCoverageRecord,
+  CapacityCompletionRecord,
   CapacityWeekRecord,
   CaptureRecord,
   CompletionRecord,
@@ -701,6 +702,39 @@ export function createPostgresStore(client: Sql): ApiStore {
           minutesRecorded: Number(row.minutes_recorded),
           minutesDeclared: Number(row.minutes_declared),
           minutesDefault: Number(row.minutes_default),
+        }));
+      },
+
+      async completions(areaKey, from, to): Promise<readonly CapacityCompletionRecord[]> {
+        const rows = await client<
+          {
+            external_task_id: string;
+            completed_at: Date | string;
+            area_key: string;
+            lane: string;
+            minutes: number;
+            minutes_source: string;
+            content: string | null;
+          }[]
+        >`
+          select c.external_task_id, c.completed_at, c.area_key, c.lane, c.minutes,
+                 c.minutes_source, h.content
+          from capacity_completion c
+          left join completion_history h
+            on h.external_task_id = c.external_task_id and h.completed_at = c.completed_at
+          where c.area_key = ${areaKey}
+            and c.completed_at >= ${stamp(from)}::timestamptz
+            and c.completed_at <  ${stamp(to)}::timestamptz
+          order by c.completed_at desc, c.external_task_id`;
+
+        return rows.map((row) => ({
+          externalTaskId: row.external_task_id,
+          completedAt: required(row.completed_at, 'capacity_completion.completed_at'),
+          areaKey: row.area_key,
+          lane: row.lane as CapacityCompletionRecord['lane'],
+          minutes: Number(row.minutes),
+          minutesSource: row.minutes_source as CapacityCompletionRecord['minutesSource'],
+          content: row.content,
         }));
       },
 

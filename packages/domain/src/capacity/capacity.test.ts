@@ -7,6 +7,7 @@ import {
   CAPACITY_WINDOW_DEFAULTS,
   computeCapacity,
   computeCapacityFrom,
+  countCompletions,
   toScoringContexts,
   type AreaObservation,
   type CapacityWindow,
@@ -429,5 +430,52 @@ describe('computing from materialised totals', () => {
     const capacity = computeCapacityFrom([], AREAS, window(), NOW);
     expect(capacity).toHaveLength(AREAS.length);
     expect(capacity.every((entry) => entry.minutes === 0 && entry.completions === 0)).toBe(true);
+  });
+});
+
+/**
+ * The rows behind the totals. The area screen lists these, so they have to be
+ * exactly what `computeCapacity` counted — written as a comparison against it
+ * rather than as expected numbers, for the reason the section above gives.
+ */
+describe('the completions a window counts', () => {
+  const COMPLETIONS: readonly Completion[] = [
+    completion({ id: 'c-1', areaKey: 'alpha', recordedMinutes: 40 }),
+    completion({ id: 'c-2', areaKey: 'alpha', declaredMinutes: 25 }),
+    completion({ id: 'c-3', areaKey: 'beta' }),
+    completion({ id: 'c-4', areaKey: 'noise', recordedMinutes: 90 }),
+    // Outside the window, on either side of it.
+    completion({ id: 'old', areaKey: 'alpha', completedAt: new Date('2026-08-01T09:00:00Z') }),
+    completion({ id: 'future', areaKey: 'alpha', completedAt: new Date('2026-09-16T09:00:00Z') }),
+  ];
+
+  it('lists each counted completion with its minutes and their tier', () => {
+    const counted = countCompletions(COMPLETIONS, AREAS, window(), NOW);
+
+    expect(counted.map((row) => [row.id, row.minutes, row.source])).toEqual([
+      ['c-1', 40, 'recorded'],
+      ['c-2', 25, 'declared'],
+      ['c-3', CAPACITY_WINDOW_DEFAULTS.defaultMinutes, 'default'],
+      // Volume, and no time: the row is listed and says it has no tier.
+      ['c-4', 0, undefined],
+    ]);
+  });
+
+  it('adds up to what computeCapacity reports, area by area', () => {
+    const counted = countCompletions(COMPLETIONS, AREAS, window(), NOW);
+    const capacity = computeCapacity(COMPLETIONS, AREAS, window(), NOW);
+
+    for (const area of AREAS) {
+      const own = counted.filter((row) => row.areaKey === area.key);
+      const row = byKey(capacity, area.key);
+      expect(own).toHaveLength(row.completions);
+      expect(own.reduce((total, entry) => total + entry.minutes, 0)).toBe(row.minutes);
+    }
+  });
+
+  it('refuses a completion for an area it does not know, as computeCapacity does', () => {
+    expect(() =>
+      countCompletions([completion({ id: 'x', areaKey: 'nowhere' })], AREAS, window(), NOW),
+    ).toThrow(/nowhere/);
   });
 });
