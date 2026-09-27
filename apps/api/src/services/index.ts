@@ -36,6 +36,7 @@ import { createWorkService, type WorkService } from './work.js';
 
 export interface ServiceConfig {
   readonly timezone: string;
+  readonly version: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
   /** `PRISME_BASE_URL`, for the backlink written into anything prisme creates. */
@@ -135,6 +136,7 @@ export function createServices(options: CreateServicesOptions): Services {
     lanes: createLaneService(store, work),
     ops: createOpsService(store, registry, measure, options.runner, {
       timezone: config.timezone,
+      version: config.version,
       capacityWindowWeeks: config.capacityWindowWeeks,
       defaultTaskMinutes: config.defaultTaskMinutes,
       concurrentInitiatives: config.concurrentInitiatives,

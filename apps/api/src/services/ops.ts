@@ -35,6 +35,7 @@ export type SyncRunShape = z.infer<typeof syncRunDto>;
 
 export interface OpsConfig {
   readonly timezone: string;
+  readonly version: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
   readonly concurrentInitiatives: number;
@@ -269,6 +270,7 @@ export function createOpsService(
       const active = registry.activeMethod();
       return {
         timezone: config.timezone,
+        version: config.version,
         scoring: {
           activeMethodId: active.id,
           activeMethodVersion: active.version,

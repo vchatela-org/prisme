@@ -165,6 +165,7 @@ provider and produces a login that cannot work:
 | `DOCTOOL_PAGE_URL_TEMPLATE` | *unset* | Where a page **opens** — the browser-facing host, with a literal `{id}` where the identifier goes. **Web tier**; unset leaves *Open page* disabled, and the Settings screen names stores without linking them |
 | `TASKTOOL_PROJECT_URL_TEMPLATE` | *unset* | The same for a task-tool **project**, for the links on the Settings screen. **Web tier**; unset names projects without linking them |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
+| `APP_VERSION` | `dev` | The tag this image was published under. Baked in at `docker build` time by `publish.yml` (`--build-arg VERSION=<tag>`), not read from anywhere at runtime — there is no other way for a running process to know its own tag. Shown on the Settings screen, web and API separately, so the two drifting apart during a rollout is visible rather than assumed |
 
 **Area colours are not configuration.** The palette has eight categorical slots and that ceiling is
 fixed — a ninth generated hue is indistinguishable from an existing one under colour-vision
