@@ -44,19 +44,26 @@ import {
   type RoleBindings,
 } from '@prisme/connectors';
 import {
+  auditCreationWriter,
+  auditDocumentCreationWriter,
+  auditTaskToolWriter,
   createDocToolCreationWriter,
   createFrozenCreationWriter,
   createFrozenDocumentCreationWriter,
   createFrozenWriter,
   createTaskToolCreationWriter,
   createTaskToolWriter,
+  type AuditOptions,
+  type CreationWriter,
   type DocumentCreationWriter,
 } from '@prisme/connectors/write';
+import type { WriteAuditOrigin } from '@prisme/domain';
 import { loadConfigOrExit } from '@prisme/config';
 import { createDatabase, withAdvisoryLock, RECONCILER_LOCK_ID } from '@prisme/db';
 import { createLogger, createMetrics, currentRunContext, withNewRun } from '@prisme/observability';
 import { adopt } from './adoption/run.js';
 import { createAdoptionStore } from './adoption/store.js';
+import { pruneWriteAudit, writeAuditOptions } from './audit/store.js';
 import { backfillFrom } from './backfill/cli.js';
 import { readBindings } from './bindings.js';
 import { refreshCapacity } from './capacity-refresh.js';
@@ -91,21 +98,29 @@ function modeFrom(
   return undefined;
 }
 
-/** The creating writer, or the one that cannot reach an API. */
+/**
+ * The creating writer, or the one that cannot reach an API — audited either
+ * way (ADR-0031). A frozen writer is never called by a frozen pass, so its
+ * audit stays empty; a call that reached it anyway is a defect worth a row.
+ */
 function creationWriter(
   transport: ReturnType<typeof createFetchTransport>,
   metrics: {
     recordRequest: (sample: { tool: string; status: string }) => void;
   },
-) {
-  return config.sync.writeEnabled
-    ? createTaskToolCreationWriter({
-        token: config.tasktoolApiToken as string,
-        baseUrl: config.tasktoolBaseUrl,
-        transport,
-        metrics,
-      })
-    : createFrozenCreationWriter();
+  audit: AuditOptions,
+): CreationWriter {
+  return auditCreationWriter(
+    config.sync.writeEnabled
+      ? createTaskToolCreationWriter({
+          token: config.tasktoolApiToken as string,
+          baseUrl: config.tasktoolBaseUrl,
+          transport,
+          metrics,
+        })
+      : createFrozenCreationWriter(),
+    audit,
+  );
 }
 
 /**
@@ -150,7 +165,7 @@ function pageStoreReader(
  *
  * The freeze is the *object*, not a flag, exactly as it is for the task tool —
  * and it matters at least as much here, because a page is a document somebody
- * reads rather than a row in a list.
+ * reads rather than a row in a list. Audited either way, like the task tool's.
  */
 function documentCreationWriter(
   bindings: RoleBindings,
@@ -158,18 +173,24 @@ function documentCreationWriter(
   metrics: {
     recordRequest: (sample: { tool: string; status: string }) => void;
   },
+  audit: AuditOptions,
 ): DocumentCreationWriter {
-  if (!config.sync.writeEnabled) return createFrozenDocumentCreationWriter();
+  if (!config.sync.writeEnabled) {
+    return auditDocumentCreationWriter(createFrozenDocumentCreationWriter(), audit);
+  }
 
-  return createDocToolCreationWriter({
-    client: createDocToolClient({
-      token: config.doctoolApiToken as string,
-      baseUrl: config.doctoolBaseUrl,
-      bindings,
-      transport,
-      metrics,
+  return auditDocumentCreationWriter(
+    createDocToolCreationWriter({
+      client: createDocToolClient({
+        token: config.doctoolApiToken as string,
+        baseUrl: config.doctoolBaseUrl,
+        bindings,
+        transport,
+        metrics,
+      }),
     }),
-  });
+    audit,
+  );
 }
 
 /**
@@ -252,6 +273,21 @@ async function main(): Promise<number> {
       metrics.externalRequests.inc({ tool: sample.tool, status: sample.status });
     },
   };
+
+  /**
+   * What every writer this process holds records its calls into (ADR-0031).
+   * The origin says which half of the pass made the call; the run id is the
+   * one the pass's own log lines carry, so a row and a log line can be joined.
+   */
+  const auditFor = (origin: WriteAuditOrigin): AuditOptions =>
+    writeAuditOptions(database.client, {
+      origin,
+      runId: currentRunContext()?.runId ?? 'run',
+      now: () => new Date(),
+      onRecordError: (error: unknown) => {
+        logger.error('an outward write could not be recorded in the audit', { origin, error });
+      },
+    });
 
   /**
    * The adoption scan, as the `adopt` command and the daily full pass both run
@@ -411,8 +447,13 @@ async function main(): Promise<number> {
         return converge({
           mode: convergeMode as 'plan' | 'apply',
           store: createCreationStore(database.client),
-          writer: creationWriter(transport, connectorMetrics),
-          documents: documentCreationWriter(bindings, transport, connectorMetrics),
+          writer: creationWriter(transport, connectorMetrics, auditFor('creation')),
+          documents: documentCreationWriter(
+            bindings,
+            transport,
+            connectorMetrics,
+            auditFor('creation'),
+          ),
           readPageStores: pageStoreReader(bindings, transport, connectorMetrics),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
@@ -475,8 +516,13 @@ async function main(): Promise<number> {
         const drained = await converge({
           mode: 'apply',
           store: createCreationStore(database.client),
-          writer: creationWriter(transport, connectorMetrics),
-          documents: documentCreationWriter(bindings, transport, connectorMetrics),
+          writer: creationWriter(transport, connectorMetrics, auditFor('creation')),
+          documents: documentCreationWriter(
+            bindings,
+            transport,
+            connectorMetrics,
+            auditFor('creation'),
+          ),
           readPageStores: pageStoreReader(bindings, transport, connectorMetrics),
           writeEnabled: config.sync.writeEnabled,
           maxPerPass: DEFAULT_MAX_PER_PASS,
@@ -501,15 +547,19 @@ async function main(): Promise<number> {
           metrics: connectorMetrics,
         }),
         // The freeze is structural rather than a branch: with the write freeze
-        // on, the object `apply` holds cannot reach an API at all.
-        writer: config.sync.writeEnabled
-          ? createTaskToolWriter({
-              token: config.tasktoolApiToken as string,
-              baseUrl: config.tasktoolBaseUrl,
-              transport,
-              metrics: connectorMetrics,
-            })
-          : createFrozenWriter(),
+        // on, the object `apply` holds cannot reach an API at all. Audited
+        // either way (ADR-0031).
+        writer: auditTaskToolWriter(
+          config.sync.writeEnabled
+            ? createTaskToolWriter({
+                token: config.tasktoolApiToken as string,
+                baseUrl: config.tasktoolBaseUrl,
+                transport,
+                metrics: connectorMetrics,
+              })
+            : createFrozenWriter(),
+          auditFor('reconciler'),
+        ),
         writeEnabled: config.sync.writeEnabled,
         createThreshold: config.sync.createThreshold,
         baseUrl: config.baseUrl,
@@ -587,6 +637,23 @@ async function main(): Promise<number> {
           });
         } catch (error: unknown) {
           logger.error('adoption scan failed', { error });
+        }
+
+        /*
+         * The audit of outward writes, pruned to its window (ADR-0031) — once
+         * a day, like the two steps above, and for their reasons: prisme's own
+         * table, no outward write, so it runs under the freeze too, and a
+         * failure here does not fail a pass that has done its job. Records
+         * then simply live a day longer than the window says.
+         */
+        try {
+          const pruned = await pruneWriteAudit(database.client, new Date());
+          logger.info('write audit pruned', {
+            deleted: pruned.deleted,
+            retentionDays: pruned.retentionDays,
+          });
+        } catch (error: unknown) {
+          logger.error('write audit prune failed', { error });
         }
       }
 

@@ -28,6 +28,16 @@ export {
 
 export { createFrozenWriter } from './frozen.js';
 
+/** Every writer a pass holds is one of these (ADR-0031). `./audit.ts` says why at construction. */
+export {
+  auditCreationWriter,
+  auditDocumentCreationWriter,
+  auditTaskToolWriter,
+  type AuditOptions,
+  type WriteAttempt,
+  type WriteAuditSink,
+} from './audit.js';
+
 export {
   createRecordingWriter,
   type RecordedWrite,
