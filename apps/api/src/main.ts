@@ -57,6 +57,9 @@ const services = createServices({
     baseUrl: config.baseUrl,
     runId: () => currentRunContext()?.runId ?? newRunId(),
     now: () => new Date(),
+    onAuditRecordError: (error: unknown) => {
+      logger.error('an outward write could not be recorded in the audit', { error });
+    },
   }),
   directory: createExternalDirectory({
     docToolToken: config.doctoolApiToken as string,

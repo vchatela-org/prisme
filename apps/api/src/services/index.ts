@@ -9,6 +9,7 @@ import {
 import type { ApiStore } from '../store/types.js';
 import type { ExternalDirectory } from '../sync/directory.js';
 import type { SyncRunner } from '../sync/port.js';
+import { createAuditService, type AuditService } from './audit.js';
 import { createCatalogueService, type CatalogueService } from './catalogue.js';
 import { createCreateService, type CreateService } from './create.js';
 import { createLaneService, type LaneService } from './lanes.js';
@@ -86,6 +87,8 @@ export interface Services {
   readonly lanes: LaneService;
   readonly ops: OpsService;
   readonly settings: SettingsService;
+  /** The audit of outward writes, and how long it is kept (ADR-0031). */
+  readonly audit: AuditService;
   /** What each kind of page can start from, read live (ADR-0030). */
   readonly pageTemplates: PageTemplateService;
   readonly config: ServiceConfig;
@@ -139,12 +142,14 @@ export function createServices(options: CreateServicesOptions): Services {
       sync: config.sync,
     }),
     settings: createSettingsService(store, options.directory),
+    audit: createAuditService(store),
     pageTemplates,
     config,
   };
 }
 
 export type {
+  AuditService,
   CatalogueService,
   CreateService,
   LaneService,

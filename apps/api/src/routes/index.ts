@@ -1,6 +1,7 @@
 import { createAuthRoutes, type AuthDeps } from '../auth/routes.js';
 import { buildOpenApiDocument, type OpenApiInfo } from '../http/openapi.js';
 import { areaRoutes } from './areas.js';
+import { auditRoutes } from './audit.js';
 import { creationRoutes } from './creations.js';
 import { initiativeRoutes } from './initiatives.js';
 import type { ApiRoute } from './kit.js';
@@ -52,6 +53,7 @@ export function createRoutes(info: OpenApiInfo = API_INFO, auth?: AuthDeps): rea
     ...objectiveRoutes,
     ...laneRoutes,
     ...opsRoutes,
+    ...auditRoutes,
     ...settingsRoutes,
     ...createAuthRoutes(auth),
   ];

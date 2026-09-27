@@ -19,6 +19,7 @@ import {
   Repeat,
   PackagePlus,
   Scale,
+  ScrollText,
   Settings,
   Target,
 } from 'lucide-react';
@@ -94,6 +95,10 @@ const NAV: readonly NavGroup[] = [
       // there does not match what prisme says, and both become empty on
       // purpose.
       { label: 'Creations', href: '/create/creations', icon: <PackagePlus aria-hidden /> },
+      // The Audit closes the boundary group: what prisme actually sent to
+      // either tool, failures included (ADR-0031). Read when something changed
+      // out there and the question is whether prisme did it.
+      { label: 'Audit', href: '/audit', icon: <ScrollText aria-hidden /> },
       // Settings last: what the instance is connected to, read when setting it
       // up or when a name or a link looks wrong.
       { label: 'Settings', href: '/settings', icon: <Settings aria-hidden /> },
@@ -174,6 +179,15 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         keywords: ['ledger', 'pending', 'queued', 'failed', 'outstanding'],
         run: () => {
           router.push('/create/creations');
+        },
+      },
+      {
+        id: 'go-audit',
+        label: 'Go to the Audit',
+        group: 'Navigate',
+        keywords: ['writes', 'sent', 'notion', 'todoist', 'history', 'log', 'failed', 'outward'],
+        run: () => {
+          router.push('/audit');
         },
       },
       {

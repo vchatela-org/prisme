@@ -4,6 +4,7 @@ import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import {
   areaWeightsSchema,
+  auditRetentionSchema,
   bindingListSchema,
   instanceSettingsSchema,
   settingsAreaListSchema,
@@ -23,6 +24,7 @@ import {
   roleCopy,
   templateSummary,
 } from '@/lib/settings-view';
+import { AuditRetentionForm } from './audit-retention-form';
 import { CheckBindingsButton } from './check-bindings-button';
 
 export const metadata = {
@@ -44,20 +46,28 @@ export const metadata = {
  * - **areas, colours, locations and Notion bindings** are prisme's own data,
  *   editable from the linked screens;
  * - **year weights** are editable only at the Year Review (ADR-0007);
+ * - **how long the audit of outward writes is kept** is prisme's own too, and
+ *   is edited here (ADR-0031);
  * - **the write freeze, create threshold, sync window and scoring method** are
  *   deployment configuration, validated at boot, and shown read-only.
  */
 export default async function SettingsPage() {
   const year = new Date().getUTCFullYear();
-  const [settings, writeSwitch, sync, areas, weights, bindings, locations] = await Promise.all([
-    apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
-    apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
-    apiFetch({ path: '/sync', schema: syncStatusSchema }),
-    apiFetch({ path: '/areas', schema: settingsAreaListSchema }),
-    apiFetch({ path: '/areas/weights', query: { year: String(year) }, schema: areaWeightsSchema }),
-    apiFetch({ path: '/bindings', schema: bindingListSchema }),
-    apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
-  ]);
+  const [settings, writeSwitch, sync, areas, weights, bindings, locations, retention] =
+    await Promise.all([
+      apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
+      apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
+      apiFetch({ path: '/sync', schema: syncStatusSchema }),
+      apiFetch({ path: '/areas', schema: settingsAreaListSchema }),
+      apiFetch({
+        path: '/areas/weights',
+        query: { year: String(year) },
+        schema: areaWeightsSchema,
+      }),
+      apiFetch({ path: '/bindings', schema: bindingListSchema }),
+      apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
+      apiFetch({ path: '/audit/retention', schema: auditRetentionSchema }),
+    ]);
 
   const config = webRuntime().config;
   const docTemplate = config.doctoolPageUrlTemplate;
@@ -129,6 +139,37 @@ export default async function SettingsPage() {
           ) : null}
         </Card>
       </Section>
+
+      <div id="audit">
+        <Section
+          title="Audit of outward writes"
+          description="Every call prisme makes to Notion or Todoist is recorded, whether it worked or not, and kept for this long. Older records are deleted by the daily full pass."
+          actions={
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/audit">Open the audit</Link>
+            </Button>
+          }
+        >
+          {retention.ok ? (
+            <Card className="flex flex-col gap-4">
+              <StatRow>
+                <StatTile
+                  label="Records kept for"
+                  value={`${String(retention.data.retentionDays)} days`}
+                />
+                <StatTile label="Records held" value={String(retention.data.records)} />
+                <StatTile
+                  label="Oldest record"
+                  value={retention.data.oldestAt?.slice(0, 10) ?? 'none yet'}
+                />
+              </StatRow>
+              <AuditRetentionForm retention={retention.data} />
+            </Card>
+          ) : (
+            <ApiFailureState failure={retention} surface="the audit retention window" />
+          )}
+        </Section>
+      </div>
 
       <Section
         title="Areas"

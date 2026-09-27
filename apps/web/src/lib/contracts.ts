@@ -1066,3 +1066,74 @@ export const writeSwitchSchema = z.object({
   changedBy: z.string().nullable(),
   reason: z.string().nullable(),
 });
+
+/**
+ * The audit of outward writes (ADR-0031) — `GET /audit/writes`.
+ *
+ * The vocabularies are restated here rather than imported, for the reason at
+ * the top of this file; `WRITE_AUDIT_*` in `packages/domain` is the source,
+ * and a value the API adds that this list lacks fails the audit screen loudly
+ * rather than rendering a row it cannot name.
+ */
+export const WRITE_AUDIT_TOOLS = ['document', 'task'] as const;
+export type WriteAuditTool = (typeof WRITE_AUDIT_TOOLS)[number];
+
+export const WRITE_AUDIT_OPERATIONS = [
+  'create_anchor',
+  'update_task',
+  'move_task',
+  'create_project',
+  'create_section',
+  'create_capture_task',
+  'create_page',
+] as const;
+export type WriteAuditOperation = (typeof WRITE_AUDIT_OPERATIONS)[number];
+
+export const WRITE_AUDIT_ORIGINS = ['reconciler', 'creation'] as const;
+export type WriteAuditOrigin = (typeof WRITE_AUDIT_ORIGINS)[number];
+
+export const WRITE_AUDIT_OUTCOMES = ['succeeded', 'failed'] as const;
+export type WriteAuditOutcome = (typeof WRITE_AUDIT_OUTCOMES)[number];
+
+/** One call prisme made. `request` and `externalId` are instance data. */
+export const externalWriteSchema = z.object({
+  id: z.string(),
+  occurredAt: instant,
+  tool: z.enum(WRITE_AUDIT_TOOLS),
+  operation: z.enum(WRITE_AUDIT_OPERATIONS),
+  origin: z.enum(WRITE_AUDIT_ORIGINS),
+  runId: z.string(),
+  entityKind: z.string().nullable(),
+  entityId: z.string().nullable(),
+  /** The entity's title as it is now — what an update that sent none was about. */
+  entityTitle: z.string().nullable(),
+  externalId: z.string().nullable(),
+  request: z.record(z.string(), z.unknown()),
+  outcome: z.enum(WRITE_AUDIT_OUTCOMES),
+  failure: z.string().nullable(),
+  error: z.string().nullable(),
+  durationMs: z.number().int(),
+});
+
+export type ExternalWrite = z.infer<typeof externalWriteSchema>;
+
+export const externalWritePageSchema = z.object({
+  items: z.array(externalWriteSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+/** `GET /audit/retention` — how long a record is kept, and what is held. */
+export const auditRetentionSchema = z.object({
+  retentionDays: z.number().int(),
+  chosen: z.boolean(),
+  defaultDays: z.number().int(),
+  minDays: z.number().int(),
+  maxDays: z.number().int(),
+  updatedAt: instant.nullable(),
+  records: z.number().int(),
+  oldestAt: instant.nullable(),
+});
+
+export type AuditRetention = z.infer<typeof auditRetentionSchema>;

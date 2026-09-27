@@ -4,7 +4,11 @@ import {
   createFetchTransport,
   createTaskToolClient,
 } from '@prisme/connectors';
-import { createFrozenWriter, createTaskToolWriter } from '@prisme/connectors/write';
+import {
+  auditTaskToolWriter,
+  createFrozenWriter,
+  createTaskToolWriter,
+} from '@prisme/connectors/write';
 import { RECONCILER_LOCK_ID, withAdvisoryLock } from '@prisme/db';
 import {
   adopt,
@@ -12,6 +16,7 @@ import {
   createPostgresStore,
   readBindings,
   reconcile,
+  writeAuditOptions,
 } from '@prisme/sync';
 import type { SyncRunRequest, SyncRunResult, SyncRunner } from './port.js';
 
@@ -63,6 +68,11 @@ export interface SyncRunnerOptions {
   readonly baseUrl: string;
   readonly runId: () => string;
   readonly now: () => Date;
+  /**
+   * Told when an outward write could not be recorded in the audit (ADR-0031).
+   * The write stands on its own result either way; this is the log line.
+   */
+  readonly onAuditRecordError?: ((error: unknown) => void) | undefined;
 }
 
 const NO_COUNTS: Readonly<Record<string, number>> = {};
@@ -110,6 +120,7 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
     async run(request: SyncRunRequest): Promise<SyncRunResult> {
       const startedAt = options.now();
       const transport = createFetchTransport();
+      const runId = options.runId();
 
       const outcome = await withAdvisoryLock(options.client, RECONCILER_LOCK_ID, () =>
         reconcile({
@@ -121,17 +132,27 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
             baseUrl: options.taskToolBaseUrl,
             transport,
           }),
-          writer: options.writeEnabled
-            ? createTaskToolWriter({
-                token: options.taskToolToken,
-                baseUrl: options.taskToolBaseUrl,
-                transport,
-              })
-            : createFrozenWriter(),
+          // Audited exactly as the CronJob's is — the force-sync button is the
+          // same code path, and so is its record (ADR-0031).
+          writer: auditTaskToolWriter(
+            options.writeEnabled
+              ? createTaskToolWriter({
+                  token: options.taskToolToken,
+                  baseUrl: options.taskToolBaseUrl,
+                  transport,
+                })
+              : createFrozenWriter(),
+            writeAuditOptions(options.client, {
+              origin: 'reconciler',
+              runId,
+              now: options.now,
+              onRecordError: options.onAuditRecordError ?? (() => undefined),
+            }),
+          ),
           writeEnabled: options.writeEnabled,
           createThreshold: options.createThreshold,
           baseUrl: options.baseUrl,
-          runId: options.runId(),
+          runId,
           now: options.now,
         }),
       );
