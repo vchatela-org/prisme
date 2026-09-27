@@ -213,6 +213,49 @@ describe('completion history', () => {
     expect(result[0]?.recordedMinutes).toBe(10);
   });
 
+  it("carries each completion's title, so the capacity figures can be itemised", async () => {
+    const result = await client().client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+    expect(result.map((completion) => completion.content)).toEqual([
+      'Check the shoe mileage',
+      'Plane the bench top',
+      'Tidy the clamps',
+      'Stretching session',
+    ]);
+  });
+
+  it("sanitises a completion's title the way a live task's is sanitised", async () => {
+    const hostile = createRecordedTaskToolClient({
+      fullSync,
+      incrementalSync,
+      completions: [
+        {
+          items: [
+            {
+              id: 'task-0003',
+              project_id: 'project-0001',
+              section_id: null,
+              completed_at: '2026-09-14T09:12:00.000000Z',
+              content: 'Check\u202e the shoe\u0007 mileage',
+            },
+            {
+              id: 'task-0011',
+              project_id: 'project-0002',
+              section_id: null,
+              completed_at: '2026-09-15T17:40:00.000000Z',
+            },
+          ],
+        },
+      ],
+    });
+
+    const [titled, untitled] = await hostile.client.fetchCompletions(
+      new Date('2026-09-14T00:00:00.000Z'),
+    );
+    expect(titled?.content).toBe('Check the shoe mileage');
+    // Absent on the wire stays absent: an empty string would read as a title.
+    expect(untitled?.content).toBeUndefined();
+  });
+
   it('leaves recordedMinutes absent when the tool recorded nothing', async () => {
     const result = await client().client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
     expect(result[2]?.recordedMinutes).toBeUndefined();

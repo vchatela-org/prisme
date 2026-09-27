@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ConnectorError, type Completion, type TaskToolClient } from '@prisme/connectors';
 import { backfill } from './backfill/run.js';
 import type { StoredCompletion } from './backfill/types.js';
 import { createFakeStore, createFakeTaskClient } from './backfill/test-support/fakes.js';
@@ -158,5 +159,170 @@ describe('an instance with nothing to refresh', () => {
     // And it reached no API: with no document-tool client the run reads no
     // page, which is what keeps this step inside the read-only phase.
     expect(refreshed.documentToolRead).toBe(false);
+  });
+});
+
+/** A completion as the task tool reports it. Invented, like everything here. */
+function reported(
+  externalTaskId: string,
+  completedAt: string,
+  content: string,
+  projectId = 'p-alpha',
+): Completion {
+  return {
+    externalTaskId,
+    completedAt: new Date(completedAt),
+    projectId,
+    content,
+    recordedMinutes: 20,
+  };
+}
+
+describe('the fetch', () => {
+  it('records the trailing window from the task tool before materialising it', async () => {
+    const { store, state } = createFakeStore();
+    const task = createFakeTaskClient([
+      reported('t-1', '2026-09-10T09:00:00Z', 'Oil the chain'),
+      reported('t-2', '2026-09-30T09:00:00Z', 'Sharpen the chisels'),
+      // Before the window: the tool would return it for a wider request, and
+      // this one must not ask for it.
+      reported('t-0', '2026-08-01T09:00:00Z', 'Out of range'),
+    ]);
+
+    const refreshed = await refreshCapacity({ ...options(), store, taskClient: task.client });
+
+    expect(task.windows[0]?.since.toISOString()).toBe(FOUR_WEEKS_BACK.toISOString());
+    expect(task.windows.at(-1)?.until?.toISOString()).toBe(NOW.toISOString());
+    expect(refreshed.fetched).toBe(2);
+    // The title is recorded with the completion (ADR-0032) …
+    expect(state.completions.get('t-1@2026-09-10T09:00:00.000Z')?.content).toBe('Oil the chain');
+    // … and what was fetched is what was materialised, in the same run.
+    expect(refreshed.attributed).toBe(2);
+    expect([...state.attributed.keys()].sort()).toEqual([
+      't-1@2026-09-10T09:00:00.000Z',
+      't-2@2026-09-30T09:00:00.000Z',
+    ]);
+  });
+
+  it('advances the cursor through exactly what it read', async () => {
+    const { store, state } = createFakeStore({
+      cursor: {
+        coveredFrom: new Date('2026-09-01T00:00:00Z'),
+        coveredThrough: new Date('2026-09-20T00:00:00Z'),
+      },
+    });
+    const task = createFakeTaskClient([]);
+
+    await refreshCapacity({ ...options(), store, taskClient: task.client });
+
+    expect(state.cursor?.coveredFrom.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(state.cursor?.coveredThrough.toISOString()).toBe(NOW.toISOString());
+  });
+
+  /**
+   * **The hole.** A cursor ending before the window starts means the refresh
+   * has not run for longer than the window. Fetching only the window would
+   * advance the cursor across the days between, which nothing read — so the
+   * read starts where the cursor ends instead.
+   */
+  it('starts where the cursor ends when that is before the window', async () => {
+    const { store, state } = createFakeStore({
+      cursor: {
+        coveredFrom: new Date('2026-06-01T00:00:00Z'),
+        coveredThrough: new Date('2026-08-20T00:00:00Z'),
+      },
+    });
+    const task = createFakeTaskClient([
+      reported('gap', '2026-08-25T09:00:00Z', 'Between the cursor and the window'),
+    ]);
+
+    await refreshCapacity({ ...options(), store, taskClient: task.client });
+
+    expect(task.windows[0]?.since.toISOString()).toBe('2026-08-20T00:00:00.000Z');
+    // Consecutive slices meet, so the cursor's claim has no gap in it.
+    for (const [index, window] of task.windows.entries()) {
+      if (index === 0) continue;
+      expect(window.since.toISOString()).toBe(task.windows[index - 1]?.until?.toISOString());
+    }
+    expect(state.completions.has('gap@2026-08-25T09:00:00.000Z')).toBe(true);
+    expect(state.cursor?.coveredThrough.toISOString()).toBe(NOW.toISOString());
+  });
+
+  it('materialises what is stored when the read fails, and says why in a kind', async () => {
+    const { store, state } = createFakeStore();
+    state.completions.set('in-1@2026-09-08T09:00:00.000Z', stored('in-1', '2026-09-08T09:00:00Z'));
+    const refusing: TaskToolClient = {
+      ...createFakeTaskClient([]).client,
+      fetchCompletions: () =>
+        Promise.reject(
+          new ConnectorError('invalid_token', 'synthetic', {
+            tool: 'task',
+            operation: 'fetch completions',
+          }),
+        ),
+    };
+
+    const refreshed = await refreshCapacity({ ...options(), store, taskClient: refusing });
+
+    expect(refreshed.fetched).toBeUndefined();
+    expect(refreshed.taskToolUnread).toBe('invalid_token');
+    expect(refreshed.attributed).toBe(1);
+    expect(state.cursor).toBeUndefined();
+  });
+
+  it('reads nothing when no client is given, as it did before it fetched', async () => {
+    const { store } = createFakeStore();
+
+    const refreshed = await refreshCapacity({ ...options(), store });
+
+    expect(refreshed.fetched).toBeUndefined();
+    expect(refreshed.taskToolUnread).toBeUndefined();
+  });
+});
+
+describe('whole weeks', () => {
+  /**
+   * The refresh starts mid-week on six days out of seven. Every week in range
+   * is deleted and rewritten, so the first one has to be rewritten from all of
+   * its completions — not from the part after the instant the window began,
+   * which is what it used to get.
+   */
+  it('rewrites the week the window begins in from all of that week', async () => {
+    const wednesday = new Date('2026-10-07T12:00:00Z');
+    const { store, state } = createFakeStore();
+    // Monday of the week the window starts in (Wednesday 9 September, noon),
+    // two days before the window's own first instant.
+    state.completions.set('mon@2026-09-07T09:00:00.000Z', stored('mon', '2026-09-07T09:00:00Z'));
+    state.completions.set('thu@2026-09-10T09:00:00.000Z', stored('thu', '2026-09-10T09:00:00Z'));
+
+    await refreshCapacity({ ...options({ now: wednesday }), store });
+
+    expect(state.weeks.get('2026-09-07/alpha')?.completions).toBe(2);
+    expect(state.attributed.has('mon@2026-09-07T09:00:00.000Z')).toBe(true);
+  });
+
+  it('writes attributed rows that sum to the weeks beside them', async () => {
+    const { store, state } = createFakeStore();
+    state.completions.set('a-1@2026-09-08T09:00:00.000Z', stored('a-1', '2026-09-08T09:00:00Z'));
+    state.completions.set('a-2@2026-09-09T09:00:00.000Z', stored('a-2', '2026-09-09T09:00:00Z'));
+    state.completions.set(
+      'b-1@2026-09-22T09:00:00.000Z',
+      stored('b-1', '2026-09-22T09:00:00Z', 'p-beta'),
+    );
+
+    await refreshCapacity({ ...options(), store });
+
+    for (const week of state.weeks.values()) {
+      const rows = [...state.attributed.values()].filter(
+        (row) =>
+          row.areaKey === week.areaKey &&
+          row.completedAt.toISOString().slice(0, 10) >= week.weekStart &&
+          row.completedAt.getTime() <
+            new Date(`${week.weekStart}T00:00:00Z`).getTime() + 7 * 86_400_000,
+      );
+      expect(rows).toHaveLength(week.completions);
+      expect(rows.reduce((total, row) => total + row.minutes, 0)).toBe(week.minutes);
+    }
+    expect(state.attributed.size).toBe(3);
   });
 });

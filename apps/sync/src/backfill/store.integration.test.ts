@@ -7,7 +7,7 @@ import {
 } from '../test-support/database.js';
 
 import { createBackfillStore } from './store.js';
-import type { CapacityWeek, StoredCompletion } from './types.js';
+import type { AttributedCompletion, CapacityWeek, StoredCompletion } from './types.js';
 
 /**
  * The backfill store, against a real PostgreSQL.
@@ -15,7 +15,7 @@ import type { CapacityWeek, StoredCompletion } from './types.js';
  * Everything asserted here is something an in-memory fake cannot get wrong.
  * `completion_history`'s primary key either makes a re-fetch idempotent or it
  * does not; `unnest` with `::timestamptz[]` either survives the driver or
- * arrives as text; `replaceCapacityWeeks` either deletes its range in the same
+ * arrives as text; `replaceMaterialised` either deletes its range in the same
  * transaction as the insert or leaves half a recomputation behind; and
  * `ritual_adherence`'s CHECK either refuses an over-completion or silently
  * stores a 114% week. W04, W05 and W14 each found bugs this way that no type
@@ -39,6 +39,7 @@ const TABLES = [
   // `capture` references both `area` and `initiative`, so both come first.
   'creation_intent',
   'capture',
+  'capacity_completion',
   'capacity_week',
   'completion_history',
   'backfill_cursor',
@@ -95,6 +96,19 @@ function week(overrides: Partial<CapacityWeek> = {}): CapacityWeek {
   };
 }
 
+function attributed(overrides: Partial<AttributedCompletion> = {}): AttributedCompletion {
+  return {
+    externalTaskId: 't-1',
+    completedAt: AT('2026-09-08T09:00:00Z'),
+    areaKey: 'home',
+    areaKind: 'area',
+    lane: 'change',
+    minutes: 30,
+    source: 'recorded',
+    ...overrides,
+  };
+}
+
 describeOrSkip('the backfill store against PostgreSQL', () => {
   let database: SyncTestDatabase;
   let client: postgres.Sql;
@@ -121,6 +135,13 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
   });
 
   const store = () => createBackfillStore(client);
+
+  const replaceWeeks = (
+    weeks: readonly CapacityWeek[],
+    fromWeek: string,
+    toWeek: string,
+    completions: readonly AttributedCompletion[] = [],
+  ) => store().replaceMaterialised({ weeks, completions, fromWeek, toWeek });
 
   describe('the cursor', () => {
     it('is absent before anything has ever run', async () => {
@@ -201,6 +222,23 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
       });
       expect(stored[1]).toMatchObject({ externalSectionId: 's-noise', durationScale: 'day' });
       expect(stored[1]?.recordedMinutes).toBeUndefined();
+    });
+
+    it("keeps a completion's title, and a re-fetch without one does not erase it", async () => {
+      const covers = {
+        coveredFrom: AT('2026-09-01T00:00:00Z'),
+        coveredThrough: AT('2026-09-30T00:00:00Z'),
+      };
+      await store().recordSlice([completion({ content: 'Fix the gate latch' })], covers);
+      await store().recordSlice([completion()], covers);
+
+      let stored = await store().loadCompletions(covers.coveredFrom, covers.coveredThrough);
+      expect(stored[0]?.content).toBe('Fix the gate latch');
+
+      // A rename in the tool reaches history on the next fetch that covers it.
+      await store().recordSlice([completion({ content: 'Fix the side gate latch' })], covers);
+      stored = await store().loadCompletions(covers.coveredFrom, covers.coveredThrough);
+      expect(stored[0]?.content).toBe('Fix the side gate latch');
     });
 
     /**
@@ -348,7 +386,7 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
 
   describe('materialised weeks', () => {
     it('writes rows whose minutes are their sources, which the table checks', async () => {
-      await store().replaceCapacityWeeks([week()], '2026-08-31', '2026-10-05');
+      await replaceWeeks([week()], '2026-08-31', '2026-10-05');
 
       const rows = await client<
         { week_start: string; minutes: number; minutes_default: number }[]
@@ -373,7 +411,7 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
      * chart would keep showing work that no longer exists.
      */
     it('replaces the range wholesale, dropping a week that no longer has rows', async () => {
-      await store().replaceCapacityWeeks(
+      await replaceWeeks(
         [
           week(),
           week({
@@ -385,7 +423,7 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
         '2026-08-31',
         '2026-10-05',
       );
-      await store().replaceCapacityWeeks([week()], '2026-08-31', '2026-10-05');
+      await replaceWeeks([week()], '2026-08-31', '2026-10-05');
 
       const rows = await client<{ week_start: string }[]>`
         select to_char(week_start, 'YYYY-MM-DD') as week_start from capacity_week order by week_start`;
@@ -393,12 +431,8 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
     });
 
     it('leaves weeks outside the replaced range alone', async () => {
-      await store().replaceCapacityWeeks(
-        [week({ weekStart: '2026-08-24' })],
-        '2026-08-24',
-        '2026-08-31',
-      );
-      await store().replaceCapacityWeeks([week()], '2026-08-31', '2026-10-05');
+      await replaceWeeks([week({ weekStart: '2026-08-24' })], '2026-08-24', '2026-08-31');
+      await replaceWeeks([week()], '2026-08-31', '2026-10-05');
 
       const rows = await client<{ week_start: string }[]>`
         select to_char(week_start, 'YYYY-MM-DD') as week_start from capacity_week order by week_start`;
@@ -413,31 +447,69 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
      * here. Both bounds now come from `startOfWeek`.
      */
     it('deletes the week a mid-week range begins in, so a re-run does not collide', async () => {
-      await store().replaceCapacityWeeks(
-        [week({ weekStart: '2026-08-31' })],
-        '2026-08-31',
-        '2026-10-05',
-      );
+      await replaceWeeks([week({ weekStart: '2026-08-31' })], '2026-08-31', '2026-10-05');
 
       await expect(
-        store().replaceCapacityWeeks(
-          [week({ weekStart: '2026-08-31' })],
-          '2026-08-31',
-          '2026-10-05',
-        ),
+        replaceWeeks([week({ weekStart: '2026-08-31' })], '2026-08-31', '2026-10-05'),
       ).resolves.toBeUndefined();
 
       const rows = await client<{ count: string }[]>`select count(*) from capacity_week`;
       expect(rows[0]?.count).toBe('1');
     });
 
+    it('writes the attributed completions beside the weeks they sum to', async () => {
+      await replaceWeeks([week({ completions: 2, minutes: 50 })], '2026-08-31', '2026-10-05', [
+        attributed(),
+        attributed({ externalTaskId: 't-2', minutes: 20, source: 'default' }),
+      ]);
+
+      const rows = await client<
+        { external_task_id: string; minutes: number; minutes_source: string }[]
+      >`
+        select external_task_id, minutes, minutes_source
+        from capacity_completion order by external_task_id`;
+      expect(rows).toEqual([
+        { external_task_id: 't-1', minutes: 30, minutes_source: 'recorded' },
+        { external_task_id: 't-2', minutes: 20, minutes_source: 'default' },
+      ]);
+    });
+
+    /**
+     * Level-triggered, like the weeks: a completion re-attributed elsewhere, or
+     * deleted in the tool, must leave the list — and one outside the range must
+     * survive, because this range is all the run re-read.
+     */
+    it('replaces the attributed completions in range, and only those', async () => {
+      const before = attributed({
+        externalTaskId: 't-old',
+        completedAt: AT('2026-08-26T09:00:00Z'),
+      });
+      await replaceWeeks([], '2026-08-24', '2026-10-05', [
+        before,
+        attributed(),
+        attributed({ externalTaskId: 't-2' }),
+      ]);
+      await replaceWeeks([], '2026-08-31', '2026-10-05', [attributed()]);
+
+      const rows = await client<{ external_task_id: string }[]>`
+        select external_task_id from capacity_completion order by external_task_id`;
+      expect(rows.map((row) => row.external_task_id)).toEqual(['t-1', 't-old']);
+    });
+
+    it('writes neither table when one of them is refused', async () => {
+      await expect(
+        replaceWeeks([week({ areaKey: 'nonexistent' })], '2026-08-31', '2026-10-05', [
+          attributed(),
+        ]),
+      ).rejects.toThrow(/area_key/);
+
+      const rows = await client<{ count: string }[]>`select count(*) from capacity_completion`;
+      expect(rows[0]?.count).toBe('0');
+    });
+
     it('refuses a week for an area that does not exist', async () => {
       await expect(
-        store().replaceCapacityWeeks(
-          [week({ areaKey: 'nonexistent' })],
-          '2026-08-31',
-          '2026-10-05',
-        ),
+        replaceWeeks([week({ areaKey: 'nonexistent' })], '2026-08-31', '2026-10-05'),
       ).rejects.toThrow(/area_key/);
     });
   });

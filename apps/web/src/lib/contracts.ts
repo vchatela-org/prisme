@@ -588,6 +588,46 @@ export const balanceSchema = z.object({
 
 export type Balance = z.infer<typeof balanceSchema>;
 
+/**
+ * The completions behind one area's balance row (`/areas/{key}/completions`).
+ *
+ * Same window, same record, and `totals` is the list's own sum — so the screen
+ * compares it with the balance row rather than adding anything up itself.
+ * `content` is the task's title as it was fetched (ADR-0032): instance data,
+ * rendered and never logged, and null for a completion fetched before titles
+ * were kept.
+ */
+export const areaCompletionsSchema = z.object({
+  areaKey,
+  from: calendarDate,
+  to: calendarDate,
+  windowWeeks: z.number().int(),
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  observedThrough: calendarDate.nullable(),
+  totals: z.object({
+    completions: z.number().int(),
+    minutes: z.number().int(),
+    minutesBySource: z.object({
+      recorded: z.number().int(),
+      declared: z.number().int(),
+      default: z.number().int(),
+    }),
+  }),
+  completions: z.array(
+    z.object({
+      externalTaskId: z.string(),
+      completedAt: instant,
+      content: z.string().nullable(),
+      minutes: z.number().int().min(0),
+      minutesSource: z.enum(['recorded', 'declared', 'default']).nullable(),
+      ritual: z.boolean(),
+    }),
+  ),
+});
+
+export type AreaCompletions = z.infer<typeof areaCompletionsSchema>;
+export type AreaCompletion = AreaCompletions['completions'][number];
+
 const bucketPointSchema = z.object({ periodStart: calendarDate, value: z.number() });
 
 const areaSeriesSchema = z.object({

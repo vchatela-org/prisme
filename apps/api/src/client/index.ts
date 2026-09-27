@@ -1,5 +1,11 @@
 import type { z } from 'zod';
-import type { areaDto, areaWeightDto, areaWeightsDto, balanceDto } from '../dto/area.js';
+import type {
+  areaCompletionsDto,
+  areaDto,
+  areaWeightDto,
+  areaWeightsDto,
+  balanceDto,
+} from '../dto/area.js';
 import type { initiativeDto, projectDto, scoreDto, taskDto } from '../dto/initiative.js';
 import type { keyResultDto, measurementDto, objectiveDto } from '../dto/okr.js';
 import type { adherenceDto, ritualDto, takeawayDto } from '../dto/lanes.js';
@@ -41,6 +47,7 @@ export type Area = z.infer<typeof areaDto>;
 export type AreaWeight = z.infer<typeof areaWeightDto>;
 export type AreaWeights = z.infer<typeof areaWeightsDto>;
 export type Balance = z.infer<typeof balanceDto>;
+export type AreaCompletions = z.infer<typeof areaCompletionsDto>;
 
 export type Initiative = z.infer<typeof initiativeDto>;
 export type Project = z.infer<typeof projectDto>;

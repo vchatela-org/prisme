@@ -199,6 +199,10 @@ export function mapCompletion(item: WireCompletedItem, operation: string): Compl
     projectId: item.project_id ?? undefined,
     sectionId: item.section_id ?? undefined,
     completedAt: parseInstant(item.completed_at, 'completed_at', operation),
+    // The same sanitiser a live task's title goes through: this string reaches
+    // a screen, and a bidirectional override in it would make a row read as
+    // something other than what it is.
+    content: item.content === undefined ? undefined : sanitisePlainText(item.content),
     recordedMinutes: minutesOf(duration),
     recordedDuration: duration,
   };

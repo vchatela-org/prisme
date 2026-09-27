@@ -70,20 +70,40 @@ runs every fifteen minutes, so daily is current with days to spare; and the refr
 document tool for the declared-duration tier, which is a query worth making about once a day rather
 than ninety-six times.
 
-It **writes prisme's own table and, without a bound document-tool store, reads no page at all** — so
-it runs with the write freeze on, which is the state of every instance until the first outward write
-is authorised. The chart has to work during the read-only phase; that is the phase it is for.
+**It fetches the trailing window before it materialises.** Re-attributing `completion_history`
+alone kept the weeks current with a history nothing added to between backfills, so the balance was
+frozen at the last one. The refresh now reads `[min(cursor end, now − window), now)` from the task
+tool in 28-day slices, through the backfill's own `recordSlice`: the same upsert, the same cursor,
+and the completed task's title ([ADR-0032](20-decisions/0032-completed-task-titles-are-recorded.md)).
+Starting at the earlier bound means a refresh that missed days never advances the cursor over a
+stretch nothing read. A failed fetch is logged as `taskToolUnread` and the refresh still
+materialises what is stored.
 
-Three things it deliberately does not do. It does not touch history outside the window: a week older
-than `CAPACITY_WINDOW_WEEKS` keeps the numbers the backfill gave it. It is **not** a `backfill` with
+**It rewrites whole weeks, and both derived tables together.** `capacity_week` and
+`capacity_completion` (one row per attributed completion, which is what the area screen lists) are
+replaced in one transaction over the same weeks, so the list and the sums cannot disagree. The weeks
+are loaded whole: the window starts mid-week on six days out of seven, and loading from that instant
+used to rewrite the first week from the part of it after the instant.
+
+It **writes prisme's own tables, reads the task tool's completions and, without a bound
+document-tool store, reads no page at all** — so it runs with the write freeze on, which is the state
+of every instance until the first outward write is authorised. It holds the read path only; no writer
+is reachable from it. The chart has to work during the read-only phase; that is the phase it is for.
+
+Three things it deliberately does not do. It does not re-materialise weeks outside the window —
+what a lagging cursor makes it fetch from before the window is recorded, not re-counted — so a week
+older than `CAPACITY_WINDOW_WEEKS` keeps the numbers the backfill gave it. It is **not** a `backfill` with
 a narrow `from` — that would materialise everything the cursor covers, because `planResume` answers a
 request narrower than the cursor with the union of the two. And it does not fail the pass: a capacity
 write that failed is logged and the anchor reconciliation still reports its own outcome, because a
 red CronJob over a derived table pages somebody about the wrong thing — while the staleness is
 visible where it matters, in `observedThrough` on the balance view.
 
-Filling history is still `prisme-sync backfill --from <date>`, still run by a person, still with no
-default date. This keeps what that produced current; it does not replace it.
+Filling history **older than the window** is still `prisme-sync backfill --from <date>`, still run
+by a person, still with no default date. It is also the only thing that gives titles to completions
+fetched before they were recorded, outside the trailing window — and only with a `--from` **earlier
+than the cursor's start**, because a `--from` inside the covered range resumes at the cursor's end and
+re-reads nothing. Any run re-materialises the whole covered range, so any run itemises the older weeks.
 
 #### The write audit is pruned by the full pass
 

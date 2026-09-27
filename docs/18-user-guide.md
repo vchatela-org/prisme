@@ -210,7 +210,9 @@ month's objectives · replan what slipped.
 
 - **Areas** — each area's share of the last four weeks against its target. The bar is scaled to the
   area's own target, so "on target" always sits in the middle. The *balance factor* is what lifts a
-  starved area's scores.
+  starved area's scores. A share that looks wrong can be taken apart: **N completed** on a row opens
+  the area at *Completed in the window*, the tasks that share was counted from, each with its minutes
+  and whether they were recorded or the default estimate.
 - **KPI** — the same over time, plus throughput, Run hours, Signals volume and ritual adherence.
 - **Timeline** — planned start and end for each initiative, the critical path and deadlines at
   risk. Dragging only previews; nothing is saved from it.

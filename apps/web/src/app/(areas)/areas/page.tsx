@@ -254,7 +254,13 @@ function AreaRow({ row, href, inFlight }: { row: AreaBalance; href: string; inFl
       />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
         <span className="tabular-nums">balance factor {row.balanceFactor.toFixed(2)}</span>
-        <span className="tabular-nums">{row.completions} completed</span>
+        <Link
+          href={`${href}#completed`}
+          className="tabular-nums text-ink-secondary hover:underline"
+          title="Which completions these were"
+        >
+          {row.completions} completed
+        </Link>
         <span className="tabular-nums">{Math.round(row.minutes / 60)} h attributed</span>
         <span className="tabular-nums">{inFlight} in flight</span>
         <Link href={href} className="text-ink-secondary hover:underline">

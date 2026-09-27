@@ -127,6 +127,17 @@ export interface Completion {
   readonly projectId?: ExternalTaskId | undefined;
   readonly sectionId?: ExternalTaskId | undefined;
   readonly completedAt: Date;
+  /**
+   * The task's title as it read when it was completed, sanitised to plain text.
+   *
+   * Carried so the capacity figures can be itemised — which tasks an area's
+   * observed share was made of — and for nothing else. It is the task tool's
+   * field, read and never written, and it is the only part of a task's content
+   * prisme keeps: description, subtasks and comments are still never read into
+   * history ([ADR-0032](../../../../docs/20-decisions/0032-completed-task-titles-are-recorded.md)).
+   * Absent when the tool sent none.
+   */
+  readonly content?: string | undefined;
   readonly recordedMinutes?: number | undefined;
   /**
    * The duration as the tool stated it, unit included.

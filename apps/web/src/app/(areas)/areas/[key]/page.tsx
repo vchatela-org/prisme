@@ -14,7 +14,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
+import { completionsSummary, itemisationGap } from '@/lib/completions-view';
 import {
+  areaCompletionsSchema,
   areaDetailSchema,
   areaWeightsSchema,
   balanceSchema,
@@ -31,6 +33,7 @@ import {
   observedShareSeries,
 } from '@/lib/kpi-view';
 import { declaredSeries, yearsSpanned, type WeightsByYear } from '@/lib/weight-year';
+import { CompletionsTable } from './completions-table';
 
 /**
  * One area, over time.
@@ -40,6 +43,11 @@ import { declaredSeries, yearsSpanned, type WeightsByYear } from '@/lib/weight-y
  * where the year-boundary bug lives — so the declared line here is resolved
  * per bucket from the weights in force at that time, never from this year's
  * (`../../../lib/weight-year.ts`).
+ *
+ * It also answers "which work was that?" — the completions the observed share
+ * was made of, over the window `/balance` measured, each with the time it was
+ * counted for. A share that cannot be taken apart gets overridden once and
+ * then ignored.
  */
 
 const HISTORY_MONTHS = 24;
@@ -63,9 +71,14 @@ export default async function AreaDetailPage({
   const to = `${String(year)}-12-31`;
   const from = monthsBefore(to, HISTORY_MONTHS);
 
-  const [area, balance, kpi, focus] = await Promise.all([
+  const [area, balance, completed, kpi, focus] = await Promise.all([
     apiFetch({ path: `/areas/${encodeURIComponent(key)}`, schema: areaDetailSchema }),
     apiFetch({ path: '/balance', query: { year: String(year) }, schema: balanceSchema }),
+    apiFetch({
+      path: `/areas/${encodeURIComponent(key)}/completions`,
+      query: { year: String(year) },
+      schema: areaCompletionsSchema,
+    }),
     apiFetch({ path: '/kpi', query: { from, to, bucket: 'month' }, schema: kpiSchema }),
     apiFetch({ path: '/focus', schema: focusSchema }),
   ]);
@@ -171,6 +184,46 @@ export default async function AreaDetailPage({
         </>
       )}
 
+      <div id="completed" className="scroll-mt-6">
+        <Section
+          title="Completed in the window"
+          description={
+            area.data.kind === 'signals'
+              ? 'Every completion counted here over the window, newest first. Signals are volume: they are counted and add no time.'
+              : 'Every completion counted toward the observed share above, newest first, with the time each was counted for. That share is this area’s part of all the time attributed across every area — not progress through this area’s own work.'
+          }
+        >
+          {!completed.ok ? (
+            <ApiFailureState failure={completed} surface="this area's completions" />
+          ) : completed.data.completions.length === 0 && (row?.completions ?? 0) === 0 ? (
+            <EmptyState
+              title="Nothing counted here in this window"
+              description={`No completion in ${completed.data.from} → ${completed.data.to} was attributed to this area. If work happened here, its project may not be mapped to the area yet — Settings is where a project is folded into an area.`}
+            />
+          ) : (
+            <>
+              <p className="text-sm text-ink tabular-nums">
+                {completionsSummary(completed.data.totals, area.data.kind)}
+              </p>
+              {row === undefined ? null : (
+                <GapNote
+                  text={itemisationGap(completed.data.totals.completions, row.completions)}
+                />
+              )}
+              <CompletionsTable
+                rows={completed.data.completions}
+                now={new Date().toISOString()}
+                areaName={area.data.name}
+              />
+              <p className="text-xs text-ink-muted">
+                {completed.data.from} → {completed.data.to}, the window the share above was measured
+                over. A title is the one the task had when prisme fetched it.
+              </p>
+            </>
+          )}
+        </Section>
+      </div>
+
       <Section
         title="Share over time"
         description="What this area received each month, against what it was allocated that year."
@@ -266,4 +319,9 @@ export default async function AreaDetailPage({
       ) : null}
     </div>
   );
+}
+
+function GapNote({ text }: { text: string | null }) {
+  if (text === null) return null;
+  return <Card className="border-status-warning p-3 text-sm text-ink">{text}</Card>;
 }
