@@ -4,6 +4,7 @@ import { REVIEW_CADENCES } from './contracts';
 import {
   artefactFor,
   CADENCE_LABELS,
+  discardConsequence,
   progressOf,
   stepIndexFrom,
   stepsFor,
@@ -255,5 +256,26 @@ describe('artefactFor', () => {
     });
 
     expect(artefact.startsWith('# Quarterly review — 2026-09-14')).toBe(true);
+  });
+});
+
+describe('discardConsequence', () => {
+  it('says an untouched session loses nothing', () => {
+    expect(discardConsequence(0, 0)).toMatch(/^Nothing has been recorded in it yet\./);
+  });
+
+  it('counts what goes, with the right plural', () => {
+    expect(discardConsequence(1, 0)).toContain('Its 1 ticked step will be deleted');
+    expect(discardConsequence(3, 2)).toContain('Its 3 ticked steps and 2 recorded decisions');
+    expect(discardConsequence(0, 1)).toContain('Its 1 recorded decision will be deleted');
+  });
+
+  it('always says what is not touched', () => {
+    for (const [done, decisions] of [
+      [0, 0],
+      [2, 1],
+    ] as const) {
+      expect(discardConsequence(done, decisions)).toContain('Closed reviews');
+    }
   });
 });

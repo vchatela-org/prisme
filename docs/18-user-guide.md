@@ -206,6 +206,9 @@ under its anchor, and its Notion page.
 
 Each review is a wizard (**Reviews**), one step at a time, with the data each step needs on screen.
 You can leave and come back; decisions are saved as you go.
+Started one you do not mean to finish? **Discard** (on the review, or beside *Resume* on the
+Reviews page) deletes it with its ticks and decisions, after asking. A closed review cannot be
+discarded.
 
 **Weekly** — triage what arrived · confirm what finished · check the now set · clear the conflict
 ledger · look ahead at deadlines · re-score what changed · refill free now slots · record decisions.

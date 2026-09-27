@@ -24,7 +24,7 @@ describe('isStateChanging', () => {
   });
 
   it('is true for every write verb', () => {
-    for (const method of ['POST', 'PATCH', 'PUT'] as const) {
+    for (const method of ['POST', 'PATCH', 'PUT', 'DELETE'] as const) {
       expect(isStateChanging(method)).toBe(true);
     }
   });

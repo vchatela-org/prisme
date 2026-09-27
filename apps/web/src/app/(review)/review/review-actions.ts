@@ -264,3 +264,61 @@ export async function closeReview(input: CloseInput): Promise<ActionResult> {
     session: result.data,
   };
 }
+
+const discardSchema = z.object({
+  reviewId: z.string().min(1).max(200),
+  cadence: z.literal(REVIEW_CADENCES),
+});
+
+export type DiscardInput = z.infer<typeof discardSchema>;
+
+/**
+ * Discard an open session — its ticks and its decisions with it.
+ *
+ * The way out of a review somebody started and does not mean to finish, so the
+ * next one opens on an empty checklist rather than on a stale half-done week.
+ * There is no "save for later" here on purpose: an open session already is one.
+ *
+ * The API refuses a **closed** session (409): a closed review carries the
+ * snapshot it was decided on, and that is history rather than a draft. A
+ * session that is already gone (404) is the state the click asked for, so it
+ * reads as done rather than as a failure — a second click on a slow button is
+ * the usual way to get there.
+ */
+export async function discardReview(input: DiscardInput): Promise<ActionResult> {
+  const parsed = discardSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That review cannot be discarded',
+      description: 'Discarding names one open review session.',
+      session: null,
+    };
+  }
+
+  const result = await apiFetch({
+    path: `/reviews/${encodeURIComponent(parsed.data.reviewId)}`,
+    method: 'DELETE',
+    schema: reviewSessionSchema,
+  });
+
+  if (!result.ok && result.status === 409) {
+    return {
+      ok: false,
+      title: 'That review is already closed',
+      description:
+        'A closed review is kept with the snapshot it was decided on. Only an open one can be discarded.',
+      session: null,
+    };
+  }
+  if (!result.ok && result.kind !== 'not_found') return failed(result, 'this review');
+
+  revalidateReview(parsed.data.cadence);
+
+  return {
+    ok: true,
+    title: 'Review discarded',
+    description: 'Nothing from it was kept. The next one starts from an empty checklist.',
+    session: null,
+  };
+}

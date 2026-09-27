@@ -19,6 +19,7 @@ import {
   windowDaysFor,
 } from '@/lib/review-wizard';
 import { DecisionRecorder } from '../decision-recorder';
+import { DiscardReviewButton } from '../discard-review-button';
 import { OpenReviewButton } from '../open-review-button';
 import { StepControl } from '../step-control';
 import { StepPanel } from '../step-panel';
@@ -154,6 +155,12 @@ export default async function ReviewCadencePage({
           <Button asChild variant="ghost" size="sm">
             <Link href="/review/history">History</Link>
           </Button>
+          <DiscardReviewButton
+            reviewId={open.id}
+            cadence={cadence}
+            done={progress.done}
+            decisions={open.decisions.length}
+          />
         </div>
       </Card>
 
