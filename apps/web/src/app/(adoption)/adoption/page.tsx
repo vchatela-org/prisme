@@ -1,5 +1,7 @@
 import { AreaBadge, Badge, Card, ClearedState, Section } from '@prisme/ui';
+import { ExternalLink } from 'lucide-react';
 import { ApiFailureState } from '@/components/api-failure';
+import { candidateLink, type CandidateLink } from '@/lib/adoption-view';
 import { apiFetch } from '@/lib/api';
 import {
   adoptionQueueSchema,
@@ -7,6 +9,7 @@ import {
   type AdoptionCandidate,
   type Area,
 } from '@/lib/contracts';
+import { webRuntime } from '@/lib/runtime';
 import { CandidateDecisions } from './adoption-actions';
 import { RescanButton } from './rescan-button';
 
@@ -38,6 +41,10 @@ export const metadata = {
  * decision brings one back — which is the only reason a queue like this gets
  * worked rather than abandoned.
  *
+ * **A title opens the object it names**, in Notion or Todoist, whenever the
+ * deployment supplies a link template for its kind (`candidateLink`). A title
+ * is often not enough to decide on; the page behind it usually is.
+ *
  * Every title below is **instance data**. It renders in a browser and never in
  * this repository (docs/17-privacy.md).
  */
@@ -61,6 +68,11 @@ export default async function AdoptionPage() {
   const nameOf = (key: string): string => byKey.get(key)?.name ?? key;
 
   const { items, total } = queue.data;
+  const config = webRuntime().config;
+  const links = {
+    page: config.doctoolPageUrlTemplate,
+    project: config.tasktoolProjectUrlTemplate,
+  };
 
   // Split by whether a rule fired at all. The two halves are worked
   // differently: the first is "is this proposal right?", which is a glance; the
@@ -90,7 +102,7 @@ export default async function AdoptionPage() {
           title="Proposed"
           description="prisme thinks each of these is an entity it already has. Accepting one links them; it creates nothing, in prisme or in either tool."
         >
-          <CandidateList candidates={proposed} byKey={byKey} nameOf={nameOf} />
+          <CandidateList candidates={proposed} byKey={byKey} nameOf={nameOf} links={links} />
         </Section>
       ) : null}
 
@@ -99,7 +111,7 @@ export default async function AdoptionPage() {
           title="No match"
           description="Nothing resolved these. Adopting one creates a prisme entity bound to the object that already exists — most things, though, are better ignored than promoted."
         >
-          <CandidateList candidates={manual} byKey={byKey} nameOf={nameOf} />
+          <CandidateList candidates={manual} byKey={byKey} nameOf={nameOf} links={links} />
         </Section>
       ) : null}
     </div>
@@ -115,10 +127,12 @@ function CandidateList({
   candidates,
   byKey,
   nameOf,
+  links,
 }: {
   candidates: readonly AdoptionCandidate[];
   byKey: ReadonlyMap<string, Area>;
   nameOf: (key: string) => string;
+  links: { page: string | undefined; project: string | undefined };
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -126,7 +140,7 @@ function CandidateList({
         <li key={`${candidate.externalKind}:${candidate.externalId}`}>
           <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex min-w-0 flex-col gap-1">
-              <p className="truncate text-sm font-medium text-ink">{candidate.title}</p>
+              <CandidateTitle title={candidate.title} link={candidateLink(candidate, links)} />
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-secondary">
                 {candidate.areaKey === null ? (
                   <span>Outside every mapped area</span>
@@ -149,6 +163,33 @@ function CandidateList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The title, as a link to the object when there is one.
+ *
+ * It opens in a new tab, because the queue is worked row by row and a link that
+ * replaced it would lose the place. `noreferrer` because the address of this
+ * application is nothing the other tool needs.
+ */
+function CandidateTitle({ title, link }: { title: string; link: CandidateLink | undefined }) {
+  if (link === undefined) {
+    return <p className="truncate text-sm font-medium text-ink">{title}</p>;
+  }
+
+  return (
+    <a
+      className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink underline-offset-2 hover:underline focus-visible:underline"
+      href={link.href}
+      target="_blank"
+      rel="noreferrer"
+      title={`Open in ${link.tool}`}
+    >
+      <span className="truncate">{title}</span>
+      <ExternalLink aria-hidden className="size-3.5 shrink-0 text-ink-muted" />
+      <span className="sr-only">(opens in {link.tool})</span>
+    </a>
   );
 }
 

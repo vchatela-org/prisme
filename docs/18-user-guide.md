@@ -120,6 +120,10 @@ are never ranked against initiatives; the KPI dashboard shows how often they hap
 - **Merge** — link it to something prisme already has.
 - **Ignore** — never show it again.
 
+A title opens what it names in a new tab — the page in Notion, or the project in Todoist — so you
+can read it before you decide. That needs `DOCTOOL_PAGE_URL_TEMPLATE` (and, for projects,
+`TASKTOOL_PROJECT_URL_TEMPLATE`) set in the deployment; a task has no link yet.
+
 Most tasks are just tasks. Adopt the few things that are genuinely *outcomes*; ignore the rest
 freely. The queue is re-read once a day; press **Rescan** after labelling a task or changing an
 area's locations.

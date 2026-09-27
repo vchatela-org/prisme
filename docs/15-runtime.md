@@ -162,8 +162,8 @@ provider and produces a login that cannot work:
 | `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` | *unset* | The takeaways store's select property whose value starts with *action* or *principle*. Unset, no takeaway is typed: none is proposed as an initiative and the Inbox shows none. **Sync and API** (the adoption scan runs in both) |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
 | `TASKTOOL_BASE_URL` | *the vendor's public API* | The task tool's **API host**, for the same reason |
-| `DOCTOOL_PAGE_URL_TEMPLATE` | *unset* | Where a page **opens** — the browser-facing host, with a literal `{id}` where the identifier goes. **Web tier**; unset leaves *Open page* disabled, and the Settings screen names stores without linking them |
-| `TASKTOOL_PROJECT_URL_TEMPLATE` | *unset* | The same for a task-tool **project**, for the links on the Settings screen. **Web tier**; unset names projects without linking them |
+| `DOCTOOL_PAGE_URL_TEMPLATE` | *unset* | Where a page **opens** — the browser-facing host, with a literal `{id}` where the identifier goes. **Web tier**; unset leaves *Open page* disabled, and Settings, Rituals, Audit and Adoption name pages without linking them |
+| `TASKTOOL_PROJECT_URL_TEMPLATE` | *unset* | The same for a task-tool **project**, for the links on the Settings, Audit and Adoption screens. **Web tier**; unset names projects without linking them |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
 
 **Area colours are not configuration.** The palette has eight categorical slots and that ceiling is
@@ -228,8 +228,9 @@ right. Two properties are worth knowing because they are easy to get wrong:
   at, which is not a link prisme will render.
 
 Unset is every instance's state until somebody sets it, and it is not a broken deployment: the
-initiative screen's *Open page* stays a disabled control that says what is missing. Nothing else
-reads this variable, and no state depends on it.
+initiative screen's *Open page* stays a disabled control that says what is missing, and every other
+screen that names a page shows the name without a link. Only the web tier reads this variable, and
+no state depends on it.
 
 `SYNC_WRITE_ENABLED=false` by default is deliberate. A fresh deployment that cannot write outward is
 harmless; one that writes on first boot is not.
