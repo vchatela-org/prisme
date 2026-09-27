@@ -45,7 +45,14 @@ sync/
   bindings.ts  reads the role bindings the API stores (Settings → Notion)
   capacity-refresh.ts
                the trailing-window refresh the full pass runs: `materialise`, bounded
+  audit/       the write audit's sink, its retention prune, and the entity context
+               a call is recorded against (ADR-0031)
 ```
+
+**Every writer this app hands a pass is audited** — wrapped with `audit*Writer` from
+`@prisme/connectors/write` where it is constructed, frozen ones included. A new writer, or a new
+place that builds one, wraps it too; nothing records a call by hand. A pass that knows which entity
+it is writing for says so with `withWriteSubject` around the call.
 
 One step of the pass lives in `main.ts` rather than `run.ts`: after a full pass it refreshes
 `capacity_week` over the trailing window, beside the creation-ledger drain that already runs there.

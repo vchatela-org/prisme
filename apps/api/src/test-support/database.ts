@@ -139,6 +139,11 @@ const TABLES = [
   // singleton the application upserts rather than a row the migration inserts,
   // so truncating it is the whole reset: the next pass recreates it.
   'sync_run_state',
+  // The audit of outward writes (migration 0013, ADR-0031). `external_write`
+  // refuses UPDATE, not DELETE, and references nothing; `audit_setting` is a
+  // singleton upserted like `sync_run_state`, so an empty table is the default.
+  'external_write',
+  'audit_setting',
 ] as const;
 
 export async function openTestDatabase(): Promise<TestDatabase> {

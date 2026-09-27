@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { apiFetch } from '@/lib/api';
 import { failureCopy, type ApiFailure } from '@/lib/api-result';
-import { bindingListSchema, bindingSchema, settingsAreaSchema } from '@/lib/contracts';
+import {
+  auditRetentionSchema,
+  bindingListSchema,
+  bindingSchema,
+  settingsAreaSchema,
+} from '@/lib/contracts';
 import { AREA_KEY_PATTERN } from '@/lib/settings-view';
 
 /**
@@ -248,4 +253,39 @@ export async function checkBindings(): Promise<SettingsResult> {
         title: `${String(failing)} binding${failing === 1 ? '' : 's'} could not be read`,
         description: 'See the notes beside them.',
       };
+}
+
+/**
+ * How long a record of an outward write is kept (ADR-0031).
+ *
+ * The bounds are the API's and are refused there with a 400; this schema only
+ * keeps a non-number from making the trip. Shortening the window deletes
+ * nothing now — the next daily full pass prunes to it — and the copy says so,
+ * because "saved" next to a record count that has not moved reads like a bug.
+ */
+const retentionSchema = z.object({ retentionDays: z.number().int() });
+
+export async function setAuditRetention(
+  input: z.input<typeof retentionSchema>,
+): Promise<SettingsResult> {
+  const parsed = retentionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'The window is a whole number of days.' };
+  }
+
+  const result = await apiFetch({
+    path: '/audit/retention',
+    method: 'PUT',
+    body: { retentionDays: parsed.data.retentionDays },
+    schema: auditRetentionSchema,
+  });
+  if (!result.ok) return refused(result, 'the retention window', 'The window was not saved.');
+
+  revalidatePath('/settings');
+  revalidatePath('/audit');
+  return {
+    ok: true,
+    title: 'Saved',
+    description: `Records are kept ${String(result.data.retentionDays)} days. Older ones go at the next daily pass.`,
+  };
 }

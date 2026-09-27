@@ -377,6 +377,15 @@ It is load-bearing three times over: KPIs and trends are impossible without it, 
 know what changed, and it doubles as the security audit trail
 ([`14-threat-model.md`](14-threat-model.md)).
 
+### Audit of outward writes
+**One row per call prisme makes to the document tool or the task tool, failures included — kept for
+a window, then deleted** ([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)).
+Tool, operation, which half of the sync made it, the entity it was made for, the external object,
+what was sent, the outcome and — for a failure — its kind. The rows are immutable; the daily full
+pass deletes those older than the retention window chosen in **Settings** (default 90 days, 7 to
+3650). It is **not** the event log, which is never pruned: this is the record of *calls*, the event
+log the record of *effects*. Read on `/audit`.
+
 ### Reconciliation state
 Incremental sync token, change watermark, per-field last-applied values, and the conflict ledger —
 all in PostgreSQL rather than on a volume, so replicas are interchangeable and a restart loses

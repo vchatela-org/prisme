@@ -21,6 +21,13 @@
  *   so a new column does not arrive at the boundary by accident.
  */
 
+import type {
+  WriteAuditOperation,
+  WriteAuditOrigin,
+  WriteAuditOutcome,
+  WriteAuditTool,
+} from '@prisme/domain';
+
 export type CalendarDateText = string;
 
 export interface AreaRecord {
@@ -458,6 +465,53 @@ export interface SyncStateRecord {
   readonly unresolvedConflicts: number;
 }
 
+/**
+ * One outward call, as the audit recorded it (ADR-0031). `request` and
+ * `externalId` are instance data: they reach the owner's browser and nothing
+ * else.
+ */
+export interface ExternalWriteRecord {
+  readonly id: string;
+  readonly occurredAt: Date;
+  readonly tool: WriteAuditTool;
+  readonly operation: WriteAuditOperation;
+  readonly origin: WriteAuditOrigin;
+  readonly runId: string;
+  readonly entityKind: string | null;
+  readonly entityId: string | null;
+  /** The entity's title as it is now, read beside the row. `null` when it is gone. */
+  readonly entityTitle: string | null;
+  readonly externalId: string | null;
+  readonly request: Readonly<Record<string, unknown>>;
+  readonly outcome: WriteAuditOutcome;
+  readonly failure: string | null;
+  readonly error: string | null;
+  readonly durationMs: number;
+}
+
+/** Every field narrows; an absent one does not. An empty list is "any". */
+export interface ExternalWriteFilter {
+  readonly tools?: readonly WriteAuditTool[] | undefined;
+  readonly operations?: readonly WriteAuditOperation[] | undefined;
+  readonly outcome?: WriteAuditOutcome | undefined;
+  readonly origin?: WriteAuditOrigin | undefined;
+  readonly entityId?: string | undefined;
+  /** Half-open, like every range here: `from <= occurred_at < to`. */
+  readonly from?: Date | undefined;
+  readonly to?: Date | undefined;
+  /** Case-insensitive, as a substring of what was sent, the object's id, or the entity's title. */
+  readonly search?: string | undefined;
+}
+
+export interface AuditRetentionRecord {
+  /** `null` when nothing has been chosen and the default applies. */
+  readonly retentionDays: number | null;
+  readonly updatedAt: Date | null;
+  /** How many records the table holds now, and since when. */
+  readonly records: number;
+  readonly oldestAt: Date | null;
+}
+
 export interface Paged<T> {
   readonly items: readonly T[];
   readonly total: number;
@@ -806,5 +860,16 @@ export interface ApiStore {
     resolveConflict(id: string, resolution: string): Promise<ConflictRecord | undefined>;
 
     syncState(): Promise<SyncStateRecord>;
+  };
+
+  /**
+   * `external_write` and `audit_setting` — the audit of outward writes
+   * (ADR-0031). Read-only here apart from the window: the rows are written by
+   * the writers themselves and deleted by the daily pass, never by the API.
+   */
+  readonly audit: {
+    writes(filter: ExternalWriteFilter, page: PageRequest): Promise<Paged<ExternalWriteRecord>>;
+    retention(): Promise<AuditRetentionRecord>;
+    setRetention(days: number, at: Date): Promise<void>;
   };
 }
