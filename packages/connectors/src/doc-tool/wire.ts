@@ -136,8 +136,9 @@ export const wireBlockListSchema = z.object({
  * Read for the Settings screen and nothing else: the title, the database that
  * holds it — which is what a browser opens, because a data source has no page
  * of its own — and each property's **type**, so the screen can offer the
- * store's date properties to choose from. A property's configuration (options,
- * formulas, relations) is not read.
+ * store's date and relation properties to choose from. A property's
+ * configuration (options, formulas, which store a relation points at) is not
+ * read.
  */
 export const wireDataSourceSchema = z.object({
   object: z.literal('data_source'),

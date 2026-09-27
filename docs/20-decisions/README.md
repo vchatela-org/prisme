@@ -45,8 +45,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0030](0030-page-stores-are-databases-with-native-templates.md) | A page store is a database, and its templates are the document tool's own | **Accepted** 2026-09-26 — supersedes rules 2 and 4 of [0025](0025-page-creation-needs-a-role-vocabulary.md) and the template half of [0028](0028-capture-pages-get-a-role-pair.md) |
 | [0031](0031-outward-writes-are-audited-and-pruned.md) | Every outward write is audited in its own table, and the table is pruned by age | **Accepted** 2026-09-27 |
 | [0032](0032-completed-task-titles-are-recorded.md) | A completed task's title is recorded, read-only, so the capacity figures can be taken apart | **Accepted** 2026-09-27 — amends the Content row of [`11-ownership.md`](../11-ownership.md) §5 |
+| [0033](0033-a-store-area-column-names-an-entry-area.md) | Read a document-tool entry's area from its store's area column, by the area's own page | **Accepted** 2026-09-27 — decided by the owner; adds rows to [`11-ownership.md`](../11-ownership.md) §2, §6, §7 and §8 |
 
-**32 records: 31 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
+**33 records: 32 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

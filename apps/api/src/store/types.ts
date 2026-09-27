@@ -77,6 +77,13 @@ export interface RoleBindingRecord {
   readonly dateProperty: string | null;
   /** The store's date properties as the last check read them; `null` if unchecked. */
   readonly dateProperties: readonly string[] | null;
+  /**
+   * The relation property the adoption scan reads this store's areas from,
+   * chosen on Settings → Notion (ADR-0033). A name, and instance data.
+   */
+  readonly areaProperty: string | null;
+  /** The store's relation properties as the last check read them; `null` if unchecked. */
+  readonly relationProperties: readonly string[] | null;
 }
 
 export interface AreaWeightRecord {
@@ -580,6 +587,8 @@ export interface ApiStore {
     remove(role: string): Promise<boolean>;
     /** Set or clear one binding's date property; `false` when the role is not bound. */
     setDateProperty(role: string, property: string | null): Promise<boolean>;
+    /** Set or clear one binding's area column (ADR-0033); `false` when the role is not bound. */
+    setAreaProperty(role: string, property: string | null): Promise<boolean>;
   };
 
   /**

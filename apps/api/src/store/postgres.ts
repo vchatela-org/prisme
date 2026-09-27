@@ -523,10 +523,12 @@ export function createPostgresStore(client: Sql): ApiStore {
             templates: string | null;
             date_property: string | null;
             date_properties: string | null;
+            area_property: string | null;
+            relation_properties: string | null;
           }[]
         >`
           select role, external_id, title, link_id, checked_at, check_error, templates::text,
-                 date_property, date_properties::text
+                 date_property, date_properties::text, area_property, relation_properties::text
           from role_binding order by role`;
         return rows.map((row) => ({
           role: row.role,
@@ -538,6 +540,11 @@ export function createPostgresStore(client: Sql): ApiStore {
           templates: json<RoleBindingRecord['templates']>(row.templates, null),
           dateProperty: row.date_property,
           dateProperties: json<RoleBindingRecord['dateProperties']>(row.date_properties, null),
+          areaProperty: row.area_property,
+          relationProperties: json<RoleBindingRecord['relationProperties']>(
+            row.relation_properties,
+            null,
+          ),
         }));
       },
 
@@ -547,12 +554,16 @@ export function createPostgresStore(client: Sql): ApiStore {
         const templates = record.templates === null ? null : JSON.stringify(record.templates);
         const dateProperties =
           record.dateProperties === null ? null : JSON.stringify(record.dateProperties);
+        const relationProperties =
+          record.relationProperties === null ? null : JSON.stringify(record.relationProperties);
         await client`
           insert into role_binding (role, external_id, tool, title, link_id, checked_at, check_error,
-                                    templates, date_property, date_properties, updated_at)
+                                    templates, date_property, date_properties, area_property,
+                                    relation_properties, updated_at)
           values (${record.role}, ${record.externalId}, 'doc', ${record.title}, ${record.linkId},
                   ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError},
-                  ${templates}::jsonb, ${record.dateProperty}, ${dateProperties}::jsonb, now())
+                  ${templates}::jsonb, ${record.dateProperty}, ${dateProperties}::jsonb,
+                  ${record.areaProperty}, ${relationProperties}::jsonb, now())
           on conflict (role) do update set
             external_id = excluded.external_id,
             title = excluded.title,
@@ -562,12 +573,21 @@ export function createPostgresStore(client: Sql): ApiStore {
             templates = excluded.templates,
             date_property = excluded.date_property,
             date_properties = excluded.date_properties,
+            area_property = excluded.area_property,
+            relation_properties = excluded.relation_properties,
             updated_at = now()`;
       },
 
       async setDateProperty(role: string, property: string | null): Promise<boolean> {
         const rows = await client`
           update role_binding set date_property = ${property}, updated_at = now()
+          where role = ${role} returning role`;
+        return rows.length > 0;
+      },
+
+      async setAreaProperty(role: string, property: string | null): Promise<boolean> {
+        const rows = await client`
+          update role_binding set area_property = ${property}, updated_at = now()
           where role = ${role} returning role`;
         return rows.length > 0;
       },

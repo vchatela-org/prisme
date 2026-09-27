@@ -326,13 +326,17 @@ describe('describing a store before it is bound', () => {
     parent: { type: 'database_id', database_id: 'db-0001' },
   };
   // Invented column names. A formula and the edit time are dates too, in a
-  // sense, and neither is a column a person sets a period in.
+  // sense, and neither is a column a person sets a period in. A rollup reads
+  // through a relation and names no page of its own (ADR-0033).
   const schema = {
     Name: { id: 'title', type: 'title' },
     'Reviewed on': { id: 'p1', type: 'date' },
     Period: { id: 'p2', type: 'date' },
     Computed: { id: 'p3', type: 'formula' },
     Edited: { id: 'p4', type: 'last_edited_time' },
+    Sphere: { id: 'p5', type: 'relation' },
+    'Linked notes': { id: 'p6', type: 'relation' },
+    'Sphere name': { id: 'p7', type: 'rollup' },
   };
   const database = (sources: readonly string[]) => ({
     object: 'database',
@@ -381,9 +385,11 @@ describe('describing a store before it is bound', () => {
       title: 'Reading notes',
       linkId: 'db-0001',
       dateProperties: ['Period', 'Reviewed on'],
+      relationProperties: ['Linked notes', 'Sphere'],
     });
     // The database carries no schema, so its one data source is read for the
-    // date properties — once, and without the fallback chain a pasted id gets.
+    // date and relation properties — once, and without the fallback chain a
+    // pasted id gets.
     expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
       '/v1/data_sources/db-0001',
       '/v1/databases/db-0001',
@@ -397,6 +403,14 @@ describe('describing a store before it is bound', () => {
     });
     const described = await client.describe('ds-0001', 'data_source');
     expect(described.dateProperties).toEqual(['Period', 'Reviewed on']);
+  });
+
+  it('lists a store’s relation properties by name, sorted, and not a rollup', async () => {
+    const { client } = describing({
+      '/v1/data_sources/ds-0001': { ...dataSource, properties: schema },
+    });
+    const described = await client.describe('ds-0001', 'data_source');
+    expect(described.relationProperties).toEqual(['Linked notes', 'Sphere']);
   });
 
   it('still describes a pasted database when its data source cannot be read', async () => {

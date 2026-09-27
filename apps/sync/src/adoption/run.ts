@@ -63,18 +63,22 @@ const SCANNED_ROLES: readonly RoleKey[] = ROLE_KEYS.filter(
 export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
   const startedAt = options.now();
 
-  const [targets, decided, auditable, areaMap, datePropertyByRole] = await Promise.all([
-    options.store.loadTargets(),
-    options.store.loadDecided(),
-    options.store.loadAuditable(),
-    options.store.loadAreaMap(),
-    options.store.loadDateProperties(),
-  ]);
+  const [targets, decided, auditable, areaMap, datePropertyByRole, areaPropertyByRole] =
+    await Promise.all([
+      options.store.loadTargets(),
+      options.store.loadDecided(),
+      options.store.loadAuditable(),
+      options.store.loadAreaMap(),
+      options.store.loadDateProperties(),
+      options.store.loadAreaProperties(),
+    ]);
 
   const adaptOptions: AdaptOptions = {
     areaByLocation: areaMap.areaByLocation,
     laneByArea: areaMap.laneByArea,
+    areaByPage: areaMap.areaByPage,
     datePropertyByRole,
+    areaPropertyByRole,
     ...(options.mappingProperty === undefined ? {} : { mappingProperty: options.mappingProperty }),
     ...(options.takeawayTypeProperty === undefined
       ? {}
@@ -114,7 +118,13 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
         takeaways = adapted.flatMap((object) =>
           object.takeawayType === undefined || object.closed
             ? []
-            : [{ externalPageId: object.externalId, kind: object.takeawayType }],
+            : [
+                {
+                  externalPageId: object.externalId,
+                  kind: object.takeawayType,
+                  ...(object.areaKey === undefined ? {} : { areaKey: object.areaKey }),
+                },
+              ],
         );
       }
     }

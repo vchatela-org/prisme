@@ -24,6 +24,7 @@ Per-field ownership makes conflicts resolvable by rule instead of by merge logic
 | → | prisme writes this outward |
 | ← | prisme reads this inward, and never writes it |
 | ⇢ | prisme *propagates* into a field it does not own, under the overwrite guard. The owner still wins — see [`16-sync.md`](16-sync.md#5-overwrite-protection) |
+| ← seed | prisme reads this inward **once, when the entity is adopted**, as a starting value for a field it owns. From then on prisme's value wins — the precedent is a task's deadline ([`13-migration.md` §4](13-migration.md#adopting-links-and-does-not-rewrite)); first used for an area ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 
 **Owner and flow are different columns for a reason.** One field, one owner, always — but a field
 someone else owns may still be written by prisme, under a rule that states exactly when it may not.
@@ -42,6 +43,8 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | Narrative description of the area | **D** | ← | What the area *means*; prose |
 | `area_mapping` → external project/section | **P** | — | Config, many-to-one. Nothing moves in the task tool when it changes |
 | `area_mapping.is_home` | **P** | — | Where prisme creates new work for the area (anchors, captures). At most one per area |
+| `external_page_id` — the area's own page in the Life areas store | **P** | — | Picked on Settings → Areas from that store's entries, never typed; one page names one area. What a store's area column is matched against, by identifier ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
+| A document-tool store's area column (`role_binding.area_property`) | **P** | — | Config: *which* relation property is read, chosen on Settings → Notion. The relation's **values** are owned per store — §6, §7, §8 |
 | `actual_share`, `balance_factor` | **∂** | — | From completions in the last 4 weeks |
 | The completions behind `actual_share` (`capacity_completion`) | **∂** | — | One row per attributed completion; rebuilt with the weekly sums on every run, never stored as a mapping decision ([ADR-0032](20-decisions/0032-completed-task-titles-are-recorded.md)) |
 
@@ -114,6 +117,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
 | `title`, `type`, `period`, `area_key`, `status` | **P** | → | Authored in prisme |
+| The objective page's area relation (the objectives store's area column) | **P** | ← seed | The outward form of `area_key`. Read into the adoption candidate to match and filter; taken into prisme only at adoption; after that a different value is a conflict (§10), never an update. **Nothing writes it yet** — an outward write of `area_key`, if built, writes here ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Objective narrative, reflections, review notes | **D** | ← | Prose |
 | Key result `statement`, `target`, `unit` | **P** | → | |
 | `progress_self` | **P** | → | Self-assessed; **this** is what syncs outward |
@@ -127,6 +131,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
 | Everything — title, kind, body, links, status | **D** | ← | prisme mirrors, writes nothing |
+| Area — the takeaways store's area column | **D** | ← | Read on every scan, into the candidate and `takeaway.area_key`; cleared when the relation stops naming exactly one area's page ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Media library in full | **D** | ← | Read-only |
 | Promotion link → initiative | **P** | — | Held in prisme; the takeaway is unmodified |
 | Legacy score / priority / workload properties | — | — | **Removed.** Scoring lives in prisme (ADR-0013) |
@@ -139,6 +144,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | Recurring tasks | **T** | ← | |
 | Run hours consumed vs budget | **∂** | — | Completions × declared duration |
 | Ritual definition: area, cadence, target adherence | **P** | — | |
+| The process page's area relation (the processes store's area column) | **D** | ← seed | Part of the process page, the document tool's outright (ADR-0016). Read into the adoption candidate; seeds a ritual's area only at adoption. Never written, never read again after, and a later difference is not a conflict: the ritual's area is a different field ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Ritual adherence series | **∂** | — | The metric neither tool provides |
 | Signals volume | **∂** | — | Counted as noise; excluded from capacity |
 

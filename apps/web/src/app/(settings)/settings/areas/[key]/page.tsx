@@ -4,16 +4,19 @@ import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import { instanceAreaColors } from '@/lib/area-pins';
-import { settingsAreaListSchema, taskLocationsSchema } from '@/lib/contracts';
-import { holders } from '@/lib/settings-view';
+import { areaPagesSchema, settingsAreaListSchema, taskLocationsSchema } from '@/lib/contracts';
+import { pageUrl } from '@/lib/page-link';
+import { webRuntime } from '@/lib/runtime';
+import { areaPageChoice, holders } from '@/lib/settings-view';
 import { AreaDetailsForm } from './area-details-form';
+import { AreaPageForm } from './area-page-form';
 import { LocationsForm } from './locations-form';
 
 export const metadata = { title: 'Edit area · Settings · prisme' };
 
 /**
- * One area: its name, its colour, whether it is active, and where its work
- * lives in the task tool.
+ * One area: its name, its colour, whether it is active, where its work lives
+ * in the task tool, and its own page in the document tool (ADR-0033).
  *
  * Two forms, saved separately, because they are two different writes with two
  * different consequences: renaming or recolouring changes how every screen
@@ -26,9 +29,10 @@ export const metadata = { title: 'Edit area · Settings · prisme' };
  */
 export default async function EditAreaPage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
-  const [areas, locations, colors] = await Promise.all([
+  const [areas, locations, areaPages, colors] = await Promise.all([
     apiFetch({ path: '/areas', schema: settingsAreaListSchema }),
     apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
+    apiFetch({ path: '/document-tool/area-pages', schema: areaPagesSchema }),
     instanceAreaColors(),
   ]);
 
@@ -99,6 +103,19 @@ export default async function EditAreaPage({ params }: { params: Promise<{ key: 
         heldBy={Object.fromEntries(
           [...heldElsewhere].map(([location, holder]) => [location, nameOf.get(holder) ?? holder]),
         )}
+      />
+
+      <AreaPageForm
+        areaKey={area.key}
+        choice={areaPageChoice(
+          area.key,
+          area.externalPageId,
+          // The API could not be asked: say the list could not be read, not
+          // that nothing is bound — the two call for different fixes.
+          areaPages.ok ? areaPages.data : { bound: true, failure: 'unavailable', pages: [] },
+          (holder) => nameOf.get(holder) ?? holder,
+        )}
+        href={pageUrl(webRuntime().config.doctoolPageUrlTemplate, area.externalPageId) ?? null}
       />
     </div>
   );

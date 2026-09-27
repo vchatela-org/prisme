@@ -16,7 +16,7 @@ import type { Authorizer, Identity } from '../http/authorize.js';
 import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
 import { createServices, SERVICE_DEFAULTS, type Services } from '../services/index.js';
 import { createPostgresStore } from '../store/postgres.js';
-import type { ExternalDirectory } from '../sync/directory.js';
+import type { AreaPageEntry, ExternalDirectory } from '../sync/directory.js';
 import type { SyncRunner, SyncRunResult } from '../sync/port.js';
 
 /**
@@ -74,6 +74,7 @@ export function stubDirectory(
   stores: Readonly<Record<string, DocStoreDescription>> = {},
   locations: TaskLocations = { projects: [], sections: [] },
   templates: Readonly<Record<string, readonly DocTemplate[]>> = {},
+  areaPages: Readonly<Record<string, readonly AreaPageEntry[]>> = {},
 ): ExternalDirectory {
   const refused = (operation: string): Promise<never> =>
     Promise.reject(
@@ -92,6 +93,10 @@ export function stubDirectory(
     templates: (_role, externalId) => {
       const found = templates[externalId];
       return found === undefined ? refused('list templates') : Promise.resolve(found);
+    },
+    areaPages: (externalId) => {
+      const found = areaPages[externalId];
+      return found === undefined ? refused('query areas_db') : Promise.resolve(found);
     },
   };
 }

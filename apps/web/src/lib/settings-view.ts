@@ -1,5 +1,5 @@
 import type { AreaColorOverrides, SeriesSlot } from '@prisme/ui/server';
-import type { Binding, SettingsArea, TaskLocations } from './contracts';
+import type { AreaPages, Binding, SettingsArea, TaskLocations } from './contracts';
 
 /**
  * What the Settings screens say, and the joins they make — pure, so it is
@@ -123,6 +123,70 @@ export function dateChoice(
   if (binding.dateProperties === null) return { state: 'unchecked' };
   if (binding.dateProperties.length === 0) return { state: 'none', chosen: binding.dateProperty };
   return { state: 'choose', options: binding.dateProperties, chosen: binding.dateProperty };
+}
+
+/**
+ * What the area-column control shows for one binding (ADR-0033).
+ *
+ * Offered for the same three stores as the date column, for the same reason:
+ * theirs are the entries that reach Adoption. The media library's never do, and
+ * the Life areas store's entries *are* the areas' pages — a relation from it to
+ * itself would say nothing.
+ */
+export function areaChoice(
+  binding: Pick<Binding, 'role' | 'bound' | 'areaProperty' | 'relationProperties'>,
+): DateChoice {
+  if (!DATED_ROLES.has(binding.role) || !binding.bound) return { state: 'hidden' };
+  if (binding.relationProperties === null) return { state: 'unchecked' };
+  if (binding.relationProperties.length === 0) {
+    return { state: 'none', chosen: binding.areaProperty };
+  }
+  return { state: 'choose', options: binding.relationProperties, chosen: binding.areaProperty };
+}
+
+/** What the area-page control on Settings → Areas shows (ADR-0033). */
+export type AreaPageChoice =
+  /** No store is bound to Life areas: nothing to pick from. */
+  | { readonly state: 'unbound'; readonly chosen: string | null }
+  /** Bound, and the read failed — the kind says why. */
+  | { readonly state: 'unreadable'; readonly failure: string; readonly chosen: string | null }
+  | {
+      readonly state: 'choose';
+      readonly options: readonly {
+        readonly id: string;
+        readonly title: string;
+        /** The name of another area whose page this already is; not offered. */
+        readonly takenBy: string | null;
+      }[];
+      /** The current page, when it is one of the options. */
+      readonly chosen: string | null;
+      /** The current page when it is **not** among them — moved, or from another store. */
+      readonly elsewhere: string | null;
+    };
+
+export function areaPageChoice(
+  areaKey: string,
+  current: string | null,
+  pages: AreaPages | null,
+  nameOf: (key: string) => string,
+): AreaPageChoice {
+  if (pages === null || !pages.bound) return { state: 'unbound', chosen: current };
+  if (pages.failure !== null) {
+    return { state: 'unreadable', failure: pages.failure, chosen: current };
+  }
+  // The page this area holds is marked `heldBy` its own key by the API, which
+  // is how it is recognised here without comparing identifiers a second time.
+  const own = pages.pages.find((page) => page.heldBy === areaKey);
+  return {
+    state: 'choose',
+    options: pages.pages.map((page) => ({
+      id: page.id,
+      title: page.title,
+      takenBy: page.heldBy === null || page.heldBy === areaKey ? null : nameOf(page.heldBy),
+    })),
+    chosen: own?.id ?? null,
+    elsewhere: own === undefined ? current : null,
+  };
 }
 
 export const ACCESS_LABEL: Readonly<Record<Binding['access'], string>> = {

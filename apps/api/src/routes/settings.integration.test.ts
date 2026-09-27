@@ -74,12 +74,14 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
             linkId: DATABASE,
             // Invented column names.
             dateProperties: ['Due', 'Period'],
+            relationProperties: ['Linked notes', 'Sphere'],
           },
           [UNDATED_SOURCE]: {
             externalId: UNDATED_SOURCE,
             title: 'Loose notes',
             linkId: UNDATED_SOURCE,
             dateProperties: [],
+            relationProperties: [],
           },
           [PAGES_DATABASE]: {
             externalId: PAGES_SOURCE,
@@ -103,6 +105,14 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
             { id: 'tpl-notes', name: 'Notes', isDefault: false },
           ],
           [EMPTY_SOURCE]: [],
+        },
+        {
+          // The Life areas store's entries, when `areas_db` names the data
+          // source above. Invented, non-hexadecimal page identifiers.
+          [DATA_SOURCE]: [
+            { externalId: 'area-page-home', title: 'Home' },
+            { externalId: 'area-page-craft', title: 'Craft' },
+          ],
         },
       ),
     });
@@ -373,6 +383,159 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
         'PUT',
         url('/bindings/objectives_db/date-property'),
         { property: null },
+      );
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('a store’s area column (ADR-0033)', () => {
+    const put = (app: ReturnType<typeof api>, role: string, property: string | null) =>
+      app.request('PUT', url(`/bindings/${role}/area-property`), { property });
+
+    it('is chosen from the relation properties the check found, and read back', async () => {
+      const app = api();
+      const bound = await app.request('PUT', url('/bindings/takeaways_db'), {
+        externalId: DATABASE,
+      });
+      expect(bound.body).toMatchObject({
+        areaProperty: null,
+        relationProperties: ['Linked notes', 'Sphere'],
+      });
+
+      const chosen = await put(app, 'takeaways_db', 'Sphere');
+      expect(chosen.status).toBe(200);
+      expect(chosen.body).toMatchObject({ role: 'takeaways_db', areaProperty: 'Sphere' });
+
+      const listed = (await app.request('GET', url('/bindings'))).body as {
+        items: { role: string; areaProperty: string | null }[];
+      };
+      expect(listed.items.find((item) => item.role === 'takeaways_db')?.areaProperty).toBe(
+        'Sphere',
+      );
+    });
+
+    it('refuses a name that is not one of the store’s relation properties', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/takeaways_db'), { externalId: DATABASE });
+      // A date column is a column, and still not a relation.
+      expect((await put(app, 'takeaways_db', 'Period')).status).toBe(422);
+    });
+
+    it('refuses a store that is not bound, and one prisme only creates pages in', async () => {
+      const app = api();
+      expect((await put(app, 'processes_db', 'Sphere')).status).toBe(409);
+
+      await app.request('PUT', url('/bindings/initiative_pages_db'), {
+        externalId: PAGES_DATABASE,
+      });
+      expect((await put(app, 'initiative_pages_db', null)).status).toBe(422);
+    });
+
+    it('survives a re-check while the store still has it, and a clear removes it', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/takeaways_db'), { externalId: DATABASE });
+      await put(app, 'takeaways_db', 'Sphere');
+
+      const checked = (await app.request('POST', url('/bindings/check'), {})).body as {
+        items: { role: string; areaProperty: string | null }[];
+      };
+      expect(checked.items.find((item) => item.role === 'takeaways_db')?.areaProperty).toBe(
+        'Sphere',
+      );
+
+      const cleared = await put(app, 'takeaways_db', null);
+      expect(cleared.body).toMatchObject({ areaProperty: null });
+    });
+
+    it('is dropped when the role is pointed at a store without that property', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/takeaways_db'), { externalId: DATABASE });
+      await put(app, 'takeaways_db', 'Sphere');
+
+      const moved = await app.request('PUT', url('/bindings/takeaways_db'), {
+        externalId: UNDATED_SOURCE,
+      });
+      expect(moved.body).toMatchObject({ areaProperty: null, relationProperties: [] });
+    });
+
+    it('needs the settings scope', async () => {
+      const response = await api(['read:adoption']).request(
+        'PUT',
+        url('/bindings/takeaways_db/area-property'),
+        { property: null },
+      );
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('an area’s own page (ADR-0033)', () => {
+    interface PagedArea {
+      externalPageId: string | null;
+    }
+
+    it('is set, read back, and cleared', async () => {
+      const app = api();
+      const set = await app.request('PATCH', url('/areas/home'), {
+        externalPageId: 'area-page-home',
+      });
+      expect(set.status).toBe(200);
+      expect((set.body as PagedArea).externalPageId).toBe('area-page-home');
+
+      const cleared = await app.request('PATCH', url('/areas/home'), { externalPageId: null });
+      expect((cleared.body as PagedArea).externalPageId).toBeNull();
+    });
+
+    it('refuses a page another area already names, however the identifier is written', async () => {
+      const app = api();
+      const dashed = invented('7');
+      await app.request('PATCH', url('/areas/home'), { externalPageId: dashed });
+
+      const same = await app.request('PATCH', url('/areas/craft'), { externalPageId: dashed });
+      expect(same.status).toBe(409);
+      const bare = await app.request('PATCH', url('/areas/craft'), {
+        externalPageId: dashed.replaceAll('-', ''),
+      });
+      expect(bare.status).toBe(409);
+
+      // Saving an area's own page again is not a clash with itself.
+      const again = await app.request('PATCH', url('/areas/home'), { externalPageId: dashed });
+      expect(again.status).toBe(200);
+    });
+  });
+
+  describe('the Life areas store’s pages', () => {
+    it('says so when no store is bound to it', async () => {
+      const response = await api().request('GET', url('/document-tool/area-pages'));
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ bound: false, failure: null, pages: [] });
+    });
+
+    it('lists the bound store’s entries by title, and which area names each', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/areas_db'), { externalId: DATABASE });
+      await app.request('PATCH', url('/areas/home'), { externalPageId: 'area-page-home' });
+      const response = await app.request('GET', url('/document-tool/area-pages'));
+      expect(response.body).toEqual({
+        bound: true,
+        failure: null,
+        pages: [
+          { id: 'area-page-craft', title: 'Craft', heldBy: null },
+          { id: 'area-page-home', title: 'Home', heldBy: 'home' },
+        ],
+      });
+    });
+
+    it('answers with the failure kind when the store cannot be read', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/areas_db'), { externalId: UNDATED_SOURCE });
+      const response = await app.request('GET', url('/document-tool/area-pages'));
+      expect(response.body).toEqual({ bound: true, failure: 'refused', pages: [] });
+    });
+
+    it('needs the areas scope', async () => {
+      const response = await api(['read:adoption']).request(
+        'GET',
+        url('/document-tool/area-pages'),
       );
       expect(response.status).toBe(403);
     });

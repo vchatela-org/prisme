@@ -288,6 +288,102 @@ export async function saveDateProperty(
       };
 }
 
+/**
+ * Choose which relation property Adoption reads a store's areas from, or none
+ * (ADR-0033). Same shape as the date column: chosen from the last check's list,
+ * so a 422 means the list moved under the screen.
+ */
+export async function saveAreaProperty(
+  input: z.input<typeof datePropertyInputSchema>,
+): Promise<SettingsResult> {
+  const parsed = datePropertyInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'Choose one of the listed columns.' };
+  }
+
+  const result = await apiFetch({
+    path: `/bindings/${encodeURIComponent(parsed.data.role)}/area-property`,
+    method: 'PUT',
+    body: { property: parsed.data.property },
+    schema: bindingSchema,
+  });
+  if (!result.ok) {
+    if (result.status === 422) {
+      return {
+        ok: false,
+        title: 'Not saved',
+        description:
+          'That column is not one of this database’s relations any more. Use Check again on Settings to refresh the list.',
+      };
+    }
+    return refused(
+      result,
+      'this area column',
+      'Bind the database before choosing its area column.',
+    );
+  }
+  revalidatePath('/settings', 'layout');
+  revalidatePath('/adoption');
+  return result.data.areaProperty === null
+    ? {
+        ok: true,
+        title: 'No area column',
+        description: 'Its entries carry no area in Adoption from the next scan.',
+      }
+    : {
+        ok: true,
+        title: `Areas read from “${result.data.areaProperty}”`,
+        description:
+          'An entry related to exactly one area’s page gets that area from the next scan. Give each area its page on Settings → Areas.',
+      };
+}
+
+const areaPageInputSchema = z.object({
+  key: z.string().regex(AREA_KEY_PATTERN),
+  pageId: z.string().min(1).max(200).nullable(),
+});
+
+/**
+ * Give an area its own page in the Life areas store, or none (ADR-0033). The
+ * page is picked from the store's entries, never typed; a 409 means another
+ * area took it first.
+ */
+export async function saveAreaPage(
+  input: z.input<typeof areaPageInputSchema>,
+): Promise<SettingsResult> {
+  const parsed = areaPageInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'Choose one of the listed pages.' };
+  }
+
+  const result = await apiFetch({
+    path: `/areas/${encodeURIComponent(parsed.data.key)}`,
+    method: 'PATCH',
+    body: { externalPageId: parsed.data.pageId },
+    schema: settingsAreaSchema,
+  });
+  if (!result.ok) {
+    return refused(
+      result,
+      'this area’s page',
+      'Another area already has that page. One page names one area.',
+    );
+  }
+  revalidatePath('/settings', 'layout');
+  revalidatePath('/adoption');
+  return result.data.externalPageId === null
+    ? {
+        ok: true,
+        title: 'No page',
+        description: 'Entries related to it will carry no area from the next scan.',
+      }
+    : {
+        ok: true,
+        title: 'Page saved',
+        description: `Entries related to it are ${result.data.name}’s from the next scan.`,
+      };
+}
+
 export async function checkBindings(): Promise<SettingsResult> {
   const result = await apiFetch({
     path: '/bindings/check',

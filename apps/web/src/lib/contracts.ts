@@ -1026,6 +1026,8 @@ export const settingsAreaSchema = z.object({
   rankable: z.boolean(),
   runBudgetHoursPerWeek: z.number().nullable(),
   colorSlot: z.number().int().min(1).max(8).nullable().default(null),
+  /** The area's own page in the Life areas store — what an area column names (ADR-0033). */
+  externalPageId: z.string().nullable().default(null),
   mappings: z.array(
     z.object({
       externalProjectId: z.string(),
@@ -1061,9 +1063,25 @@ export const bindingSchema = z.object({
   dateProperty: z.string().nullable().default(null),
   /** The store's date properties as the last check read them; `null` if not read. */
   dateProperties: z.array(z.string()).nullable().default(null),
+  /** The relation property Adoption reads this store's areas from (ADR-0033). Instance data. */
+  areaProperty: z.string().nullable().default(null),
+  /** The store's relation properties as the last check read them; `null` if not read. */
+  relationProperties: z.array(z.string()).nullable().default(null),
 });
 
 export type Binding = z.infer<typeof bindingSchema>;
+
+/**
+ * `GET /document-tool/area-pages` — the Life areas store's entries, which an
+ * area's own page is picked from (ADR-0033). Titles are instance data.
+ */
+export const areaPagesSchema = z.object({
+  bound: z.boolean(),
+  failure: z.string().nullable(),
+  pages: z.array(z.object({ id: z.string(), title: z.string(), heldBy: z.string().nullable() })),
+});
+
+export type AreaPages = z.infer<typeof areaPagesSchema>;
 
 export const bindingListSchema = z.object({ items: z.array(bindingSchema) });
 

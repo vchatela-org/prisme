@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { docIdKey } from '@prisme/connectors';
 import { resolveWeights, type AreaWeight, type Year } from '@prisme/domain';
 import type { areaListDto, areaWeightsDto } from '../dto/area.js';
 import { ApiError, notFound } from '../http/errors.js';
@@ -88,6 +89,31 @@ export function createCatalogueService(store: ApiStore): CatalogueService {
     return toAreaDto(record, mappings);
   }
 
+  /**
+   * One page names one area (ADR-0033).
+   *
+   * A relation to a page two areas both claim resolves to neither, so saving
+   * the second claim would quietly take the first area's entries away from it.
+   * Refused by name instead. Compared through `docIdKey`, because one page is
+   * written dashed or bare depending on where it was copied from.
+   */
+  async function assertPageIsFree(key: string, pageId: string | null | undefined): Promise<void> {
+    if (pageId === null || pageId === undefined) return;
+    const wanted = docIdKey(pageId);
+    const holder = (await store.areas.list()).find(
+      (area) =>
+        area.key !== key &&
+        area.externalPageId !== null &&
+        docIdKey(area.externalPageId) === wanted,
+    );
+    if (holder !== undefined) {
+      throw new ApiError(
+        'conflict',
+        `that page is already ${holder.key}'s own page — one page names one area`,
+      );
+    }
+  }
+
   async function weightsFor(year: number): Promise<AreaWeightsShape> {
     const [records, areas] = await Promise.all([store.areas.weights(), store.areas.list()]);
     const weights: AreaWeight[] = records.map((record) => ({
@@ -137,11 +163,13 @@ export function createCatalogueService(store: ApiStore): CatalogueService {
       if (existing !== undefined) {
         throw new ApiError('conflict', `an area with the key ${input.key} already exists`);
       }
+      await assertPageIsFree(input.key, input.externalPageId);
       await store.areas.create(input);
       return areaOrThrow(input.key);
     },
 
     async updateArea(key: string, input: UpdateAreaRequest): Promise<AreaDtoShape> {
+      await assertPageIsFree(key, input.externalPageId);
       const updated = await store.areas.update(key, input);
       if (updated === undefined) throw notFound('area', key);
       return areaOrThrow(key);

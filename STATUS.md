@@ -475,7 +475,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**30 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
+**32 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
@@ -601,7 +601,10 @@ write freeze (`SYNC_WRITE_ENABLED=true`). Not enforced by code; a human owns eac
       last. **79 of the 94 can never be labelled**: `area_mapping`'s only location columns are
       task-tool vocabulary, so a document-tool page has no location a mapping can name, and the
       queue's own *"one area at a time"* holds for the fifteen task-tool candidates only
-      ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md))
+      ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md)). **Settled 2026-09-27 by
+      [ADR-0033](docs/20-decisions/0033-a-store-area-column-names-an-entry-area.md)**: a page takes
+      its area from its store's *area column* once one is chosen and each area has its page — a
+      *Rescan* after that is what labels the 79
 - [ ] `prisme-sync adopt --plan` **run against the live instance** and read by hand. W12 built it and
       deliberately recorded no output: the plan carries real titles and cannot enter this repository
       (`apps/sync/CLAUDE.md`). **The scan has been run (2026-09-26)** — the queue above is its result —

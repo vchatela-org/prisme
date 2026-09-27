@@ -18,13 +18,20 @@ import { useState, useTransition } from 'react';
 import type { Binding } from '@/lib/contracts';
 import {
   ACCESS_LABEL,
+  areaChoice,
   checkAdvice,
   dateChoice,
   roleCopy,
   templateSummary,
+  type DateChoice,
   type RoleCopy,
 } from '@/lib/settings-view';
-import { saveBinding, saveDateProperty } from '../settings-actions';
+import {
+  saveAreaProperty,
+  saveBinding,
+  saveDateProperty,
+  type SettingsResult,
+} from '../settings-actions';
 
 type Row = Binding & { readonly href: string | null };
 
@@ -171,7 +178,18 @@ function BindingEditor({ binding }: { binding: Row }) {
         </p>
       ) : null}
       {advice === null ? null : <p className="text-xs text-status-warning">{advice}</p>}
-      <DateColumn binding={binding} />
+      <ColumnPicker
+        role={binding.role}
+        choice={dateChoice(binding)}
+        copy={DATE_COLUMN}
+        save={saveDateProperty}
+      />
+      <ColumnPicker
+        role={binding.role}
+        choice={areaChoice(binding)}
+        copy={AREA_COLUMN}
+        save={saveAreaProperty}
+      />
     </div>
   );
 }
@@ -179,27 +197,76 @@ function BindingEditor({ binding }: { binding: Row }) {
 /** Radix refuses an empty item value, so "no column" needs a value of its own. */
 const NO_COLUMN = '__none__';
 
+interface ColumnCopy {
+  /** Also the element id's prefix. */
+  readonly id: string;
+  readonly label: string;
+  readonly none: string;
+  readonly unchecked: string;
+  readonly empty: string;
+  readonly effect: string;
+}
+
 /**
  * Which of the store's date properties says when an entry's period runs.
  *
  * Optional. With one chosen, Adoption hides an entry whose date has passed —
  * an objective for a year long gone is over rather than archived, and nothing
- * else tells it apart from this year's. Chosen from the columns the last check
- * found, never typed: a name that does not resolve would date nothing, and
- * nothing would say so.
+ * else tells it apart from this year's.
  */
-function DateColumn({ binding }: { binding: Row }) {
-  const choice = dateChoice(binding);
+const DATE_COLUMN: ColumnCopy = {
+  id: 'date-column',
+  label: 'Date column',
+  none: 'None — entries are undated',
+  unchecked: 'Check this database (Check again on Settings) to list its date columns.',
+  empty: 'This database has no date column.',
+  effect: 'Adoption hides an entry whose date has passed. A range counts until its end.',
+};
+
+/**
+ * Which of the store's relation properties points at the Life areas database
+ * (ADR-0033).
+ *
+ * Optional. With one chosen, an entry related to exactly one area's page gets
+ * that area in Adoption — so it can be adopted, matched and filtered by area.
+ * Several related pages, or a page no area has, is no area rather than a guess.
+ */
+const AREA_COLUMN: ColumnCopy = {
+  id: 'area-column',
+  label: 'Area column',
+  none: 'None — entries carry no area',
+  unchecked: 'Check this database (Check again on Settings) to list its relation columns.',
+  empty: 'This database has no relation column.',
+  effect:
+    'An entry related to exactly one area’s page (set on Settings → Areas) gets that area in Adoption.',
+};
+
+/**
+ * One optional column of a store, chosen from what the last check found and
+ * never typed: a name that does not resolve would read nothing, and nothing
+ * would say so.
+ */
+function ColumnPicker({
+  role,
+  choice,
+  copy,
+  save: persist,
+}: {
+  role: string;
+  choice: DateChoice;
+  copy: ColumnCopy;
+  save: (input: { role: string; property: string | null }) => Promise<SettingsResult>;
+}) {
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
-  const selectId = `date-column-${binding.role}`;
+  const selectId = `${copy.id}-${role}`;
 
   if (choice.state === 'hidden') return null;
 
   const save = (property: string | null): void => {
     startTransition(async () => {
-      const result = await saveDateProperty({ role: binding.role, property });
+      const result = await persist({ role, property });
       toast({
         title: result.title,
         description: result.description,
@@ -213,7 +280,7 @@ function DateColumn({ binding }: { binding: Row }) {
     <div className="flex flex-col gap-1 border-t border-border-hairline pt-2">
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor={selectId} className="text-sm text-ink">
-          Date column <span className="text-ink-muted">(optional)</span>
+          {copy.label} <span className="text-ink-muted">(optional)</span>
         </label>
         {choice.state === 'choose' ? (
           <Select
@@ -227,7 +294,7 @@ function DateColumn({ binding }: { binding: Row }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_COLUMN}>None — entries are undated</SelectItem>
+              <SelectItem value={NO_COLUMN}>{copy.none}</SelectItem>
               {choice.options.map((option) => (
                 <SelectItem key={option} value={option}>
                   {option}
@@ -239,10 +306,10 @@ function DateColumn({ binding }: { binding: Row }) {
       </div>
       <p className="text-xs text-ink-muted">
         {choice.state === 'unchecked'
-          ? 'Check this database (Check again on Settings) to list its date columns.'
+          ? copy.unchecked
           : choice.state === 'none'
-            ? 'This database has no date column.'
-            : 'Adoption hides an entry whose date has passed. A range counts until its end.'}
+            ? copy.empty
+            : copy.effect}
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { DocRecord, ExternalProject, ExternalSection, ExternalTask } from '@prisme/connectors';
 import { locationKey } from '../reconcile/types.js';
+import { areaOfRelation, type AreaPageIndex } from './area-relation.js';
 import type { ExternalObject } from './types.js';
 
 /**
@@ -37,6 +38,14 @@ export interface AdaptOptions {
    * above; a store with none chosen yields undated entries.
    */
   readonly datePropertyByRole?: ReadonlyMap<string, string> | undefined;
+  /**
+   * Per store, the relation property chosen as its area column on Settings →
+   * Notion (`role_binding.area_property`, ADR-0033). Names are instance data; a
+   * store with none chosen yields entries with no area, as before.
+   */
+  readonly areaPropertyByRole?: ReadonlyMap<string, string> | undefined;
+  /** Each area's own page (`area.external_page_id`), which a relation resolves against. */
+  readonly areaByPage?: AreaPageIndex | undefined;
 }
 
 /** The area an external location folds into, following the section then the project. */
@@ -185,6 +194,17 @@ export function periodOf(
     : { startsOn: value.start, endsOn: end };
 }
 
+/**
+ * The area an entry's store column names — ADR-0033's rule, in
+ * `area-relation.ts`. Nothing when the store has no area column chosen: an
+ * entry is then outside every area, which is what it was before the column.
+ */
+function areaOfRecord(record: DocRecord, options: AdaptOptions): string | undefined {
+  const property = options.areaPropertyByRole?.get(record.role);
+  if (property === undefined || options.areaByPage === undefined) return undefined;
+  return areaOfRelation(record.properties.get(property), options.areaByPage);
+}
+
 /** Document-tool records, one per store, carrying the role they came from. */
 export function adaptDocRecords(
   records: readonly DocRecord[],
@@ -194,10 +214,14 @@ export function adaptDocRecords(
     const takeawayType = takeawayTypeOf(record, options.takeawayTypeProperty);
     const mappedPrismeId = mappedIdOf(record, options.mappingProperty);
     const period = periodOf(record, options.datePropertyByRole?.get(record.role));
+    const areaKey = areaOfRecord(record, options);
+    const lane = laneOf(options, areaKey);
     return {
       kind: 'page',
       externalId: record.externalId,
       title: record.title,
+      ...(areaKey === undefined ? {} : { areaKey }),
+      ...(lane === undefined ? {} : { areaLane: lane }),
       closed: record.archived,
       role: record.role,
       ...(takeawayType === undefined ? {} : { takeawayType }),

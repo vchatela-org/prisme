@@ -104,6 +104,18 @@ entity_link (
 that is wrong produces exactly the corruption this document exists to prevent, and it does so
 invisibly.
 
+**"Same area" needs an area on both sides, and a document-tool entry gets one from its store's area
+column.** A task or a project is placed by `area_mapping`, which speaks the task tool's vocabulary
+only. A page is placed by the relation property chosen as its store's *area column* on Settings →
+Notion, resolved against each area's own page (`area.external_page_id`, picked on Settings → Areas):
+exactly one related page that is exactly one area's page names that area, compared by identifier and
+never by title; no relation, several, or an unknown page names none, and "no area" still matches only
+"no area". With no column chosen a page carries no area, as before. So an objectives row can be
+proposed against a key result in its area, and an action takeaway can be adopted. Whose value the
+area is differs by store — a takeaway's is the document tool's, re-read every scan; an objective's
+and a ritual's are prisme's, which the relation only seeds at adoption
+([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)).
+
 ## 4. The adoption queue
 
 Lists every external object with no prisme link. Three outcomes:
