@@ -905,6 +905,21 @@ export interface ApiStore {
       reason: string | undefined;
       decidedAt: Date;
     }): Promise<AdoptionCandidateRecord | undefined>;
+    /**
+     * Ignore every one of `candidates`, permanently, in one transaction — or
+     * none of them. Each must still be in the mirror, adoptable, unlinked, not
+     * yet ignored, and **ended before `endedBefore`**; if any is not, nothing is
+     * written and the answer is `stale`. One `decided_at`, one reason, and an
+     * event per candidate.
+     */
+    ignoreEndedCandidates(input: {
+      candidates: readonly { readonly externalKind: string; readonly externalId: string }[];
+      /** Today in the instance's timezone, `YYYY-MM-DD`. */
+      endedBefore: string;
+      reason: string;
+      actor: 'human' | 'agent';
+      decidedAt: Date;
+    }): Promise<{ readonly ok: true; readonly ignored: number } | { readonly ok: false }>;
 
     conflicts(resolution: string | undefined, page: PageRequest): Promise<Paged<ConflictRecord>>;
     resolveConflict(id: string, resolution: string): Promise<ConflictRecord | undefined>;

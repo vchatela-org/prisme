@@ -90,6 +90,9 @@ function stamp(value: Date | null | undefined): string | null {
  */
 const ADOPT_ESTIMATE = 3;
 
+/** Thrown inside a bulk ignore's transaction to roll it back when the set no longer holds. */
+const STALE_SELECTION = new Error('the selection no longer holds');
+
 function instant(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value;
@@ -1886,6 +1889,59 @@ export function createPostgresStore(client: Sql): ApiStore {
           on conflict (external_kind, external_id) do nothing`;
 
         return toCandidate(candidate);
+      },
+
+      /**
+       * Ignore a set of ended candidates, all or nothing.
+       *
+       * The service chose the set with the queue's own predicate. The `where`
+       * clause here does not choose anything — it can only drop a row, and a
+       * dropped row rolls the whole transaction back — so it is a second lock
+       * on the one property that matters: **nothing that has not ended is
+       * ignored in bulk**, even if a rescan re-dated a row between the read and
+       * this write. `on conflict do nothing`, as for a single ignore: a row
+       * ignored meanwhile keeps its first decision, and makes this one stale.
+       */
+      async ignoreEndedCandidates(input) {
+        if (input.candidates.length === 0) return { ok: true, ignored: 0 };
+        const kinds = input.candidates.map((candidate) => candidate.externalKind);
+        const ids = input.candidates.map((candidate) => candidate.externalId);
+        const decidedAt = stamp(input.decidedAt);
+
+        try {
+          return await client.begin(async (tx) => {
+            const ignored = await tx<{ external_kind: string; external_id: string }[]>`
+              insert into adoption_ignore
+                (external_kind, external_id, reason, decided_by, decided_at)
+              select c.external_kind, c.external_id, ${input.reason}, 'human',
+                     ${decidedAt}::timestamptz
+              from unnest(${kinds}::text[], ${ids}::text[]) as k(external_kind, external_id)
+              join adoption_candidate c
+                on c.external_kind = k.external_kind and c.external_id = k.external_id
+              where c.proposed_kind in ('initiative', 'project', 'key_result', 'ritual')
+                and c.ends_on < ${input.endedBefore}::date
+                and not exists (
+                  select 1 from entity_link l
+                  where l.external_kind = c.external_kind and l.external_id = c.external_id
+                )
+              on conflict (external_kind, external_id) do nothing
+              returning external_kind, external_id`;
+            if (ignored.length !== input.candidates.length) throw STALE_SELECTION;
+
+            const after = JSON.stringify({ ignored: true, reason: input.reason });
+            await tx`
+              insert into event_log
+                (kind, entity_kind, entity_id, field, before, after, actor, occurred_at)
+              select 'adoption_decision', k.external_kind, k.external_id, 'ignore',
+                     'null'::jsonb, ${after}::jsonb, ${input.actor}, ${decidedAt}::timestamptz
+              from unnest(${kinds}::text[], ${ids}::text[]) as k(external_kind, external_id)`;
+
+            return { ok: true as const, ignored: ignored.length };
+          });
+        } catch (error) {
+          if (error === STALE_SELECTION) return { ok: false };
+          throw error;
+        }
       },
 
       async conflicts(resolution, page: PageRequest): Promise<Paged<ConflictRecord>> {

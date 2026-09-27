@@ -17,7 +17,14 @@ import {
   type EventDtoShape,
   type ReviewDtoShape,
 } from './convert.js';
-import { calendarDayIn, periodOf, queueView, type QueueFilter } from './adoption-queue.js';
+import {
+  calendarDayIn,
+  endedSelection,
+  periodOf,
+  queueView,
+  type EndedFilter,
+  type QueueFilter,
+} from './adoption-queue.js';
 import type { MeasureService } from './measure.js';
 
 /**
@@ -110,6 +117,16 @@ export interface OpsService {
     identity: Identity,
     now: Date,
   ): Promise<CandidateDtoShape>;
+  /**
+   * Ignore every ended candidate under `filter`, permanently — refused with a
+   * 409 unless the set is still the one `expected` names.
+   */
+  ignoreEnded(
+    filter: EndedFilter,
+    expected: { readonly count: number; readonly digest: string },
+    identity: Identity,
+    now: Date,
+  ): Promise<{ ignored: number; today: string }>;
 
   conflicts(
     resolution: string | undefined,
@@ -222,6 +239,7 @@ export function createOpsService(
       const everything = await store.ops.adoptionQueue({});
       const today = calendarDayIn(config.timezone, now);
       const view = queueView(everything.items, filter, today, page);
+      const ended = endedSelection(everything.items, filter, today);
       return {
         items: view.items.map((record) => ({
           ...toCandidateDto(record),
@@ -234,6 +252,7 @@ export function createOpsService(
           source: [...view.facets.source],
           area: [...view.facets.area],
         },
+        ignoreEnded: { count: ended.count, digest: ended.digest },
       };
     },
 
@@ -284,6 +303,52 @@ export function createOpsService(
         occurredAt: now,
       });
       return toCandidateDto(ignored);
+    },
+
+    /**
+     * Ignore every ended candidate the caller was shown, or nothing.
+     *
+     * The set is computed here, from the whole undecided queue, by the same
+     * function that counts the *Ended* filter — the request carries filters and
+     * what it was shown, never an identifier. It is written only if it is still
+     * exactly what was shown: a rescan, a decision taken elsewhere or the date
+     * turning over all move the digest, and the answer is then a 409 and not a
+     * best effort. A replay is refused the same way, since the set it named is
+     * gone once ignored.
+     */
+    async ignoreEnded(filter, expected, identity, now) {
+      const everything = await store.ops.adoptionQueue({});
+      const today = calendarDayIn(config.timezone, now);
+      const selection = endedSelection(everything.items, filter, today);
+
+      if (selection.count !== expected.count || selection.digest !== expected.digest) {
+        const moved =
+          selection.count === expected.count
+            ? 'as many match now, but not the same ones'
+            : `${String(selection.count)} match now`;
+        throw new ApiError(
+          'conflict',
+          `the queue has changed since it was shown: it showed ${String(expected.count)} ended, and ${moved}. Nothing was ignored; read the queue again and confirm what it shows`,
+        );
+      }
+
+      const outcome = await store.ops.ignoreEndedCandidates({
+        candidates: selection.candidates.map((candidate) => ({
+          externalKind: candidate.externalKind,
+          externalId: candidate.externalId,
+        })),
+        endedBefore: today,
+        reason: `ignored in bulk with every other ended entry in view: its period ended before ${today}`,
+        actor: identity.kind,
+        decidedAt: now,
+      });
+      if (!outcome.ok) {
+        throw new ApiError(
+          'conflict',
+          'the queue changed while the ignore was being written. Nothing was ignored; read the queue again and confirm what it shows',
+        );
+      }
+      return { ignored: outcome.ignored, today };
     },
 
     async conflicts(resolution, page) {

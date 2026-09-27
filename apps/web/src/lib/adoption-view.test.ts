@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   candidateLink,
+  ignoreEndedConfirmation,
+  ignoreEndedLabel,
+  ignoreEndedOffer,
   NO_AREA,
   periodText,
   queueFilters,
@@ -106,5 +109,68 @@ describe('a candidate’s source and period, in words', () => {
       '2099-01-01 · not started',
     );
     expect(periodText({ startsOn: null, endsOn: null, period: 'undated' })).toBe('');
+  });
+});
+
+describe('ignoring every ended entry at once', () => {
+  // An invented digest, built at run time rather than written as a literal.
+  const DIGEST = 'fixture-digest-'.padEnd(43, 'x');
+  const offered = { ignoreEnded: { count: 12, digest: DIGEST } };
+  const nameOf = (key: string): string => (key === 'home' ? 'Home' : key);
+
+  it('is offered only under the Ended filter, and only with something to ignore', () => {
+    const ended = queueFilters({ when: 'ended', source: 'objectives_db' });
+    expect(ignoreEndedOffer(ended, offered)).toEqual({
+      count: 12,
+      digest: DIGEST,
+      source: 'objectives_db',
+      areaKey: undefined,
+    });
+    // Not where the rows it would ignore are hidden, or mixed with running ones.
+    expect(ignoreEndedOffer(queueFilters({}), offered)).toBeUndefined();
+    expect(ignoreEndedOffer(queueFilters({ when: 'all' }), offered)).toBeUndefined();
+    // Not with nothing to ignore, nor against an API that does not offer it.
+    expect(ignoreEndedOffer(ended, { ignoreEnded: { count: 0, digest: DIGEST } })).toBeUndefined();
+    expect(ignoreEndedOffer(ended, {})).toBeUndefined();
+  });
+
+  it('puts the count on the button', () => {
+    expect(ignoreEndedLabel(12)).toBe('Ignore all 12 ended');
+    expect(ignoreEndedLabel(1)).toBe('Ignore the 1 ended');
+  });
+
+  it('confirms with the count, the filters in force, and that it is permanent', () => {
+    const offer = ignoreEndedOffer(
+      queueFilters({ when: 'ended', source: 'objectives_db', areaKey: 'home' }),
+      offered,
+    );
+    expect(offer).toBeDefined();
+    if (offer === undefined) return;
+
+    const copy = ignoreEndedConfirmation(offer, 12, nameOf);
+    expect(copy.title).toBe('Ignore 12 ended entries permanently?');
+    expect(copy.filters).toBe('Date: Ended · From: Notion · Objectives · Area: Home');
+    expect(copy.description).toContain('12 ended entries.');
+    expect(copy.description).toMatch(/no undo/);
+    expect(copy.description).toMatch(/extending its date will not come back/);
+  });
+
+  it('names the unfiltered view, the unmapped bucket, and rows beyond the page', () => {
+    const everywhere = ignoreEndedOffer(queueFilters({ when: 'ended' }), offered);
+    const unmapped = ignoreEndedOffer(queueFilters({ when: 'ended', areaKey: NO_AREA }), {
+      ignoreEnded: { count: 1, digest: DIGEST },
+    });
+    if (everywhere === undefined || unmapped === undefined) throw new Error('not offered');
+
+    expect(ignoreEndedConfirmation(everywhere, 10, nameOf)).toMatchObject({
+      filters: 'Date: Ended · From: Anywhere · Area: Any',
+    });
+    expect(ignoreEndedConfirmation(everywhere, 10, nameOf).description).toContain(
+      '12 ended entries — 2 of them beyond the 10 listed here.',
+    );
+    expect(ignoreEndedConfirmation(unmapped, 1, nameOf)).toMatchObject({
+      title: 'Ignore 1 ended entry permanently?',
+      filters: 'Date: Ended · From: Anywhere · Area: Outside every area',
+    });
   });
 });

@@ -1,4 +1,9 @@
-import { QUEUE_WHEN, type AdoptionCandidate, type QueueWhen } from './contracts';
+import {
+  QUEUE_WHEN,
+  type AdoptionCandidate,
+  type AdoptionQueue,
+  type QueueWhen,
+} from './contracts';
 import { pageUrl } from './page-link';
 
 /**
@@ -148,4 +153,78 @@ export function periodText(
         ? 'not started'
         : 'in progress';
   return `${dates} · ${standing}`;
+}
+
+// ---------------------------------------------------------------------------
+// Ignoring everything that has ended
+// ---------------------------------------------------------------------------
+
+/** What *Ignore all ended* would send, for the view in the address. */
+export interface IgnoreEndedOffer {
+  readonly count: number;
+  /** The API's digest of that set, echoed back so a stale view is refused. */
+  readonly digest: string;
+  readonly source: string | undefined;
+  readonly areaKey: string | undefined;
+}
+
+/**
+ * The bulk ignore, offered only where its rows are on the screen: under the
+ * *Ended* filter, with at least one row. Elsewhere it would ignore rows the
+ * reader is not looking at, which is the one thing a permanent click must not
+ * do. The set, its count and its digest are the API's — this only decides
+ * whether to offer them.
+ */
+export function ignoreEndedOffer(
+  filters: QueueFilters,
+  queue: Pick<AdoptionQueue, 'ignoreEnded'>,
+): IgnoreEndedOffer | undefined {
+  if (filters.when !== 'ended') return undefined;
+  const set = queue.ignoreEnded;
+  if (set === undefined || set.count < 1) return undefined;
+  return {
+    count: set.count,
+    digest: set.digest,
+    source: filters.source,
+    areaKey: filters.areaKey,
+  };
+}
+
+/** The button: the number is on it, so the click already says how many. */
+export function ignoreEndedLabel(count: number): string {
+  return count === 1 ? 'Ignore the 1 ended' : `Ignore all ${String(count)} ended`;
+}
+
+/**
+ * The confirmation, in the words of the single *Ignore*'s: how many, under
+ * which filters, and that it is permanent — including the one case that
+ * permanence costs, an entry revived later by extending its date. `listed` is
+ * how many rows the page draws, so a set longer than the page says so.
+ */
+export function ignoreEndedConfirmation(
+  offer: IgnoreEndedOffer,
+  listed: number,
+  nameOf: (key: string) => string,
+): { readonly title: string; readonly filters: string; readonly description: string } {
+  const entries = offer.count === 1 ? '1 ended entry' : `${String(offer.count)} ended entries`;
+  const from = offer.source === undefined ? 'Anywhere' : sourceLabel(offer.source);
+  const area =
+    offer.areaKey === undefined
+      ? 'Any'
+      : offer.areaKey === NO_AREA
+        ? 'Outside every area'
+        : nameOf(offer.areaKey);
+  const beyond =
+    offer.count > listed
+      ? ` — ${String(offer.count - listed)} of them beyond the ${String(listed)} listed here`
+      : '';
+  return {
+    title: `Ignore ${entries} permanently?`,
+    filters: `Date: ${WHEN_LABELS.ended} · From: ${from} · Area: ${area}`,
+    description:
+      `Every entry these filters show: ${entries}${beyond}. None will appear in this queue ` +
+      'again, and there is no undo — one revived later by extending its date will not come back ' +
+      'either. Nothing is deleted: each stays exactly where it is, and can still be adopted ' +
+      'later by its identifier.',
+  };
 }

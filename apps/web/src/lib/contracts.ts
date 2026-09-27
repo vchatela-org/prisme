@@ -509,6 +509,12 @@ export const adoptionQueueSchema = z.object({
     source: z.array(facetCountSchema),
     area: z.array(facetCountSchema.extend({ key: z.string().nullable() })),
   }),
+  /**
+   * What *Ignore all ended* would take under the source and area filters: how
+   * many, and a digest the API checks the write against. Optional so an older
+   * API only loses the button.
+   */
+  ignoreEnded: z.object({ count: z.number().int(), digest: z.string() }).optional(),
 });
 
 export type AdoptionQueue = z.infer<typeof adoptionQueueSchema>;
