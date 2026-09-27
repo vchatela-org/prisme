@@ -615,3 +615,77 @@ export async function ignoreCandidate(input: {
   revalidateAdoption();
   return { ok: true, message: 'Ignored. It will not come back.' };
 }
+
+const ignoreEndedSchema = z.object({
+  source: z
+    .string()
+    .regex(/^[a-z_]{1,40}$/)
+    .optional(),
+  areaKey: z
+    .string()
+    .regex(/^(_none|[a-z0-9][a-z0-9_-]{0,63})$/)
+    .optional(),
+  expected: z.object({
+    count: z.number().int().min(1),
+    digest: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  }),
+});
+
+/**
+ * Ignore every ended entry the *Ended* filter showed, permanently.
+ *
+ * The request names **no candidate**: the API computes the set from the
+ * filters, with the queue's own *Ended* rule, so nothing still running can be
+ * swept in. What it sends back is what the page showed — the count and the
+ * API's digest of those rows — and a set that has moved since (a rescan, a
+ * decision in another tab, the date turning over) is refused with a 409 and
+ * nothing ignored. The page is then redrawn with the new count.
+ */
+export async function ignoreEndedCandidates(input: {
+  source?: string | undefined;
+  areaKey?: string | undefined;
+  expected: { count: number; digest: string };
+}): Promise<ActionResult> {
+  const parsed = ignoreEndedSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'Nothing to ignore',
+      description: 'This needs the filters in force and the ended entries the page showed.',
+    };
+  }
+
+  const result = await apiFetch({
+    path: '/adoption/ignore-ended',
+    method: 'POST',
+    body: {
+      ...(parsed.data.source === undefined ? {} : { source: parsed.data.source }),
+      ...(parsed.data.areaKey === undefined ? {} : { areaKey: parsed.data.areaKey }),
+      expected: { count: parsed.data.expected.count, digest: parsed.data.expected.digest },
+    },
+    schema: z.object({ ignored: z.number().int(), today: z.string() }),
+  });
+
+  if (!result.ok) {
+    revalidateAdoption();
+    if (result.status === 409) {
+      return {
+        ok: false,
+        title: 'The queue changed',
+        description:
+          'The ended entries are no longer the ones this page showed — a rescan or another decision moved them. Nothing was ignored. Check the new count and confirm again.',
+      };
+    }
+    return failed(result, 'the ended entries');
+  }
+
+  revalidateAdoption();
+  const { ignored } = result.data;
+  return {
+    ok: true,
+    message:
+      ignored === 1
+        ? 'Ignored 1 ended entry. It will not come back.'
+        : `Ignored ${String(ignored)} ended entries. They will not come back.`,
+  };
+}

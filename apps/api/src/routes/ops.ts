@@ -9,6 +9,8 @@ import {
   AdoptionScanDto,
   scanAdoptionBody,
   ignoreCandidateBody,
+  ignoreEndedBody,
+  IgnoreEndedDto,
   ConflictDto,
   ConflictPageDto,
   decideAdoptionBody,
@@ -221,7 +223,7 @@ export const opsRoutes: readonly ApiRoute[] = [
     scope: 'read:adoption',
     summary: 'The adoption queue: external objects with no prisme link, and what they could be',
     description:
-      "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4). Ordered by how confident the proposal is, so the fast rows come first.",
+      "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4). Ordered by how confident the proposal is, so the fast rows come first. `ignoreEnded` counts and digests every ended candidate under the source, area and kind filters — what `POST /adoption/ignore-ended` would ignore now.",
     query: z.strictObject({
       ...pageQuery.shape,
       /** An area key, or `_none` for the candidates outside every mapped area. */
@@ -291,6 +293,32 @@ export const opsRoutes: readonly ApiRoute[] = [
           externalId: context.body.externalId,
           reason: context.body.reason,
         },
+        context.identity,
+        context.now,
+      ),
+  }),
+
+  defineRoute({
+    operationId: 'ignoreEndedCandidates',
+    method: 'post',
+    path: '/adoption/ignore-ended',
+    scope: 'write:adoption',
+    summary: 'Ignore every ended candidate under the queue’s filters, permanently',
+    description:
+      "What ignoring ended entries one by one would do, in one transaction: every candidate whose period ended before today, in the instance's timezone, under the `source`, `areaKey` and `kind` given — the rows the queue's *Ended* filter shows, computed by the same function. The body names no candidate, so nothing that has not ended can be reached. `expected` is `ignoreEnded` from `GET /adoption/queue` with the same filters: if the set computed now is not that one — a rescan, a decision taken elsewhere, the date turning over — the answer is 409 and nothing is ignored. Each row is recorded like a single ignore (permanent, `decided_by = 'human'`, one shared `decided_at`, a reason saying it was a bulk ignore of ended entries) and reaches the event log. Answers with a count, never a title.",
+    body: ignoreEndedBody,
+    // 200 for the reason the single ignore gives: a decision is recorded, and
+    // nothing a caller could address is created.
+    status: 200,
+    response: IgnoreEndedDto,
+    handle: (context, services) =>
+      services.ops.ignoreEnded(
+        {
+          source: context.body.source,
+          areaKey: context.body.areaKey,
+          kind: context.body.kind,
+        },
+        { count: context.body.expected.count, digest: context.body.expected.digest },
         context.identity,
         context.now,
       ),

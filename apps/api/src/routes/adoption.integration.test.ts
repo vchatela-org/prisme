@@ -4,6 +4,8 @@ import {
   openTestDatabase,
   type TestDatabase,
 } from '../test-support/database.js';
+import { endedDigest } from '../services/adoption-queue.js';
+import { createPostgresStore } from '../store/postgres.js';
 import { createTestApp, identityWith, stubRunner } from '../test-support/app.js';
 import { seedFixtures } from '../test-support/seed.js';
 import { API_BASE_PATH } from './index.js';
@@ -233,6 +235,314 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
     it('refuses a period it does not know', async () => {
       const response = await api().request('GET', url('/adoption/queue?when=someday'));
       expect(response.status).toBe(400);
+    });
+  });
+
+  /**
+   * The bulk ignore of ended candidates. The test app's clock is pinned to
+   * 2026-09-17 in UTC, so "ended" means a period whose last day is the 16th or
+   * earlier. Invented titles and identifiers throughout.
+   */
+  describe('ignoring every ended candidate at once', () => {
+    interface EndedView {
+      total: number;
+      items: { externalId: string }[];
+      facets: { when: Record<string, number> };
+      ignoreEnded: { count: number; digest: string };
+    }
+
+    const decidedAt = new Date('2026-09-10T09:00:00Z').toISOString();
+
+    beforeEach(async () => {
+      const area = (
+        await database.client<{ key: string }[]>`
+        select key from area where kind = 'area' order by key limit 1`
+      )[0];
+      const at = new Date('2026-09-17T06:00:00Z').toISOString();
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason,
+           scanned_at, source_role, starts_on, ends_on)
+        values
+          ('page', 'ext-old-goal', 'An invented goal from two years ago', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2024-01-01', '2024-12-31'),
+          ('page', 'ext-old-habit', 'An invented habit that stopped', null, 'ritual',
+           'held in the processes store', ${at}::timestamptz, 'processes_db',
+           '2025-01-01', '2025-06-30'),
+          ('task', 'ext-old-task', 'An invented task that ran out', ${area?.key ?? null},
+           'initiative', 'a parent task with subtasks, in a mapped area', ${at}::timestamptz,
+           null, '2025-02-01', '2025-02-28'),
+          ('page', 'ext-ends-today', 'An invented goal whose last day is today', null,
+           'key_result', 'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2026-09-01', '2026-09-17'),
+          ('page', 'ext-this-year', 'An invented goal for this year', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2026-01-01', '2026-12-31'),
+          ('page', 'ext-next-year', 'An invented goal for next year', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2027-01-01', '2027-12-31'),
+          ('page', 'ext-old-linked', 'An invented goal already linked', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2024-01-01', '2024-12-31'),
+          ('page', 'ext-old-ignored', 'An invented goal already ignored', null, 'key_result',
+           'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           '2024-01-01', '2024-12-31')`;
+      await database.client`
+        insert into entity_link
+          (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+        values ('k-invented', 'page', 'ext-old-linked', 'manual', 'manual', 'human',
+                ${decidedAt}::timestamptz)`;
+      await database.client`
+        insert into adoption_ignore (external_kind, external_id, reason, decided_by, decided_at)
+        values ('page', 'ext-old-ignored', 'the first decision', 'human',
+                ${decidedAt}::timestamptz)`;
+    });
+
+    const view = async (query = '?when=ended'): Promise<EndedView> =>
+      (await api().request('GET', url(`/adoption/queue${query}`))).body as EndedView;
+
+    const ignoreEnded = (body: unknown) =>
+      api().request('POST', url('/adoption/ignore-ended'), body);
+
+    const ignoredIds = async (): Promise<string[]> =>
+      (
+        await database.client<{ external_id: string }[]>`
+          select external_id from adoption_ignore order by external_id`
+      ).map((row) => row.external_id);
+
+    it('offers what the Ended filter shows, and nothing linked or ignored', async () => {
+      const shown = await view();
+      expect(shown.items.map((item) => item.externalId).sort()).toEqual([
+        'ext-old-goal',
+        'ext-old-habit',
+        'ext-old-task',
+      ]);
+      expect(shown.ignoreEnded.count).toBe(3);
+      expect(shown.ignoreEnded.count).toBe(shown.facets.when['ended']);
+      expect(shown.ignoreEnded.digest).toMatch(/^[A-Za-z0-9_-]{43}$/);
+
+      // The same offer rides on the default view, which is hiding the same three.
+      const open = await view('');
+      expect(open.ignoreEnded).toEqual(shown.ignoreEnded);
+    });
+
+    it('ignores exactly those, in one decision, and leaves every other row alone', async () => {
+      const shown = await view();
+      const { status, body } = await ignoreEnded({ expected: shown.ignoreEnded });
+      expect(status).toBe(200);
+      expect(body).toEqual({ ignored: 3, today: '2026-09-17' });
+
+      const rows = await database.client<
+        { external_id: string; reason: string; decided_by: string; decided_at: Date }[]
+      >`
+        select external_id, reason, decided_by, decided_at from adoption_ignore
+        where external_id in ('ext-old-goal', 'ext-old-habit', 'ext-old-task')`;
+      expect(rows).toHaveLength(3);
+      expect(new Set(rows.map((row) => row.decided_by))).toEqual(new Set(['human']));
+      expect(new Set(rows.map((row) => new Date(row.decided_at).toISOString()))).toEqual(
+        new Set(['2026-09-17T09:00:00.000Z']),
+      );
+      for (const row of rows) expect(row.reason).toMatch(/in bulk.*ended before 2026-09-17/);
+
+      // Nothing that has not ended was touched — the one ending today included.
+      expect(await ignoredIds()).toEqual([
+        'ext-old-goal',
+        'ext-old-habit',
+        'ext-old-ignored',
+        'ext-old-task',
+      ]);
+      const after = await view('?when=all');
+      expect(after.items.map((item) => item.externalId)).toEqual(
+        expect.arrayContaining(['ext-ends-today', 'ext-this-year', 'ext-next-year']),
+      );
+      expect(after.facets.when['ended']).toBe(0);
+
+      // The earlier ignore keeps its own reason.
+      const first = await database.client<{ reason: string }[]>`
+        select reason from adoption_ignore where external_id = 'ext-old-ignored'`;
+      expect(first[0]?.reason).toBe('the first decision');
+    });
+
+    it('records each one in the event log, as a single ignore does', async () => {
+      const shown = await view();
+      await ignoreEnded({ expected: shown.ignoreEnded });
+
+      const events = await database.client<
+        { entity_id: string; field: string; actor: string; after: { ignored: boolean } }[]
+      >`
+        select entity_id, field, actor, after from event_log
+        where kind = 'adoption_decision' order by entity_id`;
+      expect(events.map((event) => event.entity_id)).toEqual([
+        'ext-old-goal',
+        'ext-old-habit',
+        'ext-old-task',
+      ]);
+      for (const event of events) {
+        expect(event).toMatchObject({ field: 'ignore', actor: 'human' });
+        expect(event.after.ignored).toBe(true);
+      }
+    });
+
+    it('respects the source and area filters', async () => {
+      const objectives = await view('?when=ended&source=objectives_db');
+      expect(objectives.ignoreEnded.count).toBe(1);
+      const { status, body } = await ignoreEnded({
+        source: 'objectives_db',
+        expected: objectives.ignoreEnded,
+      });
+      expect(status).toBe(200);
+      expect(body).toMatchObject({ ignored: 1 });
+      expect(await ignoredIds()).toEqual(['ext-old-goal', 'ext-old-ignored']);
+
+      const unmapped = await view('?when=ended&areaKey=_none');
+      expect(unmapped.ignoreEnded.count).toBe(1);
+      await ignoreEnded({ areaKey: '_none', expected: unmapped.ignoreEnded });
+      expect(await ignoredIds()).toEqual(['ext-old-goal', 'ext-old-habit', 'ext-old-ignored']);
+    });
+
+    it('refuses a stale view: a rescan in between moves the set, and nothing is ignored', async () => {
+      const shown = await view();
+
+      // What a rescan does to the mirror: one more entry has ended since.
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason,
+           scanned_at, source_role, starts_on, ends_on)
+        values ('page', 'ext-found-later', 'An invented goal the rescan found', null,
+                'key_result', 'held in the objectives store', now(), 'objectives_db',
+                '2023-01-01', '2023-12-31')`;
+
+      const { status, body } = await ignoreEnded({ expected: shown.ignoreEnded });
+      expect(status).toBe(409);
+      expect((body as { error: string }).error).toBe('conflict');
+      expect((body as { message: string }).message).toMatch(/showed 3 ended, and 4 match now/);
+      expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+    });
+
+    it('refuses a view whose count still matches and whose rows do not', async () => {
+      const shown = await view();
+      // Same number, another set: one left the mirror and another arrived.
+      await database.client`delete from adoption_candidate where external_id = 'ext-old-habit'`;
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason,
+           scanned_at, source_role, starts_on, ends_on)
+        values ('page', 'ext-swapped-in', 'An invented goal swapped in', null,
+                'key_result', 'held in the objectives store', now(), 'objectives_db',
+                '2023-01-01', '2023-12-31')`;
+      expect((await view()).ignoreEnded.count).toBe(3);
+
+      const { status, body } = await ignoreEnded({ expected: shown.ignoreEnded });
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/not the same ones/);
+      expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+    });
+
+    it('refuses a view drawn yesterday, once the day turning over has ended another entry', async () => {
+      const shown = await view();
+      // The next day in the instance's timezone: the goal whose last day was
+      // the 17th has ended too, so the set the page showed is not the set now.
+      const tomorrow = createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        now: new Date('2026-09-18T09:00:00Z'),
+      });
+      const { status, body } = await tomorrow.request('POST', url('/adoption/ignore-ended'), {
+        expected: shown.ignoreEnded,
+      });
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/showed 3 ended, and 4 match now/);
+      expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+    });
+
+    it('cannot be replayed: once the set is ignored, the same confirmation is stale', async () => {
+      const shown = await view();
+      expect((await ignoreEnded({ expected: shown.ignoreEnded })).status).toBe(200);
+      const again = await ignoreEnded({ expected: shown.ignoreEnded });
+      expect(again.status).toBe(409);
+    });
+
+    describe('never reaches a candidate that has not ended', () => {
+      it('refuses a body that names candidates or a period, and ignores nothing', async () => {
+        const shown = await view();
+        for (const field of [
+          { externalIds: ['ext-this-year'] },
+          { candidates: [{ externalKind: 'page', externalId: 'ext-this-year' }] },
+          { when: 'all' },
+        ]) {
+          const { status, body } = await ignoreEnded({ ...field, expected: shown.ignoreEnded });
+          expect(status).toBe(400);
+          expect((body as { error: string }).error).toBe('read_only_field');
+        }
+        expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+      });
+
+      it('refuses a digest forged over rows that have not ended, even with the right count', async () => {
+        // A client that knows how the digest is built, naming a running goal and
+        // the one whose last day is today beside an ended one.
+        const forged = endedDigest([
+          { externalKind: 'page', externalId: 'ext-this-year' },
+          { externalKind: 'page', externalId: 'ext-ends-today' },
+          { externalKind: 'page', externalId: 'ext-old-goal' },
+        ]);
+        const { status } = await ignoreEnded({ expected: { count: 3, digest: forged } });
+        expect(status).toBe(409);
+        expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+      });
+
+      it('is refused by the store itself, all or nothing, when handed one that has not ended', async () => {
+        // Below the service: the write re-checks the period, and one row that
+        // fails it rolls the whole set back.
+        const store = createPostgresStore(database.client);
+        const outcome = await store.ops.ignoreEndedCandidates({
+          candidates: [
+            { externalKind: 'page', externalId: 'ext-old-goal' },
+            { externalKind: 'page', externalId: 'ext-ends-today' },
+          ],
+          endedBefore: '2026-09-17',
+          reason: 'an invented bulk ignore',
+          actor: 'human',
+          decidedAt: new Date('2026-09-17T09:00:00Z'),
+        });
+        expect(outcome).toEqual({ ok: false });
+        expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+        const events = await database.client`
+          select 1 from event_log where kind = 'adoption_decision'`;
+        expect(events).toHaveLength(0);
+      });
+
+      it('is refused by the store for a linked candidate too', async () => {
+        const store = createPostgresStore(database.client);
+        const outcome = await store.ops.ignoreEndedCandidates({
+          candidates: [{ externalKind: 'page', externalId: 'ext-old-linked' }],
+          endedBefore: '2026-09-17',
+          reason: 'an invented bulk ignore',
+          actor: 'human',
+          decidedAt: new Date('2026-09-17T09:00:00Z'),
+        });
+        expect(outcome).toEqual({ ok: false });
+        expect(await ignoredIds()).toEqual(['ext-old-ignored']);
+      });
+    });
+
+    it('refuses an empty confirmation: there is nothing to confirm', async () => {
+      const { status } = await ignoreEnded({
+        source: 'project',
+        expected: { count: 0, digest: endedDigest([]) },
+      });
+      expect(status).toBe(400);
+    });
+
+    it('needs write:adoption', async () => {
+      const shown = await view();
+      const response = await api(identityWith(['read:adoption'])).request(
+        'POST',
+        url('/adoption/ignore-ended'),
+        { expected: shown.ignoreEnded },
+      );
+      expect(response.status).toBe(403);
+      expect(await ignoredIds()).toEqual(['ext-old-ignored']);
     });
   });
 
