@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { instant, reviewCadence } from '../dto/common.js';
+import { areaKey, instant, reviewCadence } from '../dto/common.js';
 import {
   adoptCandidateBody,
   AdoptionCandidateDto,
@@ -23,6 +23,7 @@ import {
   triggerSyncBody,
   updateReviewBody,
 } from '../dto/ops.js';
+import { NO_AREA, QUEUE_WHEN } from '../services/adoption-queue.js';
 import { defineRoute, idParam, noQuery, pageQuery, type ApiRoute } from './kit.js';
 
 /**
@@ -223,14 +224,28 @@ export const opsRoutes: readonly ApiRoute[] = [
       "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4). Ordered by how confident the proposal is, so the fast rows come first.",
     query: z.strictObject({
       ...pageQuery.shape,
-      areaKey: z.string().min(1).max(60).optional(),
+      /** An area key, or `_none` for the candidates outside every mapped area. */
+      areaKey: z.union([areaKey, z.literal(NO_AREA)]).optional(),
       kind: z.enum(['initiative', 'project', 'key_result', 'ritual']).optional(),
+      /** Where it was read from: a document-tool role key, or `project` / `task`. */
+      source: z
+        .string()
+        .regex(/^[a-z_]{1,40}$/, 'a source is a role key or a task-tool kind')
+        .optional(),
+      /** By period. `open`, the default, is everything that has not ended. */
+      when: z.enum(QUEUE_WHEN).default('open'),
     }),
     response: AdoptionQueuePageDto,
     handle: async (context, services) => {
       const result = await services.ops.adoptionQueue(
-        { areaKey: context.query.areaKey, kind: context.query.kind },
+        {
+          areaKey: context.query.areaKey,
+          kind: context.query.kind,
+          source: context.query.source,
+          when: context.query.when,
+        },
         { limit: context.query.limit, offset: context.query.offset },
+        context.now,
       );
       return { ...result, limit: context.query.limit, offset: context.query.offset };
     },

@@ -325,6 +325,15 @@ describe('describing a store before it is bound', () => {
     title: richText('Reading notes'),
     parent: { type: 'database_id', database_id: 'db-0001' },
   };
+  // Invented column names. A formula and the edit time are dates too, in a
+  // sense, and neither is a column a person sets a period in.
+  const schema = {
+    Name: { id: 'title', type: 'title' },
+    'Reviewed on': { id: 'p1', type: 'date' },
+    Period: { id: 'p2', type: 'date' },
+    Computed: { id: 'p3', type: 'formula' },
+    Edited: { id: 'p4', type: 'last_edited_time' },
+  };
   const database = (sources: readonly string[]) => ({
     object: 'database',
     id: 'db-0001',
@@ -363,16 +372,42 @@ describe('describing a store before it is bound', () => {
   });
 
   it('resolves a pasted database to the one data source inside it', async () => {
-    const { client, requests } = describing({ '/v1/databases/db-0001': database(['ds-0001']) });
+    const { client, requests } = describing({
+      '/v1/databases/db-0001': database(['ds-0001']),
+      '/v1/data_sources/ds-0001': { ...dataSource, properties: schema },
+    });
+    await expect(client.describe('db-0001', 'data_source')).resolves.toEqual({
+      externalId: 'ds-0001',
+      title: 'Reading notes',
+      linkId: 'db-0001',
+      dateProperties: ['Period', 'Reviewed on'],
+    });
+    // The database carries no schema, so its one data source is read for the
+    // date properties — once, and without the fallback chain a pasted id gets.
+    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+      '/v1/data_sources/db-0001',
+      '/v1/databases/db-0001',
+      '/v1/data_sources/ds-0001',
+    ]);
+  });
+
+  it('lists a store’s date properties by name, sorted, and only the date type', async () => {
+    const { client } = describing({
+      '/v1/data_sources/ds-0001': { ...dataSource, properties: schema },
+    });
+    const described = await client.describe('ds-0001', 'data_source');
+    expect(described.dateProperties).toEqual(['Period', 'Reviewed on']);
+  });
+
+  it('still describes a pasted database when its data source cannot be read', async () => {
+    // The date list is optional; the binding is not. A store prisme can read is
+    // not refused because one metadata read failed.
+    const { client } = describing({ '/v1/databases/db-0001': database(['ds-0001']) });
     await expect(client.describe('db-0001', 'data_source')).resolves.toEqual({
       externalId: 'ds-0001',
       title: 'Reading notes',
       linkId: 'db-0001',
     });
-    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
-      '/v1/data_sources/db-0001',
-      '/v1/databases/db-0001',
-    ]);
   });
 
   it('refuses a database holding several data sources rather than picking one', async () => {

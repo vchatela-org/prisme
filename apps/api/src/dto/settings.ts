@@ -43,6 +43,18 @@ export const bindingDto = z.object({
    * a role that is not a page store, or when the check did not get that far.
    */
   templates: z.array(z.object({ name: z.string(), isDefault: z.boolean() })).nullable(),
+  /**
+   * The date property the adoption queue reads this store's periods from, by
+   * name — instance data, like `title`. `null`: none chosen, and the store's
+   * candidates are undated.
+   */
+  dateProperty: z.string().nullable(),
+  /**
+   * The store's date properties as the last check read them, to choose from.
+   * `null` for a store prisme does not read, or when the check did not read the
+   * schema.
+   */
+  dateProperties: z.array(z.string()).nullable(),
 });
 
 export const bindingListDto = z.object({ items: z.array(bindingDto) });
@@ -108,6 +120,14 @@ export const putBindingBody = defineWrite(
 
 /** Nothing to say: the check re-reads every bound role. */
 export const checkBindingsBody = defineWrite('CheckBindings', z.strictObject({}));
+
+export const putDatePropertyBody = defineWrite(
+  'PutDateProperty',
+  z.strictObject({
+    /** One of the binding's `dateProperties`, or `null` to stop dating the store's entries. */
+    property: z.string().min(1).max(200).nullable(),
+  }),
+);
 
 export const taskSectionDto = z.object({
   id: z.string(),

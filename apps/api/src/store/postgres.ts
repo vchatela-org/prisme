@@ -521,9 +521,12 @@ export function createPostgresStore(client: Sql): ApiStore {
             checked_at: Date | string | null;
             check_error: string | null;
             templates: string | null;
+            date_property: string | null;
+            date_properties: string | null;
           }[]
         >`
-          select role, external_id, title, link_id, checked_at, check_error, templates::text
+          select role, external_id, title, link_id, checked_at, check_error, templates::text,
+                 date_property, date_properties::text
           from role_binding order by role`;
         return rows.map((row) => ({
           role: row.role,
@@ -533,6 +536,8 @@ export function createPostgresStore(client: Sql): ApiStore {
           checkedAt: row.checked_at === null ? null : new Date(row.checked_at),
           checkError: row.check_error,
           templates: json<RoleBindingRecord['templates']>(row.templates, null),
+          dateProperty: row.date_property,
+          dateProperties: json<RoleBindingRecord['dateProperties']>(row.date_properties, null),
         }));
       },
 
@@ -540,12 +545,14 @@ export function createPostgresStore(client: Sql): ApiStore {
         // Stringified explicitly, as every `jsonb` write here is — see the note
         // on `writeIntents` for why `sql.json()` is not safe on this client.
         const templates = record.templates === null ? null : JSON.stringify(record.templates);
+        const dateProperties =
+          record.dateProperties === null ? null : JSON.stringify(record.dateProperties);
         await client`
           insert into role_binding (role, external_id, tool, title, link_id, checked_at, check_error,
-                                    templates, updated_at)
+                                    templates, date_property, date_properties, updated_at)
           values (${record.role}, ${record.externalId}, 'doc', ${record.title}, ${record.linkId},
                   ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError},
-                  ${templates}::jsonb, now())
+                  ${templates}::jsonb, ${record.dateProperty}, ${dateProperties}::jsonb, now())
           on conflict (role) do update set
             external_id = excluded.external_id,
             title = excluded.title,
@@ -553,7 +560,16 @@ export function createPostgresStore(client: Sql): ApiStore {
             checked_at = excluded.checked_at,
             check_error = excluded.check_error,
             templates = excluded.templates,
+            date_property = excluded.date_property,
+            date_properties = excluded.date_properties,
             updated_at = now()`;
+      },
+
+      async setDateProperty(role: string, property: string | null): Promise<boolean> {
+        const rows = await client`
+          update role_binding set date_property = ${property}, updated_at = now()
+          where role = ${role} returning role`;
+        return rows.length > 0;
       },
 
       async remove(role: string): Promise<boolean> {
@@ -1718,10 +1734,11 @@ export function createPostgresStore(client: Sql): ApiStore {
        * Only adoptable kinds appear: the scan does not mirror a loose task, and
        * this clause is the second line of defence if it ever did.
        */
-      async adoptionQueue(filter, page: PageRequest): Promise<Paged<AdoptionCandidateRecord>> {
+      async adoptionQueue(filter, page?: PageRequest): Promise<Paged<AdoptionCandidateRecord>> {
         const rows = await client<(CandidateRow & { total: string })[]>`
           select c.external_kind, c.external_id, c.title, c.area_key, c.proposed_kind, c.reason,
                  c.match_rule, c.confidence, c.proposed_id, c.similarity, c.scanned_at,
+                 c.source_role, c.starts_on::text as starts_on, c.ends_on::text as ends_on,
                  count(*) over () as total
           from adoption_candidate c
           where c.proposed_kind in ('initiative', 'project', 'key_result', 'ritual')
@@ -1744,7 +1761,7 @@ export function createPostgresStore(client: Sql): ApiStore {
               else 5
             end,
             c.external_id
-          limit ${page.limit} offset ${page.offset}`;
+          ${page === undefined ? client`` : client`limit ${page.limit} offset ${page.offset}`}`;
         return {
           items: rows.map(toCandidate),
           total: rows[0] === undefined ? 0 : Number(rows[0].total),
@@ -1776,7 +1793,8 @@ export function createPostgresStore(client: Sql): ApiStore {
         return client.begin(async (tx) => {
           const candidates = await tx<CandidateRow[]>`
             select external_kind, external_id, title, area_key, proposed_kind, reason,
-                   match_rule, confidence, proposed_id, similarity, scanned_at
+                   match_rule, confidence, proposed_id, similarity, scanned_at,
+                   source_role, starts_on::text as starts_on, ends_on::text as ends_on
             from adoption_candidate
             where external_kind = ${input.externalKind} and external_id = ${input.externalId}
             for update`;
@@ -1854,7 +1872,8 @@ export function createPostgresStore(client: Sql): ApiStore {
       async ignoreCandidate(input) {
         const candidates = await client<CandidateRow[]>`
           select external_kind, external_id, title, area_key, proposed_kind, reason,
-                 match_rule, confidence, proposed_id, similarity, scanned_at
+                 match_rule, confidence, proposed_id, similarity, scanned_at,
+                 source_role, starts_on::text as starts_on, ends_on::text as ends_on
           from adoption_candidate
           where external_kind = ${input.externalKind} and external_id = ${input.externalId}`;
         const candidate = candidates[0];
@@ -2226,6 +2245,10 @@ export function createPostgresStore(client: Sql): ApiStore {
     proposed_id: string | null;
     similarity: string | number | null;
     scanned_at: Date | string;
+    source_role: string | null;
+    // Selected as `::text`: a `date` read as a JS Date lands on a local midnight.
+    starts_on: string | null;
+    ends_on: string | null;
   }
 
   interface AdoptionRow {
@@ -2272,6 +2295,9 @@ export function createPostgresStore(client: Sql): ApiStore {
       proposedId: row.proposed_id,
       similarity: row.similarity === null ? null : Number(row.similarity),
       scannedAt: required(row.scanned_at, 'adoption_candidate.scanned_at'),
+      sourceRole: row.source_role,
+      startsOn: row.starts_on,
+      endsOn: row.ends_on,
     };
   }
 

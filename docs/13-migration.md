@@ -137,6 +137,16 @@ gets abandoned in a fortnight, and then the model quietly diverges from reality.
 the same scan: they read both tools and replace the candidate list — prisme's own table — and write
 nothing outward. Rescan after labelling a task or changing an area's locations.
 
+**What has ended is hidden, not ignored.** A document-tool store can name one of its date properties
+as the period its entries run (Settings → Notion, `role_binding.date_property`). The scan records
+each candidate's period, and the queue's default view leaves out one that ended before today, in the
+instance's timezone. An objective for a year long gone is history, not archived, and nothing else
+told it apart from this year's. Ignoring each one would be the wrong answer: *ignore* is permanent
+and says "never this", where "this is over" is a fact that can change with the date. So the rows stay
+in the mirror, counted beside the *Ended* filter and decidable like any other, and clearing the
+setting brings every one back on the next scan. The queue also filters by source store and by area,
+with a count beside each value (`GET /adoption/queue?when=&source=&areaKey=`).
+
 ### What becomes what
 
 | Found in the wild | Becomes |

@@ -128,6 +128,12 @@ export interface DocStoreDescription {
   readonly externalId: string;
   readonly title: string;
   readonly linkId: string;
+  /**
+   * The names of the store's `date`-typed properties, sorted, so a screen can
+   * offer one to choose. A name is the workspace's — instance data, like the
+   * title. Absent from a description that did not read the schema.
+   */
+  readonly dateProperties?: readonly string[] | undefined;
 }
 
 /**

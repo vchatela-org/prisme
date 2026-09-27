@@ -313,6 +313,13 @@ fails is still saved, with the failure kind beside it: the usual cause is a stor
 with the integration. A link to a *page* the integration can see fails as `wrong_kind`; one it cannot
 see fails as `refused`, like anything else it cannot see.
 
+A read store's check also lists the names of its `date` properties, and one may be chosen as the
+store's **date column** (`role_binding.date_property`, `PUT /bindings/{role}/date-property`). The
+adoption scan reads each entry's period from it, so the queue can hide what has ended
+([`13-migration.md` §4](13-migration.md#4-the-adoption-queue)). It is optional, chosen from the
+list rather than typed, kept across a re-check while the store still has that property, and dropped
+when it no longer does. The name is the workspace's, and instance data like the title.
+
 **A role with no binding is not addressable**, and the connectors report it rather than guessing: a
 scan says `document tool   not read`, and the backfill reports the declared-duration tier as
 unavailable. That is the state of every instance whose screen is still empty, and it is a state the

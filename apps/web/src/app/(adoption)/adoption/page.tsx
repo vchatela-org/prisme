@@ -1,13 +1,28 @@
-import { AreaBadge, Badge, Card, ClearedState, Section } from '@prisme/ui';
+import { AreaBadge, Badge, Card, ClearedState, Section, cn } from '@prisme/ui';
 import { ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { ApiFailureState } from '@/components/api-failure';
-import { candidateLink, type CandidateLink } from '@/lib/adoption-view';
+import {
+  candidateLink,
+  NO_AREA,
+  periodText,
+  queueFilters,
+  queueHref,
+  sourceKey,
+  sourceLabel,
+  WHEN_LABELS,
+  type CandidateLink,
+  type QueueFilters,
+} from '@/lib/adoption-view';
 import { apiFetch } from '@/lib/api';
 import {
   adoptionQueueSchema,
   areaListSchema,
   type AdoptionCandidate,
+  type AdoptionQueue,
   type Area,
+  type QueueWhen,
 } from '@/lib/contracts';
 import { webRuntime } from '@/lib/runtime';
 import { CandidateDecisions } from './adoption-actions';
@@ -45,12 +60,35 @@ export const metadata = {
  * deployment supplies a link template for its kind (`candidateLink`). A title
  * is often not enough to decide on; the page behind it usually is.
  *
+ * **What has ended is hidden, not decided.** A Notion database with a date
+ * column chosen on Settings → Notion dates its entries, and the default view
+ * leaves out one whose period is over — an objective for a year long gone is
+ * history rather than a question. The filter above the list shows how many,
+ * and one click shows them; they stay decidable like any other row.
+ *
+ * The filters live in the address, so a filtered queue can be reloaded and
+ * linked, and each carries a count of the rows it would show.
+ *
  * Every title below is **instance data**. It renders in a browser and never in
  * this repository (docs/17-privacy.md).
  */
-export default async function AdoptionPage() {
+export default async function AdoptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filters = queueFilters(await searchParams);
   const [queue, areas] = await Promise.all([
-    apiFetch({ path: '/adoption/queue', query: { limit: '100' }, schema: adoptionQueueSchema }),
+    apiFetch({
+      path: '/adoption/queue',
+      query: {
+        limit: '100',
+        when: filters.when,
+        source: filters.source,
+        areaKey: filters.areaKey,
+      },
+      schema: adoptionQueueSchema,
+    }),
     apiFetch({ path: '/areas', schema: areaListSchema }),
   ]);
 
@@ -67,7 +105,9 @@ export default async function AdoptionPage() {
   const byKey = new Map(areaList.map((area) => [area.key, area]));
   const nameOf = (key: string): string => byKey.get(key)?.name ?? key;
 
-  const { items, total } = queue.data;
+  const { items, total, facets } = queue.data;
+  const narrowed = filters.source !== undefined || filters.areaKey !== undefined;
+  const hiddenEnded = filters.when === 'open' ? facets.when.ended : 0;
   const config = webRuntime().config;
   const links = {
     page: config.doctoolPageUrlTemplate,
@@ -85,16 +125,37 @@ export default async function AdoptionPage() {
       <Header
         subtitle={
           total === 0
-            ? 'Nothing is waiting.'
-            : `${String(total)} waiting — ${String(proposed.length)} with a proposal, ${String(manual.length)} needing a decision.`
+            ? 'Nothing is waiting here.'
+            : `${String(total)} ${narrowed || filters.when !== 'open' ? 'shown' : 'waiting'} — ${String(proposed.length)} with a proposal, ${String(manual.length)} needing a decision.`
         }
       />
 
+      <FilterBar filters={filters} facets={facets} nameOf={nameOf} />
+
+      {hiddenEnded > 0 ? (
+        <p className="text-sm text-ink-secondary">
+          {String(hiddenEnded)} whose date has passed {hiddenEnded === 1 ? 'is' : 'are'} hidden.{' '}
+          <Link
+            className="underline underline-offset-2"
+            href={queueHref(filters, { when: 'ended' })}
+          >
+            Show {hiddenEnded === 1 ? 'it' : 'them'}
+          </Link>
+        </p>
+      ) : null}
+
       {total === 0 ? (
-        <ClearedState
-          title="The queue is empty"
-          description="Every external object prisme can see is either linked, ignored, or something the scan decided to leave where it is. Rescan to look again."
-        />
+        narrowed || filters.when !== 'open' ? (
+          <ClearedState
+            title="Nothing matches these filters"
+            description="Clear a filter to see the rest of the queue."
+          />
+        ) : (
+          <ClearedState
+            title="The queue is empty"
+            description="Every external object prisme can see is either linked, ignored, or something the scan decided to leave where it is. Rescan to look again."
+          />
+        )
       ) : null}
 
       {proposed.length > 0 ? (
@@ -115,6 +176,121 @@ export default async function AdoptionPage() {
         </Section>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The three filters, as links: by date, by where it was read from, and by
+ * area. Each value carries the number of rows it would show, and a value with
+ * none is not offered — except the one in force, so it can be seen and cleared.
+ */
+function FilterBar({
+  filters,
+  facets,
+  nameOf,
+}: {
+  filters: QueueFilters;
+  facets: AdoptionQueue['facets'];
+  nameOf: (key: string) => string;
+}) {
+  const whenOrder: readonly QueueWhen[] = [
+    'open',
+    'current',
+    'upcoming',
+    'undated',
+    'ended',
+    'all',
+  ];
+  const sourceTotal = facets.source.reduce((sum, facet) => sum + facet.count, 0);
+  const areaTotal = facets.area.reduce((sum, facet) => sum + facet.count, 0);
+
+  return (
+    <nav aria-label="Filter the queue" className="flex flex-col gap-2">
+      <FilterRow label="Date">
+        {whenOrder
+          .filter((when) => facets.when[when] > 0 || when === filters.when || when === 'open')
+          .map((when) => (
+            <Chip
+              key={when}
+              href={queueHref(filters, { when })}
+              active={filters.when === when}
+              label={WHEN_LABELS[when]}
+              count={facets.when[when]}
+            />
+          ))}
+      </FilterRow>
+      <FilterRow label="From">
+        <Chip
+          href={queueHref(filters, { source: undefined })}
+          active={filters.source === undefined}
+          label="Anywhere"
+          count={sourceTotal}
+        />
+        {facets.source.map((facet) => (
+          <Chip
+            key={facet.key}
+            href={queueHref(filters, { source: facet.key })}
+            active={filters.source === facet.key}
+            label={sourceLabel(facet.key)}
+            count={facet.count}
+          />
+        ))}
+      </FilterRow>
+      <FilterRow label="Area">
+        <Chip
+          href={queueHref(filters, { areaKey: undefined })}
+          active={filters.areaKey === undefined}
+          label="Any"
+          count={areaTotal}
+        />
+        {facets.area.map((facet) => (
+          <Chip
+            key={facet.key ?? NO_AREA}
+            href={queueHref(filters, { areaKey: facet.key ?? NO_AREA })}
+            active={filters.areaKey === (facet.key ?? NO_AREA)}
+            label={facet.key === null ? 'Outside every area' : nameOf(facet.key)}
+            count={facet.count}
+          />
+        ))}
+      </FilterRow>
+    </nav>
+  );
+}
+
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-12 text-xs text-ink-muted">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Chip({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'true' : undefined}
+      className={cn(
+        'inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs',
+        active
+          ? 'border-accent-solid bg-accent-solid text-ink-on-accent'
+          : 'border-border-strong text-ink-secondary hover:bg-surface-page hover:text-ink',
+      )}
+    >
+      {label}
+      <span className={active ? 'opacity-80' : 'text-ink-muted'}>{String(count)}</span>
+    </Link>
   );
 }
 
@@ -153,6 +329,12 @@ function CandidateList({
                   />
                 )}
                 <Badge variant="outline">{kindLabel(candidate.proposedKind)}</Badge>
+                <span>{sourceLabel(sourceKey(candidate))}</span>
+                {periodText(candidate) === '' ? null : (
+                  <span className={candidate.period === 'ended' ? 'text-status-warning' : ''}>
+                    {periodText(candidate)}
+                  </span>
+                )}
                 <span className="truncate">{candidate.reason}</span>
               </div>
               {hasRule(candidate) ? <Proposal candidate={candidate} /> : null}

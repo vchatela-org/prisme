@@ -236,6 +236,58 @@ export async function saveBinding(
       };
 }
 
+const datePropertyInputSchema = z.object({
+  role: z.string().regex(/^[a-z_]{1,64}$/),
+  property: z.string().min(1).max(200).nullable(),
+});
+
+/**
+ * Choose which date property Adoption reads a store's periods from, or none.
+ *
+ * The name comes from the list the last check read, so a refusal (422) means
+ * the list moved under the screen — the column was renamed or removed in
+ * Notion — and the answer is a check, not a retry.
+ */
+export async function saveDateProperty(
+  input: z.input<typeof datePropertyInputSchema>,
+): Promise<SettingsResult> {
+  const parsed = datePropertyInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'Choose one of the listed columns.' };
+  }
+
+  const result = await apiFetch({
+    path: `/bindings/${encodeURIComponent(parsed.data.role)}/date-property`,
+    method: 'PUT',
+    body: { property: parsed.data.property },
+    schema: bindingSchema,
+  });
+  if (!result.ok) {
+    if (result.status === 422) {
+      return {
+        ok: false,
+        title: 'Not saved',
+        description:
+          'That column is not one of this database’s dates any more. Use Check again on Settings to refresh the list.',
+      };
+    }
+    return refused(result, 'this date column', 'Bind the database before choosing its date.');
+  }
+  revalidatePath('/settings', 'layout');
+  revalidatePath('/adoption');
+  return result.data.dateProperty === null
+    ? {
+        ok: true,
+        title: 'No date column',
+        description: 'Its entries are undated in Adoption from the next scan.',
+      }
+    : {
+        ok: true,
+        title: `Dated by “${result.data.dateProperty}”`,
+        description: 'Entries whose date has passed are hidden in Adoption from the next scan.',
+      };
+}
+
 export async function checkBindings(): Promise<SettingsResult> {
   const result = await apiFetch({
     path: '/bindings/check',

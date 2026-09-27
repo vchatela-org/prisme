@@ -31,6 +31,12 @@ export interface AdaptOptions {
   readonly mappingProperty?: string | undefined;
   /** The property holding a takeaway's type. Same reasoning as above. */
   readonly takeawayTypeProperty?: string | undefined;
+  /**
+   * Per store, the date property chosen on Settings → Notion
+   * (`role_binding.date_property`). Names are instance data, like the two
+   * above; a store with none chosen yields undated entries.
+   */
+  readonly datePropertyByRole?: ReadonlyMap<string, string> | undefined;
 }
 
 /** The area an external location folds into, following the section then the project. */
@@ -157,6 +163,28 @@ function mappedIdOf(record: DocRecord, property: string | undefined) {
   return trimmed === '' ? undefined : trimmed;
 }
 
+/**
+ * The period an entry's date property names, or nothing.
+ *
+ * A single date is a one-day period. A range whose end the tool left before
+ * its start is read in order rather than refused: the dates are the
+ * workspace's, and the question asked of them — has this ended? — has one
+ * sensible answer either way. Anything that is not a date property with a
+ * start is no date at all, rather than a guess.
+ */
+export function periodOf(
+  record: DocRecord,
+  property: string | undefined,
+): { readonly startsOn: string; readonly endsOn: string } | undefined {
+  if (property === undefined) return undefined;
+  const value = record.properties.get(property);
+  if (value?.kind !== 'date' || value.start === null) return undefined;
+  const end = value.end ?? value.start;
+  return end < value.start
+    ? { startsOn: end, endsOn: value.start }
+    : { startsOn: value.start, endsOn: end };
+}
+
 /** Document-tool records, one per store, carrying the role they came from. */
 export function adaptDocRecords(
   records: readonly DocRecord[],
@@ -165,6 +193,7 @@ export function adaptDocRecords(
   return records.map((record) => {
     const takeawayType = takeawayTypeOf(record, options.takeawayTypeProperty);
     const mappedPrismeId = mappedIdOf(record, options.mappingProperty);
+    const period = periodOf(record, options.datePropertyByRole?.get(record.role));
     return {
       kind: 'page',
       externalId: record.externalId,
@@ -173,6 +202,7 @@ export function adaptDocRecords(
       role: record.role,
       ...(takeawayType === undefined ? {} : { takeawayType }),
       ...(mappedPrismeId === undefined ? {} : { mappedPrismeId }),
+      ...(period ?? {}),
     } satisfies ExternalObject;
   });
 }

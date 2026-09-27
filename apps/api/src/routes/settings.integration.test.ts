@@ -39,6 +39,8 @@ const PAGES_DATABASE = invented('c');
 const PAGES_SOURCE = invented('e');
 /** A pages database that holds no template yet. */
 const EMPTY_SOURCE = invented('f');
+/** A read store whose schema has no date property at all. */
+const UNDATED_SOURCE = invented('9');
 
 describeOrSkip('the Settings screens against PostgreSQL', () => {
   let database: TestDatabase;
@@ -66,7 +68,19 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
         {
           // A database pasted where a data source is wanted, already resolved
           // by the directory — the connector's contract test covers how.
-          [DATABASE]: { externalId: DATA_SOURCE, title: 'Reading notes', linkId: DATABASE },
+          [DATABASE]: {
+            externalId: DATA_SOURCE,
+            title: 'Reading notes',
+            linkId: DATABASE,
+            // Invented column names.
+            dateProperties: ['Due', 'Period'],
+          },
+          [UNDATED_SOURCE]: {
+            externalId: UNDATED_SOURCE,
+            title: 'Loose notes',
+            linkId: UNDATED_SOURCE,
+            dateProperties: [],
+          },
           [PAGES_DATABASE]: {
             externalId: PAGES_SOURCE,
             title: 'prisme pages',
@@ -283,6 +297,83 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
 
     it('is not readable with a read token', async () => {
       const response = await api(['read:areas']).request('GET', url('/bindings'));
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('a store’s date property', () => {
+    const put = (app: ReturnType<typeof api>, role: string, property: string | null) =>
+      app.request('PUT', url(`/bindings/${role}/date-property`), { property });
+
+    it('is chosen from the date properties the check found, and read back', async () => {
+      const app = api();
+      const bound = await app.request('PUT', url('/bindings/objectives_db'), {
+        externalId: DATABASE,
+      });
+      expect(bound.body).toMatchObject({ dateProperty: null, dateProperties: ['Due', 'Period'] });
+
+      const chosen = await put(app, 'objectives_db', 'Period');
+      expect(chosen.status).toBe(200);
+      expect(chosen.body).toMatchObject({ role: 'objectives_db', dateProperty: 'Period' });
+
+      const listed = (await app.request('GET', url('/bindings'))).body as {
+        items: { role: string; dateProperty: string | null }[];
+      };
+      expect(listed.items.find((item) => item.role === 'objectives_db')?.dateProperty).toBe(
+        'Period',
+      );
+    });
+
+    it('refuses a name that is not one of the store’s date properties', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      const response = await put(app, 'objectives_db', 'Not a column');
+      expect(response.status).toBe(422);
+    });
+
+    it('refuses a store that is not bound, and one prisme only creates pages in', async () => {
+      const app = api();
+      expect((await put(app, 'processes_db', 'Period')).status).toBe(409);
+
+      await app.request('PUT', url('/bindings/initiative_pages_db'), {
+        externalId: PAGES_DATABASE,
+      });
+      expect((await put(app, 'initiative_pages_db', null)).status).toBe(422);
+    });
+
+    it('survives a re-check while the store still has it, and a clear removes it', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      await put(app, 'objectives_db', 'Period');
+
+      const checked = (await app.request('POST', url('/bindings/check'), {})).body as {
+        items: { role: string; dateProperty: string | null }[];
+      };
+      expect(checked.items.find((item) => item.role === 'objectives_db')?.dateProperty).toBe(
+        'Period',
+      );
+
+      const cleared = await put(app, 'objectives_db', null);
+      expect(cleared.body).toMatchObject({ dateProperty: null });
+    });
+
+    it('is dropped when the role is pointed at a store without that property', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      await put(app, 'objectives_db', 'Period');
+
+      const moved = await app.request('PUT', url('/bindings/objectives_db'), {
+        externalId: UNDATED_SOURCE,
+      });
+      expect(moved.body).toMatchObject({ dateProperty: null, dateProperties: [] });
+    });
+
+    it('needs the settings scope', async () => {
+      const response = await api(['read:adoption']).request(
+        'PUT',
+        url('/bindings/objectives_db/date-property'),
+        { property: null },
+      );
       expect(response.status).toBe(403);
     });
   });

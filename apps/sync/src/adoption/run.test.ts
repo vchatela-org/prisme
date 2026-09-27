@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConnectorError } from '@prisme/connectors';
+import { parseCalendarDate } from '@prisme/domain';
 import type {
   DocRecord,
   DocToolClient,
@@ -34,6 +35,7 @@ function storeOf(
     targets?: readonly MatchTarget[];
     decided?: DecidedSet;
     auditable?: readonly AuditableEntity[];
+    dateProperties?: ReadonlyMap<string, string>;
   } = {},
 ): { store: AdoptionStore; recorded: Recorded } {
   const recorded: Recorded = { candidates: [], scannedAt: [], takeaways: [] };
@@ -47,6 +49,7 @@ function storeOf(
         areaByLocation: new Map([[locationKey('p-home'), 'home']]),
         laneByArea: new Map<string, 'area' | 'run' | 'signals'>([['home', 'area']]),
       }),
+    loadDateProperties: () => Promise.resolve(overrides.dateProperties ?? new Map()),
     replaceCandidates: (candidates, scannedAt) => {
       recorded.candidates.push(...candidates);
       recorded.scannedAt.push(scannedAt);
@@ -328,6 +331,53 @@ describe('the adoption pass', () => {
     const unread = storeOf();
     await adopt({ store: unread.store, taskClient: taskClientOf(), now: () => NOW, persist: true });
     expect(unread.recorded.takeaways).toEqual([]);
+  });
+
+  it('dates a candidate from its store’s chosen property, and no other store’s', async () => {
+    const entry = (role: RoleKey, id: string, start: string, end: string | null): DocRecord => ({
+      role,
+      externalId: id,
+      lastEditedAt: NOW,
+      createdAt: NOW,
+      archived: false,
+      title: `An invented entry ${id}`,
+      properties: new Map([
+        [
+          'When',
+          {
+            kind: 'date' as const,
+            start: parseCalendarDate(start),
+            end: end === null ? null : parseCalendarDate(end),
+          },
+        ],
+      ]),
+      urls: [],
+      contentHash: id,
+    });
+    const docClient: DocToolClient = {
+      queryByRole: (role) =>
+        Promise.resolve(
+          role === 'objectives_db'
+            ? [entry('objectives_db', 'ob-1', '2024-01-01', '2024-12-31')]
+            : role === 'processes_db'
+              ? [entry('processes_db', 'pr-1', '2026-10-01', null)]
+              : [],
+        ),
+      fetchPage: () => Promise.reject(new Error('not used')),
+      createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
+    };
+
+    // Only the objectives store has a date property chosen.
+    const { store, recorded } = storeOf({ dateProperties: new Map([['objectives_db', 'When']]) });
+    await adopt({ store, taskClient: taskClientOf(), docClient, now: () => NOW, persist: true });
+
+    const byId = new Map(recorded.candidates.map((c) => [c.object.externalId, c.object]));
+    expect(byId.get('ob-1')).toMatchObject({ startsOn: '2024-01-01', endsOn: '2024-12-31' });
+    // The processes store carries the same column, and nobody chose it there.
+    expect(byId.get('pr-1')?.startsOn).toBeUndefined();
+    expect(byId.get('pr-1')?.endsOn).toBeUndefined();
   });
 
   it('is idempotent: two passes over an unchanged world agree exactly', async () => {

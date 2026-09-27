@@ -92,6 +92,11 @@ Two things to know:
   says *not readable* with the reason.
 - A database link is enough; prisme finds the data source inside it. If a database holds several,
   it asks you to link the one you mean. A link to a page is refused as *not a database*.
+- **Date column (optional)** — for Objectives, Takeaways and Processes, choose which of the
+  database's date properties says when an entry's period runs. Adoption then hides an entry whose
+  date has passed (a range counts until its end), so last year's objectives stop crowding the queue.
+  The list is what the last check found; after adding or renaming a date column in Notion, use
+  *Check again* on Settings.
 - **Templates are Notion's own.** Create and edit them in the database, in Notion — prisme picks up
   a new or renamed template, or a changed default, the next time it looks. A pages database with no
   template says so beside it: no page of that kind can be made until it holds one.
@@ -125,8 +130,16 @@ can read it before you decide. That needs `DOCTOOL_PAGE_URL_TEMPLATE` (and, for 
 `TASKTOOL_PROJECT_URL_TEMPLATE`) set in the deployment; a task has no link yet.
 
 Most tasks are just tasks. Adopt the few things that are genuinely *outcomes*; ignore the rest
-freely. The queue is re-read once a day; press **Rescan** after labelling a task or changing an
-area's locations.
+freely. The queue is re-read once a day; press **Rescan** after labelling a task, changing an
+area's locations or choosing a date column.
+
+**Filters** sit above the list, each with a count of the rows it would show:
+
+- **Date** — *Not ended* by default. An entry dated in the past (by the date column chosen in
+  Settings → Notion) is hidden, not ignored: the line under the filters says how many, and
+  *Ended* shows them. *In progress*, *Upcoming* and *No date* narrow further.
+- **From** — which Notion database, or Todoist tasks and projects.
+- **Area** — one area, or everything outside every mapped area.
 
 ---
 

@@ -38,6 +38,12 @@ export interface AdoptionStore {
   }>;
 
   /**
+   * Each store's chosen date property, by role (`role_binding.date_property`).
+   * Only the stores that have one; the names are instance data.
+   */
+  loadDateProperties(): Promise<ReadonlyMap<string, string>>;
+
+  /**
    * Replace the candidate mirror with this scan's result.
    *
    * Wholesale, in one transaction, because it is level-triggered: the queue is
