@@ -1,4 +1,4 @@
-import { PAGE_ROLE_FOR, PAGE_TEMPLATE_FOR } from '../../role-key.js';
+import { PAGE_ROLE_FOR } from '../../role-key.js';
 import type { DocToolClient } from '../../doc-tool/types.js';
 import type { IdempotencyKey } from '../types.js';
 import type { DocumentCreationWriter, PageDraft } from './types.js';
@@ -21,10 +21,11 @@ import type { DocumentCreationWriter, PageDraft } from './types.js';
  *     is what makes that possible. A client held directly can reach an API
  *     whatever the configuration says; an object that cannot is a structural
  *     freeze rather than a checked one (docs/13-migration.md §1).
- *   - **The mapping from a kind to two role keys.** `PAGE_ROLE_FOR` is
- *     prisme's decision and the pass must not make it — the draft carries a
- *     kind, and this is the one place that decides which store and which
- *     template that means.
+ *   - **The mapping from a kind to a role key.** `PAGE_ROLE_FOR` is prisme's
+ *     decision and the pass must not make it — the draft carries a kind, and
+ *     this is the one place that decides which database that means. The
+ *     template is not mapped here: it is one of that database's own, resolved
+ *     by the pass from the live list and carried on the draft (ADR-0030).
  *
  * ## The key is not sent, and that is not an oversight
  *
@@ -46,8 +47,8 @@ export function createDocToolCreationWriter(
     async createPage(draft: PageDraft, _key: IdempotencyKey) {
       const page = await options.client.createPage({
         role: PAGE_ROLE_FOR[draft.kind],
-        templateRole: PAGE_TEMPLATE_FOR[draft.kind],
         title: draft.title,
+        templateId: draft.templateId,
       });
       return { externalId: page.externalId };
     },

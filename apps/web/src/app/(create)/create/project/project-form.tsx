@@ -3,7 +3,8 @@
 import { Button, Card, FieldHint, Input, Label, useToast } from '@prisme/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { parseSections } from '@/lib/create-view';
+import type { PageTemplates } from '@/lib/contracts';
+import { pageChoiceComplete, parseSections } from '@/lib/create-view';
 import { createProject } from '../../create-actions';
 import { PageChoice, type PageDecision } from '../../page-choice';
 import { SearchBeforeCreate } from '../../search-before-create';
@@ -44,9 +45,12 @@ export interface AreaChoice {
 export function NewProjectForm({
   areas,
   areaNames,
+  pageTemplates = null,
 }: {
   areas: readonly AreaChoice[];
   areaNames: Readonly<Record<string, string>>;
+  /** What the project pages database offers (ADR-0030); `null` if it could not be read. */
+  pageTemplates?: PageTemplates | null;
 }) {
   const [name, setName] = useState('');
   const [areaKey, setAreaKey] = useState(areas[0]?.key ?? '');
@@ -59,7 +63,12 @@ export function NewProjectForm({
   const router = useRouter();
 
   const parsed = parseSections(sectionText);
-  const ready = name.trim() !== '' && areaKey !== '' && parsed.duplicate === undefined && !pending;
+  const ready =
+    name.trim() !== '' &&
+    areaKey !== '' &&
+    parsed.duplicate === undefined &&
+    pageChoiceComplete(page, pageTemplates) &&
+    !pending;
 
   const submit = (): void => {
     if (!ready) return;
@@ -229,7 +238,13 @@ export function NewProjectForm({
         ) : null}
       </fieldset>
 
-      <PageChoice value={page} onChange={setPage} disabled={pending} subject="project" />
+      <PageChoice
+        value={page}
+        onChange={setPage}
+        disabled={pending}
+        subject="project"
+        templates={pageTemplates}
+      />
 
       <div>
         <Button onClick={submit} disabled={!ready}>

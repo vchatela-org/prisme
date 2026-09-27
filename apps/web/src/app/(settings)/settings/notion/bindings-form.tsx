@@ -4,7 +4,13 @@ import { Badge, Button, Card, Input, Section, useToast } from '@prisme/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { Binding } from '@/lib/contracts';
-import { ACCESS_LABEL, checkAdvice, roleCopy, type RoleCopy } from '@/lib/settings-view';
+import {
+  ACCESS_LABEL,
+  checkAdvice,
+  roleCopy,
+  templateSummary,
+  type RoleCopy,
+} from '@/lib/settings-view';
 import { saveBinding } from '../settings-actions';
 
 type Row = Binding & { readonly href: string | null };
@@ -19,12 +25,7 @@ const GROUPS: readonly { id: RoleCopy['group']; title: string; description: stri
     id: 'pages',
     title: 'Where prisme may add pages',
     description:
-      'Give these a page of their own — a “prisme” page, say — rather than a database you already keep. They may all be the same page.',
-  },
-  {
-    id: 'templates',
-    title: 'Templates',
-    description: 'Ordinary pages. Their top-level blocks are copied into each new page.',
+      'A database per kind of page. A new page is an entry in it, started from one of the database’s own templates — keep and edit them in Notion. Several kinds may share one database.',
   },
 ];
 
@@ -56,6 +57,9 @@ function BindingEditor({ binding }: { binding: Row }) {
   const { toast } = useToast();
   const router = useRouter();
   const advice = binding.bound ? checkAdvice(binding.checkError) : null;
+  const held =
+    binding.bound && binding.checkError === null ? templateSummary(binding.templates) : null;
+  const checked = binding.checkedAt !== null;
   const inputId = `binding-${binding.role}`;
 
   const submit = (externalId: string | null): void => {
@@ -88,7 +92,7 @@ function BindingEditor({ binding }: { binding: Row }) {
         <Input
           id={inputId}
           className="min-w-72 flex-1"
-          placeholder={binding.shape === 'page' ? 'Link to a page' : 'Link to a database'}
+          placeholder="Link to a database"
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
@@ -120,7 +124,9 @@ function BindingEditor({ binding }: { binding: Row }) {
 
       {binding.bound ? (
         <p className="text-sm">
-          {binding.checkError === null ? (
+          {!checked ? (
+            <Badge variant="outline">not checked</Badge>
+          ) : binding.checkError === null ? (
             <Badge variant="neutral">found</Badge>
           ) : (
             <Badge variant="outline">not readable</Badge>
@@ -141,6 +147,16 @@ function BindingEditor({ binding }: { binding: Row }) {
       ) : (
         <p className="text-xs text-ink-muted">Not set — whatever uses it reports “not read”.</p>
       )}
+      {held === null ? null : (
+        <p className={held.warning ? 'text-xs text-status-warning' : 'text-xs text-ink-muted'}>
+          {held.text}
+        </p>
+      )}
+      {binding.bound && !checked ? (
+        <p className="text-xs text-ink-muted">
+          Not checked since it was saved — save it again, or use Check again on Settings.
+        </p>
+      ) : null}
       {advice === null ? null : <p className="text-xs text-status-warning">{advice}</p>}
     </div>
   );

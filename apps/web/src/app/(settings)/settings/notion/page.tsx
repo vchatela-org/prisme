@@ -28,9 +28,10 @@ export default async function NotionSettingsPage() {
         <h1 className="text-xl font-semibold text-ink">Notion</h1>
         <div className="flex max-w-prose flex-col gap-2 text-sm text-ink-secondary">
           <p>
-            Paste the link to each database or page (in Notion: <em>⋯ → Copy link</em>). prisme
-            checks it as you save and shows its title. A database link is enough — prisme finds the
-            data source inside it.
+            Paste the link to each database (in Notion: <em>⋯ → Copy link</em>). prisme checks it as
+            you save and shows its title — and, for the databases prisme adds pages to, the
+            templates each holds. A database link is enough — prisme finds the data source inside
+            it.
           </p>
           <p>
             Share each one with the prisme integration in Notion (<em>⋯ → Connections</em>). Notion

@@ -5,11 +5,12 @@ import {
   createCaptureBody,
   CreationIntentDto,
   CreationIntentPageDto,
+  PageTemplatesDto,
   promoteCaptureBody,
   SearchDto,
 } from '../dto/create.js';
 import { InitiativeDto } from '../dto/initiative.js';
-import { defineRoute, idParam, pageQuery, type ApiRoute } from './kit.js';
+import { defineRoute, idParam, noQuery, pageQuery, type ApiRoute } from './kit.js';
 
 /**
  * The creation flows (W15): capture, the ledger, and search before create.
@@ -38,6 +39,20 @@ import { defineRoute, idParam, pageQuery, type ApiRoute } from './kit.js';
  * scopes are cut where the consequences differ (docs/14-threat-model.md §3).
  */
 export const creationRoutes: readonly ApiRoute[] = [
+  defineRoute({
+    operationId: 'listPageTemplates',
+    method: 'get',
+    path: '/page-kinds/:kind/templates',
+    scope: 'read:backlog',
+    summary: 'The templates a kind of page can start from',
+    description:
+      'Read live from the database bound for this kind of page (ADR-0030). A screen asking for a page shows a choice when, and only when, there are several — the one marked `isDefault` pre-selected — and sends the chosen `templateId` with `{"mode":"create"}`. `state` says why there is nothing to choose: `unbound` (no database bound), `unreadable` (`failure` is a connector failure kind), `no_template` (a page of this kind cannot be made until the database holds one). Each is fixed in Settings → Notion or in the document tool. Reads template names only — never an entry, never a page body.',
+    params: z.strictObject({ kind: z.enum(['initiative', 'project', 'capture']) }),
+    query: noQuery,
+    response: PageTemplatesDto,
+    handle: (context, services) => services.pageTemplates.list(context.params.kind),
+  }),
+
   defineRoute({
     operationId: 'listCaptures',
     method: 'get',

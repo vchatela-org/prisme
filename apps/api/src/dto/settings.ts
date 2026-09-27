@@ -20,8 +20,8 @@ export const roleKey = z.enum(ROLE_KEYS);
 
 export const bindingDto = z.object({
   role: roleKey,
-  /** What the role names in the document tool: a data source, or a page. */
-  shape: z.enum(['data_source', 'page']),
+  /** What the role names in the document tool: a data source, for every role (ADR-0030). */
+  shape: z.enum(['data_source']),
   /** What prisme may do through it (packages/connectors/src/role-key.ts). */
   access: z.enum(['read', 'write', 'read_write', 'create']),
   bound: z.boolean(),
@@ -34,8 +34,15 @@ export const bindingDto = z.object({
    */
   linkId: z.string().nullable(),
   checkedAt: instant.nullable(),
-  /** A connector failure kind (`refused`, `invalid_token`, …), never an upstream message. */
+  /** A connector failure kind (`refused`, `wrong_kind`, …), never an upstream message. */
   checkError: z.string().nullable(),
+  /**
+   * A page store's templates, as its last check read them (ADR-0030). An empty
+   * list is its own outcome — a readable database holding no template, so the
+   * kind is not addressable yet — and not a failure of the binding. `null` for
+   * a role that is not a page store, or when the check did not get that far.
+   */
+  templates: z.array(z.object({ name: z.string(), isDefault: z.boolean() })).nullable(),
 });
 
 export const bindingListDto = z.object({ items: z.array(bindingDto) });
@@ -94,6 +101,7 @@ export const putBindingBody = defineWrite(
   {
     title: 'read from the document tool when the binding is checked',
     linkId: 'read from the document tool when the binding is checked',
+    templates: 'read from the store’s database when the binding is checked (ADR-0030)',
     checkedAt: 'set by the check',
   },
 );

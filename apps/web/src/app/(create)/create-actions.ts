@@ -76,10 +76,21 @@ const externalRequestSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('link'), externalId: z.string().min(1).max(200) }),
 ]);
 
+/**
+ * The same three states for a page, whose `create` may carry the template
+ * chosen among the kind's database's own (ADR-0030). The API checks the choice
+ * against the database's live list; absent, it asks for the default.
+ */
+const pageDecisionSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('none') }),
+  z.object({ mode: z.literal('create'), templateId: z.string().min(1).max(200).optional() }),
+  z.object({ mode: z.literal('link'), externalId: z.string().min(1).max(200) }),
+]);
+
 const captureInputSchema = z.object({
   title: z.string().min(1).max(500),
   areaKey: z.string().min(1).max(64),
-  page: externalRequestSchema.default({ mode: 'none' }),
+  page: pageDecisionSchema.default({ mode: 'none' }),
 });
 
 export type CaptureInput = z.input<typeof captureInputSchema>;
@@ -197,7 +208,7 @@ const initiativeInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  page: externalRequestSchema.default({ mode: 'none' }),
+  page: pageDecisionSchema.default({ mode: 'none' }),
 });
 
 export type InitiativeInput = z.input<typeof initiativeInputSchema>;
@@ -287,7 +298,7 @@ const projectInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   taskProject: externalRequestSchema.default({ mode: 'none' }),
-  page: externalRequestSchema.default({ mode: 'none' }),
+  page: pageDecisionSchema.default({ mode: 'none' }),
 });
 
 export type ProjectInput = z.input<typeof projectInputSchema>;
@@ -346,7 +357,7 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
 
 const pageRequestInputSchema = z.object({
   initiativeId: z.string().min(1).max(200),
-  page: externalRequestSchema,
+  page: pageDecisionSchema,
 });
 
 export type PageRequestInput = z.infer<typeof pageRequestInputSchema>;
@@ -390,7 +401,7 @@ export async function requestInitiativePage(input: PageRequestInput): Promise<Ac
         ok: true,
         title: 'Page requested',
         description:
-          'Recorded. The converge pass makes it, if this instance has bound where a page of this kind lives — otherwise the plan reports it blocked with that reason (ADR-0025, ADR-0028). Linking an existing one works today.',
+          'Recorded. The converge pass makes it from a template its Notion database holds — if none is bound, or it holds none, the plan reports it blocked with that reason (ADR-0030). Linking an existing one works today.',
       };
 }
 

@@ -43,6 +43,7 @@ interface IntentRow {
   readonly external_id: string | null;
   readonly requires: string | null;
   readonly attempts: number;
+  readonly template_id: string | null;
 }
 
 /**
@@ -76,6 +77,7 @@ function toIntent(row: IntentRow): Intent {
     ...(row.external_id === null ? {} : { externalId: row.external_id }),
     ...(row.requires === null ? {} : { requires: row.requires }),
     attempts: Number(row.attempts),
+    ...(row.template_id === null ? {} : { templateId: row.template_id }),
   };
 }
 
@@ -102,7 +104,8 @@ export function createCreationStore(client: postgres.Sql): CreationStore {
        */
       const rows = await client<IntentRow[]>`
         select id::text, entity_kind, entity_id::text, tool, object_kind, ordinal,
-               draft::text, idempotency_key::text, state, external_id, requires::text, attempts
+               draft::text, idempotency_key::text, state, external_id, requires::text, attempts,
+               template_id
           from creation_intent
          where state <> 'satisfied'
             or id in (select requires from creation_intent

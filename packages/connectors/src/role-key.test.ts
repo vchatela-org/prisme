@@ -6,13 +6,12 @@ import {
   canCreate,
   createRoleBindings,
   isReadable,
-  isTemplateRole,
   PAGE_ROLE_FOR,
-  PAGE_TEMPLATE_FOR,
+  PAGE_ROLES,
   ROLE_ACCESS,
   ROLE_KEYS,
+  ROLE_SHAPE,
   roleBindingsSchema,
-  TEMPLATE_ROLES,
   type PageKind,
 } from './role-key.js';
 
@@ -108,19 +107,21 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
     expect(ROLE_ACCESS.processes_db).toBe('read');
   });
 
-  describe('the create capability (ADR-0025, ADR-0028)', () => {
+  describe('the create capability (ADR-0025, ADR-0028, ADR-0030)', () => {
     it('is held by the page stores and by nothing else', () => {
       expect(ROLE_KEYS.filter(canCreate)).toEqual([
         'initiative_pages_db',
         'project_pages_db',
         'capture_pages_db',
       ]);
+      expect([...PAGE_ROLES].sort()).toEqual(ROLE_KEYS.filter(canCreate).sort());
     });
 
-    it('is narrower than write: a creating role may not be read', () => {
+    it('is narrower than write: a creating role may not be read as a store', () => {
       // The whole argument for the verb. If `create` implied reading, it would
-      // be `write` with a nicer name — and prisme has no business reading the
-      // store it adds pages to.
+      // be `write` with a nicer name. ADR-0030 gives the creating path three
+      // narrow reads of its own — schema, template list, entry titles — and
+      // none of them is the read path this guard protects.
       for (const role of ROLE_KEYS.filter(canCreate)) {
         expect(isReadable(role)).toBe(false);
         expect(() => assertReadable(role, `query ${role}`)).toThrow(/may not query it/);
@@ -135,19 +136,15 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
       expect(() => assertCreatable('initiative_pages_db', 'create page')).not.toThrow();
     });
 
-    it('addresses every page kind through its own store and its own template', () => {
+    it('addresses every page kind through a store of its own', () => {
       // The property ADR-0028 depends on, asserted over the vocabulary rather
       // than over the three names: a kind added without a store, or a store
       // added without a kind, is a page that cannot be created *or* one that
-      // silently borrows another kind's parent. Both are compile errors already
-      // — the records are `Record<PageKind, RoleKey>` — and this is what says
-      // so at run time as well.
+      // silently borrows another kind's database. Both are compile errors
+      // already — the record is `Record<PageKind, RoleKey>` — and this is what
+      // says so at run time as well.
       for (const kind of Object.keys(PAGE_ROLE_FOR) as PageKind[]) {
-        const store = PAGE_ROLE_FOR[kind];
-        const template = PAGE_TEMPLATE_FOR[kind];
-        expect(canCreate(store)).toBe(true);
-        expect(isReadable(template)).toBe(true);
-        expect(store).not.toBe(template);
+        expect(canCreate(PAGE_ROLE_FOR[kind])).toBe(true);
       }
 
       // And the three kinds are genuinely three, not one role repeated.
@@ -155,19 +152,18 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
       expect(Object.keys(PAGE_ROLE_FOR).sort()).toEqual(['capture', 'initiative', 'project']);
     });
 
-    it('reads the templates, because it copies their blocks and writes none', () => {
-      for (const role of TEMPLATE_ROLES) {
-        expect(isReadable(role)).toBe(true);
-        expect(canCreate(role)).toBe(false);
-      }
+    it('has no template role: a store’s templates are the ones its database holds', () => {
+      // ADR-0030 rule 2. A binding per template was a link to maintain for
+      // something the database already knows, and it could not say "several,
+      // choose when creating".
+      expect(ROLE_KEYS.some((role) => role.includes('template'))).toBe(false);
     });
 
-    it('marks the templates as roles the adoption scan must not walk', () => {
-      // A template is a page whose blocks get copied; it is neither work nor
-      // adoptable, and a scan that queued it would propose adopting a document
-      // nobody wrote.
-      expect(TEMPLATE_ROLES.every(isTemplateRole)).toBe(true);
-      expect(isTemplateRole('initiative_pages_db')).toBe(false);
+    it('names a data source for every role, page stores included', () => {
+      // ADR-0030 rule 1: a page store is a database, resolved to its one data
+      // source exactly as the read roles are. Two shapes for one role is the
+      // ambiguity ADR-0030 rejected by name.
+      for (const role of ROLE_KEYS) expect(ROLE_SHAPE[role]).toBe('data_source');
     });
   });
 });

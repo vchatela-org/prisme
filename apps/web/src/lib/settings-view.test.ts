@@ -9,6 +9,7 @@ import {
   nameLocation,
   ROLE_COPY,
   roleCopy,
+  templateSummary,
 } from './settings-view';
 
 const LOCATIONS: TaskLocations = {
@@ -102,18 +103,47 @@ describe('the words', () => {
       'initiative_pages_db',
       'project_pages_db',
       'capture_pages_db',
-      'initiative_page_template',
-      'project_page_template',
-      'capture_page_template',
     ]) {
       expect(ROLE_COPY[role]).toBeDefined();
     }
     expect(roleCopy('something_new').label).toBe('something_new');
   });
 
+  it('describes a page store as a database, and describes no template role', () => {
+    // ADR-0030: a store's templates are the ones its database holds.
+    for (const role of ['initiative_pages_db', 'project_pages_db', 'capture_pages_db']) {
+      expect(ROLE_COPY[role]?.bind).toMatch(/database/);
+    }
+    expect(Object.keys(ROLE_COPY).some((role) => role.includes('template'))).toBe(false);
+  });
+
   it('turns a failure kind into advice, and a pass into nothing', () => {
     expect(checkAdvice(null)).toBeNull();
     expect(checkAdvice('refused')).toMatch(/shared with the prisme integration/);
+  });
+
+  it('tells a page from an unshared store when the check could tell them apart', () => {
+    // `wrong_kind` is only sent when the link was read as a page; a page the
+    // integration cannot see is `refused`, and that advice keeps both causes.
+    expect(checkAdvice('wrong_kind')).toMatch(/is to a page/);
+    expect(checkAdvice('wrong_kind')).not.toMatch(/shared/);
+    expect(checkAdvice('refused')).toMatch(/not to a database/);
+  });
+
+  it('says what a page store holds, and that holding nothing is not a failed check', () => {
+    expect(templateSummary(null)).toBeNull();
+    expect(templateSummary([])).toMatchObject({ warning: true });
+    expect(templateSummary([])?.text).toMatch(/No template/);
+    expect(templateSummary([{ name: 'Brief', isDefault: false }])).toEqual({
+      text: 'Template: Brief.',
+      warning: false,
+    });
+    expect(
+      templateSummary([
+        { name: 'Brief', isDefault: true },
+        { name: 'Notes', isDefault: false },
+      ])?.text,
+    ).toMatch(/^Templates: Brief \(default\) · Notes\. A new page asks/);
   });
 
   it('proposes a key the API will accept', () => {

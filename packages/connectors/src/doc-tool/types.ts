@@ -82,31 +82,37 @@ export interface DocPage {
 }
 
 /**
- * The read path to the document tool.
+ * ADR-0011's narrative page, as a creation asks for it (ADR-0025, ADR-0030).
  *
- * The signatures are the contract in docs/40-workstreams/W03-connectors.md.
- * `since` is the **already-overlapped** floor: callers compute it with
- * `watermarkFloor`, so that the one place the two-minute rule is implemented is
- * the one place it can be tested.
- */
-/**
- * ADR-0011's narrative page, as a creation asks for it.
+ * `role` names **the database** the page is created in, as an entry of its one
+ * data source; `templateId` names **which of that database's own templates**
+ * the document tool applies to it. The template is resolved by the caller from
+ * the live template list, and sent as an identifier — never as "the default" —
+ * so that what a plan showed is what is sent (ADR-0030 rule 4).
  *
- * `role` names **where** the page goes and `templateRole` names **what it is a
- * copy of** — two bindings, because an instance keeps initiative pages and
- * project pages in different places with different templates, and prisme must
- * not decide that for it (ADR-0025).
- *
- * There is no `backlink` and no body of prisme's own. The page's content is a
- * copy of the template's top-level blocks and nothing else: the body belongs to
- * the document tool the moment the page exists (docs/11-ownership.md §3), and a
- * marker or a backlink prisme inserted would be exactly the ownership leak
- * every other rule here prevents.
+ * There is no `backlink`, no body and no property but the title. The page's
+ * content is the template's, applied by the document tool after the page exists;
+ * the body belongs to the document tool the moment the page does
+ * (docs/11-ownership.md §3), and a marker, a backlink or a property prisme set
+ * would be exactly the ownership leak every other rule here prevents.
  */
 export interface CreatePageInput {
   readonly role: RoleKey;
-  readonly templateRole: RoleKey;
   readonly title: string;
+  readonly templateId: string;
+}
+
+/**
+ * One of a store's templates, as the document tool lists it.
+ *
+ * `name` is sanitised text a person typed; it is shown on a screen and printed
+ * in a plan, and it is instance data like a title — never logged, never
+ * committed. `id` is what a creation sends.
+ */
+export interface DocTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly isDefault: boolean;
 }
 
 /**
@@ -114,8 +120,8 @@ export interface CreatePageInput {
  *
  * `externalId` is what prisme should **bind** — for a data source pasted as the
  * database that holds it, the resolved data source rather than what was given.
- * `linkId` is what a person **opens**: the page itself, or the database holding
- * a data source. Neither is a URL — the tool's page URL identifies the
+ * `linkId` is what a person **opens**: the database holding the data source,
+ * because a data source has no page of its own. Neither is a URL — the tool's page URL identifies the
  * workspace and is never read (docs/17-privacy.md §1).
  */
 export interface DocStoreDescription {
@@ -124,6 +130,14 @@ export interface DocStoreDescription {
   readonly linkId: string;
 }
 
+/**
+ * The document tool, as prisme addresses it.
+ *
+ * The read signatures are the contract in docs/40-workstreams/W03-connectors.md.
+ * `since` is the **already-overlapped** floor: callers compute it with
+ * `watermarkFloor`, so that the one place the two-minute rule is implemented is
+ * the one place it can be tested.
+ */
 export interface DocToolClient {
   queryByRole(role: RoleKey, since?: Date): Promise<DocRecord[]>;
   /**
@@ -133,10 +147,16 @@ export interface DocToolClient {
   describe(externalId: string, shape: StoreShape): Promise<DocStoreDescription>;
   fetchPage(id: string): Promise<DocPage>;
   /**
-   * Creates a page under the role's bound parent, or returns the one that is
-   * already there. The only **writing** method on this client, and the reason
-   * it exists is ADR-0025 — see the implementation for why the operation is
-   * level-triggered rather than keyed.
+   * The templates a page store's database holds (ADR-0030 rule 3). One of the
+   * three reads the `create` capability carries, and only on a role that
+   * carries it — see `assertCreatable`.
+   */
+  listTemplates(role: RoleKey): Promise<readonly DocTemplate[]>;
+  /**
+   * Creates an entry in the role's bound database, or returns the live one that
+   * already has this title. The only **writing** method on this client, and the
+   * reason it exists is ADR-0025 — see the implementation for why the operation
+   * is level-triggered rather than keyed.
    */
   createPage(input: CreatePageInput): Promise<DocPage>;
 }

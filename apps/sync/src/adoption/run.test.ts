@@ -191,6 +191,7 @@ describe('the adoption pass', () => {
       // fakes are readers, so reaching it is a test error rather than a no-op.
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     const result = await adopt({
@@ -224,6 +225,7 @@ describe('the adoption pass', () => {
       fetchPage: () => Promise.reject(new Error('not used')),
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
     });
 
     const { store } = storeOf();
@@ -259,6 +261,7 @@ describe('the adoption pass', () => {
       // fakes are readers, so reaching it is a test error rather than a no-op.
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     await adopt({ store, taskClient: taskClientOf(), docClient, now: () => NOW });
@@ -300,6 +303,7 @@ describe('the adoption pass', () => {
       fetchPage: () => Promise.reject(new Error('not used')),
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
     };
 
     const { store, recorded } = storeOf();

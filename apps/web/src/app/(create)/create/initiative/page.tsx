@@ -1,7 +1,7 @@
 import { Card, Section } from '@prisme/ui';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
-import { areaListSchema, projectListSchema } from '@/lib/contracts';
+import { areaListSchema, pageTemplatesSchema, projectListSchema } from '@/lib/contracts';
 import { NewInitiativeForm } from './initiative-form';
 
 export const metadata = {
@@ -13,13 +13,16 @@ export const metadata = {
 const PROJECT_LIMIT = 200;
 
 export default async function NewInitiativePage() {
-  const [areas, projects] = await Promise.all([
+  const [areas, projects, templates] = await Promise.all([
     apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({
       path: '/projects',
       query: { limit: String(PROJECT_LIMIT) },
       schema: projectListSchema,
     }),
+    // What a new initiative page can start from (ADR-0030). Advisory: a failed
+    // read shows no choice, and the request asks for the default.
+    apiFetch({ path: '/page-kinds/initiative/templates', schema: pageTemplatesSchema }),
   ]);
 
   if (!areas.ok) return <ApiFailureState failure={areas} surface="the areas" />;
@@ -43,6 +46,7 @@ export default async function NewInitiativePage() {
               : []
           }
           areaNames={areaNames}
+          pageTemplates={templates.ok ? templates.data : null}
         />
       </Card>
     </Section>

@@ -37,13 +37,14 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0022](0022-backups-belong-to-the-deployment-repository.md) | Database backups belong to the deployment repository | Accepted |
 | [0023](0023-node-26-toolchain-baseline.md) | Node 26 is the toolchain baseline, pnpm installed from npm | Accepted |
 | [0024](0024-mcp-without-the-sdk.md) | The MCP surface is written against the specification, not the SDK | Accepted |
-| [0025](0025-page-creation-needs-a-role-vocabulary.md) | Creating a page needs role keys that do not exist yet | **Accepted** 2026-09-21 |
+| [0025](0025-page-creation-needs-a-role-vocabulary.md) | Creating a page needs role keys that do not exist yet | **Accepted** 2026-09-21 — rules 2 and 4 superseded by [0030](0030-page-stores-are-databases-with-native-templates.md) 2026-09-26 |
 | [0026](0026-human-auth-via-oidc.md) | Humans authenticate in-app over OIDC: the proxy cannot sign asymmetrically, by design | **Accepted** 2026-09-22 — supersedes [0021](0021-verified-forward-auth-assertion.md) |
 | [0027](0027-audit-gate-fails-closed.md) | The audit gate fails closed, and names the failure it is | **Accepted** 2026-09-24 — answers and closes [OQ-10](OPEN.md) |
-| [0028](0028-capture-pages-get-a-role-pair.md) | A capture's page gets its own role pair | **Accepted** 2026-09-24 — extends [0025](0025-page-creation-needs-a-role-vocabulary.md) |
+| [0028](0028-capture-pages-get-a-role-pair.md) | A capture's page gets its own role pair | **Accepted** 2026-09-24 — extends [0025](0025-page-creation-needs-a-role-vocabulary.md); its template role superseded by [0030](0030-page-stores-are-databases-with-native-templates.md) 2026-09-26 |
 | [0029](0029-one-area-per-project.md) | A project has one area; multi-area work is mapped by section | **Accepted** 2026-09-25 — answers and closes [OQ-1](OPEN.md) |
+| [0030](0030-page-stores-are-databases-with-native-templates.md) | A page store is a database, and its templates are the document tool's own | **Accepted** 2026-09-26 — supersedes rules 2 and 4 of [0025](0025-page-creation-needs-a-role-vocabulary.md) and the template half of [0028](0028-capture-pages-get-a-role-pair.md) |
 
-**28 records: 28 Accepted · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
+**30 records: 29 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

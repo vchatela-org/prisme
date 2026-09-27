@@ -1,6 +1,8 @@
 # ADR-0028 · A capture's page gets its own role pair
 
-**Status:** Accepted · 2026-09-24 · extends [ADR-0025](0025-page-creation-needs-a-role-vocabulary.md)
+**Status:** Accepted · 2026-09-24 · extends [ADR-0025](0025-page-creation-needs-a-role-vocabulary.md) ·
+`capture_page_template` and *the pair is the unit* superseded by
+[ADR-0030](0030-page-stores-are-databases-with-native-templates.md) 2026-09-26
 
 ## Context
 

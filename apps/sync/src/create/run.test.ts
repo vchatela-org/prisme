@@ -8,9 +8,10 @@ import {
   type RecordedCreation,
   type RecordingDocumentCreationWriter,
 } from '@prisme/connectors/write';
+import type { DocTemplate, PageKind } from '@prisme/connectors';
 import type { CreationStore } from './ports.js';
 import { converge } from './run.js';
-import type { EntityRefs, Intent } from './types.js';
+import type { EntityRefs, Intent, PageStore } from './types.js';
 
 /**
  * The converge pass, end to end, in memory.
@@ -42,14 +43,38 @@ function intent(overrides: Partial<Intent> & Pick<Intent, 'id' | 'objectKind'>):
 }
 
 /**
- * A document recorder, and the page kinds an instance has bound (ADR-0025).
+ * A document recorder, and what an instance's page stores hold (ADR-0030).
  *
  * Every pass needs both, so they are made once here rather than at fourteen
- * call sites. `NOTHING_ADDRESSABLE` is the default because it is the truthful
- * default: an installation that has not run `bindings` has bound nothing, and
- * a test that is not about pages should be running the pass in that state.
+ * call sites. `NOTHING_BOUND` is the default because it is the truthful
+ * default: an installation whose Settings → Notion screen is empty has bound
+ * nothing, and a test that is not about pages should be running the pass in
+ * that state. It answers every kind it is asked about as unbound.
  */
-const NOTHING_ADDRESSABLE: ReadonlySet<'initiative' | 'project'> = new Set();
+const NOTHING_BOUND = (kinds: ReadonlySet<PageKind>): Promise<ReadonlyMap<PageKind, PageStore>> =>
+  Promise.resolve(new Map([...kinds].map((kind) => [kind, { state: 'unbound' as const }])));
+
+/** A reader answering every kind with a bound store holding these templates. */
+function holding(templates: Partial<Record<PageKind, readonly DocTemplate[]>>) {
+  const asked: PageKind[][] = [];
+  const read = (kinds: ReadonlySet<PageKind>): Promise<ReadonlyMap<PageKind, PageStore>> => {
+    asked.push([...kinds]);
+    return Promise.resolve(
+      new Map(
+        [...kinds].map((kind): [PageKind, PageStore] => {
+          const held = templates[kind];
+          return [
+            kind,
+            held === undefined ? { state: 'unbound' } : { state: 'bound', templates: held },
+          ];
+        }),
+      ),
+    );
+  };
+  return { read, asked };
+}
+
+const BRIEF: DocTemplate = { id: 'tpl-brief', name: 'Brief', isDefault: true };
 
 function pages(): RecordingDocumentCreationWriter {
   return createRecordingDocumentCreationWriter();
@@ -122,7 +147,7 @@ describe('planning a convergence', () => {
       store,
       writer: recording.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -155,7 +180,7 @@ describe('the write freeze', () => {
       store,
       writer: createFrozenCreationWriter(),
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -175,7 +200,7 @@ describe('the write freeze', () => {
       store: fakeStore(PROJECT_WITH_THREE_SECTIONS),
       writer: createFrozenCreationWriter(),
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -197,7 +222,7 @@ describe('a whole project, in one pass', () => {
       store,
       writer: recording.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -226,7 +251,7 @@ describe('a whole project, in one pass', () => {
       store,
       writer: first.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -238,7 +263,7 @@ describe('a whole project, in one pass', () => {
       store,
       writer: second.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -272,7 +297,7 @@ describe('a failure partway through', () => {
       store,
       writer: recording.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -306,7 +331,7 @@ describe('a failure partway through', () => {
         failOn: (creation) => creation.kind === 'section' && creation.draft.name === 'Second',
       }).writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -318,7 +343,7 @@ describe('a failure partway through', () => {
       store,
       writer: retry.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -348,7 +373,7 @@ describe('a failure partway through', () => {
       store,
       writer: tool.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -375,7 +400,7 @@ describe('a failure partway through', () => {
       store,
       writer: refusing,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -404,7 +429,7 @@ describe('the per-pass cap', () => {
       store,
       writer: recording.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 2,
       now: NOW,
@@ -440,7 +465,7 @@ describe('a capture’s task', () => {
       store,
       writer: recording.writer,
       documents: pages().writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -473,7 +498,7 @@ describe('a page', () => {
       store,
       writer: recording.writer,
       documents: docPages.writer,
-      addressablePageKinds: NOTHING_ADDRESSABLE,
+      readPageStores: NOTHING_BOUND,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -490,7 +515,7 @@ describe('a page', () => {
     expect(result.report).toContain('Settings → Notion');
   });
 
-  it('is created once the store and the template are bound', async () => {
+  it('is created once its store is bound and holds a template, which it names', async () => {
     const store = fakeStore([pageIntent()]);
     const recording = createRecordingCreationWriter();
     const docPages = pages();
@@ -500,7 +525,7 @@ describe('a page', () => {
       store,
       writer: recording.writer,
       documents: docPages.writer,
-      addressablePageKinds: new Set(['project']),
+      readPageStores: holding({ project: [BRIEF] }).read,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -509,9 +534,14 @@ describe('a page', () => {
     expect(result.created).toBe(1);
     expect(result.failed).toBe(0);
     expect(docPages.pages).toHaveLength(1);
-    // The draft carries a kind and a title and nothing else: the store and the
-    // template are prisme's decision, made in `PAGE_ROLE_FOR`.
-    expect(docPages.pages[0]?.draft).toEqual({ kind: 'project', title: 'A narrative' });
+    // The draft carries a kind, a title and the template resolved this pass:
+    // the store is prisme's decision (`PAGE_ROLE_FOR`), and the template is
+    // sent as the identifier the plan named — never "the default" (ADR-0030).
+    expect(docPages.pages[0]?.draft).toEqual({
+      kind: 'project',
+      title: 'A narrative',
+      templateId: 'tpl-brief',
+    });
     // The task-tool writer was not asked to make anything.
     expect(recording.creations).toHaveLength(0);
     // And the ledger records what was made, which is what stops a second page.
@@ -530,7 +560,7 @@ describe('a page', () => {
       store,
       writer: createRecordingCreationWriter().writer,
       documents: docPages.writer,
-      addressablePageKinds: new Set(['project'] as const),
+      readPageStores: holding({ project: [BRIEF] }).read,
       writeEnabled: true,
       maxPerPass: 20,
       now: NOW,
@@ -551,7 +581,7 @@ describe('a page', () => {
       store,
       writer: createRecordingCreationWriter().writer,
       documents: createFrozenDocumentCreationWriter(),
-      addressablePageKinds: new Set(['project']),
+      readPageStores: holding({ project: [BRIEF] }).read,
       writeEnabled: false,
       maxPerPass: 20,
       now: NOW,
@@ -560,6 +590,64 @@ describe('a page', () => {
     expect(recording.pages).toHaveLength(0);
     // Frozen is a refusal, not a failure: the ledger row is untouched.
     expect(result.refused).toContain('write freeze');
+    expect(store.rows.get('pg-01')?.state).toBe('pending');
+  });
+  it('names the template in the plan, reading the stores under the freeze too', async () => {
+    // The template list is a read, so `plan` makes it — and says what each page
+    // would be made from, which is exactly what somebody reading a plan before
+    // lifting the freeze wants to see (ADR-0030 rule 4).
+    const store = fakeStore([pageIntent()]);
+
+    const result = await converge({
+      mode: 'plan',
+      store,
+      writer: createFrozenCreationWriter(),
+      documents: createFrozenDocumentCreationWriter(),
+      readPageStores: holding({ project: [BRIEF] }).read,
+      writeEnabled: false,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(result.plan.runnable).toBe(1);
+    expect(result.report).toContain('from template “Brief”');
+  });
+
+  it('asks the document tool nothing when no page is outstanding', async () => {
+    const reader = holding({ project: [BRIEF] });
+
+    await converge({
+      mode: 'plan',
+      store: fakeStore(PROJECT_WITH_THREE_SECTIONS),
+      writer: createFrozenCreationWriter(),
+      documents: createFrozenDocumentCreationWriter(),
+      readPageStores: reader.read,
+      writeEnabled: false,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(reader.asked).toHaveLength(0);
+  });
+
+  it('blocks a page whose store holds no template, with the sentence that is not "unbound"', async () => {
+    const store = fakeStore([pageIntent()]);
+    const docPages = pages();
+
+    const result = await converge({
+      mode: 'apply',
+      store,
+      writer: createRecordingCreationWriter().writer,
+      documents: docPages.writer,
+      readPageStores: holding({ project: [] }).read,
+      writeEnabled: true,
+      maxPerPass: 20,
+      now: NOW,
+    });
+
+    expect(docPages.pages).toHaveLength(0);
+    expect(result.plan.blocked).toBe(1);
+    expect(result.report).toContain('holds no template');
     expect(store.rows.get('pg-01')?.state).toBe('pending');
   });
 });

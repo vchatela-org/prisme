@@ -141,7 +141,7 @@ export const initiativeRoutes: readonly ApiRoute[] = [
     scope: 'write:initiative',
     summary: 'The page button: create one, or link one already written',
     description:
-      'ADR-0011 — the narrative page is optional and created on demand, so a workspace does not fill with empty pages. `create` records an intent for the converge pass; `link` binds a page that already exists and creates nothing, which is what lets pages predating prisme come in without being recreated. `none` is refused here: not wanting a page is the state an initiative is already in, and an endpoint that accepts it would look like it detaches one.',
+      'ADR-0011 — the narrative page is optional and created on demand, so a workspace does not fill with empty pages. `create` records an intent for the converge pass, optionally naming one of the initiative pages database’s templates (`templateId`, from `GET /page-kinds/initiative/templates`; refused with `422` if it is not one of them, and the default when absent — ADR-0030); `link` binds a page that already exists and creates nothing, which is what lets pages predating prisme come in without being recreated. `none` is refused here: not wanting a page is the state an initiative is already in, and an endpoint that accepts it would look like it detaches one.',
     params: idParam,
     body: pageRequestBody,
     status: 200,
@@ -158,7 +158,12 @@ export const initiativeRoutes: readonly ApiRoute[] = [
           context.now,
         );
       } else if (context.body.page.mode === 'create') {
-        await services.create.requestPage('initiative', initiative.id, initiative.title);
+        await services.create.requestPage(
+          'initiative',
+          initiative.id,
+          initiative.title,
+          context.body.page.templateId,
+        );
       } else {
         throw new ApiError(
           'unprocessable',

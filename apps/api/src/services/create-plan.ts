@@ -1,6 +1,6 @@
 import { fuzzyMatch, normalise, similarity } from '@prisme/sync';
 import { homeLocation } from '@prisme/domain';
-import type { ExternalRequest } from '../dto/create.js';
+import type { ExternalRequest, PageDecision } from '../dto/create.js';
 import type { AreaMappingRecord } from '../store/types.js';
 
 /**
@@ -63,6 +63,13 @@ export interface PlannedIntent {
    * these has an id yet — the store resolves it when it writes the rows.
    */
   readonly requiresIndex?: number | undefined;
+  /**
+   * A page's chosen template (ADR-0030), already checked by the caller against
+   * its database's list. Absent asks for the default, resolved when the page is
+   * made. A column of the ledger rather than a field of the draft, because it
+   * is a reference to somebody else's object rather than a value prisme owns.
+   */
+  readonly templateId?: string | undefined;
 }
 
 /**
@@ -82,7 +89,7 @@ export interface CapturePlanInput {
   readonly location: ExternalLocation;
   readonly baseUrl: string;
   readonly captureLabel: string;
-  readonly page: ExternalRequest;
+  readonly page: PageDecision;
 }
 
 /**
@@ -112,12 +119,7 @@ export function planCapture(input: CapturePlanInput): readonly PlannedIntent[] {
   ];
 
   if (input.page.mode === 'create') {
-    intents.push({
-      tool: 'document',
-      objectKind: 'page',
-      ordinal: 0,
-      draft: { title: input.title },
-    });
+    intents.push(planPage({ title: input.title, templateId: input.page.templateId }));
   }
 
   return intents;
@@ -129,7 +131,7 @@ export interface ProjectPlanInput {
   readonly sections: readonly string[];
   readonly baseUrl: string;
   readonly taskProject: ExternalRequest;
-  readonly page: ExternalRequest;
+  readonly page: PageDecision;
 }
 
 /**
@@ -172,19 +174,15 @@ export function planProject(input: ProjectPlanInput): readonly PlannedIntent[] {
   });
 
   if (input.page.mode === 'create') {
-    intents.push({
-      tool: 'document',
-      objectKind: 'page',
-      ordinal: 0,
-      draft: { title: input.name },
-    });
+    intents.push(planPage({ title: input.name, templateId: input.page.templateId }));
   }
 
   return intents;
 }
 
 /**
- * What a page creation needs from its caller: a title.
+ * What a page creation needs from its caller: a title, and a template if one was
+ * chosen.
  *
  * Not the entity kind — the converge pass reads that from the ledger row it
  * already has — and not the entity's id or the base URL, which were only ever
@@ -192,19 +190,25 @@ export function planProject(input: ProjectPlanInput): readonly PlannedIntent[] {
  */
 export interface PagePlanInput {
   readonly title: string;
+  /** One of the kind's database's templates, checked by the caller; absent means the default. */
+  readonly templateId?: string | undefined;
 }
 
 /**
- * ADR-0011's *create page*, on demand, for an entity that already exists.
+ * ADR-0011's *create page*, for an entity that already exists — and the page
+ * half of a capture's and a project's plan.
  *
- * The draft is **a title and nothing else**, and that is ADR-0025 rather than
- * an omission. A page's body is a copy of the bound template's top-level
- * blocks, and the body belongs to the document tool the moment the page exists
- * (docs/11-ownership.md §3) — so there is no backlink block and no marker for
- * prisme to write. Which store the page goes in and which template it copies
- * are decided by the *entity kind* in the converge pass, so a `fromTemplate`
- * field here would be a second way to say the same thing, and a way for a
- * caller to say it wrongly.
+ * The draft is **a title and nothing else**, and that is ADR-0025 and ADR-0030
+ * rather than an omission. A page's body is the template's, applied by the
+ * document tool, and the body belongs to the document tool the moment the page
+ * exists (docs/11-ownership.md §3) — so there is no backlink block and no
+ * marker for prisme to write. Which database the page goes in is decided by the
+ * *entity kind* in the converge pass, so a field for it here would be a second
+ * way to say the same thing, and a way for a caller to say it wrongly.
+ *
+ * The chosen template rides beside the draft, not in it: it names one of the
+ * database's own objects, and the converge pass checks it still exists before
+ * sending it (ADR-0030 rule 3).
  */
 export function planPage(input: PagePlanInput): PlannedIntent {
   return {
@@ -212,6 +216,7 @@ export function planPage(input: PagePlanInput): PlannedIntent {
     objectKind: 'page',
     ordinal: 0,
     draft: { title: input.title },
+    ...(input.templateId === undefined ? {} : { templateId: input.templateId }),
   };
 }
 

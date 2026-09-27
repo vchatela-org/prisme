@@ -2,7 +2,12 @@ import type { Hono } from 'hono';
 import type postgres from 'postgres';
 import { createLogger, createMetrics } from '@prisme/observability';
 import type { Config } from '@prisme/config';
-import { ConnectorError, type DocStoreDescription, type TaskLocations } from '@prisme/connectors';
+import {
+  ConnectorError,
+  type DocStoreDescription,
+  type DocTemplate,
+  type TaskLocations,
+} from '@prisme/connectors';
 import { createApp } from '../app.js';
 import { createConfirmationService, type ConfirmationService } from '../auth/confirmation.js';
 import { createPostgresAuthStore } from '../auth/postgres.js';
@@ -61,25 +66,32 @@ export const NO_SYNC_RESULT: SyncRunResult = {
  *
  * `describe` knows the identifiers it is given and refuses the rest the way
  * the tool does — a `refused` connector failure — so a test can exercise the
- * saved-but-unreadable binding without a transport.
+ * saved-but-unreadable binding without a transport. `templates` answers the
+ * same way, keyed by the store's identifier (ADR-0030): a store the test gave
+ * no list for is refused, and one it gave `[]` holds no template.
  */
 export function stubDirectory(
   stores: Readonly<Record<string, DocStoreDescription>> = {},
   locations: TaskLocations = { projects: [], sections: [] },
+  templates: Readonly<Record<string, readonly DocTemplate[]>> = {},
 ): ExternalDirectory {
+  const refused = (operation: string): Promise<never> =>
+    Promise.reject(
+      new ConnectorError('refused', 'no such store in this test', {
+        tool: 'doc',
+        operation,
+        status: 404,
+      }),
+    );
   return {
     taskLocations: () => Promise.resolve(locations),
     describe: (externalId) => {
       const found = stores[externalId];
-      return found === undefined
-        ? Promise.reject(
-            new ConnectorError('refused', 'no such store in this test', {
-              tool: 'doc',
-              operation: 'describe',
-              status: 404,
-            }),
-          )
-        : Promise.resolve(found);
+      return found === undefined ? refused('describe') : Promise.resolve(found);
+    },
+    templates: (_role, externalId) => {
+      const found = templates[externalId];
+      return found === undefined ? refused('list templates') : Promise.resolve(found);
     },
   };
 }

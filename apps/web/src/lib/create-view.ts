@@ -1,4 +1,4 @@
-import type { CreationIntent, SearchMatch } from './contracts';
+import type { CreationIntent, PageTemplates, SearchMatch } from './contracts';
 
 /**
  * Every decision the creation screens make, as pure functions.
@@ -39,6 +39,78 @@ export function pageStateOf(
     (intent) => intent.objectKind === 'page' && intent.state !== 'satisfied',
   );
   return requested ? 'requested' : 'absent';
+}
+
+// ---------------------------------------------------------------------------
+// Which template a new page starts from (ADR-0030)
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether to show a template choice, and what it starts on.
+ *
+ * ADR-0030 rule 3, from the screen's side: a kind whose database holds **one**
+ * template shows no choice — there is nothing to choose — and one holding
+ * **several** proposes them, the database's marked default pre-selected. With
+ * several and none marked, nothing is pre-selected, because picking the first
+ * would be the screen choosing for somebody; {@link pageChoiceComplete} then
+ * holds the form until they do.
+ *
+ * `null` templates — the read failed, or was not made — shows no choice, and
+ * the request goes without one, which asks for the default.
+ */
+export function templateChoice(templates: PageTemplates | null): {
+  readonly show: boolean;
+  readonly preselected: string | undefined;
+} {
+  if (templates === null || templates.state !== 'ready' || templates.templates.length < 2) {
+    return { show: false, preselected: undefined };
+  }
+  const marked = templates.templates.filter((template) => template.isDefault);
+  return { show: true, preselected: marked.length === 1 ? marked[0]?.id : undefined };
+}
+
+/**
+ * Whether a page decision can be sent as it stands.
+ *
+ * Only one case holds a form back: creating, from a database of several
+ * templates with no default, with nothing chosen. Sent anyway it would be a
+ * page the converge pass blocks for want of a choice — which the screen asking
+ * for it was in a position to make.
+ */
+export function pageChoiceComplete(
+  decision: { readonly mode: string; readonly templateId?: string | undefined },
+  templates: PageTemplates | null,
+): boolean {
+  if (decision.mode !== 'create') return true;
+  const choice = templateChoice(templates);
+  return !choice.show || choice.preselected !== undefined || decision.templateId !== undefined;
+}
+
+/**
+ * What asking for a page will do, in one sentence, from what the kind's
+ * database holds — or `null` when that could not be read, and the screen says
+ * only what it knows.
+ *
+ * Each blocked state names where it is fixed, and the two that look alike —
+ * nothing bound, and bound with no template — say different things, because
+ * the fixes differ (ADR-0030 rule 5).
+ */
+export function pageTemplateHint(templates: PageTemplates | null): string | null {
+  if (templates === null) return null;
+  switch (templates.state) {
+    case 'unbound':
+      return 'No Notion database is bound for this kind of page yet, so the request waits until one is — Settings → Notion.';
+    case 'no_template':
+      return 'This kind’s Notion database holds no template yet, so the request waits until it has one — add one in Notion.';
+    case 'unreadable':
+      return `This kind’s Notion database could not be read (${templates.failure ?? 'unavailable'}), so the request waits — Settings → Notion says why.`;
+    case 'ready': {
+      const [only, ...others] = templates.templates;
+      return only !== undefined && others.length === 0
+        ? `Made on the next pass from its template, “${only.name}”.`
+        : 'Made on the next pass from the template you choose.';
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +222,7 @@ export function ledgerAdvice(intent: CreationIntent): {
   if (intent.tool === 'document') {
     return {
       sentence:
-        'Recorded. The converge pass makes it — on the schedule, or from Sync now — if this instance has bound where a page of this kind lives; if it has not, the plan reports it blocked with that reason rather than guessing (ADR-0025, ADR-0028). Linking an existing page works today.',
+        'Recorded. The converge pass makes it — on the schedule, or from Sync now — from a template its Notion database holds. While no database is bound for this kind of page, or the bound one holds no template, the plan reports it blocked with that reason rather than guessing (ADR-0028, ADR-0030). Linking an existing page works today.',
       retryable: false,
     };
   }

@@ -236,10 +236,10 @@ describe('what a project intends', () => {
 
 describe('a page on demand', () => {
   it('carries a title and nothing else, because the body is the template’s', () => {
-    // ADR-0025: the body is a copy of the template's top-level blocks, and the
-    // body belongs to the document tool the moment the page exists — so there
-    // is no backlink for prisme to write, and the store, the template and the
-    // parent are all decided in the converge pass.
+    // ADR-0025 and ADR-0030: the body is the template's, applied by the
+    // document tool, and it belongs to the document tool the moment the page
+    // exists — so there is no backlink for prisme to write, and the database and
+    // the template actually sent are decided in the converge pass.
     const planned = planPage({ title: 'Fence replaced' });
 
     expect(planned).toMatchObject({
@@ -248,6 +248,39 @@ describe('a page on demand', () => {
       draft: { title: 'Fence replaced' },
     });
     expect(Object.keys(planned.draft)).toEqual(['title']);
+    // No choice asks for the default; nothing is recorded to say otherwise.
+    expect(planned).not.toHaveProperty('templateId');
+  });
+
+  it('carries a chosen template beside the draft, never in it', () => {
+    // The choice names one of the database's own objects, so it is a column of
+    // the ledger rather than a value in the draft (ADR-0030 rule 3).
+    const planned = planPage({ title: 'Fence replaced', templateId: 'tpl-brief' });
+
+    expect(planned.templateId).toBe('tpl-brief');
+    expect(Object.keys(planned.draft)).toEqual(['title']);
+  });
+
+  it('carries the choice through a capture’s and a project’s plan', () => {
+    const capture = planCapture({
+      captureId: 'c-1',
+      title: 'Something small',
+      location: { externalProjectId: 'ext-project' },
+      baseUrl: BASE,
+      captureLabel: 'prisme-capture',
+      page: { mode: 'create', templateId: 'tpl-notes' },
+    });
+    const project = planProject({
+      projectId: 'pr-1',
+      name: 'A large effort',
+      sections: [],
+      baseUrl: BASE,
+      taskProject: { mode: 'none' },
+      page: { mode: 'create', templateId: 'tpl-brief' },
+    });
+
+    expect(capture.find((intent) => intent.objectKind === 'page')?.templateId).toBe('tpl-notes');
+    expect(project.find((intent) => intent.objectKind === 'page')?.templateId).toBe('tpl-brief');
   });
 });
 

@@ -12,7 +12,7 @@ import {
   projectStatus,
   taskPriority,
 } from './common.js';
-import { externalRequest } from './create.js';
+import { externalRequest, pageDecision } from './create.js';
 import {
   INITIATIVE_READ_ONLY,
   INITIATIVE_STATUS_READ_ONLY,
@@ -224,7 +224,7 @@ export const createProjectBody = defineWrite(
     deadline: calendarDate.optional(),
     sections: z.array(z.string().min(1).max(200)).default([]),
     taskProject: externalRequest.default({ mode: 'none' }),
-    page: externalRequest.default({ mode: 'none' }),
+    page: pageDecision.default({ mode: 'none' }),
   }),
   {
     origin: PROJECT_READ_ONLY.origin,

@@ -1,113 +1,118 @@
 import { describe, expect, it } from 'vitest';
 import { createDocToolClient } from '../../doc-tool/client.js';
+import { isConnectorError } from '../../errors.js';
 import { createFixtureTransport } from '../../testing/fixture-transport.js';
 import { createRecordedBindings } from '../../testing/recorded.js';
 import { createDocToolCreationWriter } from './doc-tool.js';
 
 /**
- * Creating a page, over a recorded transport (ADR-0025).
+ * Creating a page, over a recorded transport (ADR-0025, ADR-0030).
  *
  * What the assertions are about is not that a request was sent but **what was
  * in it**, because every rule here is a rule about content:
  *
- *   - the parent is the *bound* identifier for the page store, never a
+ *   - the parent is the *bound* data source for the page store, never a
  *     location prisme chose;
- *   - the body is the template's top-level blocks and nothing else — no
- *     backlink, no marker, nothing prisme wrote (docs/11-ownership.md §3);
- *   - and asked twice about the same title under the same parent, it makes
+ *   - the only property sent is the title, addressed by the title property's
+ *     id — found by type, because its name is the workspace's;
+ *   - the template is sent as the identifier it was resolved to, never as
+ *     `default`, and with no `children` beside it;
+ *   - nothing prisme wrote reaches the body — no backlink, no marker;
+ *   - and asked twice about the same title in the same database, it makes
  *     **one** page, because the document tool has no idempotency key and the
  *     operation is level-triggered instead.
  *
  * No test reaches a network: the transport is a recorded one, as
- * `packages/connectors/CLAUDE.md` requires.
+ * `packages/connectors/CLAUDE.md` requires. Every identifier is invented.
  */
 
-const LIST = (results: readonly unknown[], hasMore = false) =>
-  JSON.stringify({ object: 'list', results, next_cursor: null, has_more: hasMore });
+const STORE = 'recorded-project_pages_db';
 
-/** A `child_page` block, which is what a page under a page is. */
-function childPage(id: string, title: string): unknown {
-  return {
-    object: 'block',
-    id,
-    type: 'child_page',
-    has_children: true,
-    child_page: { title },
+/**
+ * A data source's schema, shaped as the tool answers. The title property's
+ * *name* is deliberately something no code could guess — the client must find
+ * it by type and address it by id.
+ */
+function schema(titleProperties = 1): string {
+  const properties: Record<string, unknown> = {
+    'Étiquette libre': { id: 'st%3Ax', type: 'status', status: {} },
   };
+  for (let index = 0; index < titleProperties; index += 1) {
+    properties[`Nom ${String(index)}`] = {
+      id: index === 0 ? 'title' : `t${String(index)}`,
+      type: 'title',
+      title: {},
+    };
+  }
+  return JSON.stringify({ object: 'data_source', id: STORE, properties });
 }
 
-function paragraph(id: string, text: string): unknown {
+function entry(id: string, title: string, archived = false): unknown {
   return {
-    object: 'block',
-    id,
-    type: 'paragraph',
-    has_children: false,
-    created_time: '2026-01-01T00:00:00.000Z',
-    paragraph: {
-      rich_text: [{ type: 'text', text: { content: text }, plain_text: text, annotations: {} }],
-    },
-  };
-}
-
-function pageBody(id: string, title: string): string {
-  return JSON.stringify({
     object: 'page',
     id,
     created_time: '2026-09-21T09:00:00.000Z',
     last_edited_time: '2026-09-21T09:00:00.000Z',
-    archived: false,
+    in_trash: archived,
     // Shaped as the tool answers: a property carries its own `type`, and the
     // mapping refuses a shape it does not recognise rather than guessing.
     properties: {
-      title: {
+      'Nom 0': {
         id: 'title',
         type: 'title',
         title: [{ type: 'text', text: { content: title }, plain_text: title, annotations: {} }],
       },
     },
-  });
+  };
+}
+
+function titleOf(candidate: unknown): string | undefined {
+  return (candidate as { properties: { 'Nom 0': { title: { plain_text: string }[] } } }).properties[
+    'Nom 0'
+  ].title[0]?.plain_text;
 }
 
 interface World {
-  /** What the parent page already holds, keyed by its bound identifier. */
-  readonly children?: Readonly<Record<string, readonly unknown[]>>;
+  /** The entries the store's database already holds. */
+  readonly entries?: readonly unknown[];
+  readonly titleProperties?: number;
 }
 
 function harness(world: World = {}) {
-  let created: unknown;
+  let created: Record<string, unknown> | undefined;
 
   const transport = createFixtureTransport([
     {
       matches: (request) => request.method === 'POST' && /\/v1\/pages$/.test(request.url),
       respond: (request) => {
-        created = JSON.parse(request.body ?? '{}') as unknown;
-        const title = (
-          created as { properties?: { title?: { title?: { text?: { content?: string } }[] } } }
-        ).properties?.title?.title?.[0]?.text?.content;
-        return { body: pageBody('made-page-0001', title ?? '') };
+        created = JSON.parse(request.body ?? '{}') as Record<string, unknown>;
+        const properties = created['properties'] as Record<
+          string,
+          { title?: { text?: { content?: string } }[] }
+        >;
+        const title = properties['title']?.title?.[0]?.text?.content;
+        return { body: JSON.stringify(entry('made-page-0001', title ?? '')) };
+      },
+    },
+    {
+      matches: (request) => request.method === 'POST' && request.url.includes('/query?'),
+      respond: (request) => {
+        // The tool's filter, simulated: exact title matches only.
+        const sent = JSON.parse(request.body ?? '{}') as {
+          filter: { title: { equals: string } };
+        };
+        const results = (world.entries ?? []).filter(
+          (candidate) => titleOf(candidate) === sent.filter.title.equals,
+        );
+        return {
+          body: JSON.stringify({ object: 'list', results, next_cursor: null, has_more: false }),
+        };
       },
     },
     {
       matches: (request) =>
-        request.method === 'GET' && /\/v1\/blocks\/.+\/children/.test(request.url),
-      respond: (request) => {
-        const id = decodeURIComponent(/\/blocks\/([^/]+)\/children/.exec(request.url)?.[1] ?? '');
-        // The template is bound to `recorded-project_page_template`; everything
-        // else is a page store, and only the parent has children here.
-        if (id === 'recorded-project_page_template') {
-          return {
-            body: LIST([paragraph('tpl-1', 'What is this for?'), paragraph('tpl-2', 'Notes')]),
-          };
-        }
-        return { body: LIST(world.children?.[id] ?? []) };
-      },
-    },
-    {
-      matches: (request) => request.method === 'GET' && /\/v1\/pages\/.+\/?$/.test(request.url),
-      respond: (request) => {
-        const id = decodeURIComponent(/\/v1\/pages\/([^/?]+)/.exec(request.url)?.[1] ?? '');
-        return { body: pageBody(id, 'Already there') };
-      },
+        request.method === 'GET' && /\/v1\/data_sources\/[^/?]+$/.test(request.url),
+      respond: () => ({ body: schema(world.titleProperties) }),
     },
   ]);
 
@@ -120,96 +125,114 @@ function harness(world: World = {}) {
   return { client, transport, created: () => created };
 }
 
+const REQUEST = {
+  role: 'project_pages_db',
+  title: 'Renovate the workshop',
+  templateId: 'tpl-brief',
+} as const;
+
 describe('creating a narrative page', () => {
-  it('parents the page at the store the role binds, not at a location prisme chose', async () => {
+  it('creates an entry of the bound data source, not under a location prisme chose', async () => {
     const { client, created } = harness();
 
-    const page = await client.createPage({
-      role: 'project_pages_db',
-      templateRole: 'project_page_template',
-      title: 'Renovate the workshop',
-    });
+    const page = await client.createPage(REQUEST);
 
     expect(page.externalId).toBe('made-page-0001');
-    expect((created() as { parent: { page_id: string } }).parent).toEqual({
-      type: 'page_id',
-      page_id: 'recorded-project_pages_db',
-    });
+    expect(created()?.['parent']).toEqual({ type: 'data_source_id', data_source_id: STORE });
   });
 
-  it('copies the template’s top-level blocks and sends no read-only field back', async () => {
+  it('sets the title and nothing else, by the title property’s id', async () => {
     const { client, created } = harness();
 
-    await client.createPage({
-      role: 'project_pages_db',
-      templateRole: 'project_page_template',
-      title: 'Renovate the workshop',
-    });
+    await client.createPage(REQUEST);
 
-    const children = (created() as { children: Record<string, unknown>[] }).children;
-    expect(children).toHaveLength(2);
-    // `id`, `created_time` and `has_children` came back from the template fetch
-    // and are absent from what is sent: a creation accepts `object`, `type` and
-    // the type's payload, and sending the rest would ask the tool to reproduce
-    // an object rather than to create one.
-    for (const block of children) {
-      expect(Object.keys(block).sort()).toEqual(['object', 'paragraph', 'type']);
-    }
-    expect(children[0]?.['object']).toBe('block');
-    expect(children[0]?.['type']).toBe('paragraph');
+    // Found by type, addressed by id: the column's name is the workspace's, and
+    // it is neither guessed nor sent.
+    expect(created()?.['properties']).toEqual({
+      title: { title: [{ type: 'text', text: { content: 'Renovate the workshop' } }] },
+    });
+    expect(JSON.stringify(created())).not.toContain('Nom 0');
   });
 
-  it('writes nothing of prisme’s own into the body', async () => {
+  it('sends the resolved template by id, never `default`, and no children', async () => {
+    const { client, created } = harness();
+
+    await client.createPage(REQUEST);
+
+    expect(created()?.['template']).toEqual({ type: 'template_id', template_id: 'tpl-brief' });
+    expect(created()).not.toHaveProperty('children');
+    expect(created()).not.toHaveProperty('content');
+  });
+
+  it('writes nothing of prisme’s own and reads no body', async () => {
     // The page body belongs to the document tool the moment the page exists
-    // (docs/11-ownership.md §3). A backlink block would be an ownership leak,
-    // and it is the obvious thing to add — so it is asserted rather than
-    // assumed.
-    const { client, created } = harness();
+    // (docs/11-ownership.md §3), and the template fills it asynchronously —
+    // which this neither waits for nor reads (ADR-0030 rule 4).
+    const { client, transport, created } = harness();
 
-    await client.createPage({
-      role: 'project_pages_db',
-      templateRole: 'project_page_template',
-      title: 'Renovate the workshop',
-    });
+    const page = await client.createPage(REQUEST);
 
-    const sent = JSON.stringify(created());
-    expect(sent).not.toMatch(/backlink|prisme\.example|http/i);
-    // Nothing in the body is prisme's: the title is in `properties`, and the
-    // body is the template's blocks verbatim.
-    expect(sent).toContain('What is this for?');
+    expect(JSON.stringify(created())).not.toMatch(/backlink|prisme\.example|http/i);
+    expect(page.blocks).toEqual([]);
+    expect(transport.requests.some((request) => request.url.includes('/blocks/'))).toBe(false);
   });
 
-  it('is level-triggered: a second call under the same parent finds the page', async () => {
+  it('is level-triggered: a live entry with the title is returned rather than made again', async () => {
     // The document tool has no idempotency key, so a retry after a timeout
     // cannot be told from a first attempt by anything prisme sends. It can be
-    // told by what the world holds, which is what this asks (ADR-0009).
+    // told by what the database holds, which is what this asks (ADR-0030 rule 6).
     const { client, transport } = harness({
-      children: { 'recorded-project_pages_db': [childPage('existing-1', 'Renovate the workshop')] },
+      entries: [entry('existing-1', 'Renovate the workshop')],
     });
 
-    const page = await client.createPage({
-      role: 'project_pages_db',
-      templateRole: 'project_page_template',
-      title: 'Renovate the workshop',
-    });
+    const page = await client.createPage(REQUEST);
 
     expect(page.externalId).toBe('existing-1');
-    expect(transport.requests.filter((request) => request.method === 'POST')).toHaveLength(0);
+    expect(transport.requests.some((request) => request.url.endsWith('/v1/pages'))).toBe(false);
   });
 
-  it('creates one when the parent’s children have other titles', async () => {
+  it('asks the database for exact title matches and for the title property only', async () => {
+    const { client, transport } = harness();
+
+    await client.createPage(REQUEST);
+
+    const query = transport.requests.find((request) => request.url.includes('/query'));
+    expect(new URL(query?.url ?? 'http://x').searchParams.getAll('filter_properties[]')).toEqual([
+      'title',
+    ]);
+    expect(JSON.parse(query?.body ?? '{}')).toMatchObject({
+      filter: { property: 'title', title: { equals: 'Renovate the workshop' } },
+    });
+  });
+
+  it('creates one when the only entry with the title is in the trash', async () => {
+    // A page somebody deleted is created again rather than resurrected.
     const { client, created } = harness({
-      children: { 'recorded-project_pages_db': [childPage('other-1', 'Something else')] },
+      entries: [entry('trashed-1', 'Renovate the workshop', true)],
     });
 
-    const page = await client.createPage({
-      role: 'project_pages_db',
-      templateRole: 'project_page_template',
-      title: 'Renovate the workshop',
-    });
+    const page = await client.createPage(REQUEST);
 
     expect(page.externalId).toBe('made-page-0001');
     expect(created()).toBeDefined();
+  });
+
+  it('creates one when the database’s entries have other titles', async () => {
+    const { client, created } = harness({ entries: [entry('other-1', 'Something else')] });
+
+    const page = await client.createPage(REQUEST);
+
+    expect(page.externalId).toBe('made-page-0001');
+    expect(created()).toBeDefined();
+  });
+
+  it('refuses a schema without exactly one title property rather than picking one', async () => {
+    const { client, transport } = harness({ titleProperties: 2 });
+
+    const failure = await client.createPage(REQUEST).catch((error: unknown) => error);
+
+    expect(isConnectorError(failure) && failure.failure).toBe('invalid_shape');
+    expect(transport.requests.some((request) => request.method === 'POST')).toBe(false);
   });
 
   it('refuses to create in a store prisme only reads', async () => {
@@ -217,43 +240,25 @@ describe('creating a narrative page', () => {
     // under `areas_db` is a bug that writes to an archive.
     const { client, transport } = harness();
 
-    await expect(
-      client.createPage({
-        role: 'areas_db',
-        templateRole: 'project_page_template',
-        title: 'Nope',
-      }),
-    ).rejects.toThrow(/may not add to it/);
-    expect(transport.requests).toHaveLength(0);
-  });
-
-  it('refuses to read a template that is not readable, rather than letting the tool say so', async () => {
-    const { client, transport } = harness();
-
-    await expect(
-      client.createPage({
-        role: 'project_pages_db',
-        templateRole: 'reviews_db',
-        title: 'Nope',
-      }),
-    ).rejects.toThrow(/may not query it/);
+    await expect(client.createPage({ ...REQUEST, role: 'areas_db' })).rejects.toThrow(
+      /may not add to it/,
+    );
     expect(transport.requests).toHaveLength(0);
   });
 
   it('goes through the creating writer, which is what the freeze replaces', async () => {
     // The port exists so that `createFrozenDocumentCreationWriter` can be the
     // object a frozen deployment is handed; this checks the live one wires the
-    // kind to the two role keys rather than passing them through.
+    // kind to its role key and carries the resolved template through.
     const { client, created } = harness();
 
     const { externalId } = await createDocToolCreationWriter({ client }).createPage(
-      { kind: 'project', title: 'Renovate the workshop' },
+      { kind: 'project', title: 'Renovate the workshop', templateId: 'tpl-brief' },
       'derived-key',
     );
 
     expect(externalId).toBe('made-page-0001');
-    expect((created() as { parent: { page_id: string } }).parent.page_id).toBe(
-      'recorded-project_pages_db',
-    );
+    expect(created()?.['parent']).toEqual({ type: 'data_source_id', data_source_id: STORE });
+    expect(created()?.['template']).toEqual({ type: 'template_id', template_id: 'tpl-brief' });
   });
 });

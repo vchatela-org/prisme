@@ -981,7 +981,8 @@ export const ROLE_ACCESSES = ['read', 'write', 'read_write', 'create'] as const;
 
 export const bindingSchema = z.object({
   role: z.string(),
-  shape: z.enum(['data_source', 'page']),
+  /** Every role names a data source since ADR-0030; kept as the API sends it. */
+  shape: z.enum(['data_source']),
   access: z.enum(ROLE_ACCESSES),
   bound: z.boolean(),
   externalId: z.string().nullable(),
@@ -989,11 +990,29 @@ export const bindingSchema = z.object({
   linkId: z.string().nullable(),
   checkedAt: instant.nullable(),
   checkError: z.string().nullable(),
+  /** A page store's templates as the check read them; `[]` holds none (ADR-0030). */
+  templates: z
+    .array(z.object({ name: z.string(), isDefault: z.boolean() }))
+    .nullable()
+    .default(null),
 });
 
 export type Binding = z.infer<typeof bindingSchema>;
 
 export const bindingListSchema = z.object({ items: z.array(bindingSchema) });
+
+/**
+ * What a kind of page can start from — `GET /page-kinds/{kind}/templates`
+ * (ADR-0030). A choice is shown when, and only when, there are several.
+ */
+export const pageTemplatesSchema = z.object({
+  kind: z.enum(['initiative', 'project', 'capture']),
+  state: z.enum(['unbound', 'unreadable', 'no_template', 'ready']),
+  failure: z.string().nullable(),
+  templates: z.array(z.object({ id: z.string(), name: z.string(), isDefault: z.boolean() })),
+});
+
+export type PageTemplates = z.infer<typeof pageTemplatesSchema>;
 
 export const taskLocationsSchema = z.object({
   projects: z.array(

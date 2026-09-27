@@ -1,4 +1,5 @@
 import {
+  canCreate,
   isConnectorError,
   ROLE_ACCESS,
   ROLE_KEYS,
@@ -26,6 +27,18 @@ import type { ExternalDirectory } from '../sync/directory.js';
  * What a successful check changes is the identifier itself, in one case: a
  * database pasted where a data source is wanted is resolved to the data source
  * inside it, because that is what prisme queries and nobody can see its id.
+ *
+ * ## A page store's check reads its templates too
+ *
+ * Every role names a data source since ADR-0030, page stores included, and a
+ * page store is only half-described by its title: what makes it addressable is
+ * that its database holds at least one template (ADR-0030 rule 5). So its check
+ * lists them, and keeps their names and the default mark — no identifier, since
+ * a creation resolves its template from the live list. **An empty list is not a
+ * failed check.** The binding is right; the database is one template away from
+ * working, and the screen says that rather than "not readable". A binding that
+ * names a page, as ADR-0025's did, fails as `wrong_kind` when the tool lets
+ * that be seen.
  *
  * ## Nothing upstream reaches the caller
  *
@@ -56,6 +69,11 @@ function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): Bin
     linkId: record?.linkId ?? null,
     checkedAt: record?.checkedAt?.toISOString() ?? null,
     checkError: record?.checkError ?? null,
+    templates:
+      record?.templates?.map((template) => ({
+        name: template.name,
+        isDefault: template.isDefault,
+      })) ?? null,
   };
 }
 
@@ -69,16 +87,9 @@ export function createSettingsService(
   directory: ExternalDirectory,
 ): SettingsService {
   async function checked(role: RoleKey, externalId: string, now: Date): Promise<RoleBindingRecord> {
+    let described;
     try {
-      const described = await directory.describe(externalId, ROLE_SHAPE[role]);
-      return {
-        role,
-        externalId: described.externalId,
-        title: described.title === '' ? null : described.title,
-        linkId: described.linkId,
-        checkedAt: now,
-        checkError: null,
-      };
+      described = await directory.describe(externalId, ROLE_SHAPE[role]);
     } catch (error) {
       return {
         role,
@@ -87,7 +98,33 @@ export function createSettingsService(
         linkId: null,
         checkedAt: now,
         checkError: failureKind(error),
+        templates: null,
       };
+    }
+
+    const found = {
+      role,
+      externalId: described.externalId,
+      title: described.title === '' ? null : described.title,
+      linkId: described.linkId,
+      checkedAt: now,
+    };
+    if (!canCreate(role)) return { ...found, checkError: null, templates: null };
+
+    try {
+      const templates = await directory.templates(role, described.externalId);
+      return {
+        ...found,
+        checkError: null,
+        templates: templates.map((template) => ({
+          name: template.name,
+          isDefault: template.isDefault,
+        })),
+      };
+    } catch (error) {
+      // The store answered and its templates did not: a failed check, with
+      // what was found kept, rather than a store reported as holding none.
+      return { ...found, checkError: failureKind(error), templates: null };
     }
   }
 
@@ -112,8 +149,8 @@ export function createSettingsService(
         (other) => other.role !== role && other.externalId === record.externalId,
       );
       // Two roles may share a store (ADR-0025 says so for page stores), but a
-      // *read* role sharing with a *create* role means prisme would create pages
-      // inside a database it also reads as, say, takeaways. That is a
+      // *read* role sharing with a *create* role means prisme would add entries
+      // to a database it also reads as, say, takeaways. That is a
       // configuration nobody means; it is refused by name.
       if (
         holder !== undefined &&
@@ -122,7 +159,7 @@ export function createSettingsService(
       ) {
         throw new ApiError(
           'conflict',
-          `${holder.role} already names this store, and one role reads it while the other creates in it — give page creation a location of its own`,
+          `${holder.role} already names this store, and one role reads it while the other creates in it — give page creation a database of its own`,
         );
       }
 

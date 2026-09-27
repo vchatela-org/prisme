@@ -32,10 +32,12 @@ this?"** If yes, it is instance data. Instance data has exactly two homes: the d
 
 - **Names of external databases.** Even a database *name* describes someone's setup. prisme refers
   to external stores by **role key** — `objectives_db`, `takeaways_db`, `media_db`, `areas_db`,
-  `processes_db`, `reviews_db`, and the page and template roles ADR-0025 and ADR-0028 added
-  (`initiative_pages_db`, `project_pages_db`, `capture_pages_db` and their templates) — and binds
-  those to real IDs in the database, through the Settings screens. This is better engineering anyway: the app works against any
-  workspace, not one.
+  `processes_db`, `reviews_db`, and the page stores ADR-0025 and ADR-0028 added
+  (`initiative_pages_db`, `project_pages_db`, `capture_pages_db`) — and binds those to real IDs in
+  the database, through the Settings screens. A page store's **templates** are its database's own
+  (ADR-0030): their names and identifiers are read from the tool, and the one chosen for a page is
+  stored on its creation intent — instance data like any other identifier, in the database and never
+  in git. This is better engineering anyway: the app works against any workspace, not one.
 - **Area names.** The model says "N areas". Which areas, and their weights, is configuration.
   Fixtures use an invented set that deliberately does not match any real one.
 - **Language.** The instance's data is French; the code and docs are English. Domain terms are

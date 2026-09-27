@@ -392,6 +392,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     requires: string | null;
     attempts: number;
     last_error: string | null;
+    template_id: string | null;
     created_at: Date | string;
     updated_at: Date | string;
   }
@@ -411,6 +412,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       requires: row.requires,
       attempts: Number(row.attempts),
       lastError: row.last_error,
+      templateId: row.template_id,
       createdAt: required(row.created_at, 'creation_intent.created_at'),
       updatedAt: required(row.updated_at, 'creation_intent.updated_at'),
     };
@@ -419,13 +421,13 @@ export function createPostgresStore(client: Sql): ApiStore {
   const intentColumns = client`
     c.id::text, c.entity_kind, c.entity_id::text, c.tool, c.object_kind, c.ordinal,
     c.draft::text, c.idempotency_key::text, c.state, c.external_id, c.requires::text,
-    c.attempts, c.last_error, c.created_at, c.updated_at`;
+    c.attempts, c.last_error, c.template_id, c.created_at, c.updated_at`;
 
   /** The same list without the alias, for a `returning` clause, which has none. */
   const intentReturning = client`
     id::text, entity_kind, entity_id::text, tool, object_kind, ordinal,
     draft::text, idempotency_key::text, state, external_id, requires::text,
-    attempts, last_error, created_at, updated_at`;
+    attempts, last_error, template_id, created_at, updated_at`;
 
   /**
    * Write a batch of intents for one entity, resolving the positional
@@ -468,13 +470,15 @@ export function createPostgresStore(client: Sql): ApiStore {
 
       const rows = await tx<IntentRow[]>`
         insert into creation_intent
-          (entity_kind, entity_id, tool, object_kind, ordinal, draft, idempotency_key, requires)
+          (entity_kind, entity_id, tool, object_kind, ordinal, draft, idempotency_key, requires,
+           template_id)
         values (${entityKind}, ${entityId}::uuid, ${intent.tool}, ${intent.objectKind},
                 ${intent.ordinal}, ${JSON.stringify(intent.draft)}::jsonb, ${keyFor(slot)}::uuid,
-                ${requires}::uuid)
+                ${requires}::uuid, ${intent.templateId ?? null})
         on conflict (entity_kind, entity_id, object_kind, ordinal) do update
           set draft = excluded.draft,
               requires = excluded.requires,
+              template_id = excluded.template_id,
               updated_at = now()
           where creation_intent.state <> 'satisfied'
         returning ${intentReturning}`;
@@ -513,9 +517,10 @@ export function createPostgresStore(client: Sql): ApiStore {
             link_id: string | null;
             checked_at: Date | string | null;
             check_error: string | null;
+            templates: string | null;
           }[]
         >`
-          select role, external_id, title, link_id, checked_at, check_error
+          select role, external_id, title, link_id, checked_at, check_error, templates::text
           from role_binding order by role`;
         return rows.map((row) => ({
           role: row.role,
@@ -524,21 +529,27 @@ export function createPostgresStore(client: Sql): ApiStore {
           linkId: row.link_id,
           checkedAt: row.checked_at === null ? null : new Date(row.checked_at),
           checkError: row.check_error,
+          templates: json<RoleBindingRecord['templates']>(row.templates, null),
         }));
       },
 
       async put(record: RoleBindingRecord): Promise<void> {
+        // Stringified explicitly, as every `jsonb` write here is — see the note
+        // on `writeIntents` for why `sql.json()` is not safe on this client.
+        const templates = record.templates === null ? null : JSON.stringify(record.templates);
         await client`
           insert into role_binding (role, external_id, tool, title, link_id, checked_at, check_error,
-                                    updated_at)
+                                    templates, updated_at)
           values (${record.role}, ${record.externalId}, 'doc', ${record.title}, ${record.linkId},
-                  ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError}, now())
+                  ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError},
+                  ${templates}::jsonb, now())
           on conflict (role) do update set
             external_id = excluded.external_id,
             title = excluded.title,
             link_id = excluded.link_id,
             checked_at = excluded.checked_at,
             check_error = excluded.check_error,
+            templates = excluded.templates,
             updated_at = now()`;
       },
 

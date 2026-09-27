@@ -8,9 +8,9 @@ import type { ConvergePlan } from './types.js';
  * real workspace, and the question it has to answer in one screen is "how many
  * objects is this about to add, and to where".
  *
- * > **Never paste real output into this repository.** A section's name and a
- * > capture's content are instance data (docs/17-privacy.md,
- * > apps/sync/CLAUDE.md).
+ * > **Never paste real output into this repository.** A section's name, a
+ * > capture's content and a template's name are instance data
+ * > (docs/17-privacy.md, apps/sync/CLAUDE.md).
  *
  * The blocked lines are as important as the runnable ones, and are printed
  * with their reason rather than counted. A plan that shows only what it will
@@ -60,7 +60,12 @@ export function formatConvergePlan(plan: ConvergePlan, options: ConvergeReportOp
     const kind = pad(step.intent.objectKind, KIND_WIDTH);
     const entity = pad(step.intent.entityKind, ENTITY_WIDTH);
     if (step.kind === 'run') {
-      lines.push(`create   ${kind} ${entity} attempt ${String(step.intent.attempts + 1)}`);
+      // A page names the template it will be made from, as its database lists
+      // it: what is sent is that identifier, so what is read here is what
+      // happens (ADR-0030 rule 4).
+      const from =
+        step.creation.kind === 'page' ? `   from template “${step.creation.templateName}”` : '';
+      lines.push(`create   ${kind} ${entity} attempt ${String(step.intent.attempts + 1)}${from}`);
     } else {
       lines.push(`blocked  ${kind} ${entity} ${step.reason}`);
     }

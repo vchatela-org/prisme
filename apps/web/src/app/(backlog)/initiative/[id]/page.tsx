@@ -14,6 +14,7 @@ import {
   eventPageSchema,
   focusSchema,
   initiativeSchema,
+  pageTemplatesSchema,
   scoreHistorySchema,
   taskListSchema,
   type Area,
@@ -76,6 +77,13 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
   }
 
   const data = initiative.data;
+  // What a page for it can start from (ADR-0030) — read only while it has no
+  // page, because it is a live read of the document tool and the answer is
+  // only needed by the page button's two states that can ask for one.
+  const templates =
+    data.externalPageId === null
+      ? await apiFetch({ path: '/page-kinds/initiative/templates', schema: pageTemplatesSchema })
+      : null;
   const areaList: readonly Area[] = areas.ok ? areas.data.items : [];
   const area = areaList.find((candidate) => candidate.key === data.areaKey);
   const method =
@@ -301,6 +309,7 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
           // again if the identifier cannot be turned into a link on that
           // template's own origin. The button says which state it is in.
           href={pageUrl(webRuntime().config.doctoolPageUrlTemplate, data.externalPageId)}
+          templates={templates?.ok === true ? templates.data : null}
         />
       </Section>
 
