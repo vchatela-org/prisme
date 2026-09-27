@@ -1596,6 +1596,16 @@ export function createPostgresStore(client: Sql): ApiStore {
         return row === undefined ? undefined : toReview(row);
       },
 
+      async discardOpenReview(id: string): Promise<ReviewRecord | undefined> {
+        const rows = await client<ReviewRow[]>`
+          delete from review_session
+          where id = ${id}::uuid and completed_at is null
+          returning id::text, cadence, started_at, completed_at, checklist::text, decisions,
+                    capacity_snapshot::text, external_page_id`;
+        const row = rows[0];
+        return row === undefined ? undefined : toReview(row);
+      },
+
       async events(filter, page: PageRequest): Promise<Paged<EventRecord>> {
         const rows = await client<(EventRow & { total: string })[]>`
           select id::text, kind, entity_kind, entity_id, field, before::text, after::text, actor,

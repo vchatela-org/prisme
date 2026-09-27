@@ -4,6 +4,7 @@ import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import { REVIEW_CADENCES, reviewSessionPageSchema, type ReviewCadence } from '@/lib/contracts';
 import { CADENCE_LABELS, progressOf, stepsFor } from '@/lib/review-wizard';
+import { DiscardReviewButton } from './discard-review-button';
 import { OpenReviewButton } from './open-review-button';
 
 export const metadata = {
@@ -94,9 +95,17 @@ export default async function ReviewHubPage() {
                       </span>
                     ) : null}
                   </div>
-                  <Button asChild>
-                    <Link href={`/review/${session.cadence}`}>Resume</Link>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <DiscardReviewButton
+                      reviewId={session.id}
+                      cadence={session.cadence}
+                      done={progress.done}
+                      decisions={session.decisions.length}
+                    />
+                    <Button asChild>
+                      <Link href={`/review/${session.cadence}`}>Resume</Link>
+                    </Button>
+                  </div>
                 </Card>
               );
             })}

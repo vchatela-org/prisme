@@ -119,7 +119,7 @@ export interface ApiCall<T> {
   readonly path: string;
   readonly schema: z.ZodType<T>;
   readonly query?: Readonly<Record<string, string | undefined>>;
-  readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
+  readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   readonly body?: unknown;
 }
 

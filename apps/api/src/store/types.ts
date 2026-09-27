@@ -835,6 +835,13 @@ export interface ApiStore {
         capacitySnapshot?: Readonly<Record<string, number>> | undefined;
       },
     ): Promise<ReviewRecord | undefined>;
+    /**
+     * Delete a session **only while it is open**, and return what was deleted.
+     * `undefined` when no open session has that id — missing, or already closed;
+     * the caller tells the two apart. The condition lives in the statement, so a
+     * close racing a discard cannot delete a closed session.
+     */
+    discardOpenReview(id: string): Promise<ReviewRecord | undefined>;
 
     events(
       filter: {

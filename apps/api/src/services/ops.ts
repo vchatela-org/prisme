@@ -66,6 +66,8 @@ export interface OpsService {
     },
     now: Date,
   ): Promise<ReviewDtoShape>;
+  /** Delete an open session and everything recorded in it. A closed one is refused. */
+  discardReview(id: string): Promise<ReviewDtoShape>;
 
   events(
     filter: {
@@ -174,6 +176,19 @@ export function createOpsService(
       });
       if (updated === undefined) throw notFound('review session', id);
       return toReviewDto(updated);
+    },
+
+    // Only an open session can go. A closed one carries a snapshot and the
+    // decisions it was closed on, and those are history — deleting them would
+    // rewrite what a review decided, which the snapshot exists to prevent.
+    async discardReview(id: string): Promise<ReviewDtoShape> {
+      const discarded = await store.ops.discardOpenReview(id);
+      if (discarded !== undefined) return toReviewDto(discarded);
+      if ((await store.ops.getReview(id)) === undefined) throw notFound('review session', id);
+      throw new ApiError(
+        'conflict',
+        'that review session is closed; only an open one is discarded',
+      );
     },
 
     async events(filter, page) {
