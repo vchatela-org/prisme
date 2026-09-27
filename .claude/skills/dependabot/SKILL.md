@@ -138,7 +138,9 @@ empty. A version that exists is never reused and never re-pointed.
   Never left as a journal sentence alone.
 - **Say what you are about to publish, then publish it.** An annotated tag on `main`'s current
   commit, its message naming the pull requests it contains, pushed with `git push origin v<version>`.
-  Never from a branch. Never a version that already exists.
+  Never from a branch. Never a version that already exists. Cut it by following
+  [`/release`](../release/SKILL.md) §3–§6, so the version gets its GitHub Release and its digests
+  read back like any other. The pin stays the operator's, as it always has been for this run.
 - `--no-release` and `--dry-run` skip the cut. The decision is still recorded.
 
 The repository's own precedent is that cutting a tag is a *release decision* rather than a mechanical
