@@ -97,6 +97,19 @@ export const opsRoutes: readonly ApiRoute[] = [
   }),
 
   defineRoute({
+    operationId: 'discardReview',
+    method: 'delete',
+    path: '/reviews/:id',
+    scope: 'write:review',
+    summary: 'Discard an open review session',
+    description:
+      'Deletes the session with its ticks and decisions, and answers with what was deleted. Only an open session can be discarded: a closed one is history and answers 409.',
+    params: idParam,
+    response: ReviewSessionDto,
+    handle: (context, services) => services.ops.discardReview(context.params.id),
+  }),
+
+  defineRoute({
     operationId: 'listEvents',
     method: 'get',
     path: '/events',

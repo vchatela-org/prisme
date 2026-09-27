@@ -1079,6 +1079,73 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  describe('discarding a review session', () => {
+    async function openWeekly(app: ReturnType<typeof api>): Promise<string> {
+      const opened = await app.request('POST', url('/reviews'), { cadence: 'weekly' });
+      expect(opened.status).toBe(201);
+      return (opened.body as { id: string }).id;
+    }
+
+    it('deletes an open session with what was recorded in it, and answers with it', async () => {
+      const app = api();
+      const id = await openWeekly(app);
+      await app.request('PATCH', url(`/reviews/${id}`), {
+        checklist: { 'triage-inbox': true },
+        decisions: ['An invented decision'],
+      });
+
+      const discarded = await app.request('DELETE', url(`/reviews/${id}`));
+      expect(discarded.status).toBe(200);
+      expect(discarded.body).toMatchObject({
+        id,
+        completedAt: null,
+        decisions: ['An invented decision'],
+      });
+
+      expect((await app.request('GET', url(`/reviews/${id}`))).status).toBe(404);
+      // A second discard finds nothing, which is a 404 and not a 409: the
+      // session is gone, not closed.
+      expect((await app.request('DELETE', url(`/reviews/${id}`))).status).toBe(404);
+    });
+
+    it('refuses a closed session, and leaves it exactly as it was', async () => {
+      const app = api();
+      const id = await openWeekly(app);
+      const closed = await app.request('PATCH', url(`/reviews/${id}`), { complete: true });
+      expect(closed.status).toBe(200);
+
+      const refused = await app.request('DELETE', url(`/reviews/${id}`));
+      expect(refused.status).toBe(409);
+      expect(refused.body).toMatchObject({ error: 'conflict' });
+
+      const kept = await app.request('GET', url(`/reviews/${id}`));
+      expect(kept.status).toBe(200);
+      expect(kept.body).toEqual(closed.body);
+    });
+
+    it('touches only the session it names', async () => {
+      const app = api();
+      const kept = await openWeekly(app);
+      const opened = await app.request('POST', url('/reviews'), { cadence: 'monthly' });
+      const discarded = (opened.body as { id: string }).id;
+
+      expect((await app.request('DELETE', url(`/reviews/${discarded}`))).status).toBe(200);
+
+      const left = (await app.request('GET', url('/reviews'))).body as {
+        items: { id: string }[];
+      };
+      expect(left.items.map((session) => session.id)).toEqual([kept]);
+    });
+
+    it('needs the write scope, not the read one', async () => {
+      const id = await openWeekly(api());
+      const reader = api(identityWith(['read:reviews']));
+
+      expect((await reader.request('DELETE', url(`/reviews/${id}`))).status).toBe(403);
+      expect((await reader.request('GET', url(`/reviews/${id}`))).status).toBe(200);
+    });
+  });
+
   describe('authorization, on the real routes', () => {
     it('lets a read-scoped credential read and nothing else', async () => {
       const readOnly = api(identityWith(['read:backlog', 'read:areas']));

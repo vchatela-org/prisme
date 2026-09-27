@@ -442,3 +442,23 @@ export function artefactFor(input: ArtefactInput): string {
 
   return lines.join('\n');
 }
+
+/**
+ * What discarding an open session loses, as the confirmation's sentence.
+ *
+ * Counted rather than generic: discarding a session with three recorded
+ * decisions is a different click from discarding an empty checklist, and the
+ * dialog is the last place the difference can be seen.
+ */
+export function discardConsequence(done: number, decisions: number): string {
+  const lost: string[] = [];
+  if (done > 0) lost.push(`${String(done)} ticked step${done === 1 ? '' : 's'}`);
+  if (decisions > 0) {
+    lost.push(`${String(decisions)} recorded decision${decisions === 1 ? '' : 's'}`);
+  }
+  const head =
+    lost.length === 0
+      ? 'Nothing has been recorded in it yet.'
+      : `Its ${lost.join(' and ')} will be deleted, and there is no undo.`;
+  return `${head} Closed reviews, your areas and your initiatives are not touched.`;
+}
