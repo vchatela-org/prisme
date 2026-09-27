@@ -18,7 +18,6 @@ apps/web/next-env.d.ts
 # packages/domain/CLAUDE.md requires a `version` bump for any diff in it — a
 # reformat would be a diff nobody intended and CI would be right to object.
 fixtures/
-seed.example/
 
 # Workflow YAML is aligned by hand, and reformatting the three that predate this
 # workstream would bury a real change in cosmetic noise.

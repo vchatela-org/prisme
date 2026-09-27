@@ -39,7 +39,7 @@ import type { Creation, ConvergePlan, EntityRefs, Intent, Step } from './types.j
  * page, and a capture is neither, so the plan reported the gap rather than
  * guessing which of the two it meant. All three kinds are addressable now, and
  * every remaining block is the bindings one, which is a deployment step a human
- * can run (`prisme-sync bindings --from <path>`) and not a missing decision.
+ * can take (Settings → Notion) and not a missing decision.
  */
 
 /** Projects first, then sections in order, then everything else. Stable. */
@@ -54,13 +54,13 @@ const KIND_ORDER: Readonly<Record<string, number>> = {
  * Why a page cannot be created, when it cannot.
  *
  * One sentence, because there is one situation left: an unbound role is a
- * deployment step a human can run. The second sentence this constant used to
+ * setting a human can fill in. The second sentence this constant used to
  * have a sibling for — a capture's page, blocked because no role key named one
  * — is gone with ADR-0028, which is why the message names all three kinds
  * rather than two.
  */
 export const PAGE_UNBOUND =
-  'the document tool has no bound store for this kind of page: bind the page and template roles (ADR-0025, ADR-0028) with `prisme-sync bindings --from <path>`';
+  'the document tool has no bound store for this kind of page: bind the page and template roles (ADR-0025, ADR-0028) in Settings → Notion';
 
 function text(draft: Readonly<Record<string, unknown>>, field: string): string | undefined {
   const value = draft[field];

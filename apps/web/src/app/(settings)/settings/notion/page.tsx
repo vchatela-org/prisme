@@ -9,11 +9,8 @@ import { BindingsForm } from './bindings-form';
 export const metadata = { title: 'Notion · Settings · prisme' };
 
 /**
- * Which Notion store each role points at — the screen for what
- * `seed/bindings.json` used to be the only way to say.
- *
- * The file and its loader still work and still write the same table; loading
- * the file again replaces what is set here, which the page says.
+ * Which Notion store each role points at. This screen is the only way to set
+ * the role bindings.
  */
 export default async function NotionSettingsPage() {
   const bindings = await apiFetch({ path: '/bindings', schema: bindingListSchema });
@@ -39,10 +36,6 @@ export default async function NotionSettingsPage() {
             Share each one with the prisme integration in Notion (<em>⋯ → Connections</em>). Notion
             enforces that on its side: anything not shared is invisible to prisme, and a read-only
             integration cannot write whatever prisme does.
-          </p>
-          <p className="text-xs text-ink-muted">
-            Loading <code>seed/bindings.json</code> with <code>prisme-sync bindings</code> replaces
-            everything set here.
           </p>
         </div>
       </header>

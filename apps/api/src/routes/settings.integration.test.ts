@@ -194,7 +194,7 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
 
     it('re-checks every bound store without rewriting what was bound', async () => {
       const app = api();
-      // Bound by the seed file: a data source id the directory knows as a
+      // Bound already: a data source id the directory knows as a
       // database. A check reads its title and must not swap the identifier.
       await database.client`
         insert into role_binding (role, external_id) values ('objectives_db', ${DATABASE})`;

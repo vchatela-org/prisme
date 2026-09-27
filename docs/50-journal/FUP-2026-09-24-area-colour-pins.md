@@ -10,7 +10,7 @@ ceiling without a second copy of it.
 
 ## What was done
 
-- **[`area-pin-proposal.ts`](../../apps/web/src/lib/area-pin-proposal.ts)** — a pure module that
+- **`area-pin-proposal.ts`** — a pure module that
   proposes the map: every ranked area gets a hue of its own, **keeping whatever is already pinned**
   and dealing only the gaps into the lowest free slots.
 - **[`area-colour-notice.tsx`](../../apps/web/src/components/area-colour-notice.tsx)** — the notice

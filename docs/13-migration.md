@@ -172,12 +172,9 @@ Steps 1–7 are reversible by deleting a database. Step 8 is the first irreversi
 gated on two human checks: a person has read the plan, and **a database restore has been rehearsed
 at least once**.
 
-**Step 1 has a command**, and until it did, the step was a sentence describing something no shipped
-interface could do: `prisme-sync areas --from seed/areas.json` creates the areas and seeds their
-year weights, then `prisme-sync bindings --from seed/bindings.json` binds the role keys and maps the
-external locations onto those areas. That order, because a mapping names an area. `pnpm seed:load`
-runs both. Re-running is a no-op; a year whose stored weights differ from the file's is refused
-without `--force` ([`15-runtime.md`](15-runtime.md) §2).
+**Step 1 happens in the application**: create the areas and their mappings in **Settings → Areas**,
+set the year's weights, and bind the role keys in **Settings → Notion**. Areas first, because a
+mapping names an area. There is no file or command-line import ([`15-runtime.md`](15-runtime.md) §2).
 
 That second one is infrastructure work, done in the GitOps deployment repository as a dump CronJob
 alongside its other databases — never in this repository, which ships no backup capability at all
@@ -207,8 +204,8 @@ an instance whose reads are broken, which is exactly why this pass exists.
 
 | What | How |
 |---|---|
-| Role bindings — which store each role key names | **Settings → Notion**, or `prisme-sync bindings --from <path>` |
-| Area mappings — where each area's work lives in the task tool | **Settings → Areas**, or `PUT /areas/:key/mappings` |
+| Role bindings — which store each role key names | **Settings → Notion** |
+| Area mappings — where each area's work lives in the task tool | **Settings → Areas** (`PUT /areas/:key/mappings`) |
 | This year's weights | the Year Review, or the year's weight rows |
 
 Then, in order:
@@ -219,19 +216,15 @@ Then, in order:
    **document tool** read. A tool that is not bound prints as *not read* rather than as an error,
    deliberately, because the message would otherwise carry a role binding. So `document tool   not
    read` has two causes that look identical and are not: **nothing is bound**, or **the query was
-   refused**. Step 1's bindings command is what tells them apart, and it is the first thing to check
+   refused**. Settings → Notion's check is what tells them apart, and it is the first thing to check
    rather than the last.
 3. **Open the screens before any decision is made.** `/focus` must show a `now` set drawn from real
    initiatives; `/areas` the area list with its declared-versus-observed chart; `/kpi` the same
    reading. **If a screen shows area *keys* where it means names, the area list did not parse** — a
    real defect once, fixed in W11 — and it is the cheapest tell that the two tiers disagree.
-   **`/areas` is also where the area colours are checked, and it is the only surface that can.** The
-   pinning is `AREA_COLOR_PINS`, web-tier configuration ([`15-runtime.md`](15-runtime.md) §2), so
-   nothing outside that tier can see both the pinning in force and the hues it produces. If the
-   notice appears, two areas are wearing one colour and the screen prints the map that fixes it —
-   and it **keeps what is already pinned**, so a colour a reader has learned does not move. The map is
-   instance data and goes to the web tier's configuration, never into this repository. **Nothing else
-   reports this**: no pass, no job and no gate goes red over it, so an instance configured completely
+   **`/areas` is also where the area colours are checked.** If the notice appears, two areas are
+   wearing one colour; it links each to Settings → Areas, where a colour of its own is chosen
+   ([`15-runtime.md`](15-runtime.md) §2). **Nothing else reports this**: no pass, no job and no gate goes red over it, so an instance configured completely
    by the three settings above still collides, and it took running this pass on a real instance to see it.
 4. **Work the adoption queue** ([`4. The adoption queue`](#4-the-adoption-queue)) and record the link
    coverage: how many candidates were linkable and how many had diverged. That number is what step 8

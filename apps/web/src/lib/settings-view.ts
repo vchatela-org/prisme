@@ -194,16 +194,13 @@ export function locationKey(projectId: string, sectionId: string | null): string
 /**
  * The colour map the whole application paints with.
  *
- * A colour chosen on the Settings screen wins; an `AREA_COLOR_PINS` entry is
- * next; the key's hash is what `areaColorSlot` falls back to for everything
- * neither names. So an instance that never opens Settings looks exactly as it
- * did.
+ * A colour chosen on the Settings screen wins; the key's hash is what
+ * `areaColorSlot` falls back to for every area that has none.
  */
-export function mergedAreaColors(
-  pins: AreaColorOverrides,
+export function chosenAreaColors(
   areas: readonly Pick<SettingsArea, 'key' | 'colorSlot'>[],
 ): AreaColorOverrides {
-  const merged: Record<string, SeriesSlot> = { ...pins };
+  const merged: Record<string, SeriesSlot> = {};
   for (const area of areas) {
     if (area.colorSlot !== null) merged[area.key] = area.colorSlot as SeriesSlot;
   }

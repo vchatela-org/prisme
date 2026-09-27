@@ -40,7 +40,7 @@ export const metadata = {
  * while every other screen gets the instance's.
  *
  * The map is the instance's own: a colour chosen on the Settings screen, else
- * the `AREA_COLOR_PINS` entry, else the key's hash (`instanceAreaColors`).
+ * the key's hash (`instanceAreaColors`).
  *
  * ## The nonce, and why it is read here
  *

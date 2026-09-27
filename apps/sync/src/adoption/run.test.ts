@@ -203,12 +203,12 @@ describe('the adoption pass', () => {
     expect(result.report).toContain('document tool   not read');
     // The reason, not just the fact: before this, "a store nobody bound" and
     // "a read that was refused" printed the same six characters. One unbound of
-    // four is a seed file missing a role; four would be a file never loaded.
+    // four is a role nobody bound; four would be a settings screen never filled in.
     expect(result.report).toContain('not read — 3 refused, 1 unbound_role');
   });
 
   it('tells a refused read apart from an unbound store in the plan', async () => {
-    // The two call for opposite responses — a seed file to fix, or a credential
+    // The two call for opposite responses — a binding to set, or a credential
     // to go and look at — and the message that would say which names the role
     // binding, so it is the failure kind that reaches the plan.
     const refuses = (failure: 'unbound_role' | 'invalid_token'): DocToolClient => ({

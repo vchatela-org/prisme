@@ -158,7 +158,6 @@ provider and produces a login that cannot work:
 | `CAPACITY_DEFAULT_TASK_MINUTES` | `25` | Fallback when no duration is recorded |
 | `CAPACITY_WINDOW_WEEKS` | `4` | Rolling window for `actual_share` |
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
-| `AREA_COLOR_PINS` | `{}` | Area key → palette slot, JSON: `{"craft":3,"health":1}`. **Web tier only**. A colour chosen on the Settings screen wins over it |
 | `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
 | `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` | *unset* | The takeaways store's select property whose value starts with *action* or *principle*. Unset, no takeaway is typed: none is proposed as an initiative and the Inbox shows none. **Sync and API** (the adoption scan runs in both) |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
@@ -167,26 +166,13 @@ provider and produces a login that cannot work:
 | `TASKTOOL_PROJECT_URL_TEMPLATE` | *unset* | The same for a task-tool **project**, for the links on the Settings screen. **Web tier**; unset names projects without linking them |
 | `TZ` | `Europe/Paris` | Drives the sync window and all day boundaries |
 
-`AREA_COLOR_PINS` is **instance data carried as configuration**, and it is the one optional variable
-whose *keys* are. The palette has eight categorical slots and that ceiling is fixed — a ninth
-generated hue is indistinguishable from an existing one under colour-vision deficiency — so an
-instance with more than a handful of areas will hash two of them into the same slot; six keys
-collide most of the time. The map pins each area to a slot of its own. A slot outside `1`–`8` stops
-the process with the key named, because a colour the palette cannot paint is otherwise discovered
-on a chart as a missing swatch. An area the map does not name keeps the key-derived fallback, so the
-map is a partial answer rather than a replacement.
-
-**Most instances need neither.** An area's colour can be chosen on **Settings → Areas**, which
-stores it on the area and wins over this map; the map remains for an operator who prefers to pin
-colours in GitOps, and for areas nobody has given a colour.
-
-**You do not have to work the map out.** The **Areas** screen detects a clash — it can, because
-this variable is web-tier configuration and only the web tier can see both the pinning in force and
-the colours it produces — and when two areas share a hue it names them and prints the line to set,
-using the palette's own ceiling rather than a second copy of it. The proposed map **keeps whatever
-is already pinned and deals only the unpinned keys**, into the lowest free slots, because colour is
-identity: re-shuffling an area a reader has learned invalidates every chart they have read. That
-also means a configuration which pins two areas to one slot is *corrected* rather than echoed back.
+**Area colours are not configuration.** The palette has eight categorical slots and that ceiling is
+fixed — a ninth generated hue is indistinguishable from an existing one under colour-vision
+deficiency — so an area with no chosen colour takes one hashed from its key, and six keys collide
+most of the time. The colour is chosen per area on **Settings → Areas** and stored on the area; the
+**Areas** screen names any pair still sharing a hue and links each to its settings page. There is no
+environment variable for it: like every other piece of instance configuration, it enters through
+the UI and the API only.
 
 `DOCTOOL_DURATION_PROPERTY` is the middle tier of the duration preference order
 ([`12-scoring.md`](12-scoring.md) §4). It is configuration rather than seed data for the same reason
@@ -305,74 +291,40 @@ process exits rather than starting without its secrets.
 ### External bindings
 
 The identifiers of external databases are **instance data**, not configuration in git. They live
-in the database, keyed by role, and reach it two ways — the **Settings → Notion** screen, which
-checks each store as it is saved and records its title, or the seed path below: `objectives_db`, `takeaways_db`, `media_db`,
-`areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and ADR-0028 — the store and template
-role for each kind of narrative page (`initiative_pages_db`, `project_pages_db`, `capture_pages_db`
-and their templates). See [`17-privacy.md`](17-privacy.md).
+in the database, keyed by role, and reach it one way — the **Settings → Notion** screen, which
+checks each store as it is saved and records its title: `objectives_db`, `takeaways_db`,
+`media_db`, `areas_db`, `processes_db`, `reviews_db`, and — since ADR-0025 and ADR-0028 — the store
+and template role for each kind of narrative page (`initiative_pages_db`, `project_pages_db`,
+`capture_pages_db` and their templates). See [`17-privacy.md`](17-privacy.md).
 
 A page kind is addressable only when **both** its store and its template are bound. One without the
 other is not a half-working feature: the plan blocks that kind's pages with a sentence naming the
-command below, rather than creating a page with no parent or an empty one.
+screen, rather than creating a page with no parent or an empty one.
 
-```
-prisme-sync bindings --from <path>     load seed/bindings.json
-```
-
-The path is required rather than defaulted: the seed directory is gitignored, its mount point is
-deployment detail, and a command that silently read nothing from a path that does not exist would
-look like a success. The file's format is [`seed.example/bindings.json`](../seed.example/bindings.json).
-
-**The same file states where the areas' work lives**, in its `areaMappings` array, and the command
-writes those too. It is the same file because it is the same question — which external object is
-which prisme object — and it was the same gap: the array was in the file, in the documented format,
-and parsed by nothing. One external location belongs to exactly one area
-(`area_mapping_one_area_per_location`), and the loader **refuses** a location another area already
-holds rather than letting a unique index raise a constraint violation naming a table the operator
-has never heard of.
-
-The two write the same table. Loading the file **replaces every binding**, including those set on
-the screen; editing on the screen after a load is the normal order. The screen accepts a copied
-link as well as an identifier, and resolves a *database* link to the one data source inside it —
-refusing, with a count, a database that holds several. A binding whose check fails is still saved,
-with the failure kind beside it: the usual cause is a store not yet shared with the integration.
+The screen accepts a copied link as well as an identifier, and resolves a *database* link to the one
+data source inside it — refusing, with a count, a database that holds several. A binding whose check
+fails is still saved, with the failure kind beside it: the usual cause is a store not yet shared
+with the integration.
 
 **A role with no binding is not addressable**, and the connectors report it rather than guessing: a
 scan says `document tool   not read`, and the backfill reports the declared-duration tier as
-unavailable. That is the state of every instance that has not run the command, and it is a state
-the passes handle rather than fail on.
+unavailable. That is the state of every instance whose screen is still empty, and it is a state the
+passes handle rather than fail on.
 
 ### The area catalogue
 
 Areas, their year weights, and the external locations that fold into each. The weights are the
-allocation every ranking happens *inside* (ADR-0005, ADR-0007), so this is the file that decides
-what "balanced" means for a year — and until it exists, nothing can be ranked.
+allocation every ranking happens *inside* (ADR-0005, ADR-0007), so this is what decides what
+"balanced" means for a year — and until it exists, nothing can be ranked.
 
-```
-prisme-sync areas --from <path>            load seed/areas.json
-prisme-sync areas --from <path> --force    replace a year that already has weights
-```
+They are set in the application — **Settings → Areas** for the areas and their mappings, the Year
+Review for a year's weights — through the API (`/areas`, `/areas/:key/mappings`,
+`/areas/:key/weights/:year`). One external location belongs to exactly one area
+(`area_mapping_one_area_per_location`), and the API refuses a location another area already holds.
 
-Areas are **upserted, never deleted**: work hangs from an area, so an area the file omits is left
-exactly as it was, and a field the file does not carry is left alone — `"active"` absent is not
-`"active": true`, or re-running the loader would silently reactivate an area somebody archived in
-the application. A year whose stored weights already **agree** with the file is left alone and the
-run reports success, which is what makes a second run a quiet no-op; a year whose stored weights
-*differ* is refused without `--force`, because a weight is fixed for a whole calendar year.
-
-The file's own rules bind it, and each is refused by name: a weight for a lane, a weight for an area
-the file does not list, a year whose shares do not sum to 100, and a year that covers only some of
-the file's areas — a partial year sums to 100 by construction, so the sum check cannot see it and
-the omitted area would quietly carry a zero share on every chart. The format is
-[`seed.example/areas.json`](../seed.example/areas.json).
-
-**`pnpm seed:load` runs both commands, areas first** — a mapping names an area, so the areas have to
-be there. Each command keeps its required `--from`; the script is the local convenience
-`seed.example/README.md` documents, and the container runs neither.
-
-**The command replaces the whole table.** Removing a role from the file unbinds it. A merge would
-leave a role bound to a store the file no longer mentions, with no way to unbind one short of
-truncating the table by hand.
+**There is no file or command-line import** for any of this. Configuration has one path in — the
+UI and the API behind it — so there is no second writer to disagree with the screen, and no
+gitignored file whose state drifts from the database's.
 
 ---
 

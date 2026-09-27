@@ -14,7 +14,7 @@ documentation-only change makes both harder to read than the stacking does.
 from `seed/`. [`docs/13-migration.md`](../13-migration.md) step 1 depends on it. Neither was true:
 `parseBindingsFile` read the `documentTool` key and returned, so the `areaMappings` array **in the
 same file** was parsed by nobody; `seed/areas.json` had no loader at all; and `pnpm seed:load` —
-which [`seed.example/README.md`](../../seed.example/README.md) tells the reader to run — existed in
+which `seed.example/README.md` tells the reader to run — existed in
 no `package.json` in the repository. `POST /areas` and `PUT /areas/:key/mappings` have no UI caller
 and no CLI, so a live instance's areas and mappings could only be set by hand-written calls.
 
@@ -23,7 +23,7 @@ They load from `seed/` now, in one command, and every rule the format states is 
 ## What was done
 
 - **`prisme-sync areas --from <path> [--force]`** — a new command, and
-  [`areas.ts`](../../apps/sync/src/areas.ts) behind it: areas and their year weights, parsed
+  `areas.ts` behind it: areas and their year weights, parsed
   strictly, upserted, never deleted.
 - **`prisme-sync bindings --from <path>` also writes the area mappings** from the same file. The
   array was in the documented format and reached nothing; `saveMappings` is called from the branch
@@ -99,7 +99,7 @@ it carries `areas` and `areaWeights`, and `apps/api`'s seeder reads exactly thos
 also carries `areaContext2026W37` and `_displayNote`, which belong to the scoring tests. Under the
 `_`-prefix rule the first is a data key the parser does not know, so it is refused. That is the
 correct outcome and the distinction is worth keeping in view: the fixture set is a *test dataset*,
-[`seed.example/`](../../seed.example) is the **format**, and only the second is what a loader may
+`seed.example/` is the **format**, and only the second is what a loader may
 accept. The unit test says so where a reader will meet it.
 
 **The format example is the parser's positive case, so the two cannot drift.** The bindings test
@@ -194,7 +194,7 @@ areas the tests use are the format example's invented ones, and the external ide
   *The area catalogue* subsection: the two commands, the three refusals, and why re-running is safe.
 - [`docs/13-migration.md`](../13-migration.md) §5 step 1 — names `prisme-sync areas` and
   `prisme-sync bindings`, which is what "configure area mappings; seed weights" always meant.
-- [`seed.example/README.md`](../../seed.example/README.md) — what `pnpm seed:load` runs, in what
+- `seed.example/README.md` — what `pnpm seed:load` runs, in what
   order, why that order, and what a second run does.
 - [`apps/sync/CLAUDE.md`](../../apps/sync/CLAUDE.md) — the **Shape** block names `areas.ts` and
   `seed-cli.ts`, so the next reader finds the seed path without grepping for it. No ADR is

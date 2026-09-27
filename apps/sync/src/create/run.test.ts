@@ -486,8 +486,8 @@ describe('a page', () => {
     // into working, and the ledger row stays pending rather than claiming an
     // attempt that never happened.
     expect(store.rows.get('pg-01')?.state).toBe('pending');
-    // The reason names the command that fixes it, not the ADR that explains it.
-    expect(result.report).toContain('bindings --from');
+    // The reason names the screen that fixes it, not the ADR that explains it.
+    expect(result.report).toContain('Settings → Notion');
   });
 
   it('is created once the store and the template are bound', async () => {

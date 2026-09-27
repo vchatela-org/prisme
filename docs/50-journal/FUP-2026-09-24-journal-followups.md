@@ -67,7 +67,7 @@ says areas, weights, tool mappings and external IDs load from `seed/`, and
 [`docs/13-migration.md`](../13-migration.md) step 1 depends on it. In the code,
 `parseBindingsFile` looks at the `documentTool` key and nothing else, so the `areaMappings` array
 sitting in the same file is parsed by nobody; `seed/areas.json` has no loader at all; and
-`pnpm seed:load`, which [`seed.example/README.md`](../../seed.example/README.md) tells the reader to
+`pnpm seed:load`, which `seed.example/README.md` tells the reader to
 run, is in no `package.json` in the repository. A documented command that does not exist is worse
 than an absent one: it looks like the configuration step is handled.
 
@@ -133,6 +133,6 @@ nine rows quote the shape of a gap, never a value from one. Deny-list and secret
   re-pointed at the rows, and one stale cell (`this branch`) named.
 - [`docs/50-journal/INDEX.md`](INDEX.md) — this entry's row.
 - No spec in `docs/` is contradicted. Two are **quoted as unimplemented** rather than changed:
-  [`docs/17-privacy.md`](../17-privacy.md) §3 and [`seed.example/README.md`](../../seed.example/README.md)
+  [`docs/17-privacy.md`](../17-privacy.md) §3 and `seed.example/README.md`
   both describe a seed path that does not exist yet, and the row that records it names them rather
   than editing them into agreement with the code — the code is what will move.

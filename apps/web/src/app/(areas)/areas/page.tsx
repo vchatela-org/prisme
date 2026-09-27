@@ -14,10 +14,10 @@ import { areaColorCollisions } from '@prisme/ui/server';
 import { AreaColourNotice } from '@/components/area-colour-notice';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
-import { proposePins } from '@/lib/area-pin-proposal';
 import { instanceAreaColors } from '@/lib/area-pins';
 import { areaWeightsSchema, balanceSchema, focusSchema, type AreaBalance } from '@/lib/contracts';
 import { estimatedMinutesPct, minutesChartCaveat, mostStarved, orderAreas } from '@/lib/kpi-view';
+import { SERIES_SLOTS } from '@/lib/settings-view';
 
 export const metadata = {
   title: 'Areas · prisme',
@@ -107,11 +107,9 @@ export default async function AreasPage({
   /*
    * The colours, and whether two areas are wearing the same one.
    *
-   * This screen is the only place it can be both detected and fixed: the
-   * pinning is `AREA_COLOR_PINS`, which is web-tier configuration, so nothing
-   * outside this tier can tell whether the colours in force still collide.
    * Reported here rather than on every screen that paints an area — one
-   * explanation of a global setting, where the areas themselves are listed.
+   * explanation, where the areas themselves are listed, linking each clashing
+   * area to the Settings page where its colour is chosen.
    */
   const areas = data.areas.map((row) => ({ key: row.areaKey, kind: row.kind }));
   const pins = await instanceAreaColors();
@@ -139,7 +137,7 @@ export default async function AreasPage({
       ) : null}
 
       {collisions.length > 0 ? (
-        <AreaColourNotice collisions={collisions} proposal={proposePins(areas, pins)} />
+        <AreaColourNotice collisions={collisions} exhausted={ranked.length > SERIES_SLOTS.length} />
       ) : null}
 
       <StatRow>

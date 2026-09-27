@@ -5,7 +5,7 @@ import {
   checkAdvice,
   holders,
   keyFromName,
-  mergedAreaColors,
+  chosenAreaColors,
   nameLocation,
   ROLE_COPY,
   roleCopy,
@@ -80,13 +80,13 @@ describe('who holds a location', () => {
 });
 
 describe('the colour map', () => {
-  it('lets a chosen colour beat a pin, and leaves unchosen areas to their pin', () => {
+  it('carries a chosen colour, and leaves an unchosen area to its key hash', () => {
     expect(
-      mergedAreaColors({ craft: 2, money: 5 }, [
+      chosenAreaColors([
         { key: 'craft', colorSlot: 7 },
         { key: 'money', colorSlot: null },
       ]),
-    ).toEqual({ craft: 7, money: 5 });
+    ).toEqual({ craft: 7 });
   });
 });
 
