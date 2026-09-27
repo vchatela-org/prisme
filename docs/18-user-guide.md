@@ -267,6 +267,20 @@ After adopting, the deployment's `SYNC_CREATE_THRESHOLD` has to be raised above 
 create anything: at 0, one planned creation holds back the whole pass — deliberately, because during
 adoption any creation would be a mistake.
 
+### What prisme did — the Audit
+
+**Audit** (in the menu, or *Go to the Audit* in the palette) lists every call prisme made to Todoist
+or Notion, most recent first — the ones that worked and the ones that did not. Each row says which
+tool, what kind of change, what it was about, whether it worked and whether the sync or a creation
+made it; open **What was sent** to see exactly what prisme asked for. Filter by period, tool,
+outcome, who made it and kind of change, or search what was sent. A failed row names the failure —
+`rate_limited`, `invalid_token`, `refused` — and the sync retries it on its next pass.
+
+Records are kept for **90 days** unless you choose otherwise in **Settings → Audit of outward
+writes** (7 to 3650 days). The daily full pass deletes older ones; shortening the window deletes
+nothing until then. The Audit is empty while writing is frozen — prisme attempts nothing, so there is
+nothing to record.
+
 ---
 
 ## 7. Questions

@@ -1,5 +1,6 @@
 import { isConnectorError } from '@prisme/connectors';
 import { idempotencyKey, type TaskToolWriter } from '@prisme/connectors/write';
+import { withWriteSubject, type WriteSubject } from '../audit/subject.js';
 import type { Action, LastAppliedWrite, Operation, Plan } from '../reconcile/types.js';
 import type { ReconcilerStore } from './ports.js';
 
@@ -98,10 +99,14 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
       // the bookkeeping it asks for is resolved against what came back.
       let createdId: string | undefined;
 
-      for (const operation of action.operations) {
-        createdId = (await run(operation, action, createdId)) ?? createdId;
-        operations += 1;
-      }
+      // The initiative these calls are made for, so the audit of outward
+      // writes can say so (ADR-0031). The writer ports do not take it.
+      await withWriteSubject(subjectOf(action), async () => {
+        for (const operation of action.operations) {
+          createdId = (await run(operation, action, createdId)) ?? createdId;
+          operations += 1;
+        }
+      });
 
       const writes = resolve(action.lastApplied, createdId);
       if (writes.length > 0) await options.store.recordLastApplied(writes, at);
@@ -264,6 +269,12 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
       }
     }
   }
+}
+
+function subjectOf(action: Action): WriteSubject | undefined {
+  return action.initiativeId === undefined
+    ? undefined
+    : { entityKind: 'initiative', entityId: action.initiativeId };
 }
 
 /** Fills in the external id a create only learns after the fact. */

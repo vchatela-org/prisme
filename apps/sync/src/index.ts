@@ -39,6 +39,21 @@ export { createPostgresStore } from './state/postgres.js';
 export { readSyncRunState, recordPassOutcome } from './state/run-state.js';
 export type { SyncRunState } from './state/run-state.js';
 
+/**
+ * The audit of outward writes (ADR-0031). The API's force-sync path audits its
+ * writer with the same sink the CronJob uses, and reads the retention window
+ * through the same function the pruner does — one answer to "how long".
+ */
+export {
+  createWriteAuditSink,
+  pruneWriteAudit,
+  readRetentionDays,
+  writeAuditOptions,
+} from './audit/store.js';
+export type { PruneResult, WriteAuditContext } from './audit/store.js';
+export { currentWriteSubject, withWriteSubject } from './audit/subject.js';
+export type { WriteSubject } from './audit/subject.js';
+
 export { plan } from './reconcile/plan.js';
 export { formatPlan } from './reconcile/format.js';
 export type { PlanReport } from './reconcile/format.js';

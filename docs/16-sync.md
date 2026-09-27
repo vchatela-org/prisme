@@ -85,6 +85,20 @@ visible where it matters, in `observedThrough` on the balance view.
 Filling history is still `prisme-sync backfill --from <date>`, still run by a person, still with no
 default date. This keeps what that produced current; it does not replace it.
 
+#### The write audit is pruned by the full pass
+
+Every call to either tool is recorded in `external_write` by the writer that made it — the reconciler's
+and the creation ledger's writers are decorated where they are constructed, in the CronJob and in
+`POST /sync` alike, so no call site records anything by hand
+([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)). A record is written after
+the call and **never fails it**: a write the tool accepted must still reach `last_applied` and its
+binding, or the next pass would repeat it.
+
+The last step of the daily full pass deletes records older than the retention window chosen in
+Settings (default 90 days). Same terms as the capacity refresh: prisme's own table, so it runs with
+the write freeze on; and a failure is logged, not a red pass — records then live a day longer than
+the window says.
+
 #### What the reconciler actually reads (W04)
 
 The table above describes the *reads*. The planner's input is not one of them: **every pass reads

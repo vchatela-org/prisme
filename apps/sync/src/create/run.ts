@@ -1,6 +1,7 @@
 import { isConnectorError } from '@prisme/connectors';
 import type { CreationWriter, DocumentCreationWriter } from '@prisme/connectors/write';
 import type { PageKind } from '@prisme/connectors';
+import { withWriteSubject } from '../audit/subject.js';
 import { applyOutcome, orderConvergence } from './order.js';
 import type { CreationStore } from './ports.js';
 import { formatConvergePlan } from './report.js';
@@ -224,7 +225,12 @@ export async function converge(options: ConvergeOptions): Promise<ConvergeResult
 
     let externalId: string;
     try {
-      externalId = await perform(options.writer, options.documents, next);
+      // The entity the intent was recorded for, so the audit of outward
+      // writes can name it (ADR-0031).
+      externalId = await withWriteSubject(
+        { entityKind: next.intent.entityKind, entityId: next.intent.entityId },
+        () => perform(options.writer, options.documents, next),
+      );
     } catch (error) {
       const reason = reasonOf(error);
       // Recorded before anything else happens. A failure the ledger does not

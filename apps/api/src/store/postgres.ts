@@ -5,6 +5,7 @@ import type {
   AdoptionRecord,
   AppendEventInput,
   ApiStore,
+  AuditRetentionRecord,
   AreaMappingRecord,
   RoleBindingRecord,
   AreaRecord,
@@ -19,6 +20,7 @@ import type {
   CreationIntentInput,
   CreationIntentRecord,
   EventRecord,
+  ExternalWriteRecord,
   IntentEntityKind,
   InitiativeFilter,
   InitiativeRecord,
@@ -1872,11 +1874,135 @@ export function createPostgresStore(client: Sql): ApiStore {
         };
       },
     },
+
+    audit: {
+      async writes(filter, page: PageRequest): Promise<Paged<ExternalWriteRecord>> {
+        // The entity's *current* title, read beside the row rather than stored
+        // in it: an update or a move sends no title, and the row names the
+        // entity by id so that it outlives it. A deleted entity reads `null`.
+        const rows = await client<(ExternalWriteRow & { total: string })[]>`
+          with titled as (
+            select w.*,
+                   coalesce(
+                     (select i.title from initiative i
+                       where w.entity_kind = 'initiative' and i.id::text = w.entity_id),
+                     (select p.name from project p
+                       where w.entity_kind = 'project' and p.id::text = w.entity_id),
+                     (select c.title from capture c
+                       where w.entity_kind = 'capture' and c.id::text = w.entity_id)
+                   ) as entity_title
+            from external_write w
+          )
+          select id::text, occurred_at, tool, operation, origin, run_id, entity_kind, entity_id,
+                 entity_title, external_id, request::text, outcome, failure, error, duration_ms,
+                 count(*) over () as total
+          from titled
+          where true
+            ${
+              filter.tools === undefined || filter.tools.length === 0
+                ? client``
+                : client`and tool = any (${filter.tools as string[]}::text[])`
+            }
+            ${
+              filter.operations === undefined || filter.operations.length === 0
+                ? client``
+                : client`and operation = any (${filter.operations as string[]}::text[])`
+            }
+            ${filter.outcome === undefined ? client`` : client`and outcome = ${filter.outcome}`}
+            ${filter.origin === undefined ? client`` : client`and origin = ${filter.origin}`}
+            ${filter.entityId === undefined ? client`` : client`and entity_id = ${filter.entityId}`}
+            ${
+              filter.from === undefined
+                ? client``
+                : client`and occurred_at >= ${stamp(filter.from)}::timestamptz`
+            }
+            ${
+              filter.to === undefined
+                ? client``
+                : client`and occurred_at < ${stamp(filter.to)}::timestamptz`
+            }
+            ${
+              filter.search === undefined
+                ? client``
+                : client`and (position(lower(${filter.search}) in lower(request::text)) > 0
+                         or position(lower(${filter.search}) in lower(coalesce(external_id, ''))) > 0
+                         or position(lower(${filter.search}) in lower(coalesce(entity_title, ''))) > 0)`
+            }
+          order by occurred_at desc, id desc
+          limit ${page.limit} offset ${page.offset}`;
+        return {
+          items: rows.map(toExternalWrite),
+          total: rows[0] === undefined ? 0 : Number(rows[0].total),
+        };
+      },
+
+      async retention(): Promise<AuditRetentionRecord> {
+        const setting = await client<
+          { retention_days: number; updated_at: Date | string }[]
+        >`select retention_days, updated_at from audit_setting where id = 'singleton'`;
+        const stats = await client<{ records: string; oldest_at: Date | string | null }[]>`
+          select count(*) as records, min(occurred_at) as oldest_at from external_write`;
+        const chosen = setting[0];
+        return {
+          retentionDays: chosen?.retention_days ?? null,
+          updatedAt: instant(chosen?.updated_at),
+          records: Number(stats[0]?.records ?? 0),
+          oldestAt: instant(stats[0]?.oldest_at),
+        };
+      },
+
+      async setRetention(days: number, at: Date): Promise<void> {
+        await client`
+          insert into audit_setting (id, retention_days, updated_at)
+          values ('singleton', ${days}, ${stamp(at)}::timestamptz)
+          on conflict (id) do update set
+            retention_days = excluded.retention_days,
+            updated_at = excluded.updated_at`;
+      },
+    },
   };
 
   // --- row shapes and their mappings ---------------------------------------
   // Declared after the returned object so the reads above stay the first thing
   // in the file; function declarations hoist, and these are all plumbing.
+
+  interface ExternalWriteRow {
+    id: string;
+    occurred_at: Date | string;
+    tool: ExternalWriteRecord['tool'];
+    operation: ExternalWriteRecord['operation'];
+    origin: ExternalWriteRecord['origin'];
+    run_id: string;
+    entity_kind: string | null;
+    entity_id: string | null;
+    entity_title: string | null;
+    external_id: string | null;
+    request: unknown;
+    outcome: ExternalWriteRecord['outcome'];
+    failure: string | null;
+    error: string | null;
+    duration_ms: number;
+  }
+
+  function toExternalWrite(row: ExternalWriteRow): ExternalWriteRecord {
+    return {
+      id: row.id,
+      occurredAt: required(row.occurred_at, 'external_write.occurred_at'),
+      tool: row.tool,
+      operation: row.operation,
+      origin: row.origin,
+      runId: row.run_id,
+      entityKind: row.entity_kind,
+      entityId: row.entity_id,
+      entityTitle: row.entity_title,
+      externalId: row.external_id,
+      request: json<Record<string, unknown>>(row.request, {}),
+      outcome: row.outcome,
+      failure: row.failure,
+      error: row.error,
+      durationMs: row.duration_ms,
+    };
+  }
 
   interface ScoreRow {
     initiative_id: string;

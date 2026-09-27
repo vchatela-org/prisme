@@ -20,7 +20,7 @@ Ordered by what an attacker would want most.
 | A2 | **prisme API / MCP tokens** | Programmatic access to everything prisme holds and can write outward | High |
 | A3 | **Human session credentials** — prisme's session cookie, which holds the identity provider's ID token | Impersonation in the UI | High |
 | A4 | **The personal data itself** | Goals, health and relationship context, finances, schedule. Highly sensitive in aggregate | High, irreversible — disclosure cannot be undone |
-| A5 | **The event log** | A behavioural time series: when the user works, what they avoid | Moderate; uniquely revealing |
+| A5 | **The event log**, and the **audit of outward writes** | A behavioural time series: when the user works, what they avoid. The audit adds what prisme sent — titles and contents — for its retention window ([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)); it is read with `read:sync`, never logged, and no MCP tool exposes it | Moderate; uniquely revealing |
 | A6 | **Database credentials** | Everything above, at rest | High |
 
 A1 is the asset that makes this more than a personal app: a stolen external token remains useful

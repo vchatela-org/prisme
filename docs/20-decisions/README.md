@@ -43,8 +43,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0028](0028-capture-pages-get-a-role-pair.md) | A capture's page gets its own role pair | **Accepted** 2026-09-24 — extends [0025](0025-page-creation-needs-a-role-vocabulary.md); its template role superseded by [0030](0030-page-stores-are-databases-with-native-templates.md) 2026-09-26 |
 | [0029](0029-one-area-per-project.md) | A project has one area; multi-area work is mapped by section | **Accepted** 2026-09-25 — answers and closes [OQ-1](OPEN.md) |
 | [0030](0030-page-stores-are-databases-with-native-templates.md) | A page store is a database, and its templates are the document tool's own | **Accepted** 2026-09-26 — supersedes rules 2 and 4 of [0025](0025-page-creation-needs-a-role-vocabulary.md) and the template half of [0028](0028-capture-pages-get-a-role-pair.md) |
+| [0031](0031-outward-writes-are-audited-and-pruned.md) | Every outward write is audited in its own table, and the table is pruned by age | **Accepted** 2026-09-27 |
 
-**30 records: 29 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
+**31 records: 30 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.
