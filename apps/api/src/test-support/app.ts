@@ -108,6 +108,7 @@ const TEST_CONFIG = {
   port: 3000,
   logLevel: 'fatal',
   timezone: 'UTC',
+  version: 'test',
   baseUrl: 'https://prisme.invalid',
   sync: {
     enabled: true,
@@ -154,6 +155,7 @@ export function createTestApp(options: TestAppOptions): TestApp {
     directory: options.directory ?? stubDirectory(),
     config: {
       timezone: 'UTC',
+      version: 'test',
       capacityWindowWeeks: 4,
       defaultTaskMinutes: 25,
       baseUrl: 'http://prisme.example',

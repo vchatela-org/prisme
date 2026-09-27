@@ -287,6 +287,12 @@ export default async function SettingsPage() {
       {settings.ok ? (
         <Section title="How prisme decides" description="Deployment configuration, read-only here.">
           <Card className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+            <Fact label="Web version" value={config.version} />
+            <Fact
+              label="API version"
+              value={settings.data.version}
+              warning={settings.data.version !== config.version}
+            />
             <Fact
               label="Scoring method"
               value={`${settings.data.scoring.activeMethodId} v${String(settings.data.scoring.activeMethodVersion)}`}
@@ -315,11 +321,21 @@ function pad(hour: number): string {
   return String(hour).padStart(2, '0');
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({
+  label,
+  value,
+  warning = false,
+}: {
+  label: string;
+  value: string;
+  warning?: boolean;
+}) {
   return (
     <div className="flex justify-between gap-4 border-b border-border-hairline py-1">
       <span className="text-ink-secondary">{label}</span>
-      <span className="text-ink tabular-nums">{value}</span>
+      <span className={warning ? 'text-status-warning tabular-nums' : 'text-ink tabular-nums'}>
+        {value}
+      </span>
     </div>
   );
 }

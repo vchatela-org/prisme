@@ -117,6 +117,8 @@ export interface Config {
   readonly doctoolPageUrlTemplate: string | undefined;
   /** The same, for a task-tool project. See `TASKTOOL_PROJECT_URL_TEMPLATE` in `schema.ts`. */
   readonly tasktoolProjectUrlTemplate: string | undefined;
+  /** The tag this image was published under, or `dev` outside a published build. See `APP_VERSION` in `schema.ts`. */
+  readonly version: string;
 }
 
 export interface ConfigProblem {
@@ -359,6 +361,7 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
     tasktoolBaseUrl: parsed['TASKTOOL_BASE_URL'] as string | undefined,
     doctoolPageUrlTemplate: parsed['DOCTOOL_PAGE_URL_TEMPLATE'] as string | undefined,
     tasktoolProjectUrlTemplate: parsed['TASKTOOL_PROJECT_URL_TEMPLATE'] as string | undefined,
+    version: parsed['APP_VERSION'] as string,
   };
 }
 

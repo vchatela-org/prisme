@@ -92,6 +92,8 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
           tags: |
             ${{ vars.HARBOR_REGISTRY }}/${{ vars.HARBOR_PROJECT }}/${{ matrix.image }}:${{ github.ref_name }}
           # docs/15-runtime.md §1: "SBOM and provenance attestation emitted at

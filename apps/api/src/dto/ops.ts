@@ -120,6 +120,8 @@ export const adoptionCandidateDto = z.object({
 
 export const settingsDto = z.object({
   timezone: z.string(),
+  /** The tag this image was published under (`APP_VERSION`), or `dev`. */
+  version: z.string(),
   scoring: z.object({
     activeMethodId: z.string(),
     activeMethodVersion: z.int(),

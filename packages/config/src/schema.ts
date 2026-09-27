@@ -400,6 +400,14 @@ export const VARIABLES = {
     default: 'wsjf-balanced',
   },
   TZ: { schema: nonEmpty('TZ'), required: [], default: 'Europe/Paris' },
+  /**
+   * The tag an image was built and published under (`.github/workflows/publish.yml`),
+   * baked in at `docker build` time rather than read from anywhere at runtime —
+   * there is no reliable "what version am I" a running process can discover on
+   * its own. `dev` is what a local run and every CI build never override, which
+   * is the value that should never appear beside a deployment's own pin.
+   */
+  APP_VERSION: { schema: nonEmpty('APP_VERSION'), required: [], default: 'dev' },
 } as const satisfies Record<
   string,
   { schema: z.ZodType; required: readonly Service[]; default?: string }

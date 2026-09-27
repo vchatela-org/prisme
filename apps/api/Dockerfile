@@ -98,8 +98,15 @@ WORKDIR /app
 # this container can write to.
 COPY --from=builder --chown=root:root /out /app
 
+# The tag this image is published under (`publish.yml` passes `github.ref_name`
+# on a `v*` push). `dev` everywhere else — CI's `images.yml` build included — so
+# `dev` beside a deployment's own pin is what an unpublished image looks like.
+# `@prisme/config` reads it back as `APP_VERSION`; there is no way for a running
+# process to discover its own tag on its own.
+ARG VERSION=dev
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    APP_VERSION=${VERSION}
 
 EXPOSE 3000
 USER nonroot

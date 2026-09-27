@@ -69,6 +69,7 @@ const services = createServices({
   }),
   config: {
     timezone: config.timezone,
+    version: config.version,
     capacityWindowWeeks: config.capacity.windowWeeks,
     defaultTaskMinutes: config.capacity.defaultTaskMinutes,
     baseUrl: config.baseUrl,

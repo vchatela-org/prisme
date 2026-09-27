@@ -1072,6 +1072,8 @@ export type TaskLocations = z.infer<typeof taskLocationsSchema>;
 /** `GET /settings` — the deployment configuration prisme is running under. */
 export const instanceSettingsSchema = z.object({
   timezone: z.string(),
+  /** The tag the API image was published under, or `dev` outside a published build. */
+  version: z.string(),
   scoring: z.object({
     activeMethodId: z.string(),
     activeMethodVersion: z.number().int(),
