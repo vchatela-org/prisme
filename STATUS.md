@@ -378,6 +378,7 @@ journal entry rather than a unit of planned work.
 | **A private repository's name was linked from this public page** — the §7 row carried its deployment-repository pull request as a full URL. The **local** deny-list caught it; CI cannot, because that supplement is gitignored by design — which is exactly why the local scan exists. The corollary is worth keeping: a green `privacy deny-list` check was never evidence that nothing private is in a diff | found by the local scan on the first commit of the row above | 🟡 **the worktree is clean and the history is not** — redacted to the prose form every other row in this file uses, but the name is still in `main`'s history ([#92](https://github.com/vchatela-org/prisme/pull/92), merged 2026-09-26). A rewrite is a force-push, which is the owner's call and not an agent's · [the entry](docs/50-journal/FUP-2026-09-26-status-prose-vs-register.md) | [#93](https://github.com/vchatela-org/prisme/pull/93) |
 | **Configuration had three ways in** — Settings (UI and API), the web tier's `AREA_COLOR_PINS` from Vault, and the file-and-command seed path (`prisme-sync areas` / `bindings --from`, `pnpm seed:load`, `seed.example/`) wrote the same tables, and a file load silently replaced what the screen had set | owner decision 2026-09-26 | 🟢 the seed path is removed, and so is `AREA_COLOR_PINS` (a Vault-rendered colour map beneath the Settings choice); the UI and the API are the only way in, and the sync side only reads the bindings · [the entry](docs/50-journal/FUP-2026-09-26-configuration-is-ui-only.md) | [#102](https://github.com/vchatela-org/prisme/pull/102) |
 | **A page store was a parent page and a template a page prisme copied block by block**, while the owner keeps a database per kind with the document tool's own templates — every store binding checked `refused` on the live instance, and the tool now applies a database's templates itself | the owner, binding the stores ([ADR-0030](docs/20-decisions/0030-page-stores-are-databases-with-native-templates.md), accepted 2026-09-26) | 🟢 stores are databases; template roles and the block copy removed; one template used, several offered, none blocks with its own reason; migration 0012 · [the entry](docs/50-journal/FUP-2026-09-26-page-stores-are-databases.md) | [#103](https://github.com/vchatela-org/prisme/pull/103) |
+| **Nothing recorded what prisme sent to either tool** — `event_log` kept a success-only `sync_action` row with no tool and no payload, creations left no trace, and nothing was pruned anywhere; the owner asked for an audit view with filters and a configurable retention before lifting the freeze | the owner, 2026-09-27 ([ADR-0031](docs/20-decisions/0031-outward-writes-are-audited-and-pruned.md)) | 🟢 `external_write` (migration 0013), audited writers at construction, daily prune to a window set in Settings, `/audit` with filters · [the entry](docs/50-journal/FUP-2026-09-27-write-audit.md) | — |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -462,7 +463,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**29 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
+**30 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
@@ -602,6 +603,10 @@ produces the `Would create: 0` readout. Then the queue is worked, and that is wh
 Then the restore rehearsal means something, because `entity_link` is the figure it reads. An instance
 can therefore be completely configured, have run §7, and still be in the first-run state
 ([the entry](docs/50-journal/FUP-2026-09-26-restore-rehearsal.md)).
+
+**From the first outward write, every call is on `/audit`** — sent, failed or refused, kept for the
+window chosen in Settings (default 90 days) — so step 9's week of watching has a record of *calls* beside
+the conflict ledger ([ADR-0031](docs/20-decisions/0031-outward-writes-are-audited-and-pruned.md)).
 
 ## Before the repository goes public
 

@@ -165,7 +165,7 @@ backlog of hundreds of "initiatives" and a ranking that means nothing. Most task
 | 6. Choose the `now` set | prisme only |
 | 7. `plan` — read the output by hand, confirm `create: 0` | **no** |
 | 8. Lift the write freeze; `apply` | yes — first outward writes |
-| 9. One week of reviews; watch the conflict ledger | yes |
+| 9. One week of reviews; watch the conflict ledger and the Audit | yes |
 | 10. Retire the superseded automations | — |
 
 Steps 1–7 are reversible by deleting a database. Step 8 is the first irreversible one, and it is
@@ -256,7 +256,7 @@ rebuilt workspace.
 | Situation | Response |
 |---|---|
 | Plan looks wrong | Don't apply. `plan` is free and has no side effects |
-| Applied something wrong | The event log holds before/after for every write; replay it backwards |
+| Applied something wrong | The event log holds before/after for every write; replay it backwards. `/audit` shows exactly what each call sent, and to which object, for the retention window ([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)) |
 | Adoption mis-linked an item | Unlink in the queue. The external object is untouched — only the link is removed |
 | Fundamental model error | Drop the database and re-ingest. **The external tools are unharmed**, which is the whole reason for not migrating them |
 

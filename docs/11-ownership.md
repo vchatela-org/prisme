@@ -148,6 +148,7 @@ No external counterpart. Listed so it is obvious that syncing them would be a mi
 |---|---|
 | Scores, all methods and versions | Append-only; history of *how* things were ranked |
 | Event log | Also the security audit trail |
+| Audit of outward writes, and its retention window | What prisme *sent*, one row per call; pruned by age ([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)). The external object's own fields stay the tool's |
 | Review sessions and their decisions | Narrative summary is pushed outward; the structure is not |
 | Reconciliation state: sync token, watermark, `last_applied`, conflict ledger | In PostgreSQL |
 | Adoption decisions, including "ignored" | So the adoption queue converges |
