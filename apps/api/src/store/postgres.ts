@@ -4,7 +4,9 @@ import {
   adoptedObjectiveStatus,
   adoptRefusal,
   objectivePeriodOf,
+  ritualPageLink,
 } from '@prisme/domain';
+import { docIdKey } from '@prisme/connectors';
 import type {
   AdherenceRecord,
   AdoptionCandidateRecord,
@@ -26,6 +28,7 @@ import type {
   CreateInitiativeInput,
   CreationIntentInput,
   CreationIntentRecord,
+  DecideOutcome,
   EventRecord,
   ExternalWriteRecord,
   IntentEntityKind,
@@ -1731,27 +1734,66 @@ export function createPostgresStore(client: Sql): ApiStore {
         };
       },
 
-      async decideAdoption(input): Promise<AdoptionRecord> {
-        // `decided_by` is always `human` here: a decision that arrived through
-        // an authenticated request is one somebody made. The table's check —
-        // "only certainty is automatic" — is what stops an automatic fuzzy
-        // match from ever being applied (docs/13-migration.md §3).
-        const rows = await client<AdoptionRow[]>`
-          insert into entity_link
-            (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
-          values (${input.prismeId}, ${input.externalKind}, ${input.externalId},
-                  ${input.matchRule}, ${input.confidence}, 'human',
-                  ${stamp(input.decidedAt)}::timestamptz)
-          on conflict (prisme_id, external_kind, external_id) do update set
-            match_rule = excluded.match_rule,
-            confidence = excluded.confidence,
-            decided_by = excluded.decided_by,
-            decided_at = excluded.decided_at
-          returning prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
-                    decided_at, false as bound`;
-        const row = rows[0];
-        if (row === undefined) throw new Error('the adoption decision returned no row');
-        return toAdoption(row);
+      /**
+       * Merge: the link, and — for a page linked to a ritual — the ritual's
+       * process page, in one transaction.
+       *
+       * A ritual's one reference to the document tool is `external_page_id`,
+       * and nothing else binds it: the reconciler binds task links to
+       * initiatives only. So the link was recorded and the ritual kept no page,
+       * which left the declared-duration tier nothing to read. Setting it here
+       * is prisme writing its own field; the page itself is never written
+       * (ADR-0016). A ritual that already names another page is refused, by
+       * `ritualPageLink`, before anything is inserted.
+       */
+      async decideAdoption(input): Promise<DecideOutcome> {
+        return client.begin(async (tx: Tx) => {
+          if (input.externalKind === 'page') {
+            // By text, because `prismeId` names any kind of entity and not
+            // every identifier a caller sends is a uuid.
+            const rituals = await tx<{ external_page_id: string | null }[]>`
+              select external_page_id from ritual where id::text = ${input.prismeId}
+              for update`;
+            const ritual = rituals[0];
+            if (ritual !== undefined) {
+              const held = ritual.external_page_id;
+              const link = ritualPageLink(
+                held === null || held.trim() === '' ? undefined : docIdKey(held),
+                docIdKey(input.externalId),
+              );
+              if (link === 'other_page') {
+                return { ok: false as const, refusal: 'ritual_has_other_page' as const };
+              }
+              if (link === 'attach') {
+                await tx`
+                  update ritual set external_page_id = ${input.externalId}
+                  where id::text = ${input.prismeId}`;
+              }
+            }
+          }
+
+          // `decided_by` is always `human` here: a decision that arrived through
+          // an authenticated request is one somebody made. The table's check —
+          // "only certainty is automatic" — is what stops an automatic fuzzy
+          // match from ever being applied (docs/13-migration.md §3).
+          const rows = await tx<AdoptionRow[]>`
+            insert into entity_link
+              (prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
+               decided_at)
+            values (${input.prismeId}, ${input.externalKind}, ${input.externalId},
+                    ${input.matchRule}, ${input.confidence}, 'human',
+                    ${stamp(input.decidedAt)}::timestamptz)
+            on conflict (prisme_id, external_kind, external_id) do update set
+              match_rule = excluded.match_rule,
+              confidence = excluded.confidence,
+              decided_by = excluded.decided_by,
+              decided_at = excluded.decided_at
+            returning prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
+                      decided_at, false as bound`;
+          const row = rows[0];
+          if (row === undefined) throw new Error('the adoption decision returned no row');
+          return { ok: true as const, record: toAdoption(row) };
+        });
       },
 
       /**

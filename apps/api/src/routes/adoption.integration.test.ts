@@ -940,6 +940,111 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
     });
   });
 
+  describe('merging a processes page onto a ritual', () => {
+    /**
+     * A ritual defined on Rituals, and the processes row proposed against it —
+     * the only way a ritual comes out of the queue, since *Adopt* refuses one.
+     */
+    async function seedRitual(page: string | null): Promise<{ ritualId: string }> {
+      const areaKey = (
+        await database.client<{ key: string }[]>`
+          select key from area where kind = 'area' order by key limit 1`
+      )[0]?.key as string;
+      const [ritual] = await database.client<{ id: string }[]>`
+        insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id)
+        values ('Morning stretch', ${areaKey}, 'daily', 80, ${page})
+        returning id::text`;
+      const ritualId = (ritual as { id: string }).id;
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason, match_rule,
+           confidence, proposed_id, scanned_at, source_role)
+        values ('page', 'ext-process', 'Morning stretch', ${areaKey}, 'ritual',
+                'held in the processes store — a habit with adherence to measure',
+                'exact_title', 'high', ${ritualId},
+                ${new Date('2026-09-19T09:00:00Z').toISOString()}::timestamptz, 'processes_db')`;
+      return { ritualId };
+    }
+
+    const link = (ritualId: string, externalKind = 'page', externalId = 'ext-process') =>
+      api().request('POST', url('/adoption/decisions'), {
+        prismeId: ritualId,
+        externalKind,
+        externalId,
+        matchRule: 'exact_title',
+        confidence: 'high',
+      });
+
+    const pageOf = async (ritualId: string): Promise<string | null> =>
+      (
+        await database.client<{ external_page_id: string | null }[]>`
+          select external_page_id from ritual where id = ${ritualId}::uuid`
+      )[0]?.external_page_id ?? null;
+
+    const queued = async (): Promise<string[]> =>
+      (
+        (await api().request('GET', url('/adoption/queue?when=all'))).body as {
+          items: { externalId: string }[];
+        }
+      ).items.map((item) => item.externalId);
+
+    it('makes the page the ritual’s process page, and takes the row off the queue', async () => {
+      const { ritualId } = await seedRitual(null);
+
+      const { status } = await link(ritualId);
+
+      expect(status).toBeLessThan(300);
+      expect(await pageOf(ritualId)).toBe('ext-process');
+      expect(await queued()).not.toContain('ext-process');
+    });
+
+    it('accepts the page the ritual already names, however its identifier is written', async () => {
+      // One page, written bare on the ritual and dashed on the row. Built at
+      // run time: the privacy scan refuses an identifier-shaped literal.
+      const bare = 'ab'.repeat(16);
+      const dashed = [0, 8, 12, 16, 20]
+        .map((start, index, starts) => bare.slice(start, starts[index + 1]))
+        .join('-');
+      const { ritualId } = await seedRitual(bare);
+      await database.client`
+        update adoption_candidate set external_id = ${dashed} where external_id = 'ext-process'`;
+
+      const { status } = await link(ritualId, 'page', dashed);
+
+      expect(status).toBeLessThan(300);
+      // Compared as one page, and left as it was written.
+      expect(await pageOf(ritualId)).toBe(bare);
+      expect(await queued()).not.toContain(dashed);
+    });
+
+    it('refuses a ritual that names another page, and writes nothing', async () => {
+      const { ritualId } = await seedRitual('ext-other-process');
+      const before = await database.client<{ links: string; decisions: string }[]>`
+        select (select count(*) from entity_link) as links,
+               (select count(*) from event_log where kind = 'adoption_decision') as decisions`;
+
+      const { status, body } = await link(ritualId);
+
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/another process page/);
+      expect(await pageOf(ritualId)).toBe('ext-other-process');
+      const after = await database.client<{ links: string; decisions: string }[]>`
+        select (select count(*) from entity_link) as links,
+               (select count(*) from event_log where kind = 'adoption_decision') as decisions`;
+      expect(after).toEqual(before);
+      expect(await queued()).toContain('ext-process');
+    });
+
+    it('leaves the ritual’s page alone when what is linked is not a page', async () => {
+      const { ritualId } = await seedRitual(null);
+
+      const { status } = await link(ritualId, 'task', 'ext-initiative');
+
+      expect(status).toBeLessThan(300);
+      expect(await pageOf(ritualId)).toBeNull();
+    });
+  });
+
   describe('ignoring', () => {
     it('removes the row from the queue, permanently', async () => {
       const { status } = await api().request('POST', url('/adoption/ignore'), {

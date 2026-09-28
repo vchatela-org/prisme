@@ -151,7 +151,10 @@ Where *Adopt* would be refused, the row has no *Adopt* button and says why inste
   Todoist task, then *Merge* its row here onto that initiative, or ignore the row.
 - A **key result** or a **ritual** — neither can be made from a row alone. Create it under its
   objective on **Objectives**, or on **Rituals**, then *Rescan*: a row with the same title in the
-  same area is proposed against it, and *Link* joins them.
+  same area is proposed against it, and *Link* joins them. Linking a **Processes** row to a ritual
+  also makes that page the ritual's process page, so its link need not be pasted on Rituals; if the
+  ritual already names a different page, *Link* is refused and says so — change the page on
+  Rituals, or ignore the row.
 - **Outside every area** — give it an area (Settings → Areas, or the database's area column), then
   *Rescan*.
 - **An objective whose dates are not one calendar year or month** — a quarter, say, or no dates at

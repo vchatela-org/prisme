@@ -428,6 +428,17 @@ export type AdoptOutcome =
   | { readonly ok: false; readonly refusal: AdoptRefusal };
 
 /**
+ * What a merge did, or why it could not.
+ *
+ * One refusal, and only for a ritual: a page linked to a ritual becomes its
+ * process page, and a ritual that already names another page is refused
+ * rather than overwritten (`ritualPageLink`, `@prisme/domain`).
+ */
+export type DecideOutcome =
+  | { readonly ok: true; readonly record: AdoptionRecord }
+  | { readonly ok: false; readonly refusal: 'ritual_has_other_page' };
+
+/**
  * A capture: a small thing, which stays a task (W15).
  *
  * No estimates and no status, and their absence is the specification. The
@@ -885,6 +896,11 @@ export interface ApiStore {
     appendEvent(input: AppendEventInput): Promise<void>;
 
     adoption(bound: boolean | undefined, page: PageRequest): Promise<Paged<AdoptionRecord>>;
+    /**
+     * Merge: link an external object to an entity prisme already has. A page
+     * linked to a ritual becomes that ritual's process page in the same
+     * transaction — or nothing is written and the answer is the refusal.
+     */
     decideAdoption(input: {
       prismeId: string;
       externalKind: string;
@@ -892,7 +908,7 @@ export interface ApiStore {
       matchRule: string;
       confidence: string;
       decidedAt: Date;
-    }): Promise<AdoptionRecord>;
+    }): Promise<DecideOutcome>;
 
     /**
      * The queue: candidates the scan found, minus everything already decided.

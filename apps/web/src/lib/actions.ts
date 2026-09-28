@@ -542,6 +542,10 @@ const mergeSchema = candidateSchema.extend({
  * rule's, not `certain` — the decision is a human one either way, and
  * overstating how it was reached would make the ledger useless for working out,
  * later, which links to re-examine.
+ *
+ * A page linked to a ritual becomes its process page, so Rituals is redrawn
+ * too. The API refuses (409) a ritual that already names another page; that is
+ * the only thing a 409 means for this call, so it is worded here.
  */
 export async function mergeCandidate(input: {
   externalKind: string;
@@ -573,9 +577,20 @@ export async function mergeCandidate(input: {
     schema: z.object({ prismeId: z.string(), bound: z.boolean() }),
   });
 
-  if (!result.ok) return failed(result, 'this candidate');
+  if (!result.ok) {
+    if (result.status === 409) {
+      return {
+        ok: false,
+        title: 'That ritual has another page',
+        description:
+          'Linking a page to a ritual makes it the ritual’s process page, and this ritual already names a different one. If this page is the right one, clear or change it on Rituals, then Link again. If not, ignore this row.',
+      };
+    }
+    return failed(result, 'this candidate');
+  }
 
   revalidateAdoption();
+  revalidatePath('/rituals');
   return { ok: true, message: 'Linked to the entity prisme already had.' };
 }
 
