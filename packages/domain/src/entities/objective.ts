@@ -182,6 +182,27 @@ export function adoptedObjectiveStatus(
   return dates !== undefined && dates.startsOn > today ? 'draft' : 'active';
 }
 
+/**
+ * Whether an objective counts towards what a window from `from` to `to`
+ * measures, both `YYYY-MM-DD` and inclusive (ADR-0035): its period overlaps
+ * the window, and it was ever under way.
+ *
+ * A draft never was, so its attainment is nobody's result. A met, missed or
+ * dropped objective was, and the review of its period is where that is read.
+ * An objective for a period outside the window, next year's above all, has
+ * nothing to report for it. A period that cannot be read does not count.
+ */
+export function objectiveCountsIn(
+  objective: Pick<Objective, 'type' | 'period' | 'status'>,
+  from: string,
+  to: string,
+): boolean {
+  if (objective.status === 'draft') return false;
+  const dates = objectiveDatesOf(objective.type, objective.period);
+  if (dates === undefined) return false;
+  return dates.startsOn <= to && dates.endsOn >= from;
+}
+
 /** `28` to `31`, for a `YYYY-MM`. Day 0 of the next month is the last of this one. */
 function lastDayOfMonth(month: string): string {
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));

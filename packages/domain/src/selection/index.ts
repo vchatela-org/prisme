@@ -1,4 +1,5 @@
 import { type Area, type AreaKey, isRankable } from '../entities/area.js';
+import type { CalendarDate } from '../entities/calendar.js';
 import { blockedBy, statusIndex } from '../entities/dependencies.js';
 import { InvariantError } from '../entities/errors.js';
 import {
@@ -7,6 +8,7 @@ import {
   isClosed,
   isSizedForNow,
 } from '../entities/initiative.js';
+import type { ProjectId, ProjectStatus } from '../entities/project.js';
 import type { TaskPriority } from '../entities/task.js';
 import type { ScoredInitiative } from '../scoring/types.js';
 
@@ -46,6 +48,50 @@ export const CANDIDATE_SELECTION_LIMITS: SelectionLimits = {
 
 export type ProposedStatus = 'now' | 'next' | 'later' | 'unchanged';
 
+/**
+ * Why an initiative is not under way yet (ADR-0035): it may not start before a
+ * later day, or the project it belongs to is not active.
+ */
+export type NotUnderWay = 'not_started' | 'project_inactive';
+
+/** What deciding whether work is under way needs to know. */
+export interface UnderWayContext {
+  /** Today in the instance's timezone. */
+  readonly today: CalendarDate;
+  /**
+   * Each project's status. A project missing here counts as active, so a
+   * dangling reference never hides the work that names it.
+   */
+  readonly projectStatusById: ReadonlyMap<ProjectId, ProjectStatus>;
+}
+
+/**
+ * Whether an initiative is under way on `today`, and if not, why (ADR-0035).
+ *
+ * **Only what is under way is prioritized.** An initiative whose
+ * `earliest_start` is after today is a plan for later, and one whose project
+ * is paused, done or dropped belongs to an effort that has stopped. Neither is
+ * offered a `now` slot, queued behind one, or given a rank. It is still scored,
+ * because the score describes the initiative, and it comes back without anyone
+ * touching it once its day comes or its project resumes.
+ *
+ * `undefined` means under way. The status is not read here: an initiative
+ * already `now` was put there by a person, and selection keeps it in flight.
+ */
+export function notUnderWay(
+  initiative: Initiative,
+  context: UnderWayContext,
+): NotUnderWay | undefined {
+  if (initiative.earliestStart !== undefined && initiative.earliestStart > context.today) {
+    return 'not_started';
+  }
+  if (initiative.projectId !== undefined) {
+    const status = context.projectStatusById.get(initiative.projectId);
+    if (status !== undefined && status !== 'active') return 'project_inactive';
+  }
+  return undefined;
+}
+
 export type SelectionReason =
   | 'in_flight'
   | 'selected'
@@ -53,7 +99,8 @@ export type SelectionReason =
   | 'wip_full'
   | 'blocked'
   | 'too_large'
-  | 'not_a_candidate';
+  | 'not_a_candidate'
+  | NotUnderWay;
 
 export interface RankedInitiative {
   readonly initiative: Initiative;
@@ -81,7 +128,10 @@ export interface Selection {
   readonly now: readonly SelectedInitiative[];
   readonly next: readonly SelectedInitiative[];
   readonly later: readonly SelectedInitiative[];
-  /** Inbox, waiting, review and closed work: not part of this question. */
+  /**
+   * Inbox, waiting, review and closed work, and work not under way yet: not
+   * part of this question.
+   */
   readonly untouched: readonly SelectedInitiative[];
   readonly priorities: ReadonlyMap<InitiativeId, TaskPriority>;
   /**
@@ -131,7 +181,8 @@ function assertWholeSlots(name: string, value: number): void {
  * Chooses the `now` set from a ranking.
  *
  * 1. **In-flight work keeps its slot.** Status `now` stays, whatever it scores.
- * 2. **Free slots fill from the top**, skipping areas already at their cap.
+ * 2. **Free slots fill from the top**, skipping areas already at their cap and
+ *    work not under way yet (ADR-0035), which is not queued either.
  * 3. **Work in progress is capped**, overall and per area.
  * 4. **Priority is written outward**: top 3 `now` → highest, remaining `now` →
  *    high, `next` anchors → medium, everything else → lowest.
@@ -140,6 +191,7 @@ export function selectNowSet(
   scored: readonly RankedInitiative[],
   areas: readonly Area[],
   limits: SelectionLimits,
+  underWay: UnderWayContext,
 ): Selection {
   assertWholeSlots('maxNow', limits.maxNow);
   assertWholeSlots('maxNowPerArea', limits.maxNowPerArea);
@@ -204,6 +256,12 @@ export function selectNowSet(
 
     if (!isCandidate) {
       place(entry, 'unchanged', 'not_a_candidate');
+      continue;
+    }
+
+    const notYet = notUnderWay(initiative, underWay);
+    if (notYet !== undefined) {
+      place(entry, 'unchanged', notYet);
       continue;
     }
 

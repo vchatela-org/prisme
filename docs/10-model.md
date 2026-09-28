@@ -135,7 +135,7 @@ An optional container for a multi-month effort. Most initiatives have no project
 |---|---|---|---|
 | `name` | text | prisme | |
 | `area_key` | ref | prisme | Exactly one. Work that belongs to another area is mapped at the section, not the project — [ADR-0029](20-decisions/0029-one-area-per-project.md) |
-| `status` | enum | prisme | `active` \| `paused` \| `done` \| `dropped` |
+| `status` | enum | prisme | `active` \| `paused` \| `done` \| `dropped`. Only an active project's initiatives are selected or ranked ([ADR-0035](20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md)) |
 | `deadline` | date? | prisme | |
 | `sections[]` | ordered list | prisme | Subtopics; become sections in the task tool |
 | `external_page_id` | ref | prisme | Page in the document tool, from the project template |
@@ -166,7 +166,7 @@ no completion condition, which is how things stay open for two years.
 | `risk` | 1·2·3·5·8·13 | prisme | Risk reduction or opportunity enablement |
 | `size` | 1·2·3·5·8·13 | prisme | Size of the *next slice*. Above 8, slice it |
 | `deadline` | date? | prisme | Hard constraints only. Written to the anchor |
-| `earliest_start` | date? | prisme | Scheduling constraint |
+| `earliest_start` | date? | prisme | Scheduling constraint. Before it, the initiative is not under way: neither selected nor ranked ([ADR-0035](20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md)) |
 | `planned_start` / `planned_end` | date? | prisme | Computed by the schedule engine |
 | `depends_on[]` | ref[] | prisme | Other initiatives. DAG — cycles rejected at write time |
 | `external_page_id` | ref? | prisme | Optional narrative page, created on demand |

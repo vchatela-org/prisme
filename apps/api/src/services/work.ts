@@ -4,6 +4,7 @@ import {
   computeSchedule,
   daysUntil,
   InvariantError,
+  notUnderWay,
   parseCalendarDate,
   replan,
   SCHEDULE_DEFAULTS,
@@ -62,6 +63,8 @@ export interface ReplanRequest {
 }
 
 export interface WorkConfig {
+  /** The instance's IANA timezone: what day it is decides what is under way. */
+  readonly timezone: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
   readonly limits: SelectionLimits;
@@ -257,6 +260,7 @@ export function createWorkService(
   async function ranking(now: Date): Promise<Ranking> {
     return buildRanking(store, registry, {
       now,
+      timezone: config.timezone,
       capacityWindowWeeks: config.capacityWindowWeeks,
       defaultTaskMinutes: config.defaultTaskMinutes,
       limits: config.limits,
@@ -418,12 +422,20 @@ export function createWorkService(
       };
       const filtered = await store.initiatives.list(filter);
 
+      const domainById = new Map(snapshot.initiatives.map((entry) => [entry.id, entry]));
       const rows: BacklogEntryShape[] = filtered.map((record) => {
         const scored = snapshot.scoreById.get(record.id);
+        const rank = snapshot.rankById.get(record.id) ?? null;
+        const initiative = domainById.get(record.id);
         return {
           initiative: dtoOf(snapshot, record.id),
           score: scored?.score ?? null,
-          rank: snapshot.rankById.get(record.id) ?? null,
+          rank,
+          // Scored and not ranked: only work not under way yet is left out.
+          notUnderWay:
+            scored !== undefined && rank === null && initiative !== undefined
+              ? (notUnderWay(initiative, snapshot.underWay) ?? null)
+              : null,
         };
       });
 

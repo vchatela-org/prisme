@@ -195,9 +195,23 @@ export function BacklogTable({
       id: 'rank',
       header: 'Rank',
       align: 'right',
-      cell: (entry) => (
-        <span className="tabular-nums">{entry.rank === null ? '—' : entry.rank}</span>
-      ),
+      cell: (entry) =>
+        // Scored and not ranked: it is not under way yet, so it is not part of
+        // today's prioritization (ADR-0035). The score beside it still stands.
+        entry.notUnderWay === null ? (
+          <span className="tabular-nums">{entry.rank === null ? '—' : entry.rank}</span>
+        ) : (
+          <span
+            className="text-xs text-ink-muted"
+            title={
+              entry.notUnderWay === 'not_started'
+                ? 'Not ranked: it may not start before a later day. It is ranked again from that day.'
+                : 'Not ranked: its project is paused, done or dropped. It is ranked again when the project is active.'
+            }
+          >
+            {entry.notUnderWay === 'not_started' ? 'Not started' : 'Project not active'}
+          </span>
+        ),
     },
     {
       id: 'estimates',

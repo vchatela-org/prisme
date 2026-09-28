@@ -3,6 +3,7 @@ import {
   adoptedObjectiveStatus,
   isObjectiveOpen,
   OBJECTIVE_STATUSES,
+  objectiveCountsIn,
   objectiveDatesOf,
   objectivePeriodOf,
   periodMatchesType,
@@ -80,5 +81,50 @@ describe('the status an adopted objective starts in', () => {
   it('is active for a period already over, which a review judges rather than adoption', () => {
     expect(adoptedObjectiveStatus('annual', '2025', '2026-09-28')).toBe('active');
     expect(adoptedObjectiveStatus('monthly', '2026-02', '2026-09-28')).toBe('active');
+  });
+});
+
+describe('an objective counted in a window (ADR-0035)', () => {
+  const annual = (period: string, status: 'draft' | 'active' | 'met' | 'dropped' = 'active') =>
+    ({ type: 'annual', period, status }) as const;
+
+  it('counts when its period overlaps the window', () => {
+    expect(objectiveCountsIn(annual('2026'), '2026-07-01', '2026-09-28')).toBe(true);
+    expect(objectiveCountsIn(annual('2026'), '2025-12-31', '2026-01-01')).toBe(true);
+    expect(
+      objectiveCountsIn(
+        { type: 'monthly', period: '2026-09', status: 'active' },
+        '2026-09-30',
+        '2026-12-31',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not count a period outside it, next year’s above all', () => {
+    expect(objectiveCountsIn(annual('2027'), '2026-01-01', '2026-12-31')).toBe(false);
+    expect(objectiveCountsIn(annual('2025'), '2026-01-01', '2026-09-28')).toBe(false);
+    expect(
+      objectiveCountsIn(
+        { type: 'monthly', period: '2026-10', status: 'active' },
+        '2026-07-01',
+        '2026-09-30',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not count a draft, which was never under way, and counts a judged one', () => {
+    expect(objectiveCountsIn(annual('2026', 'draft'), '2026-01-01', '2026-12-31')).toBe(false);
+    expect(objectiveCountsIn(annual('2026', 'met'), '2026-01-01', '2026-12-31')).toBe(true);
+    expect(objectiveCountsIn(annual('2026', 'dropped'), '2026-01-01', '2026-12-31')).toBe(true);
+  });
+
+  it('does not count a period it cannot read', () => {
+    expect(
+      objectiveCountsIn(
+        { type: 'annual', period: '2026-01', status: 'active' },
+        '2026-01-01',
+        '2026-12-31',
+      ),
+    ).toBe(false);
   });
 });

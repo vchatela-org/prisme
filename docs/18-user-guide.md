@@ -193,6 +193,11 @@ The first screen. **Now** is what you are working on (a handful at most, one per
 **Up next** is what comes when a slot frees up; **Slots** shows where this week's capacity is going.
 A *stale* warning means something in *now* has not been touched in a while.
 
+Only work that is **under way** is offered a slot or queued in *Up next*. An initiative with an
+*earliest start* after today, or one in a project you have paused or closed, waits outside both
+until that day comes or the project is active again, and you do not have to change anything. What
+is already in *now* stays: you put it there.
+
 **Force sync** reads both tools and shows what *would* change. It never writes anything — it is the
 safest button in the app.
 
@@ -211,7 +216,8 @@ For each, decide: **promote** it (becomes an initiative, with a title you write)
 ### Backlog — the ranking
 
 Initiatives ranked **within each area**. Never compare a score across areas: the allocation already
-decided how much each area gets.
+decided how much each area gets. Work that is not under way yet keeps its score but has no rank, and
+the rank column says why: **Not started** or **Project not active**.
 
 Four estimates drive the score, each on the scale 1 · 2 · 3 · 5 · 8 · 13, relative to the area's
 other initiatives:
@@ -276,6 +282,8 @@ month's objectives · replan what slipped.
   the area at *Completed in the window*, the tasks that share was counted from, each with its minutes
   and whether they were recorded or the default estimate.
 - **KPI** — the same over time, plus throughput, Run hours, Signals volume and ritual adherence.
+  Objective attainment covers only the objectives under way in the chosen range, so no draft and no
+  objective for a later period. The Year Review shows the year it reviews.
 - **Timeline** — planned start and end for each initiative, the critical path and deadlines at
   risk. Dragging only previews; nothing is saved from it.
 - **Objectives** — annual and monthly objectives with key results. You set each key result's

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { areaKey, calendarDate, entityId, initiativeStatus } from '../../dto/common.js';
 import { balanceDto } from '../../dto/area.js';
-import { kpiDto } from '../../dto/views.js';
+import { kpiDto, selectionReason } from '../../dto/views.js';
 import { takeawayDto } from '../../dto/lanes.js';
 import { syncStatusDto } from '../../dto/ops.js';
 import { toScoreDto } from '../../services/convert.js';
@@ -52,7 +52,10 @@ const initiativeBrief = z.object({
   size: z.int(),
   deadline: calendarDate.nullable(),
   score: z.number().nullable(),
-  /** Position in the active method's ordering, 1-based. Null before a ranking has run. */
+  /**
+   * Position in the active method's ordering, 1-based. Null before a ranking has
+   * run, and for work not under way yet, which is not ranked (ADR-0035).
+   */
   rank: z.int().nullable(),
   /** Ids of dependencies that are neither `done` nor `dropped`. */
   blockedBy: z.array(entityId),
@@ -95,15 +98,7 @@ function brief(source: BriefSource): InitiativeBrief {
 
 const focusRow = initiativeBrief.extend({
   /** Why it is where it is, straight from `selectNowSet`. */
-  reason: z.enum([
-    'in_flight',
-    'selected',
-    'area_at_cap',
-    'wip_full',
-    'blocked',
-    'too_large',
-    'not_a_candidate',
-  ]),
+  reason: selectionReason,
   daysUntilDeadline: z.int().nullable(),
   /** The schedule engine's answer, not a day count: the earliest finish falls after the deadline. */
   deadlineAtRisk: z.boolean(),

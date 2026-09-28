@@ -27,6 +27,13 @@ import { takeawayDto } from './lanes.js';
  * joined to its blockers and its progress, with the reason each item is there.
  */
 
+/**
+ * Why an initiative is not under way yet, and so neither selected, queued nor
+ * ranked (ADR-0035): it may not start before a later day, or its project is
+ * not active.
+ */
+export const notUnderWayReason = z.enum(['not_started', 'project_inactive']);
+
 /** Why an initiative sits where it does. Straight from `selectNowSet`. */
 export const selectionReason = z.enum([
   'in_flight',
@@ -36,6 +43,7 @@ export const selectionReason = z.enum([
   'blocked',
   'too_large',
   'not_a_candidate',
+  ...notUnderWayReason.options,
 ]);
 
 export const focusEntryDto = z.object({
@@ -90,6 +98,11 @@ export const backlogEntryDto = z.object({
   initiative: initiativeDto,
   score: z.number().nullable(),
   rank: z.int().nullable(),
+  /**
+   * Why a scored initiative has no rank: it is not under way yet (ADR-0035).
+   * Null for work that is under way, and for work that is not scored at all.
+   */
+  notUnderWay: notUnderWayReason.nullable(),
 });
 
 export const backlogDto = page(backlogEntryDto).extend({
@@ -241,6 +254,10 @@ export const kpiDto = z.object({
       points: z.array(bucketPointDto),
     }),
   ),
+  /**
+   * The objectives under way in the window: a period that overlaps it, and a
+   * status other than draft (ADR-0035).
+   */
   objectiveAttainment: z.array(
     z.object({
       objectiveId: entityId,
