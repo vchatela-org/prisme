@@ -14,7 +14,13 @@ import {
 import { EyeOff, Link2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { adoptCandidate, ignoreCandidate, mergeCandidate } from '@/lib/actions';
+import {
+  adoptCandidate,
+  ignoreCandidate,
+  ignoreEndedCandidates,
+  mergeCandidate,
+} from '@/lib/actions';
+import { ignoreEndedLabel, type IgnoreEndedOffer } from '@/lib/adoption-view';
 import type { AdoptionCandidate } from '@/lib/contracts';
 
 /**
@@ -32,8 +38,9 @@ import type { AdoptionCandidate } from '@/lib/contracts';
  *
  * **Ignore confirms, and the other two do not.** Adopting a thing wrongly is
  * undone by unlinking it; ignoring is permanent by design, and a dialog that
- * appears before an irreversible click is worth the extra second. It is the
- * only modal on this screen, for that reason and no other.
+ * appears before an irreversible click is worth the extra second. Its only
+ * sibling is *Ignore all ended* ({@link IgnoreEndedButton}), which confirms for
+ * the same reason.
  */
 export function CandidateDecisions({ candidate }: { candidate: AdoptionCandidate }) {
   const proposed = candidate.matchRule !== null && candidate.proposedId !== null;
@@ -205,6 +212,88 @@ function IgnoreButton({ candidate }: { candidate: AdoptionCandidate }) {
               }}
             >
               Ignore permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/**
+ * Ignore every ended entry the *Ended* filter shows, behind one confirmation.
+ *
+ * The count is on the button and in the dialog, beside the filters in force,
+ * because a permanent decision over many rows has to say which rows before the
+ * click. The rows themselves are chosen by the API, never listed from here:
+ * what goes back is the count and the digest the page was drawn with, and a
+ * queue that has moved since refuses the write. Either way the page is redrawn
+ * — with the rows gone, or with the new count to confirm.
+ */
+export function IgnoreEndedButton({
+  offer,
+  confirmation,
+}: {
+  offer: IgnoreEndedOffer;
+  confirmation: { title: string; filters: string; description: string };
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={pending}
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        <EyeOff aria-hidden className="size-4" />
+        {ignoreEndedLabel(offer.count)}
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmation.title}</DialogTitle>
+            <DialogDescription>{confirmation.description}</DialogDescription>
+          </DialogHeader>
+
+          <p className="text-sm text-ink-secondary">{confirmation.filters}</p>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              Keep them
+            </Button>
+            <Button
+              disabled={pending}
+              onClick={() => {
+                startTransition(async () => {
+                  const result = await ignoreEndedCandidates({
+                    source: offer.source,
+                    areaKey: offer.areaKey,
+                    expected: { count: offer.count, digest: offer.digest },
+                  });
+                  setOpen(false);
+                  if (result.ok) {
+                    toast({ title: result.message, tone: 'success' });
+                  } else {
+                    toast({ title: result.title, description: result.description, tone: 'error' });
+                  }
+                  router.refresh();
+                });
+              }}
+            >
+              Ignore {offer.count === 1 ? 'it' : `all ${String(offer.count)}`} permanently
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { AdoptionCandidateRecord } from '../store/types.js';
-import { calendarDayIn, NO_AREA, periodOf, queueView, sourceOf } from './adoption-queue.js';
+import {
+  calendarDayIn,
+  endedDigest,
+  endedSelection,
+  NO_AREA,
+  periodOf,
+  queueView,
+  sourceOf,
+  type EndedFilter,
+} from './adoption-queue.js';
 import { carriedDateProperty } from './settings.js';
 
 /** Synthetic candidates. No real title, store or area appears in this file. */
@@ -111,6 +120,108 @@ describe('queueView', () => {
     const view = queueView(QUEUE, { when: 'all' }, TODAY, { limit: 2, offset: 2 });
     expect(view.items.map((item) => item.externalId)).toEqual(['upcoming', 'undated']);
     expect(view.total).toBe(5);
+  });
+});
+
+describe('endedSelection', () => {
+  const endsToday = candidate('ends-today', { startsOn: '2026-09-01', endsOn: TODAY });
+  const endedYesterday = candidate('ended-yesterday', {
+    startsOn: '2026-09-26',
+    endsOn: '2026-09-26',
+  });
+  const endedProcess = candidate('ended-process', {
+    sourceRole: 'processes_db',
+    proposedKind: 'ritual',
+    startsOn: '2025-01-01',
+    endsOn: '2025-06-30',
+  });
+  const endedTask = candidate('ended-task', {
+    externalKind: 'task',
+    sourceRole: null,
+    areaKey: 'home',
+    proposedKind: 'initiative',
+    startsOn: '2025-03-01',
+    endsOn: '2025-03-31',
+  });
+  const ALL = [...QUEUE, endsToday, endedYesterday, endedProcess, endedTask];
+
+  const ids = (filter: EndedFilter, today = TODAY): string[] =>
+    endedSelection(ALL, filter, today).candidates.map((item) => item.externalId);
+
+  it('takes what has ended and nothing else', () => {
+    expect(ids({})).toEqual(['past', 'ended-yesterday', 'ended-process', 'ended-task']);
+  });
+
+  it('does not take a period that ends today: it has not ended yet', () => {
+    expect(ids({})).not.toContain('ends-today');
+    // The next day, it has.
+    expect(ids({}, '2026-09-28')).toContain('ends-today');
+  });
+
+  it('respects the source, area and kind filters', () => {
+    expect(ids({ source: 'objectives_db' })).toEqual(['past', 'ended-yesterday']);
+    expect(ids({ source: 'task' })).toEqual(['ended-task']);
+    expect(ids({ areaKey: 'home' })).toEqual(['ended-task']);
+    expect(ids({ areaKey: NO_AREA })).toEqual(['past', 'ended-yesterday', 'ended-process']);
+    expect(ids({ kind: 'ritual' })).toEqual(['ended-process']);
+    expect(ids({ source: 'objectives_db', areaKey: 'home' })).toEqual([]);
+  });
+
+  it('cannot be widened past ended, whatever the filter carries', () => {
+    // A caller holding a queue filter passes it whole; `when` is not read.
+    const widened = { when: 'all', source: 'objectives_db' } as EndedFilter;
+    expect(ids(widened)).toEqual(['past', 'ended-yesterday']);
+    for (const item of endedSelection(ALL, widened, TODAY).candidates) {
+      expect(periodOf(item, TODAY)).toBe('ended');
+    }
+  });
+
+  it('counts exactly what the Ended filter shows, under every filter', () => {
+    const filters: EndedFilter[] = [
+      {},
+      { source: 'objectives_db' },
+      { source: 'task' },
+      { areaKey: NO_AREA },
+      { areaKey: 'home' },
+      { kind: 'key_result' },
+      { source: 'processes_db', areaKey: NO_AREA },
+    ];
+    for (const filter of filters) {
+      const selection = endedSelection(ALL, filter, TODAY);
+      const shown = queueView(ALL, { ...filter, when: 'ended' }, TODAY, PAGE);
+      expect(selection.candidates).toEqual(shown.items);
+      expect(selection.count).toBe(shown.facets.when.ended);
+      // And the same number the default view says it is hiding.
+      expect(selection.count).toBe(
+        queueView(ALL, { ...filter, when: 'open' }, TODAY, PAGE).facets.when.ended,
+      );
+    }
+  });
+
+  it('names the set with a digest that moves when the set does, and only then', () => {
+    const before = endedSelection(ALL, {}, TODAY);
+    expect(before.digest).toBe(endedDigest(before.candidates));
+    expect(before.digest).toMatch(/^[A-Za-z0-9_-]{43}$/);
+
+    // The same set in another order, or with other titles, is the same set.
+    expect(endedDigest([...before.candidates].reverse())).toBe(before.digest);
+    const retitled = ALL.map((item) => ({ ...item, title: `${item.title}, renamed` }));
+    expect(endedSelection(retitled, {}, TODAY).digest).toBe(before.digest);
+
+    // One more ended, one fewer, or the day turning over: another set.
+    const extra = candidate('another-ended', { startsOn: '2023-01-01', endsOn: '2023-12-31' });
+    expect(endedSelection([...ALL, extra], {}, TODAY).digest).not.toBe(before.digest);
+    expect(endedSelection(ALL.slice(1), {}, TODAY).digest).not.toBe(before.digest);
+    expect(endedSelection(ALL, {}, '2026-09-28').digest).not.toBe(before.digest);
+    // A different kind with the same identifier is a different object.
+    const asTask = { ...past, externalKind: 'task' };
+    expect(endedDigest([asTask])).not.toBe(endedDigest([past]));
+  });
+
+  it('is empty, with a digest of its own, when nothing has ended', () => {
+    const selection = endedSelection([current, upcoming, undated], {}, TODAY);
+    expect(selection.count).toBe(0);
+    expect(selection.digest).toBe(endedDigest([]));
   });
 });
 

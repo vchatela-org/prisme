@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
-import { calendarDate, entityId, instant, page, reviewCadence } from './common.js';
+import { areaKey, calendarDate, entityId, instant, page, reviewCadence } from './common.js';
 import { REVIEW_READ_ONLY } from './ownership.js';
 
 /**
@@ -158,6 +158,13 @@ export const adoptionQueuePageDto = page(adoptionQueueItemDto).extend({
     /** `key: null` counts the candidates outside every mapped area. */
     area: z.array(facetCount.extend({ key: z.string().nullable() })),
   }),
+  /**
+   * What `POST /adoption/ignore-ended` would ignore now: every ended candidate
+   * under this view's source, area and kind, whatever `when` is — so `count`
+   * is `facets.when.ended`. Send both back to it; they are what the screen
+   * showed, and the write is refused if the set has moved since.
+   */
+  ignoreEnded: z.object({ count: z.int().min(0), digest: z.string() }),
 });
 
 export const settingsDto = z.object({
@@ -371,4 +378,53 @@ export const ignoreCandidateBody = defineWrite(
     decidedBy: "always 'human' — nothing ignores an item on a person's behalf",
     decidedAt: 'stamped when the decision is recorded',
   },
+);
+
+/** The queue's source filter: a document-tool role key, or `project` / `task`. */
+const queueSource = z
+  .string()
+  .regex(/^[a-z_]{1,40}$/, 'a source is a role key or a task-tool kind');
+
+/**
+ * Ignore every ended candidate under the queue's filters, permanently.
+ *
+ * The body names **no candidate**. The server computes the set from the
+ * filters, with the queue's own *Ended* predicate, so no request can reach a
+ * candidate whose period has not ended. `expected` is what the caller was
+ * shown — `ignoreEnded` from `GET /adoption/queue` with the same filters — and
+ * the write is refused unless the set computed now is that one.
+ */
+export const ignoreEndedBody = defineWrite(
+  'IgnoreEnded',
+  z.strictObject({
+    source: queueSource.optional(),
+    /** An area key, or `_none` for the candidates outside every mapped area. */
+    areaKey: z.union([areaKey, z.literal('_none')]).optional(),
+    kind: z.enum(['initiative', 'project', 'key_result', 'ritual']).optional(),
+    expected: z.strictObject({
+      /** How many the screen said would be ignored. Never zero: there is nothing to confirm. */
+      count: z.int().min(1).max(100_000),
+      digest: z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'the digest the queue returned'),
+    }),
+  }),
+  {
+    when: "always 'ended' — this endpoint cannot ignore a candidate whose period has not ended",
+    candidates:
+      'computed from the filters by the server; a caller cannot name what to ignore in bulk — POST /adoption/ignore takes one candidate',
+    externalIds:
+      'computed from the filters by the server; a caller cannot name what to ignore in bulk — POST /adoption/ignore takes one candidate',
+    reason: 'written by the server: a bulk ignore of ended entries says so on every row',
+    decidedBy: "always 'human' — nothing ignores an item on a person's behalf",
+    decidedAt: 'stamped when the decision is recorded, once for the whole set',
+  },
+);
+
+/** What a bulk ignore did. Counts only — never a title. */
+export const IgnoreEndedDto = named(
+  'IgnoreEndedResult',
+  z.object({
+    ignored: z.int().min(0),
+    /** The day "ended" was judged on, in the instance's timezone. */
+    today: calendarDate,
+  }),
 );

@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { ApiFailureState } from '@/components/api-failure';
 import {
   candidateLink,
+  ignoreEndedConfirmation,
+  ignoreEndedOffer,
   NO_AREA,
   periodText,
   queueFilters,
@@ -25,7 +27,7 @@ import {
   type QueueWhen,
 } from '@/lib/contracts';
 import { webRuntime } from '@/lib/runtime';
-import { CandidateDecisions } from './adoption-actions';
+import { CandidateDecisions, IgnoreEndedButton } from './adoption-actions';
 import { RescanButton } from './rescan-button';
 
 export const metadata = {
@@ -60,11 +62,14 @@ export const metadata = {
  * deployment supplies a link template for its kind (`candidateLink`). A title
  * is often not enough to decide on; the page behind it usually is.
  *
- * **What has ended is hidden, not decided.** A Notion database with a date
+ * **What has ended is hidden, then ignored.** A Notion database with a date
  * column chosen on Settings → Notion dates its entries, and the default view
  * leaves out one whose period is over — an objective for a year long gone is
  * history rather than a question. The filter above the list shows how many,
- * and one click shows them; they stay decidable like any other row.
+ * and one click shows them. Hidden is not decided, though: a hidden row still
+ * keeps the queue from reaching zero, so the *Ended* view offers to ignore
+ * every row it shows, behind one confirmation that states the count and the
+ * filters (docs/13-migration.md §4).
  *
  * The filters live in the address, so a filtered queue can be reloaded and
  * linked, and each carries a count of the rows it would show.
@@ -108,6 +113,7 @@ export default async function AdoptionPage({
   const { items, total, facets } = queue.data;
   const narrowed = filters.source !== undefined || filters.areaKey !== undefined;
   const hiddenEnded = filters.when === 'open' ? facets.when.ended : 0;
+  const endedOffer = ignoreEndedOffer(filters, queue.data);
   const config = webRuntime().config;
   const links = {
     page: config.doctoolPageUrlTemplate,
@@ -143,6 +149,19 @@ export default async function AdoptionPage({
           </Link>
         </p>
       ) : null}
+
+      {endedOffer === undefined ? null : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-secondary">
+            Each of these has ended. Ignoring them — one by one, or all at once — is how they leave
+            the queue for good.
+          </p>
+          <IgnoreEndedButton
+            offer={endedOffer}
+            confirmation={ignoreEndedConfirmation(endedOffer, items.length, nameOf)}
+          />
+        </div>
+      )}
 
       {total === 0 ? (
         narrowed || filters.when !== 'open' ? (

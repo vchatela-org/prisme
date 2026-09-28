@@ -150,10 +150,19 @@ area's locations or choosing a date column.
 **Filters** sit above the list, each with a count of the rows it would show:
 
 - **Date** — *Not ended* by default. An entry dated in the past (by the date column chosen in
-  Settings → Notion) is hidden, not ignored: the line under the filters says how many, and
-  *Ended* shows them. *In progress*, *Upcoming* and *No date* narrow further.
+  Settings → Notion) is hidden: the line under the filters says how many, and *Ended* shows them.
+  *In progress*, *Upcoming* and *No date* narrow further.
 - **From** — which Notion database, or Todoist tasks and projects.
 - **Area** — one area, or everything outside every mapped area.
+
+**Close out what has ended.** Hidden is not decided — the rows are still waiting, and the queue
+only reaches zero once they are gone. Open *Ended*, narrow it with *From* and *Area* if you like,
+and press **Ignore all N ended**. One confirmation states the count and the filters; every ended
+entry those filters show is ignored, including any beyond the first page. Ignore one by one instead
+if a few deserve adopting. Like every ignore it is permanent: an entry you later revive by extending
+its date will not come back (it can still be adopted by its identifier). If the queue changed while
+you were reading — a *Rescan*, or a decision in another tab — nothing is ignored, and the page shows
+the new count to confirm.
 
 ---
 
