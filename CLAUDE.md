@@ -53,6 +53,7 @@ obvious-looking designs are wrong.
 | **Level-triggered reconciliation** | Compare full desired vs actual. Never build an event handler that assumes it saw every event. |
 | **`plan` before `apply`** | Every write path has a dry run that returns a diff. |
 | **Adopt ≠ create** | Adopting existing work must never create a new page or task. See [`docs/13-migration.md`](docs/13-migration.md). |
+| **Only what is under way counts** | Work not yet started (a later period or `earliest_start`, a draft) or stopped (a paused or closed project) takes no slot, no rank, no count and no KPI. Read the predicate for its form in `packages/domain`; never re-derive it. See [ADR-0035](docs/20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md). |
 
 ## 3. Layout
 

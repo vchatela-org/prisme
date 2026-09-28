@@ -179,6 +179,11 @@ Scoring ranks; selection decides. They are separate steps on purpose.
    whose priority prisme has never written keeps the priority it was given by hand — prisme has
    made no ranking decision about it yet. From `next` on, or once prisme has written it, the rule
    applies.
+5. **Only work under way is a candidate**
+   ([ADR-0035](20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md)). An
+   initiative whose `earliest_start` is after today, or whose project is paused, done or dropped,
+   is neither selected nor queued, and it is not ranked, although it is still scored. The reasons
+   are `not_started` and `project_inactive`. Work already `now` keeps its slot under rule 1.
 
 The per-area cap is what keeps one busy area from occupying every slot — the same reasoning as the
 balance factor, applied to selection instead of ranking.

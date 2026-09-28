@@ -2,6 +2,8 @@ import {
   CAPACITY_WINDOW_DEFAULTS,
   computeCapacity,
   computeScores,
+  notUnderWay,
+  parseCalendarDate,
   rank,
   resolveWeights,
   selectNowSet,
@@ -11,15 +13,18 @@ import {
   type AreaCapacity,
   type AreaWeight,
   type Initiative,
+  type ProjectStatus,
   type RankedInitiative,
   type Registry,
   type ScoredInitiative,
   type ScoringMethod,
   type Selection,
   type SelectionLimits,
+  type UnderWayContext,
   type Year,
 } from '@prisme/domain';
 import type { ApiStore, AreaRecord, InitiativeRecord, RollupRecord } from '../store/types.js';
+import { calendarDayIn } from './adoption-queue.js';
 import { toDomainArea, toDomainInitiative } from './convert.js';
 
 /**
@@ -51,10 +56,29 @@ import { toDomainArea, toDomainInitiative } from './convert.js';
  * first time one is changed. Filtering happens in the database, ranking and
  * paging happen here, over a set that is a few thousand rows at the very
  * outside for one person's planning history.
+ *
+ * ### Only what is under way is ranked (ADR-0035)
+ *
+ * Every open initiative is scored, because a score describes the initiative.
+ * But one that may not start before a later day, or whose project is not
+ * active, is not part of today's prioritization: selection neither offers it a
+ * slot nor queues it, and it gets **no rank**. The positions of the rest stay
+ * contiguous and in the order the method produced, so the Backlog still reads
+ * the ordering that chose the week. Work already `now` keeps its rank, as it
+ * keeps its slot.
  */
+
+/**
+ * Every project, read in one page to learn which are active. One person's
+ * projects are a few dozen; a ceiling this far above that is a guard, not a
+ * paging decision.
+ */
+const PROJECT_READ_LIMIT = 1000;
 
 export interface RankingOptions {
   readonly now: Date;
+  /** The instance's IANA timezone, which decides what day `now` is. */
+  readonly timezone: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
   readonly limits: SelectionLimits;
@@ -77,7 +101,12 @@ export interface Ranking {
   readonly scored: readonly ScoredInitiative[];
   readonly ranked: readonly RankedInitiative[];
   readonly selection: Selection;
-  /** Position in the active ordering, 1-based. Only ranked work appears. */
+  /** Today, and each project's status: what decides whether work is under way. */
+  readonly underWay: UnderWayContext;
+  /**
+   * Position in the active ordering, 1-based. Only ranked work appears, and
+   * work not under way is not ranked.
+   */
   readonly rankById: ReadonlyMap<string, number>;
   readonly scoreById: ReadonlyMap<string, ScoredInitiative>;
 }
@@ -87,12 +116,14 @@ export async function buildRanking(
   registry: Registry,
   options: RankingOptions,
 ): Promise<Ranking> {
-  const [areaRecords, weightRecords, initiativeRecords, rollupRecords] = await Promise.all([
-    store.areas.list(),
-    store.areas.weights(),
-    store.initiatives.list({}),
-    store.initiatives.rollups(),
-  ]);
+  const [areaRecords, weightRecords, initiativeRecords, rollupRecords, projectRecords] =
+    await Promise.all([
+      store.areas.list(),
+      store.areas.weights(),
+      store.initiatives.list({}),
+      store.initiatives.rollups(),
+      store.projects.list(undefined, { limit: PROJECT_READ_LIMIT, offset: 0 }),
+    ]);
 
   const areas = areaRecords.map(toDomainArea);
   const weights: AreaWeight[] = weightRecords.map((record) => ({
@@ -129,14 +160,22 @@ export async function buildRanking(
   const method = registry.activeMethod();
   const scored = computeScores(initiatives, contexts, method, method.defaultParams, options.now);
   const ranked = rank(scored, initiatives);
-  const selection = selectNowSet(ranked, areas, options.limits);
+  const underWay: UnderWayContext = {
+    today: parseCalendarDate(calendarDayIn(options.timezone, options.now)),
+    projectStatusById: new Map(
+      projectRecords.items.map((record) => [record.id, record.status as ProjectStatus]),
+    ),
+  };
+  const selection = selectNowSet(ranked, areas, options.limits, underWay);
 
+  const scoreById = new Map<string, ScoredInitiative>(
+    scored.map((entry) => [entry.initiativeId, entry]),
+  );
   const rankById = new Map<string, number>();
-  const scoreById = new Map<string, ScoredInitiative>();
-  scored.forEach((entry, index) => {
-    rankById.set(entry.initiativeId, index + 1);
-    scoreById.set(entry.initiativeId, entry);
-  });
+  for (const { initiative } of ranked) {
+    if (initiative.status !== 'now' && notUnderWay(initiative, underWay) !== undefined) continue;
+    rankById.set(initiative.id, rankById.size + 1);
+  }
 
   const weightYear = yearOfInstant(options.now);
 
@@ -156,6 +195,7 @@ export async function buildRanking(
     scored,
     ranked,
     selection,
+    underWay,
     rankById,
     scoreById,
   };

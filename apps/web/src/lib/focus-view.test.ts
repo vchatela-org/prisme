@@ -136,6 +136,8 @@ describe('reasonSentence', () => {
       'blocked',
       'too_large',
       'not_a_candidate',
+      'not_started',
+      'project_inactive',
     ] as const;
 
     for (const reason of reasons) {

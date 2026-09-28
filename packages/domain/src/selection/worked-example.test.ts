@@ -115,7 +115,11 @@ const contexts: readonly AreaScoringContext[] = areaFixture.areaContext2026W37.a
   }));
 
 const scored = computeScores(initiatives, contexts, wsjfBalanced, WSJF_BALANCED_DEFAULTS, NOW);
-const selection = selectNowSet(rank(scored, initiatives), areas, CANDIDATE_SELECTION_LIMITS);
+// Nothing in the example waits for a later day or sits in a stopped project.
+const selection = selectNowSet(rank(scored, initiatives), areas, CANDIDATE_SELECTION_LIMITS, {
+  today: parseCalendarDate(initiativeFixture.asOf),
+  projectStatusById: new Map(),
+});
 
 /** The table in docs/12-scoring.md §6, transcribed. */
 const EXPECTED = [

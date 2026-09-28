@@ -372,6 +372,65 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(blocked?.reason).toBe('blocked');
     });
 
+    it('neither offers, queues nor ranks work not under way (ADR-0035)', async () => {
+      interface FocusBody {
+        now: { initiative: { id: string } }[];
+        upNext: { initiative: { id: string } }[];
+      }
+      interface BacklogBody {
+        items: { initiative: { id: string }; rank: number | null; notUnderWay: string | null }[];
+      }
+
+      const before = (await api().request('GET', url('/focus'))).body as FocusBody;
+      const [later, stopped] = before.upNext.map((entry) => entry.initiative.id);
+      expect(later).toBeDefined();
+      expect(stopped).toBeDefined();
+
+      // One may not start before next year; the other belongs to a paused project.
+      await database.client`
+        update initiative set earliest_start = '2027-01-04' where id = ${later as string}::uuid`;
+      const [project] = await database.client<{ id: string }[]>`
+        insert into project (name, area_key, status, origin)
+        select 'An invented effort on hold', area_key, 'paused', 'created_in_prisme'
+        from initiative where id = ${stopped as string}::uuid
+        returning id::text`;
+      await database.client`
+        update initiative set project_id = ${project?.id as string}::uuid
+        where id = ${stopped as string}::uuid`;
+
+      const focus = (await api().request('GET', url('/focus'))).body as FocusBody;
+      const offered = [...focus.now, ...focus.upNext].map((entry) => entry.initiative.id);
+      expect(offered).not.toContain(later);
+      expect(offered).not.toContain(stopped);
+
+      const backlog = (await api().request('GET', url('/backlog?limit=100'))).body as BacklogBody;
+      const row = (id: string | undefined) =>
+        backlog.items.find((entry) => entry.initiative.id === id);
+      expect(row(later)).toMatchObject({ rank: null, notUnderWay: 'not_started' });
+      expect(row(stopped)).toMatchObject({ rank: null, notUnderWay: 'project_inactive' });
+
+      // The rest keep a contiguous ranking, in the order the method produced.
+      const ranks = backlog.items
+        .map((entry) => entry.rank)
+        .filter((rank): rank is number => rank !== null);
+      expect(ranks).toEqual(ranks.map((_, index) => index + 1));
+      expect(
+        backlog.items.every((entry) => entry.notUnderWay === null || entry.rank === null),
+      ).toBe(true);
+
+      // From its earliest start on, it is part of the question again.
+      const thatDay = createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        now: new Date('2027-01-04T09:00:00Z'),
+      });
+      const then = (await thatDay.request('GET', url('/backlog?limit=100'))).body as BacklogBody;
+      expect(then.items.find((entry) => entry.initiative.id === later)).toMatchObject({
+        notUnderWay: null,
+      });
+      expect(then.items.find((entry) => entry.initiative.id === later)?.rank).not.toBeNull();
+    });
+
     it('flags a deadline the schedule cannot meet, and never moves it', async () => {
       const { body } = await api().request('GET', url('/focus'));
       const focus = body as {
@@ -880,6 +939,40 @@ describeOrSkip('the API against PostgreSQL', () => {
 
       const minutes = body.minutes.find((series) => series.areaKey === 'health');
       expect(minutes?.points.find((point) => point.periodStart === week)?.value).toBe(90);
+    });
+
+    it('reports attainment only for objectives under way in the window (ADR-0035)', async () => {
+      const app = api();
+      // Beside the fixture's 2026 objectives: one for next year, and a draft
+      // for this one that nobody committed to.
+      await database.client`
+        insert into objective (title, type, period, area_key, status)
+        values ('An invented goal for next year', 'annual', '2027', 'health', 'active'),
+               ('An invented goal never started', 'annual', '2026', 'health', 'draft')`;
+
+      const attained = async (from: string, to: string) =>
+        (
+          (await app.request('GET', url(`/kpi?from=${from}&to=${to}&bucket=month`))).body as {
+            objectiveAttainment: { title: string; period: string }[];
+          }
+        ).objectiveAttainment;
+
+      const thisYear = await attained('2026-01-01', '2026-12-31');
+      expect(thisYear.map((row) => row.period).sort()).toEqual([
+        '2026',
+        '2026',
+        '2026',
+        '2026',
+        '2026-09',
+      ]);
+      expect(thisYear.map((row) => row.title)).not.toContain('An invented goal never started');
+
+      // A window that ends before September leaves out September's objective.
+      const firstHalf = await attained('2026-01-01', '2026-06-30');
+      expect(firstHalf.map((row) => row.period)).not.toContain('2026-09');
+
+      const nextYear = await attained('2027-01-01', '2027-12-31');
+      expect(nextYear.map((row) => row.title)).toEqual(['An invented goal for next year']);
     });
 
     it('reports the anchor subtree when the range has no materialised weeks', async () => {

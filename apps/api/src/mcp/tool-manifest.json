@@ -142,7 +142,9 @@
                   "wip_full",
                   "blocked",
                   "too_large",
-                  "not_a_candidate"
+                  "not_a_candidate",
+                  "not_started",
+                  "project_inactive"
                 ]
               },
               "daysUntilDeadline": {
@@ -263,7 +265,9 @@
                   "wip_full",
                   "blocked",
                   "too_large",
-                  "not_a_candidate"
+                  "not_a_candidate",
+                  "not_started",
+                  "project_inactive"
                 ]
               },
               "daysUntilDeadline": {

@@ -171,7 +171,11 @@ export default async function YearReviewPage() {
   const measured = kpi.ok ? measuredBuckets(kpi.data.minutes) : 0;
   const estimated = estimatedMinutesPct(closing.data.areas);
 
-  const attainment = kpi.ok ? kpi.data.objectiveAttainment : [];
+  // The KPI window runs three years back for the charts; attainment is the
+  // year under review's objectives alone, which is what the table says it is.
+  const attainment = (kpi.ok ? kpi.data.objectiveAttainment : []).filter(
+    (objective) => objective.period.slice(0, 4) === String(target.reviewing),
+  );
 
   return (
     <div className="flex flex-col gap-8">

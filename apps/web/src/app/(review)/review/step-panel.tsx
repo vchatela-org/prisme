@@ -716,14 +716,15 @@ async function OrphansPanel() {
   );
   const orphanedObjectives = orphanObjectives(active);
   const served = servedInitiativeIds(objectives.data.items);
-  const candidates: readonly OrphanInitiative[] = (inFlight.ok ? inFlight.data.items : []).map(
-    (entry) => ({
+  // Work not under way yet takes none of the period, so it is owed no objective yet.
+  const candidates: readonly OrphanInitiative[] = (inFlight.ok ? inFlight.data.items : [])
+    .filter((entry) => entry.notUnderWay === null)
+    .map((entry) => ({
       id: entry.initiative.id,
       title: entry.initiative.title,
       areaKey: entry.initiative.areaKey,
       status: entry.initiative.status,
-    }),
-  );
+    }));
   const orphanedWork = orphanInitiatives(candidates, served);
 
   return (

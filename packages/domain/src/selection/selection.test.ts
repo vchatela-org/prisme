@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Area } from '../entities/area.js';
+import { parseCalendarDate } from '../entities/calendar.js';
 import type { Initiative, InitiativeStatus } from '../entities/initiative.js';
+import type { ProjectStatus } from '../entities/project.js';
 import { computeScores } from '../scoring/compute.js';
 import { wsjfBalanced, WSJF_BALANCED_DEFAULTS } from '../scoring/wsjf-balanced.js';
 import { anArea, anAreaContext, anInitiative, TEST_NOW } from '../test-support/builders.js';
-import { CANDIDATE_SELECTION_LIMITS, rank, selectNowSet, type SelectionLimits } from './index.js';
+import {
+  CANDIDATE_SELECTION_LIMITS,
+  notUnderWay,
+  rank,
+  selectNowSet,
+  type SelectionLimits,
+  type UnderWayContext,
+} from './index.js';
 
 /**
  * The selection rules in isolation (docs/12-scoring.md §5). The worked example
@@ -27,8 +36,18 @@ const CONTEXTS = [
   anAreaContext({ key: 'upkeep' }),
 ];
 
+/** The day of `TEST_NOW`, with no project known: everything is under way. */
+const UNDER_WAY: UnderWayContext = {
+  today: parseCalendarDate('2026-09-15'),
+  projectStatusById: new Map(),
+};
+
 /** Score descending is the input order; `value` is the knob that sets it. */
-function select(initiatives: readonly Initiative[], limits: SelectionLimits) {
+function select(
+  initiatives: readonly Initiative[],
+  limits: SelectionLimits,
+  underWay: UnderWayContext = UNDER_WAY,
+) {
   const scored = computeScores(
     initiatives,
     CONTEXTS,
@@ -36,7 +55,7 @@ function select(initiatives: readonly Initiative[], limits: SelectionLimits) {
     WSJF_BALANCED_DEFAULTS,
     TEST_NOW,
   );
-  return selectNowSet(rank(scored, initiatives), AREAS, limits);
+  return selectNowSet(rank(scored, initiatives), AREAS, limits, underWay);
 }
 
 function candidate(
@@ -185,7 +204,84 @@ describe('limits are configuration, and validated', () => {
     ['maxNow', { maxNow: 2.5, maxNowPerArea: 1 }],
     ['maxNowPerArea', { maxNow: 5, maxNowPerArea: -1 }],
   ])('refuses a nonsensical %s', (_field, limits) => {
-    expect(() => selectNowSet([], AREAS, limits)).toThrow(/whole number of slots/);
+    expect(() => selectNowSet([], AREAS, limits, UNDER_WAY)).toThrow(/whole number of slots/);
+  });
+});
+
+describe('only work under way is selected (ADR-0035)', () => {
+  const projects = (entries: readonly (readonly [string, ProjectStatus])[]): UnderWayContext => ({
+    ...UNDER_WAY,
+    projectStatusById: new Map(entries),
+  });
+
+  it('neither selects nor queues work that may not start before a later day', () => {
+    const selection = select(
+      [
+        candidate('later-on', { value: 13, earliestStart: parseCalendarDate('2027-01-04') }),
+        candidate('today', { areaKey: 'beta', value: 1 }),
+      ],
+      CANDIDATE_SELECTION_LIMITS,
+    );
+
+    expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['today']);
+    expect(selection.next).toEqual([]);
+    expect(selection.untouched).toMatchObject([
+      { initiativeId: 'later-on', proposedStatus: 'unchanged', reason: 'not_started' },
+    ]);
+    expect(selection.priorities.get('later-on')).toBe('lowest');
+  });
+
+  it('is a candidate again from its earliest start on', () => {
+    const selection = select(
+      [candidate('from-today', { earliestStart: parseCalendarDate('2026-09-15') })],
+      CANDIDATE_SELECTION_LIMITS,
+    );
+    expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['from-today']);
+  });
+
+  it('leaves out the work of a project that is paused, done or dropped', () => {
+    const selection = select(
+      [
+        candidate('paused', { value: 13, projectId: 'p-paused' }),
+        candidate('done', { areaKey: 'beta', value: 13, projectId: 'p-done', status: 'later' }),
+        candidate('running', { areaKey: 'gamma', projectId: 'p-active' }),
+      ],
+      CANDIDATE_SELECTION_LIMITS,
+      projects([
+        ['p-paused', 'paused'],
+        ['p-done', 'done'],
+        ['p-active', 'active'],
+      ]),
+    );
+
+    expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['running']);
+    expect(selection.untouched.map((slot) => [slot.initiativeId, slot.reason]).sort()).toEqual([
+      ['done', 'project_inactive'],
+      ['paused', 'project_inactive'],
+    ]);
+  });
+
+  it('keeps work in flight in its slot: a person put it there', () => {
+    const selection = select(
+      [candidate('flight', { status: 'now', earliestStart: parseCalendarDate('2027-01-04') })],
+      CANDIDATE_SELECTION_LIMITS,
+    );
+    expect(selection.now).toMatchObject([{ initiativeId: 'flight', reason: 'in_flight' }]);
+  });
+
+  it('says why, and counts a project it does not know as active', () => {
+    const context = projects([['p-paused', 'paused']]);
+    expect(notUnderWay(candidate('x', { projectId: 'p-unknown' }), context)).toBeUndefined();
+    expect(notUnderWay(candidate('x'), context)).toBeUndefined();
+    expect(notUnderWay(candidate('x', { projectId: 'p-paused' }), context)).toBe(
+      'project_inactive',
+    );
+    expect(
+      notUnderWay(
+        candidate('x', { projectId: 'p-paused', earliestStart: parseCalendarDate('2027-01-04') }),
+        context,
+      ),
+    ).toBe('not_started');
   });
 });
 

@@ -115,6 +115,7 @@ export function createServices(options: CreateServicesOptions): Services {
   });
 
   const work = createWorkService(store, registry, {
+    timezone: config.timezone,
     capacityWindowWeeks: config.capacityWindowWeeks,
     defaultTaskMinutes: config.defaultTaskMinutes,
     limits: config.limits,

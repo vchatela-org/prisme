@@ -5,12 +5,14 @@ import {
   computeCapacityFrom,
   computeProgress,
   countCompletions,
+  objectiveCountsIn,
   parseCalendarDate,
   resolveWeights,
   type AreaObservation,
   type DurationSource,
   type AreaWeight,
   type CalendarDate,
+  type ObjectiveStatus,
   type Year,
 } from '@prisme/domain';
 import type { areaCompletionsDto, balanceDto } from '../dto/area.js';
@@ -513,9 +515,21 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
         to,
       );
 
-      const keyResults = await store.okr.keyResults(
-        objectives.items.map((objective) => objective.id),
+      // Only what was under way in the window is measured in it (ADR-0035): an
+      // objective whose period does not overlap it — next year's above all — and
+      // a draft, which never started, have no attainment to report here.
+      const measured = objectives.items.filter((objective) =>
+        objectiveCountsIn(
+          {
+            type: objective.type,
+            period: objective.period,
+            status: objective.status as ObjectiveStatus,
+          },
+          from,
+          to,
+        ),
       );
+      const keyResults = await store.okr.keyResults(measured.map((objective) => objective.id));
 
       return {
         from,
@@ -554,7 +568,7 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
             points: points(values),
           };
         }),
-        objectiveAttainment: objectives.items.map((objective) => {
+        objectiveAttainment: measured.map((objective) => {
           const own = keyResults.filter((keyResult) => keyResult.objectiveId === objective.id);
           const computed = own
             .map((keyResult) => computeProgress(keyResult.taskDone, keyResult.taskTotal))

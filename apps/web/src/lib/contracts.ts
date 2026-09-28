@@ -116,6 +116,14 @@ export const initiativeSchema = z.object({
 
 export type Initiative = z.infer<typeof initiativeSchema>;
 
+/**
+ * Why an initiative is not under way yet, and so neither selected, queued nor
+ * ranked (ADR-0035).
+ */
+export const notUnderWayReason = z.enum(['not_started', 'project_inactive']);
+
+export type NotUnderWayReason = z.infer<typeof notUnderWayReason>;
+
 /** Why an initiative sits where it does. Straight from `selectNowSet`. */
 export const selectionReason = z.enum([
   'in_flight',
@@ -125,6 +133,7 @@ export const selectionReason = z.enum([
   'blocked',
   'too_large',
   'not_a_candidate',
+  ...notUnderWayReason.options,
 ]);
 
 export type SelectionReason = z.infer<typeof selectionReason>;
@@ -197,6 +206,8 @@ export const backlogEntrySchema = z.object({
   initiative: initiativeSchema,
   score: z.number().nullable(),
   rank: z.number().int().nullable(),
+  /** Why a scored initiative has no rank: it is not under way yet. */
+  notUnderWay: notUnderWayReason.nullable(),
 });
 
 export type BacklogEntry = z.infer<typeof backlogEntrySchema>;

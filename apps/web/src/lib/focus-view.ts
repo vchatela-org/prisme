@@ -140,6 +140,10 @@ export function reasonSentence(reason: SelectionReason): string {
       return 'Too large to start as it stands — split it into something finishable.';
     case 'not_a_candidate':
       return 'Not a candidate for now: its status puts it outside the selection.';
+    case 'not_started':
+      return 'Not under way yet: it may not start before a later day, so it waits outside the selection.';
+    case 'project_inactive':
+      return 'Not under way: its project is paused, done or dropped, so it waits outside the selection.';
   }
 }
 

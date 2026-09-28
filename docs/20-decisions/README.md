@@ -47,6 +47,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0032](0032-completed-task-titles-are-recorded.md) | A completed task's title is recorded, read-only, so the capacity figures can be taken apart | **Accepted** 2026-09-27 — amends the Content row of [`11-ownership.md`](../11-ownership.md) §5 |
 | [0033](0033-a-store-area-column-names-an-entry-area.md) | Read a document-tool entry's area from its store's area column, by the area's own page | **Accepted** 2026-09-27 — decided by the owner; adds rows to [`11-ownership.md`](../11-ownership.md) §2, §6, §7 and §8 · amended 2026-09-28: a takeaway is promoted, never adopted; an objectives page is adopted as an objective, and as a draft while its period has not started |
 | [0034](0034-an-open-objective-moves-and-its-page-follows.md) | Move an open objective's period in prisme, and write it to its page's date column | **Accepted** 2026-09-28 — decided by the owner; adds a row to [`11-ownership.md`](../11-ownership.md) §6 and the edit capability to [`14-threat-model.md`](../14-threat-model.md) §5 |
+| [0035](0035-only-what-is-under-way-is-prioritized-or-measured.md) | Only what is under way is prioritized or measured | **Accepted** 2026-09-28 — decided by the owner; adds a rule to [`12-scoring.md`](../12-scoring.md) §5 and a principle to `CLAUDE.md` |
 
 **34 records: 33 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
