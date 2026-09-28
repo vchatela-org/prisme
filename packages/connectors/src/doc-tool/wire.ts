@@ -107,6 +107,25 @@ export const wirePageSchema = z.object({
   properties: z.record(z.string(), z.unknown()),
 });
 
+/**
+ * A page read by the edit path, which must know **where it lives** before it
+ * changes anything (ADR-0034).
+ *
+ * The one place `parent` is read. An entry of a data source names it as
+ * `data_source_id` under the pinned version; any other parent — a page, a
+ * workspace, a database under an older version — is not an entry of a store,
+ * and the edit refuses it. Loose, because the parent object also carries the
+ * database's identifier and may grow, and neither is read.
+ */
+export const wireEntrySchema = wirePageSchema.extend({
+  parent: z
+    .object({
+      type: z.string().min(1),
+      data_source_id: z.string().min(1).optional(),
+    })
+    .loose(),
+});
+
 export const wireQueryResponseSchema = z.object({
   object: z.literal('list'),
   results: z.array(z.unknown()),

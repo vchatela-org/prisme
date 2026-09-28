@@ -6,9 +6,16 @@ import { createRefusingTransport, type Transport } from '../http/transport.js';
 import { contentHash } from '../hash.js';
 import type { ConnectorMetrics } from '../metrics.js';
 import { parseOrThrow } from '../parse.js';
-import { assertCreatable, assertReadable, type RoleBindings, type RoleKey } from '../role-key.js';
+import {
+  assertCreatable,
+  assertEditable,
+  assertReadable,
+  type RoleBindings,
+  type RoleKey,
+} from '../role-key.js';
 import type { StoreShape } from '../role-key.js';
 import { sanitisePlainText } from '../sanitise.js';
+import { docIdKey } from './ids.js';
 import { mapBlock, mapPage, mapPageContent } from './map.js';
 import type {
   CreatePageInput,
@@ -18,13 +25,16 @@ import type {
   DocStoreDescription,
   DocTemplate,
   DocToolClient,
+  SetEntryDateInput,
 } from './types.js';
 import {
   wireBlockListSchema,
   wireDatabaseSchema,
   wireDataSourceSchema,
   wireDataSourcePropertiesSchema,
+  wireEntrySchema,
   wirePageSchema,
+  wirePropertyEnvelopeSchema,
   wireQueryResponseSchema,
   wireTemplateListSchema,
   type WirePage,
@@ -142,7 +152,7 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
   });
 
   const send = async (
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     operation: string,
     body?: unknown,
@@ -673,6 +683,78 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
 
     fetchPage(id: string): Promise<DocPage> {
       return readPageById(id, 'fetch page');
+    },
+
+    /**
+     * One date property of one existing entry (ADR-0034).
+     *
+     * **The entry is read before it is written**, and the write is refused —
+     * with nothing sent — unless three things hold, each of which a caller's
+     * bug could otherwise get past:
+     *
+     *   - **it is the role's entry**: its parent is the data source the role is
+     *     bound to, compared in `docIdKey`'s form. A page id from anywhere else
+     *     — another store, a page the integration happens to see — is refused,
+     *     so the edit capability is a store's and not every shared page's;
+     *   - **it is live**: an entry in the trash is not edited back to life;
+     *   - **the property is a date**: a column renamed or retyped since the
+     *     store was last checked is refused, not written as whatever it is now.
+     *
+     * The property is addressed by its **id** from the entry, which survives a
+     * rename between the read and the write; its name is never logged and never
+     * put in an error. Only `start` and `end` are sent — no time, no time zone,
+     * no other property — and the body of the page is not touched.
+     *
+     * Idempotent by construction: setting a date to a value is the same request
+     * however many times it is made, so a retry after a timeout is safe without
+     * a key the tool does not have.
+     */
+    async setEntryDate(input: SetEntryDateInput): Promise<void> {
+      const operation = `set entry date ${input.role}`;
+      assertEditable(input.role, operation);
+      const dataSourceId = options.bindings.resolve(input.role);
+      const path = `/v1/pages/${encodeURIComponent(input.pageId)}`;
+
+      const entry = parseOrThrow(wireEntrySchema, await send('GET', path, operation), {
+        tool: 'doc',
+        operation,
+        shape: 'page',
+      });
+
+      const parentId = entry.parent.data_source_id;
+      if (
+        entry.parent.type !== 'data_source_id' ||
+        parentId === undefined ||
+        docIdKey(parentId) !== docIdKey(dataSourceId)
+      ) {
+        throw new ConnectorError(
+          'refused',
+          `the page is not an entry of the ${input.role} store; nothing was written`,
+          { tool: 'doc', operation },
+        );
+      }
+      if (mapPageContent(entry, operation).archived) {
+        throw new ConnectorError('refused', 'the entry is in the trash; nothing was written', {
+          tool: 'doc',
+          operation,
+        });
+      }
+
+      const envelope = wirePropertyEnvelopeSchema.safeParse(entry.properties[input.property]);
+      if (!envelope.success || envelope.data.type !== 'date') {
+        throw new ConnectorError(
+          'refused',
+          `the entry holds no date property by the chosen name — check the ${input.role} store again on Settings → Notion; nothing was written`,
+          { tool: 'doc', operation },
+        );
+      }
+
+      const body = await send('PATCH', path, operation, {
+        properties: {
+          [envelope.data.id ?? input.property]: { date: { start: input.start, end: input.end } },
+        },
+      });
+      parseOrThrow(wirePageSchema, body, { tool: 'doc', operation, shape: 'page' });
     },
   };
 }

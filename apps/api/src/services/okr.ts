@@ -1,3 +1,5 @@
+import { isObjectiveOpen, periodMatchesType, type ObjectiveStatus } from '@prisme/domain';
+import type { Identity } from '../http/authorize.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { ApiStore, PageRequest } from '../store/types.js';
 import {
@@ -48,7 +50,11 @@ export interface ObjectiveService {
       title?: string | undefined;
       status?: string | undefined;
       externalPageId?: string | null | undefined;
+      type?: 'annual' | 'monthly' | undefined;
+      period?: string | undefined;
     },
+    identity: Identity,
+    now: Date,
   ): Promise<ObjectiveDtoShape>;
 
   createKeyResult(
@@ -120,9 +126,60 @@ export function createObjectiveService(store: ApiStore): ObjectiveService {
       return toObjectiveDto(created, []);
     },
 
-    async update(id, input): Promise<ObjectiveDtoShape> {
+    /**
+     * Title, status, page link — and, for an open objective, its period
+     * (ADR-0034).
+     *
+     * A period moves only while the objective is **open**, judged by its status
+     * before this request: a met, missed or dropped objective was judged
+     * against its period, and moving it afterwards would rewrite that judgement
+     * rather than correct a plan. The pair is checked as it will be — a
+     * monthly objective moved a month sends only `period` — and each move is
+     * written to the event log, so the objective's history keeps where it was.
+     * The page's date column is not written here: the next sync pass does it,
+     * level-triggered, like every other outward write.
+     */
+    async update(id, input, identity, now): Promise<ObjectiveDtoShape> {
+      const moving = input.type !== undefined || input.period !== undefined;
+      const before = moving ? await store.okr.getObjective(id) : undefined;
+
+      if (moving) {
+        if (before === undefined) throw notFound('objective', id);
+        const type = input.type ?? before.type;
+        const period = input.period ?? before.period;
+        if (!isObjectiveOpen(before.status as ObjectiveStatus)) {
+          throw new ApiError(
+            'conflict',
+            `a ${before.status} objective keeps the period it was judged against; only a draft or active one can move`,
+          );
+        }
+        if (!periodMatchesType(type, period)) {
+          throw new ApiError(
+            'unprocessable',
+            'an annual objective takes a YYYY period and a monthly one takes YYYY-MM',
+          );
+        }
+      }
+
       const updated = await store.okr.updateObjective(id, input);
       if (updated === undefined) throw notFound('objective', id);
+
+      if (
+        before !== undefined &&
+        (updated.type !== before.type || updated.period !== before.period)
+      ) {
+        await store.ops.appendEvent({
+          kind: 'period_changed',
+          entityKind: 'objective',
+          entityId: id,
+          field: 'period',
+          before: { type: before.type, period: before.period },
+          after: { type: updated.type, period: updated.period },
+          actor: identity.kind,
+          occurredAt: now,
+        });
+      }
+
       return objectiveOrThrow(id);
     },
 

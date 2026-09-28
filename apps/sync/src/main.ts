@@ -46,16 +46,20 @@ import {
 import {
   auditCreationWriter,
   auditDocumentCreationWriter,
+  auditDocumentEntryWriter,
   auditTaskToolWriter,
   createDocToolCreationWriter,
+  createDocToolEntryWriter,
   createFrozenCreationWriter,
   createFrozenDocumentCreationWriter,
+  createFrozenDocumentEntryWriter,
   createFrozenWriter,
   createTaskToolCreationWriter,
   createTaskToolWriter,
   type AuditOptions,
   type CreationWriter,
   type DocumentCreationWriter,
+  type DocumentEntryWriter,
 } from '@prisme/connectors/write';
 import type { WriteAuditOrigin } from '@prisme/domain';
 import { loadConfigOrExit } from '@prisme/config';
@@ -73,6 +77,8 @@ import { createMode, DEFAULT_MAX_PER_PASS } from './create/cli.js';
 import { readPageStores } from './create/page-stores.js';
 import { converge } from './create/run.js';
 import { createCreationStore } from './create/store.js';
+import { reconcileObjectivePages, type ObjectivePagesResult } from './objective-pages/run.js';
+import { createObjectivePageStore } from './objective-pages/store.js';
 import { createPostgresStore } from './state/postgres.js';
 import { reconcile } from './run.js';
 import { shouldRunNow } from './window.js';
@@ -189,6 +195,22 @@ function documentCreationWriter(
         metrics,
       }),
     }),
+    audit,
+  );
+}
+
+/**
+ * The document tool's editing port (ADR-0034), frozen unless writes are
+ * enabled and audited either way — the same construction as the two above.
+ */
+function documentEntryWriter(
+  client: ReturnType<typeof createDocToolClient>,
+  audit: AuditOptions,
+): DocumentEntryWriter {
+  return auditDocumentEntryWriter(
+    config.sync.writeEnabled
+      ? createDocToolEntryWriter({ client })
+      : createFrozenDocumentEntryWriter(),
     audit,
   );
 }
@@ -568,6 +590,40 @@ async function main(): Promise<number> {
       });
 
       /*
+       * The objectives' pages, after the task tool (ADR-0034): each linked
+       * page's date column is set to its objective's period. Same lock, same
+       * mode — `plan` prints it and writes nothing, `apply` performs it — and
+       * every pass rather than the daily one, so a period changed in prisme
+       * reaches the page within fifteen minutes.
+       *
+       * A failure to *read* does not fail the pass: the anchors are done, and
+       * a document tool that is down is logged rather than paged. A write that
+       * was attempted and failed does fail it, below — something was sent to a
+       * real workspace and did not work.
+       */
+      let objectivePages: ObjectivePagesResult | undefined;
+      try {
+        const docClient = createDocToolClient({
+          token: config.doctoolApiToken as string,
+          baseUrl: config.doctoolBaseUrl,
+          bindings: await readBindings(database.client),
+          transport,
+          metrics: connectorMetrics,
+        });
+        objectivePages = await reconcileObjectivePages({
+          mode,
+          store: createObjectivePageStore(database.client),
+          docClient,
+          writer: documentEntryWriter(docClient, auditFor('reconciler')),
+          writeEnabled: config.sync.writeEnabled,
+          runId: currentRunContext()?.runId ?? 'run',
+          now: () => new Date(),
+        });
+      } catch (error: unknown) {
+        logger.error('objective pages could not be read', { error });
+      }
+
+      /*
        * The bounded capacity refresh — the last step of a **full** pass, and
        * the reason the balance view stops going stale.
        *
@@ -675,7 +731,7 @@ async function main(): Promise<number> {
         }
       }
 
-      return result;
+      return { result, objectivePages };
     });
 
     if (!outcome.acquired) {
@@ -683,14 +739,15 @@ async function main(): Promise<number> {
       return EXIT_LOCKED;
     }
 
-    const result = outcome.result;
     /* c8 ignore next -- the lock was acquired, so a result exists */
-    if (result === undefined) return EXIT_FAILED;
+    if (outcome.result === undefined) return EXIT_FAILED;
+    const { result, objectivePages } = outcome.result;
 
     // The plan is a user interface and goes to stdout as written. It carries
     // real titles at runtime; it must never be pasted into this repository.
 
     process.stdout.write(`${result.report}\n`);
+    if (objectivePages !== undefined) process.stdout.write(`\n${objectivePages.report}\n`);
 
     for (const [tag, count] of Object.entries(result.plan.counts)) {
       if (count > 0) metrics.syncActions.inc({ type: tag }, count);
@@ -710,6 +767,26 @@ async function main(): Promise<number> {
     const failures = result.applied?.failures ?? [];
     for (const failure of failures) {
       logger.error('action failed', { reason: failure.reason, tag: failure.action.tag });
+    }
+
+    // Counts and reasons only: the report above is where titles go.
+    const pageFailures = objectivePages?.failures ?? [];
+    for (const failure of pageFailures) {
+      logger.error('objective page write failed', { reason: failure.reason });
+    }
+    if (objectivePages !== undefined) {
+      metrics.syncConflicts.inc(objectivePages.conflicts);
+      logger.info('objective pages reconciled', {
+        ...(objectivePages.skipped === undefined ? {} : { skipped: objectivePages.skipped }),
+        ...(objectivePages.plan === undefined ? {} : { counts: objectivePages.plan.counts }),
+        applied: objectivePages.applied,
+        conflicts: objectivePages.conflicts,
+        ...(objectivePages.refused === undefined ? {} : { refused: objectivePages.refused }),
+      });
+      if (objectivePages.stopped !== undefined) {
+        logger.fatal('objective pages stopped', { reason: objectivePages.stopped });
+        return EXIT_FAILED;
+      }
     }
 
     if (result.applied?.stopped !== undefined) {
@@ -734,7 +811,7 @@ async function main(): Promise<number> {
       drift: result.drift,
     });
 
-    return failures.length > 0 ? EXIT_FAILED : EXIT_OK;
+    return failures.length > 0 || pageFailures.length > 0 ? EXIT_FAILED : EXIT_OK;
   } finally {
     await database.close();
   }

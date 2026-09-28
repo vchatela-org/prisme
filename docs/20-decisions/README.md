@@ -46,8 +46,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0031](0031-outward-writes-are-audited-and-pruned.md) | Every outward write is audited in its own table, and the table is pruned by age | **Accepted** 2026-09-27 |
 | [0032](0032-completed-task-titles-are-recorded.md) | A completed task's title is recorded, read-only, so the capacity figures can be taken apart | **Accepted** 2026-09-27 — amends the Content row of [`11-ownership.md`](../11-ownership.md) §5 |
 | [0033](0033-a-store-area-column-names-an-entry-area.md) | Read a document-tool entry's area from its store's area column, by the area's own page | **Accepted** 2026-09-27 — decided by the owner; adds rows to [`11-ownership.md`](../11-ownership.md) §2, §6, §7 and §8 · amended 2026-09-28: a takeaway is promoted, never adopted; an objectives page is adopted as an objective |
+| [0034](0034-an-open-objective-moves-and-its-page-follows.md) | Move an open objective's period in prisme, and write it to its page's date column | **Accepted** 2026-09-28 — decided by the owner; adds a row to [`11-ownership.md`](../11-ownership.md) §6 and the edit capability to [`14-threat-model.md`](../14-threat-model.md) §5 |
 
-**33 records: 32 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
+**34 records: 33 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

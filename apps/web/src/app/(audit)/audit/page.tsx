@@ -326,7 +326,9 @@ function openLink(
   links: { page: string | undefined; project: string | undefined },
 ): string | undefined {
   if (write.externalId === null) return undefined;
-  if (write.operation === 'create_page') return pageUrl(links.page, write.externalId);
+  if (write.operation === 'create_page' || write.operation === 'update_page') {
+    return pageUrl(links.page, write.externalId);
+  }
   if (write.operation === 'create_project') return pageUrl(links.project, write.externalId);
   return undefined;
 }

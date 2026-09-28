@@ -1364,6 +1364,8 @@ export function createPostgresStore(client: Sql): ApiStore {
           update objective set
             title = coalesce(${input.title ?? null}, title),
             status = coalesce(${input.status ?? null}, status),
+            type = coalesce(${input.type ?? null}, type),
+            period = coalesce(${input.period ?? null}, period),
             external_page_id = case when ${input.externalPageId === undefined}
                                 then external_page_id else ${input.externalPageId ?? null} end
           where id = ${id}::uuid

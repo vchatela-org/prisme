@@ -46,6 +46,7 @@ export const eventDto = z.object({
     'completed',
     'sync_action',
     'adoption_decision',
+    'period_changed',
   ]),
   entityKind: z.string(),
   entityId: z.string(),

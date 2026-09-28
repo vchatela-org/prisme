@@ -22,11 +22,12 @@ import {
   type KeyResult,
   type Measurement,
 } from '@/lib/contracts';
-import { elapsedPctOf, objectiveProgress } from '@/lib/objectives-view';
+import { elapsedPctOf, isOpenObjective, objectiveProgress } from '@/lib/objectives-view';
 import { AddKeyResultForm } from './add-key-result-form';
 import { MeasurementForm } from './measurement-form';
 import { ServedByEditor } from './served-by-editor';
 import { ProgressPair } from '../progress-pair';
+import { PeriodEditor } from './period-editor';
 import { ObjectiveStatusMenu } from './status-menu';
 
 const PAGE_LIMIT = 200;
@@ -167,6 +168,15 @@ export default async function ObjectivePage({ params }: { params: Promise<{ id: 
 
         <ObjectiveStatusMenu objectiveId={data.id} status={data.status} />
       </div>
+
+      {isOpenObjective(data.status) ? (
+        <PeriodEditor
+          objectiveId={data.id}
+          type={data.type}
+          period={data.period}
+          linked={data.externalPageId !== null}
+        />
+      ) : null}
 
       <StatRow>
         <StatTile label="Key results" value={String(rollup.keyResultCount)} />

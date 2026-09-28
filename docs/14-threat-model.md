@@ -165,7 +165,7 @@ capability each requires:
 |---|---|
 | `processes_db`, `media_db`, `areas_db` | **read-only** |
 | `takeaways_db` | read-only |
-| `objectives_db` | read/write — prisme owns specific fields |
+| `objectives_db` | read/write — prisme owns specific fields: it reads the store, and **edits** one property of an entry linked to an objective, its date column, after reading the entry and checking it is the store's (`assertEditable`, ADR-0034) |
 | `reviews_db` | write — review summaries |
 | `initiative_pages_db`, `project_pages_db`, `capture_pages_db` | **`create`** — it may add an entry to the bound database, and may read the database's schema, its template list and its entries' titles; it may edit nothing that exists, the entry it created included (ADR-0025, ADR-0028, ADR-0030) |
 

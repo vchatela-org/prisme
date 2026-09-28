@@ -89,13 +89,14 @@ export const objectiveRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/objectives/:id',
     scope: 'write:objective',
-    summary: 'Change an objective’s title, status or page link',
+    summary: 'Change an objective’s title, status, page link or period',
     description:
-      'The period, type and area are fixed at authoring: an objective that moves between months is a different objective, and letting one move would make attainment history meaningless.',
+      'An **open** objective (draft or active) may move to another period: `type` and `period` together or either alone, as long as the pair agrees (422 otherwise). A met, missed or dropped objective keeps the period it was judged against (409), and the area is fixed at authoring. Each move is written to the event log as `period_changed`, and the linked page’s date column follows on the next sync pass (ADR-0034).',
     params: idParam,
     body: updateObjectiveBody,
     response: ObjectiveDto,
-    handle: (context, services) => services.objectives.update(context.params.id, context.body),
+    handle: (context, services) =>
+      services.objectives.update(context.params.id, context.body, context.identity, context.now),
   }),
 
   defineRoute({

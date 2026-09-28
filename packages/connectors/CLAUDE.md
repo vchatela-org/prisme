@@ -29,7 +29,7 @@ Specs: [`16-sync.md`](../../docs/16-sync.md) · [`11-ownership.md`](../../docs/1
 ```
 connectors/
   errors.ts      one error type, a closed set of failure kinds
-  role-key.ts    role → external id, and the read/write/create capability per role
+  role-key.ts    role → external id, and the read/create/edit capability per role
   parse.ts       the boundary: parse or fail, with the path redacted
   sanitise.ts    text + allow-listed marks, URL collection, deny-by-default fetch
   hash.ts        canonical content hashing

@@ -279,7 +279,10 @@ month's objectives · replan what slipped.
 - **Timeline** — planned start and end for each initiative, the critical path and deadlines at
   risk. Dragging only previews; nothing is saved from it.
 - **Objectives** — annual and monthly objectives with key results. You set each key result's
-  progress yourself; prisme shows its own computed progress beside it for comparison.
+  progress yourself; prisme shows its own computed progress beside it for comparison. A draft or
+  active objective can be moved to another period with **Move period** on its page — the move is
+  kept in its history, and a linked Notion page's dates follow on the next pass. A met, missed or
+  dropped objective keeps the period it was judged against.
 
 A task with no duration counts as 25 minutes of capacity; the charts say how much of a reading is
 estimated.
@@ -292,9 +295,9 @@ estimated.
 
 | Change it in… | What |
 |---|---|
-| **prisme** | areas, colours, weights, initiatives (title, area, status, estimates, deadline, dependencies), objectives, rituals, reviews |
+| **prisme** | areas, colours, weights, initiatives (title, area, status, estimates, deadline, dependencies), objectives — **including their dates**, rituals, reviews |
 | **Todoist** | task text, subtasks, **due dates**, recurrence, completing things, your own labels, the priority of a subtask you set by hand |
-| **Notion** | every page body — including pages prisme created — and your takeaways, media and process pages |
+| **Notion** | every page body — including pages prisme created — and your takeaways, media and process pages; **not** the date column of an objective page linked to prisme, which follows the objective |
 
 ### Talking to prisme from Todoist
 
@@ -321,6 +324,9 @@ prisme will, and only will:
   goes here* location;
 - give untouched subtasks the anchor's priority — never one you set by hand;
 - create the capture tasks, projects and Notion pages you asked for;
+- set the **date column** of each Notion objectives page linked to an objective to that objective's
+  whole year or month (the column chosen on Settings → Notion). Changed there by hand, it is put
+  back on the next pass and counted as a conflict — move the objective in prisme instead;
 - move an anchor that has left its area back into it.
 
 It never touches due dates, recurrence, completion, deletion, comments, your own labels, or anything

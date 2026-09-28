@@ -1049,6 +1049,134 @@ describeOrSkip('the API against PostgreSQL', () => {
 
       expect((series.body as { items: unknown[] }).items).toHaveLength(2);
     });
+
+    it('moves an open objective to another period, and records the move (ADR-0034)', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'A plan that moved',
+          type: 'annual',
+          period: '2028',
+          areaKey: 'health',
+          status: 'active',
+        })
+      ).body as { id: string };
+
+      const moved = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        period: '2027',
+      });
+      expect(moved.status).toBe(200);
+      expect(moved.body).toMatchObject({ type: 'annual', period: '2027' });
+
+      const monthly = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        type: 'monthly',
+        period: '2027-03',
+      });
+      expect(monthly.body).toMatchObject({ type: 'monthly', period: '2027-03' });
+
+      const events = await database.client<{ before: unknown; after: unknown; actor: string }[]>`
+        select before, after, actor from event_log
+        where kind = 'period_changed' and entity_id = ${objective.id}
+        order by id`;
+      expect(events).toEqual([
+        {
+          before: { type: 'annual', period: '2028' },
+          after: { type: 'annual', period: '2027' },
+          actor: 'human',
+        },
+        {
+          before: { type: 'annual', period: '2027' },
+          after: { type: 'monthly', period: '2027-03' },
+          actor: 'human',
+        },
+      ]);
+    });
+
+    it('records nothing when the period sent is the one it already has', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Already there',
+          type: 'annual',
+          period: '2027',
+          areaKey: 'health',
+        })
+      ).body as { id: string };
+
+      const response = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        period: '2027',
+      });
+
+      expect(response.status).toBe(200);
+      const events = await database.client`
+        select 1 from event_log where kind = 'period_changed' and entity_id = ${objective.id}`;
+      expect(events).toHaveLength(0);
+    });
+
+    it('keeps a judged objective in the period it was judged against', async () => {
+      const app = api();
+      for (const status of ['met', 'missed', 'dropped'] as const) {
+        const objective = (
+          await app.request('POST', url('/objectives'), {
+            title: `A ${status} one`,
+            type: 'annual',
+            period: '2025',
+            areaKey: 'health',
+            status,
+          })
+        ).body as { id: string };
+
+        const response = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+          period: '2026',
+        });
+
+        expect(response.status).toBe(409);
+        const reread = (await app.request('GET', url(`/objectives/${objective.id}`))).body as {
+          period: string;
+        };
+        expect(reread.period).toBe('2025');
+      }
+    });
+
+    it('refuses a period its type does not name, and changes nothing', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'A monthly one',
+          type: 'monthly',
+          period: '2027-02',
+          areaKey: 'health',
+        })
+      ).body as { id: string };
+
+      const response = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        period: '2027',
+      });
+
+      expect(response.status).toBe(422);
+      const reread = (await app.request('GET', url(`/objectives/${objective.id}`))).body as {
+        period: string;
+      };
+      expect(reread.period).toBe('2027-02');
+    });
+
+    it('still refuses a move of the area, which is fixed at authoring', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Stays put',
+          type: 'annual',
+          period: '2027',
+          areaKey: 'health',
+        })
+      ).body as { id: string };
+
+      const response = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        areaKey: 'craft',
+      });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe('sync', () => {

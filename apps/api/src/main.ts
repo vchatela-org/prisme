@@ -60,6 +60,9 @@ const services = createServices({
     onAuditRecordError: (error: unknown) => {
       logger.error('an outward write could not be recorded in the audit', { error });
     },
+    onObjectivePagesError: (error: unknown) => {
+      logger.error('objective pages could not be read', { error });
+    },
   }),
   directory: createExternalDirectory({
     docToolToken: config.doctoolApiToken as string,

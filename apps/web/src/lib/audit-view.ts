@@ -28,6 +28,7 @@ export const OPERATION_LABEL: Readonly<Record<WriteAuditOperation, string>> = {
   create_section: 'Create section',
   create_capture_task: 'Create capture task',
   create_page: 'Create page',
+  update_page: 'Set page dates',
 };
 
 export const ORIGIN_LABEL: Readonly<Record<WriteAuditOrigin, string>> = {

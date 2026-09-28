@@ -28,10 +28,20 @@ export {
 
 export { createFrozenWriter } from './frozen.js';
 
+/** The editing half (ADR-0034): one property of an objectives-store entry. */
+export {
+  createDocToolEntryWriter,
+  createFrozenDocumentEntryWriter,
+  type DocToolEntryWriterOptions,
+  type DocumentEntryWriter,
+  type ObjectivePageDates,
+} from './entry.js';
+
 /** Every writer a pass holds is one of these (ADR-0031). `./audit.ts` says why at construction. */
 export {
   auditCreationWriter,
   auditDocumentCreationWriter,
+  auditDocumentEntryWriter,
   auditTaskToolWriter,
   type AuditOptions,
   type WriteAttempt,

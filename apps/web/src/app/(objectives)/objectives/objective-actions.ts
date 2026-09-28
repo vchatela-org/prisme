@@ -31,10 +31,12 @@ import {
  * append-only, so a trend exists rather than a current number somebody has
  * tidied up.
  *
- * There is **no action that moves an objective between periods**. The API
- * refuses it and this tier never offers it: an objective that moves months is
- * a different objective, and letting one move makes attainment history
- * meaningless.
+ * **An objective moves between periods only while it is open** (ADR-0034).
+ * A draft or active one is still a plan, and a plan that moved is corrected
+ * rather than re-authored; a met, missed or dropped one was judged against its
+ * period, and the API refuses to move it, so this tier never offers to. Each
+ * move is in the event log, and the linked page's dates follow on the next
+ * sync pass.
  *
  * Each action re-parses its arguments. A server action is a public endpoint —
  * the boundary is the argument list, not the form that called it — and no body
@@ -209,6 +211,59 @@ export async function setObjectiveStatus(input: ObjectiveStatusInput): Promise<A
   };
 }
 
+const periodSchema = z.object({
+  objectiveId: z.string().min(1).max(200),
+  type: z.literal(OBJECTIVE_TYPES),
+  period: z.string().regex(/^\d{4}(-\d{2})?$/, 'YYYY for a year, YYYY-MM for a month'),
+});
+
+export type PeriodInput = z.infer<typeof periodSchema>;
+
+/**
+ * Move an open objective to another period (ADR-0034).
+ *
+ * The pairing is checked here, as authoring checks it, so the message arrives
+ * before the round trip. Whether the objective is still open is the API's to
+ * decide — it reads the status as stored, not as this screen last saw it — and
+ * a refusal comes back as one.
+ */
+export async function moveObjectivePeriod(input: PeriodInput): Promise<ActionResult> {
+  const parsed = periodSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That is not a period',
+      description: 'A year is written 2027, a month 2027-03.',
+    };
+  }
+
+  if (parsed.data.period.includes('-') !== (parsed.data.type === 'monthly')) {
+    return {
+      ok: false,
+      title: 'The period does not match the type',
+      description: 'An annual objective takes a period like 2027; a monthly one takes 2027-03.',
+    };
+  }
+
+  const result = await apiFetch({
+    path: `/objectives/${encodeURIComponent(parsed.data.objectiveId)}`,
+    method: 'PATCH',
+    body: { type: parsed.data.type, period: parsed.data.period },
+    schema: objectiveSchema,
+  });
+
+  if (!result.ok) return failed(result, 'this objective');
+
+  revalidateObjectives(parsed.data.objectiveId);
+
+  return {
+    ok: true,
+    title: `Moved to ${parsed.data.period}`,
+    description:
+      'The move is recorded in the objective’s history. A linked Notion page’s dates follow on the next sync pass.',
+  };
+}
+
 const authorSchema = z.object({
   title: z.string().min(1).max(300),
   type: z.literal(OBJECTIVE_TYPES),
@@ -240,8 +295,7 @@ export async function authorObjective(input: AuthorInput): Promise<ActionResult>
     return {
       ok: false,
       title: 'The period does not match the type',
-      description:
-        'An annual objective takes a period like 2026; a monthly one takes 2026-03. The pairing is fixed at authoring and cannot be changed afterwards.',
+      description: 'An annual objective takes a period like 2026; a monthly one takes 2026-03.',
     };
   }
 
