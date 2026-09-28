@@ -81,7 +81,7 @@ shows its title — and, for the databases it adds pages to, the templates each 
 
 | Role | Point it at | prisme… |
 |---|---|---|
-| Objectives | your objectives database | reads it; its rows are proposed as key results in Adoption |
+| Objectives | your objectives database | reads it; its rows are proposed as objectives in Adoption |
 | Takeaways | where you keep ideas from books and articles | reads it; action-type takeaways reach the Inbox |
 | Media library | books / articles / videos | reads it, for context |
 | Life areas | one page per area | reads it; each area's own page is picked from it, and an *Area column* points at it |
@@ -107,8 +107,8 @@ Two things to know:
   (it is picked by page, so renaming the page in Notion changes nothing; one page belongs to one
   area). From the next *Rescan* on Adoption, an entry related to **exactly one** area's page gets
   that area — so an action takeaway can be linked to the initiative its promotion made, an
-  objective can be matched to a key result in the same area, and the Area filter reaches Notion
-  rows. An entry related to no page, to several, or to a page no area has, gets no area rather than
+  objective can be adopted and matched to one prisme already has in the same area, and the Area
+  filter reaches Notion rows. An entry related to no page, to several, or to a page no area has, gets no area rather than
   a guess. A takeaway's area is Notion's and is
   re-read every scan; an objective's or a ritual's area is prisme's, so Notion's is only a
   starting point.
@@ -140,9 +140,23 @@ are never ranked against initiatives; the KPI dashboard shows how often they hap
 - **Merge** — link it to something prisme already has.
 - **Ignore** — never show it again.
 
-An **action takeaway** is the exception: *Adopt* refuses it. Promote it from the **Inbox** instead —
-that makes an initiative which gets its Todoist task — and then *Merge* its row here onto that
-initiative, or ignore the row.
+A row from your **Objectives** database is adopted as an **objective**: its title, its area (from
+the area column), and whether it is annual or monthly — read off its dates, which must cover
+**exactly** one calendar year (1 January to 31 December) or one calendar month. Its page stays its
+narrative, and nothing is written to Notion. Add its key results afterwards, on **Objectives**.
+
+Where *Adopt* would be refused, the row has no *Adopt* button and says why instead, with what to do:
+
+- An **action takeaway** — promote it from the **Inbox**, which makes an initiative that gets its
+  Todoist task, then *Merge* its row here onto that initiative, or ignore the row.
+- A **key result** or a **ritual** — neither can be made from a row alone. Create it under its
+  objective on **Objectives**, or on **Rituals**, then *Rescan*: a row with the same title in the
+  same area is proposed against it, and *Link* joins them.
+- **Outside every area** — give it an area (Settings → Areas, or the database's area column), then
+  *Rescan*.
+- **An objective whose dates are not one calendar year or month** — a quarter, say, or no dates at
+  all. Correct the dates in Notion and *Rescan*, or create the objective on **Objectives** and link
+  the row to it.
 
 A title opens what it names in a new tab — the page in Notion, or the project in Todoist — so you
 can read it before you decide. That needs `DOCTOOL_PAGE_URL_TEMPLATE` (and, for projects,

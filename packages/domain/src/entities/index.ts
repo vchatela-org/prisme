@@ -1,3 +1,4 @@
+export * from './adoption.js';
 export * from './area.js';
 export * from './calendar.js';
 export * from './dependencies.js';

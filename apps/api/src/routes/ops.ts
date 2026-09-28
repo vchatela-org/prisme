@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ADOPTABLE_KINDS } from '@prisme/domain';
 import { areaKey, instant, reviewCadence } from '../dto/common.js';
 import {
   adoptCandidateBody,
@@ -228,7 +229,7 @@ export const opsRoutes: readonly ApiRoute[] = [
       ...pageQuery.shape,
       /** An area key, or `_none` for the candidates outside every mapped area. */
       areaKey: z.union([areaKey, z.literal(NO_AREA)]).optional(),
-      kind: z.enum(['initiative', 'project', 'key_result', 'ritual']).optional(),
+      kind: z.enum(ADOPTABLE_KINDS).optional(),
       /** Where it was read from: a document-tool role key, or `project` / `task`. */
       source: z
         .string()
@@ -260,7 +261,7 @@ export const opsRoutes: readonly ApiRoute[] = [
     scope: 'write:adoption',
     summary: 'Adopt a candidate: a linked prisme entity, and nothing outward',
     description:
-      "Creates one entity with `origin = 'adopted'` — which the planner can never emit a `create` for, by guard 2 — and the link to the object that already exists. It does not bind the reference: that is the reconciler's `adopt` action on its next pass, so that `entity_external_ref` has one writer rather than two racing for guard 1. A key result or a ritual is refused rather than guessed at, because neither’s required values are anywhere in a candidate; merge those onto an entity that already exists. A document-tool page proposed as an initiative — an action takeaway — is refused too: it is promoted from the Inbox, not adopted, and can be merged onto the initiative its promotion made (ADR-0033).",
+      "Creates one entity with `origin = 'adopted'` — which the planner can never emit a `create` for, by guard 2 — and the link to the object that already exists. It does not bind the reference: that is the reconciler's `adopt` action on its next pass, so that `entity_external_ref` has one writer rather than two racing for guard 1. A page of the objectives store becomes an objective, seeded once from the page: its title, its area, and its type and period from the store's date column — exactly one calendar year is `annual`, exactly one calendar month is `monthly`, anything else is refused; its narrative stays in the document tool, and nothing is written there (ADR-0033, amended). A key result or a ritual is refused rather than guessed at, because neither’s required values are anywhere in a candidate; merge those onto an entity that already exists. A document-tool page proposed as an initiative — an action takeaway — is refused too: it is promoted from the Inbox, not adopted, and can be merged onto the initiative its promotion made. Every refusal is a `400` with the reason, and the queue names it beforehand as the row's `adoptRefusal`.",
     body: adoptCandidateBody,
     response: AdoptionEntryDto,
     status: 201,

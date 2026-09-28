@@ -111,7 +111,7 @@ Notion, resolved against each area's own page (`area.external_page_id`, picked o
 exactly one related page that is exactly one area's page names that area, compared by identifier and
 never by title; no relation, several, or an unknown page names none, and "no area" still matches only
 "no area". With no column chosen a page carries no area, as before. So an objectives row can be
-proposed against a key result in its area, and an action takeaway can be adopted. Whose value the
+proposed against an objective in its area, and adopted as one. Whose value the
 area is differs by store — a takeaway's is the document tool's, re-read every scan; an objective's
 and a ritual's are prisme's, which the relation only seeds at adoption
 ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)).
@@ -173,6 +173,7 @@ filters by source store and by area, with a count beside each value
 | Dedicated project with sections | Project, with its sections mapped |
 | Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
+| Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
 | Objective or key result stored as a task | Key result, with that task as its anchor |
 | Recurring task | Run lane, or a Ritual if it serves a habit goal |
 | Machine-generated notification | Signals lane |

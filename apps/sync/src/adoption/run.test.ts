@@ -417,12 +417,12 @@ describe('the adoption pass', () => {
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
     };
-    // A key result inherits its objective's area; one with the same statement
-    // in the same area is what rule 2 proposes.
+    // An objectives page is proposed against an objective; one with the same
+    // title in the same area is what rule 2 proposes.
     const targets: MatchTarget[] = [
       {
-        prismeId: 'kr-1',
-        kind: 'key_result',
+        prismeId: 'objective-1',
+        kind: 'objective',
         title: 'Walk to work twice a week',
         areaKey: 'home',
         closed: false,
@@ -448,7 +448,10 @@ describe('the adoption pass', () => {
     });
     const byId = new Map(chosen.recorded.candidates.map((c) => [c.object.externalId, c]));
     expect(byId.get('ob-1')?.object.areaKey).toBe('home');
-    expect(byId.get('ob-1')?.proposal).toMatchObject({ rule: 'exact_title', prismeId: 'kr-1' });
+    expect(byId.get('ob-1')?.proposal).toMatchObject({
+      rule: 'exact_title',
+      prismeId: 'objective-1',
+    });
     expect(byId.get('tk-1')?.object.areaKey).toBe('home');
     expect(byId.get('tk-2')?.object.areaKey).toBeUndefined();
     // The takeaway's area is the document tool's, mirrored as read.

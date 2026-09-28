@@ -159,6 +159,7 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       expect([...targets].map((target) => target.kind).sort()).toEqual([
         'initiative',
         'key_result',
+        'objective',
         'project',
         'ritual',
       ]);
@@ -181,6 +182,37 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
         values (${id}, 'initiative', 'task', 'ext-bound')`;
 
       expect(await store().loadTargets()).toEqual([]);
+    });
+
+    it('excludes an objective that already has its page, or a link naming it', async () => {
+      // The reconciler never binds an objective, so its own page link and the
+      // ledger are what say it is answered.
+      await client`
+        insert into objective (title, type, period, area_key, status, external_page_id)
+        values ('Has its page', 'annual', '2026', 'home', 'active', 'page-objective-1')`;
+      const [linked] = await client<{ id: string }[]>`
+        insert into objective (title, type, period, area_key, status)
+        values ('Merged onto', 'monthly', '2026-09', 'home', 'active')
+        returning id::text`;
+      await client`
+        insert into entity_link
+          (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+        values (${(linked as { id: string }).id}, 'page', 'page-objective-2', 'manual', 'manual',
+                'human', now())`;
+      const [unlinked] = await client<{ id: string }[]>`
+        insert into objective (title, type, period, area_key, status)
+        values ('Met already', 'annual', '2025', 'home', 'met')
+        returning id::text`;
+
+      expect(await store().loadTargets()).toEqual([
+        {
+          prismeId: (unlinked as { id: string }).id,
+          kind: 'objective',
+          title: 'Met already',
+          areaKey: 'home',
+          closed: true,
+        },
+      ]);
     });
 
     it('keeps a finished entity as a target — closed matches closed', async () => {

@@ -91,8 +91,12 @@ export function classify(
     );
   }
 
+  // An objectives page is an Objective (docs/10-model.md §7) — its narrative
+  // stays in the document tool, and adoption seeds the rest from the page
+  // (ADR-0033, amended 2026-09-28). It is matched against objectives, never
+  // against key results: a key result is a measurable part of one, not a page.
   if (object.role === 'objectives_db') {
-    return decide('key_result', 'held in the objectives store');
+    return decide('objective', 'held in the objectives store');
   }
 
   if (object.role === 'processes_db') {

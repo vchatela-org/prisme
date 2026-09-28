@@ -53,6 +53,24 @@ describe('failureCopy', () => {
     expect(failureCopy(failure({}), 'Focus').description).not.toContain('Correlation id');
   });
 
+  it('words a refusal as a refusal, not as an outage', () => {
+    // A 400 with a correlation id is the API answering "no". Reading it as "the
+    // API did not answer" sent a reader to retry a decision (the adoption queue).
+    for (const status of [400, 409, 422]) {
+      const copy = failureCopy(failure({ status, correlationId: 'abc-123' }), 'this candidate');
+      expect(copy.title).toBe('Refused');
+      expect(copy.description).toContain('this candidate');
+      expect(copy.description).toContain('abc-123');
+      expect(copy.description).not.toContain('did not answer');
+    }
+  });
+
+  it('keeps "could not answer" for an outage, a rate limit, the write freeze and no answer', () => {
+    for (const status of [423, 429, 500, 502, undefined]) {
+      expect(failureCopy(failure({ status }), 'Focus').title).toBe('prisme could not answer');
+    }
+  });
+
   it('distinguishes "not signed in" from "not permitted"', () => {
     // Deny-by-default working as designed is not an outage, and a reader told
     // to sign in again will do it twice and then file a bug.

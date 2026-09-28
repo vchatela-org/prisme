@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ADOPT_REFUSALS, ADOPTABLE_KINDS } from '@prisme/domain';
 import { defineWrite, named } from '../http/schema.js';
 import { areaKey, calendarDate, entityId, instant, page, reviewCadence } from './common.js';
 import { REVIEW_READ_ONLY } from './ownership.js';
@@ -99,6 +100,7 @@ export const adoptionCandidateDto = z.object({
   proposedKind: z.enum([
     'initiative',
     'project',
+    'objective',
     'key_result',
     'ritual',
     'run',
@@ -108,6 +110,13 @@ export const adoptionCandidateDto = z.object({
   ]),
   /** Why the classifier said so, in prisme's vocabulary. Displayed, never parsed. */
   reason: z.string(),
+  /**
+   * Why `POST /adoption/adopt` would refuse this row, or `null` when it would
+   * adopt it. The same rule the write applies (`adoptRefusal` in
+   * `@prisme/domain`), so a screen can say so on the row instead of offering a
+   * button that fails. A code rather than a sentence: each caller words it.
+   */
+  adoptRefusal: z.enum(ADOPT_REFUSALS).nullable(),
   matchRule: z
     .enum(['existing_mapping', 'exact_title', 'normalised_title', 'fuzzy_title', 'manual'])
     .nullable(),
@@ -355,6 +364,8 @@ export const adoptCandidateBody = defineWrite(
   {
     title: 'taken from the candidate the scan recorded, never from the request',
     areaKey: 'taken from the candidate; an object outside every mapped area cannot be adopted',
+    type: "an objective's, read off the candidate's period: one calendar year is annual, one month monthly",
+    period: "an objective's, read off the candidate's period, never from the request",
     origin:
       "always 'adopted', and immutable after insert — an adopted entity cannot produce a create (ADR-0010, guard 2)",
   },
@@ -400,7 +411,7 @@ export const ignoreEndedBody = defineWrite(
     source: queueSource.optional(),
     /** An area key, or `_none` for the candidates outside every mapped area. */
     areaKey: z.union([areaKey, z.literal('_none')]).optional(),
-    kind: z.enum(['initiative', 'project', 'key_result', 'ritual']).optional(),
+    kind: z.enum(ADOPTABLE_KINDS).optional(),
     expected: z.strictObject({
       /** How many the screen said would be ignored. Never zero: there is nothing to confirm. */
       count: z.int().min(1).max(100_000),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adoptRefusalText,
   candidateLink,
   ignoreEndedConfirmation,
   ignoreEndedLabel,
@@ -11,6 +12,7 @@ import {
   sourceKey,
   sourceLabel,
 } from './adoption-view.js';
+import { ADOPT_REFUSALS, adoptionCandidateSchema } from './contracts.js';
 
 /**
  * Invented hosts and identifiers, reserved for documentation. A real template
@@ -172,5 +174,38 @@ describe('ignoring every ended entry at once', () => {
       title: 'Ignore 1 ended entry permanently?',
       filters: 'Date: Ended · From: Anywhere · Area: Outside every area',
     });
+  });
+});
+
+describe('why Adopt is not offered on a row', () => {
+  it('has a sentence for every refusal the API can name, each saying what to do instead', () => {
+    for (const refusal of ADOPT_REFUSALS) {
+      const text = adoptRefusalText(refusal);
+      expect(text.length).toBeGreaterThan(20);
+      expect(text).not.toContain('undefined');
+    }
+    expect(adoptRefusalText('period_not_calendar')).toContain('calendar year');
+    expect(adoptRefusalText('no_area')).toContain('Rescan');
+  });
+
+  it('reads a row from an API that does not send the refusal as adoptable', () => {
+    // An older API only loses the explanation; the write still refuses.
+    const row = adoptionCandidateSchema.parse({
+      externalKind: 'page',
+      externalId: 'ext-objective',
+      title: 'An invented goal',
+      areaKey: 'craft',
+      proposedKind: 'objective',
+      reason: 'held in the objectives store',
+      matchRule: null,
+      confidence: null,
+      proposedId: null,
+      similarity: null,
+      scannedAt: '2026-09-28T09:00:00.000Z',
+    });
+    expect(row.adoptRefusal).toBeNull();
+    expect(
+      adoptionCandidateSchema.parse({ ...row, adoptRefusal: 'period_not_calendar' }).adoptRefusal,
+    ).toBe('period_not_calendar');
   });
 });

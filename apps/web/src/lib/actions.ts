@@ -487,9 +487,10 @@ function revalidateAdoption(): void {
 /**
  * Adopt: a linked prisme entity, and nothing outward.
  *
- * The body carries only the candidate's identity. Title, area and kind come
- * from the scan's mirror on the API side — a caller cannot supply them, which
- * is the shape of every accidental duplicate this workstream exists to prevent.
+ * The body carries only the candidate's identity. Title, area and kind — and
+ * an objective's type and period, read off its dates — come from the scan's
+ * mirror on the API side. A caller cannot supply them, which is the shape of
+ * every accidental duplicate this workstream exists to prevent.
  */
 export async function adoptCandidate(input: {
   externalKind: string;
@@ -511,7 +512,12 @@ export async function adoptCandidate(input: {
     schema: z.object({ prismeId: z.string(), bound: z.boolean() }),
   });
 
-  if (!result.ok) return failed(result, 'this candidate');
+  if (!result.ok) {
+    // The row offered Adopt, so a refusal means it moved since the page was
+    // drawn — a rescan re-classified it. Redrawn, the row says why.
+    if (result.status === 400) revalidateAdoption();
+    return failed(result, 'this candidate');
+  }
 
   revalidateAdoption();
   return { ok: true, message: 'Adopted. Nothing was created in either tool.' };

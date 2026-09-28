@@ -29,8 +29,12 @@ import type { AdoptionCandidate } from '@/lib/contracts';
  * | Button | Effect |
  * |---|---|
  * | **Link** | binds this object to the entity prisme proposed — a *merge* |
- * | **Adopt** | creates one prisme entity, `origin = adopted`, bound to this object |
+ * | **Adopt** | creates one prisme entity, `origin = adopted`, bound to this object — offered only where the API would accept it |
  * | **Ignore** | recorded permanently; the item never reappears |
+ *
+ * Adopt is left out on a row the API has said it would refuse
+ * (`adoptRefusal`); the page says why beneath the row instead. Offering a
+ * button that can only fail is how a deliberate "no" came to read as an outage.
  *
  * None of them touches the document tool or the task tool. That sentence is on
  * the screen as well as in this comment, because the fear that stops somebody
@@ -48,7 +52,7 @@ export function CandidateDecisions({ candidate }: { candidate: AdoptionCandidate
   return (
     <div className="flex flex-wrap items-center gap-2">
       {proposed ? <LinkButton candidate={candidate} /> : null}
-      <AdoptButton candidate={candidate} />
+      {candidate.adoptRefusal === null ? <AdoptButton candidate={candidate} /> : null}
       <IgnoreButton candidate={candidate} />
     </div>
   );
