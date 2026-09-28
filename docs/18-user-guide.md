@@ -282,7 +282,11 @@ month's objectives · replan what slipped.
   progress yourself; prisme shows its own computed progress beside it for comparison. A draft or
   active objective can be moved to another period with **Move period** on its page — the move is
   kept in its history, and a linked Notion page's dates follow on the next pass. A met, missed or
-  dropped objective keeps the period it was judged against.
+  dropped objective keeps the period it was judged against. An objective whose period has not
+  started is folded under **Upcoming** at the bottom of the screen and left out of the counts, the
+  orphans and the review, and it moves up on its own on the first day of its period. One adopted
+  from Notion for a period still to come arrives as a **draft**: mark it active when you commit to
+  it.
 
 A task with no duration counts as 25 minutes of capacity; the charts say how much of a reading is
 estimated.

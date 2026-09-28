@@ -143,6 +143,36 @@ export function elapsedPctOf(period: string, today: string): number {
   return ((now - bounds.startDay) / span) * 100;
 }
 
+/**
+ * Whether a period is still to come on `today`: its first day is after it.
+ *
+ * An objective for a period that has not started is a plan, not what the
+ * current period is for. The screens show it apart and leave it out of their
+ * counts and orphan lists whatever its status, since one can be `active`
+ * ahead of time, and it rejoins them on the first day of its period without
+ * anyone changing anything. A period that cannot be read is not upcoming, so
+ * it stays in sight.
+ */
+export function isUpcoming(period: string, today: string): boolean {
+  const bounds = periodBounds(period);
+  const now = dayNumber(today);
+  if (bounds === null || now === null) return false;
+  return now < bounds.startDay;
+}
+
+/** Objectives split into those whose period has started and those still to come. */
+export function splitUpcoming(
+  objectives: readonly Objective[],
+  today: string,
+): { readonly started: readonly Objective[]; readonly upcoming: readonly Objective[] } {
+  const started: Objective[] = [];
+  const upcoming: Objective[] = [];
+  for (const objective of objectives) {
+    (isUpcoming(objective.period, today) ? upcoming : started).push(objective);
+  }
+  return { started, upcoming };
+}
+
 interface PeriodBounds {
   readonly startDay: number;
   readonly endDay: number;

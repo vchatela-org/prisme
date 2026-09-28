@@ -297,7 +297,11 @@ export function createOpsService(
      * existed before prisme did.
      */
     async adoptCandidate(input, identity, now): Promise<AdoptionDtoShape> {
-      const outcome = await store.ops.adoptCandidate({ ...input, decidedAt: now });
+      const outcome = await store.ops.adoptCandidate({
+        ...input,
+        today: calendarDayIn(config.timezone, now),
+        decidedAt: now,
+      });
       if (outcome === undefined) throw notFound('adoption candidate', input.externalId);
       if (!outcome.ok) {
         throw new ApiError('invalid_request', ADOPT_REFUSAL_MESSAGES[outcome.refusal]);

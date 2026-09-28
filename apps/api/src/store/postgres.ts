@@ -1,5 +1,10 @@
 import type postgres from 'postgres';
-import { ADOPTABLE_KINDS, adoptRefusal, objectivePeriodOf } from '@prisme/domain';
+import {
+  ADOPTABLE_KINDS,
+  adoptedObjectiveStatus,
+  adoptRefusal,
+  objectivePeriodOf,
+} from '@prisme/domain';
 import type {
   AdherenceRecord,
   AdoptionCandidateRecord,
@@ -1824,9 +1829,11 @@ export function createPostgresStore(client: Sql): ApiStore {
        * its type and period from the store's date column — which must be
        * exactly one calendar year or month, or the rule refused it above. Its
        * `external_page_id` is the page, because the narrative stays there
-       * (docs/10-model.md §7). An objective has no `origin`: the reconciler
-       * reads no objective, so nothing outward is ever planned for one, adopted
-       * or not.
+       * (docs/10-model.md §7). It starts as a `draft` while its period has not
+       * started on `input.today`, and `active` once it has
+       * (`adoptedObjectiveStatus`). An objective has no `origin`: the
+       * reconciler reads no objective, so nothing outward is ever planned for
+       * one, adopted or not.
        */
       async adoptCandidate(input) {
         return client.begin(async (tx) => {
@@ -1867,7 +1874,7 @@ export function createPostgresStore(client: Sql): ApiStore {
             const inserted = await tx<{ id: string }[]>`
               insert into objective (title, type, period, area_key, status, external_page_id)
               values (${candidate.title}, ${period.type}, ${period.period}, ${candidate.area_key},
-                      'active',
+                      ${adoptedObjectiveStatus(period.type, period.period, input.today)},
                       ${candidate.external_kind === 'page' ? candidate.external_id : null})
               returning id::text`;
             prismeId = (inserted[0] as { id: string }).id;

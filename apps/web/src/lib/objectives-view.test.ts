@@ -6,6 +6,7 @@ import {
   elapsedPctOf,
   groupByPeriod,
   isOpenObjective,
+  isUpcoming,
   LATE_IN_PERIOD_PCT,
   looksLikeAHabit,
   MATERIAL_GAP_PCT,
@@ -14,6 +15,7 @@ import {
   orphanInitiatives,
   orphanObjectives,
   servedInitiativeIds,
+  splitUpcoming,
 } from './objectives-view';
 
 /**
@@ -172,6 +174,40 @@ describe('elapsedPctOf', () => {
     expect(elapsedPctOf('not-a-period', '2026-06-01')).toBe(0);
     expect(elapsedPctOf('2026-13', '2026-06-01')).toBe(0);
     expect(elapsedPctOf('2026', 'yesterday')).toBe(0);
+  });
+});
+
+describe('upcoming periods', () => {
+  it('is a period whose first day is still to come', () => {
+    expect(isUpcoming('2027', '2026-09-28')).toBe(true);
+    expect(isUpcoming('2026-10', '2026-09-28')).toBe(true);
+    expect(isUpcoming('2027', '2026-12-31')).toBe(true);
+  });
+
+  it('is not upcoming from its first day on, nor once it is over', () => {
+    expect(isUpcoming('2027', '2027-01-01')).toBe(false);
+    expect(isUpcoming('2026-10', '2026-10-01')).toBe(false);
+    expect(isUpcoming('2026', '2026-09-28')).toBe(false);
+    expect(isUpcoming('2025', '2026-09-28')).toBe(false);
+  });
+
+  it('keeps what it cannot read in sight rather than hiding it', () => {
+    expect(isUpcoming('not-a-period', '2026-09-28')).toBe(false);
+    expect(isUpcoming('2027', 'yesterday')).toBe(false);
+  });
+
+  it('splits objectives by it, whatever their status', () => {
+    const running = objective({ id: 'running', period: '2026' });
+    const nextYear = objective({ id: 'next-year', period: '2027', status: 'active' });
+    const nextMonth = objective({
+      id: 'next-month',
+      type: 'monthly',
+      period: '2026-10',
+      status: 'draft',
+    });
+    const { started, upcoming } = splitUpcoming([nextYear, running, nextMonth], '2026-09-28');
+    expect(started.map((item) => item.id)).toEqual(['running']);
+    expect(upcoming.map((item) => item.id)).toEqual(['next-year', 'next-month']);
   });
 });
 

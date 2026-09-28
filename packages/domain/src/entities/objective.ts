@@ -160,6 +160,28 @@ export function objectiveDatesOf(
   };
 }
 
+/**
+ * The status an objective adopted from its page starts in (ADR-0033, amended
+ * 2026-09-28): `draft` while its period has not started on `today`, and
+ * `active` once it has — a period already over included, which a review
+ * judges rather than adoption.
+ *
+ * An objective authored on the Objectives screen starts as `draft` too. A page
+ * written ahead of its period is a plan, not work under way, and counting it
+ * as active put it in every count and list of the current one. Nothing makes
+ * it `active` later: that is a person's decision, made on its page.
+ *
+ * `today` is the instance's calendar day, `YYYY-MM-DD`.
+ */
+export function adoptedObjectiveStatus(
+  type: ObjectiveType,
+  period: string,
+  today: string,
+): 'draft' | 'active' {
+  const dates = objectiveDatesOf(type, period);
+  return dates !== undefined && dates.startsOn > today ? 'draft' : 'active';
+}
+
 /** `28` to `31`, for a `YYYY-MM`. Day 0 of the next month is the last of this one. */
 function lastDayOfMonth(month: string): string {
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));

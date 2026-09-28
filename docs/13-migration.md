@@ -173,7 +173,7 @@ filters by source store and by area, with a count beside each value
 | Dedicated project with sections | Project, with its sections mapped |
 | Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
-| Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
+| Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
 | Objective or key result stored as a task | Key result, with that task as its anchor |
 | Recurring task | Run lane, or a Ritual if it serves a habit goal |
 | Machine-generated notification | Signals lane |

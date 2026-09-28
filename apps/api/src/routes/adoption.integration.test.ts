@@ -691,6 +691,39 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
         expect(rows[0]).toEqual({ type: 'monthly', period: '2026-02' });
       });
 
+      it('is a draft while its period has not started, on the instance’s day', async () => {
+        // The clock is pinned to 2026-09-17: next year and next month have not
+        // started, so neither is work under way yet.
+        await seedObjective('ext-next-year', '2027-01-01', '2027-12-31');
+        await seedObjective('ext-next-month', '2026-10-01', '2026-10-31');
+        await seedObjective('ext-this-month', '2026-09-01', '2026-09-30');
+        await seedObjective('ext-next-month-too', '2026-10-01', '2026-10-31');
+
+        const statusOf = async (externalId: string, app = api()) => {
+          const { status, body } = await app.request('POST', url('/adoption/adopt'), {
+            externalKind: 'page',
+            externalId,
+          });
+          expect(status).toBe(201);
+          const rows = await database.client<{ status: string }[]>`
+            select status from objective
+            where id = ${(body as { prismeId: string }).prismeId}::uuid`;
+          return rows[0]?.status;
+        };
+
+        expect(await statusOf('ext-next-year')).toBe('draft');
+        expect(await statusOf('ext-next-month')).toBe('draft');
+        expect(await statusOf('ext-this-month')).toBe('active');
+
+        // On the first day of its period, the same page is under way.
+        const firstDay = createTestApp({
+          client: database.client,
+          runner: stubRunner(),
+          now: new Date('2026-10-01T09:00:00Z'),
+        });
+        expect(await statusOf('ext-next-month-too', firstDay)).toBe('active');
+      });
+
       it('refuses any other span, says why, and inserts nothing', async () => {
         await seedObjective('ext-quarter', '2026-01-01', '2026-03-31');
         await seedObjective('ext-undated', null, null);
