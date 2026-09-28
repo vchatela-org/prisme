@@ -22,6 +22,7 @@ import {
   orphanInitiatives,
   orphanObjectives,
   servedInitiativeIds,
+  splitUpcoming,
   type OrphanInitiative,
 } from '@/lib/objectives-view';
 import type { StepPanel as StepPanelKind } from '@/lib/review-wizard';
@@ -625,7 +626,9 @@ async function ObjectiveProgressPanel() {
   });
   if (!objectives.ok) return <ApiFailureState failure={objectives} surface="the objectives" />;
 
-  const items = objectives.data.items;
+  // An objective whose period has not started is not being tracked yet, even
+  // when it is marked active ahead of time.
+  const items = splitUpcoming(objectives.data.items, today).started;
   if (items.length === 0) {
     return (
       <EmptyState
@@ -706,7 +709,11 @@ async function OrphansPanel() {
 
   if (!objectives.ok) return <ApiFailureState failure={objectives} surface="the objectives" />;
 
-  const active = objectives.data.items.filter((objective) => objective.status === 'active');
+  // Nothing is owed yet to an objective whose period has not started.
+  const today = new Date().toISOString().slice(0, 10);
+  const active = splitUpcoming(objectives.data.items, today).started.filter(
+    (objective) => objective.status === 'active',
+  );
   const orphanedObjectives = orphanObjectives(active);
   const served = servedInitiativeIds(objectives.data.items);
   const candidates: readonly OrphanInitiative[] = (inFlight.ok ? inFlight.data.items : []).map(

@@ -3,7 +3,8 @@
 **Status:** Accepted · 2026-09-27 · decided by the owner, 2026-09-27 — settles the *mapping
 vocabulary* question recorded on 2026-09-26 and 2026-09-27 · amended 2026-09-28: point 5 decides that
 a takeaway is promoted, never adopted · amended 2026-09-28 by the owner: point 5 decides that an
-objectives page is adopted as an objective
+objectives page is adopted as an objective · amended 2026-09-28 by the owner: point 5 decides that
+one whose period has not started is adopted as a draft
 
 ## Context
 
@@ -130,8 +131,9 @@ none.**
        the area its relation names (point 4), and a `type` and `period` read off the store's date
        column — exactly one calendar year is `annual` (`YYYY`), exactly one calendar month is
        `monthly` (`YYYY-MM`), and any other span, or none, is **refused** rather than rounded to the
-       nearest shape. Status `active`; `external_page_id` is the page. Nothing is written to the
-       document tool, and the reconciler reads no objective, so nothing outward is planned for one.
+       nearest shape. Status `active` (`draft` while the period has not started, amended below);
+       `external_page_id` is the page. Nothing is written to the document tool, and the reconciler
+       reads no objective, so nothing outward is planned for one.
        A person whose objective runs a quarter corrects the dates in the document tool, or creates it
        on the Objectives screen and merges the row onto it.
      - **A key result and a ritual are still refused**, for the reason the first bullet gives.
@@ -139,6 +141,27 @@ none.**
        applies and what the queue returns on each row (`adoptRefusal`), so the screen leaves out
        *Adopt* where the write would refuse it and says why instead — a deliberate refusal no longer
        reaches a person as "the API did not answer".
+
+     **Amended 2026-09-28, by the owner — decided: an objective whose period has not started is
+     adopted as a draft.** Every adopted objective was `active`, so a page written ahead of its year
+     counted as work under way: it led the Objectives screen, its counts and its orphans, and the
+     review's progress step, though nothing in the current period is for it. One written on the
+     Objectives screen starts as a `draft`, the API's default. So:
+
+     - *Adopt* sets `draft` when the period's first day is after today, in the instance's timezone,
+       and `active` otherwise — a period already over included, which a review judges rather than
+       adoption (`adoptedObjectiveStatus` in `@prisme/domain`). Nothing makes it `active` later: that
+       is a person's decision, taken on the objective's page. It is still seeded once and stays
+       open, so [ADR-0034](0034-an-open-objective-moves-and-its-page-follows.md) can still move its
+       period.
+     - **The screens hide a period that has not started, whatever the status.** The Objectives screen
+       folds it under *Upcoming*, below the periods under way, and leaves it out of its counts and
+       orphans; the review's progress and orphan steps leave it out too. It comes back on the first
+       day of its period with no change to it. This is by date and not by status because an
+       objective can be `active` ahead of time: adopted before this amendment, or set so by hand.
+     - **Objectives already adopted are not changed.** Their status is a decision recorded as
+       `active`, and rewriting it in bulk would be prisme deciding for the owner. The screens hide
+       the future ones anyway, and *draft* on an objective's page sets one back by hand.
 
 ## Consequences
 

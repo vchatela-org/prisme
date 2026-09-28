@@ -911,6 +911,8 @@ export interface ApiStore {
     adoptCandidate(input: {
       externalKind: string;
       externalId: string;
+      /** Today in the instance's timezone, `YYYY-MM-DD`: an objective not started is a draft. */
+      today: string;
       decidedAt: Date;
     }): Promise<AdoptOutcome | undefined>;
     /** Permanently. There is no un-ignore, and the table refuses one. */

@@ -2,7 +2,12 @@ import { AreaBadge, Badge, Button, Card, EmptyState, Section, StatRow, StatTile 
 import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
-import { areaListSchema, backlogSchema, objectivePageSchema } from '@/lib/contracts';
+import {
+  areaListSchema,
+  backlogSchema,
+  objectivePageSchema,
+  type Objective,
+} from '@/lib/contracts';
 import {
   currentPeriod,
   elapsedPctOf,
@@ -12,7 +17,9 @@ import {
   orphanInitiatives,
   orphanObjectives,
   servedInitiativeIds,
+  splitUpcoming,
   type OrphanInitiative,
+  type PeriodGroup,
 } from '@/lib/objectives-view';
 import { AuthorObjectiveForm } from './author-form';
 import { ProgressPair } from './progress-pair';
@@ -63,6 +70,13 @@ const IN_FLIGHT = 'now,next,waiting,review';
  * are worth seeing once a month; neither is automatically wrong. An objective
  * authored this morning has nothing behind it and should not. That is why
  * these are sections with counts rather than warnings with a badge.
+ *
+ * ## A period still to come is kept out of sight
+ *
+ * An objective whose period has not started is a plan, not what now is for. It
+ * sits folded under *Upcoming*, after the periods under way, and is left out of
+ * every count and of the orphans — whatever its status, because one can be
+ * `active` ahead of time. On the first day of its period it moves up by itself.
  */
 export default async function ObjectivesPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -91,12 +105,14 @@ export default async function ObjectivesPage() {
   }
 
   const items = objectives.data.items;
-  const groups = groupByPeriod(items);
+  const { started, upcoming } = splitUpcoming(items, today);
+  const groups = groupByPeriod(started);
+  const upcomingGroups = groupByPeriod(upcoming);
   const areaNames = new Map(
     (areas.ok ? areas.data.items : []).map((area) => [area.key, area.name]),
   );
 
-  const active = items.filter((objective) => objective.status === 'active');
+  const active = started.filter((objective) => objective.status === 'active');
   const orphanedObjectives = orphanObjectives(active);
 
   const served = servedInitiativeIds(items);
@@ -110,7 +126,10 @@ export default async function ObjectivesPage() {
   );
   const orphanedWork = orphanInitiatives(candidates, served);
 
-  const keyResultCount = items.reduce((total, objective) => total + objective.keyResults.length, 0);
+  const keyResultCount = started.reduce(
+    (total, objective) => total + objective.keyResults.length,
+    0,
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -129,97 +148,45 @@ export default async function ObjectivesPage() {
         />
       </StatRow>
 
-      {groups.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState
           title="No objectives yet"
           description="An objective says what a period is for, and a key result says how you would know it happened. Author the first one below — annual objectives set the direction a month's objectives are steps toward."
         />
+      ) : groups.length === 0 ? (
+        <EmptyState
+          title="No objective’s period has started"
+          description="Every objective here is for a period still to come. They are under Upcoming, and each one moves up here on the first day of its period."
+        />
       ) : (
         groups.map((group) => (
-          <Section
-            key={group.period}
-            title={group.period}
-            description={
-              group.type === 'annual'
-                ? 'The year’s direction. A month’s objectives are read as steps toward these.'
-                : 'One month. Narrow enough that progress is a fact rather than a forecast.'
-            }
-          >
-            <div className="flex flex-col gap-4">
-              {group.objectives.map((objective) => {
-                const elapsedPct = elapsedPctOf(objective.period, today);
-                const rollup = objectiveProgress(objective);
-
-                return (
-                  <Card key={objective.id} className="flex flex-col gap-3 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href={`/objectives/${objective.id}`}
-                          className="text-base font-medium text-ink hover:underline"
-                        >
-                          {objective.title}
-                        </Link>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <AreaBadge
-                            areaKey={objective.areaKey}
-                            name={areaNames.get(objective.areaKey) ?? objective.areaKey}
-                          />
-                          <Badge variant={objective.status === 'active' ? 'accent' : 'neutral'}>
-                            {objective.status}
-                          </Badge>
-                          <span className="text-xs text-ink-muted">
-                            {elapsedPct >= 100
-                              ? 'Period over'
-                              : `${elapsedPct.toFixed(0)}% of the period gone`}
-                          </span>
-                        </div>
-                      </div>
-
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/objectives/${objective.id}`}>Open</Link>
-                      </Button>
-                    </div>
-
-                    {objective.keyResults.length === 0 ? (
-                      <p className="text-sm text-ink-secondary">
-                        No key result yet, so nothing measures this. It counts as an orphan until
-                        one is added.
-                      </p>
-                    ) : (
-                      <>
-                        <p className="text-xs text-ink-muted">
-                          {rollup.selfPct === null
-                            ? null
-                            : `Mean across ${String(rollup.keyResultCount)} key ${
-                                rollup.keyResultCount === 1 ? 'result' : 'results'
-                              }: ${rollup.selfPct.toFixed(0)}% self-assessed`}
-                          {rollup.computedPct === null
-                            ? ', nothing computed'
-                            : `, ${rollup.computedPct.toFixed(0)}% computed from ${String(
-                                rollup.computedFrom,
-                              )} of ${String(rollup.keyResultCount)}`}
-                          .
-                        </p>
-
-                        <div className="flex flex-col gap-3">
-                          {objective.keyResults.map((keyResult) => (
-                            <ProgressPair
-                              key={keyResult.id}
-                              keyResult={keyResult}
-                              objectiveId={objective.id}
-                              elapsedPct={elapsedPct}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
-          </Section>
+          <PeriodSection key={group.period} group={group} today={today} areaNames={areaNames} />
         ))
+      )}
+
+      {upcoming.length === 0 ? null : (
+        <Section
+          title="Upcoming"
+          description="Objectives for a period that has not started. They are a plan, not what now is for, so nothing above counts them; each one moves up on the first day of its period."
+        >
+          <details>
+            <summary className="cursor-pointer text-sm text-ink-secondary">
+              {`Show ${String(upcoming.length)} ${
+                upcoming.length === 1 ? 'objective' : 'objectives'
+              }, for ${upcomingGroups.map((group) => group.period).join(', ')}`}
+            </summary>
+            <div className="mt-4 flex flex-col gap-8">
+              {upcomingGroups.map((group) => (
+                <PeriodSection
+                  key={group.period}
+                  group={group}
+                  today={today}
+                  areaNames={areaNames}
+                />
+              ))}
+            </div>
+          </details>
+        </Section>
       )}
 
       <Section
@@ -304,6 +271,116 @@ export default async function ObjectivesPage() {
         )}
       </Section>
     </div>
+  );
+}
+
+/** One period's objectives, each with its key results and their two numbers. */
+function PeriodSection({
+  group,
+  today,
+  areaNames,
+}: {
+  group: PeriodGroup;
+  today: string;
+  areaNames: ReadonlyMap<string, string>;
+}) {
+  return (
+    <Section
+      title={group.period}
+      description={
+        group.type === 'annual'
+          ? 'The year’s direction. A month’s objectives are read as steps toward these.'
+          : 'One month. Narrow enough that progress is a fact rather than a forecast.'
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {group.objectives.map((objective) => (
+          <ObjectiveCard
+            key={objective.id}
+            objective={objective}
+            today={today}
+            areaNames={areaNames}
+          />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function ObjectiveCard({
+  objective,
+  today,
+  areaNames,
+}: {
+  objective: Objective;
+  today: string;
+  areaNames: ReadonlyMap<string, string>;
+}) {
+  const elapsedPct = elapsedPctOf(objective.period, today);
+  const rollup = objectiveProgress(objective);
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <Link
+            href={`/objectives/${objective.id}`}
+            className="text-base font-medium text-ink hover:underline"
+          >
+            {objective.title}
+          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <AreaBadge
+              areaKey={objective.areaKey}
+              name={areaNames.get(objective.areaKey) ?? objective.areaKey}
+            />
+            <Badge variant={objective.status === 'active' ? 'accent' : 'neutral'}>
+              {objective.status}
+            </Badge>
+            <span className="text-xs text-ink-muted">
+              {elapsedPct >= 100 ? 'Period over' : `${elapsedPct.toFixed(0)}% of the period gone`}
+            </span>
+          </div>
+        </div>
+
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/objectives/${objective.id}`}>Open</Link>
+        </Button>
+      </div>
+
+      {objective.keyResults.length === 0 ? (
+        <p className="text-sm text-ink-secondary">
+          No key result yet, so nothing measures this. It counts as an orphan until one is added.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-ink-muted">
+            {rollup.selfPct === null
+              ? null
+              : `Mean across ${String(rollup.keyResultCount)} key ${
+                  rollup.keyResultCount === 1 ? 'result' : 'results'
+                }: ${rollup.selfPct.toFixed(0)}% self-assessed`}
+            {rollup.computedPct === null
+              ? ', nothing computed'
+              : `, ${rollup.computedPct.toFixed(0)}% computed from ${String(
+                  rollup.computedFrom,
+                )} of ${String(rollup.keyResultCount)}`}
+            .
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {objective.keyResults.map((keyResult) => (
+              <ProgressPair
+                key={keyResult.id}
+                keyResult={keyResult}
+                objectiveId={objective.id}
+                elapsedPct={elapsedPct}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 

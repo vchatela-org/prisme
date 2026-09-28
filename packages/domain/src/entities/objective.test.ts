@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adoptedObjectiveStatus,
   isObjectiveOpen,
   OBJECTIVE_STATUSES,
   objectiveDatesOf,
@@ -60,5 +61,24 @@ describe('an open objective', () => {
   it('is a draft or an active one; a judged or dropped one is closed', () => {
     const open = OBJECTIVE_STATUSES.filter((status) => isObjectiveOpen(status));
     expect(open).toEqual(['draft', 'active']);
+  });
+});
+
+describe('the status an adopted objective starts in', () => {
+  it('is draft while its period has not started', () => {
+    expect(adoptedObjectiveStatus('annual', '2027', '2026-09-28')).toBe('draft');
+    expect(adoptedObjectiveStatus('monthly', '2026-10', '2026-09-28')).toBe('draft');
+    expect(adoptedObjectiveStatus('annual', '2027', '2026-12-31')).toBe('draft');
+  });
+
+  it('is active from the first day of its period', () => {
+    expect(adoptedObjectiveStatus('annual', '2027', '2027-01-01')).toBe('active');
+    expect(adoptedObjectiveStatus('monthly', '2026-10', '2026-10-01')).toBe('active');
+    expect(adoptedObjectiveStatus('monthly', '2026-09', '2026-09-28')).toBe('active');
+  });
+
+  it('is active for a period already over, which a review judges rather than adoption', () => {
+    expect(adoptedObjectiveStatus('annual', '2025', '2026-09-28')).toBe('active');
+    expect(adoptedObjectiveStatus('monthly', '2026-02', '2026-09-28')).toBe('active');
   });
 });
