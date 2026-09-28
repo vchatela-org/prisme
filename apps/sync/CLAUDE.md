@@ -47,6 +47,10 @@ sync/
                the trailing-window refresh the full pass runs: `materialise`, bounded
   audit/       the write audit's sink, its retention prune, and the entity context
                a call is recorded against (ADR-0031)
+  objective-pages/
+               the document-tool half of the pass: each linked objective page's date
+               column set to its period — a pure planner (`plan.ts`, under the same
+               lint rule as `reconcile/`), its runner and its store (ADR-0034)
 ```
 
 **Every writer this app hands a pass is audited** — wrapped with `audit*Writer` from

@@ -361,3 +361,12 @@ export function nextMonthlyPeriod(today: string): string {
 export function currentPeriod(type: 'annual' | 'monthly', today: string): string {
   return type === 'annual' ? today.slice(0, 4) : today.slice(0, 7);
 }
+
+/**
+ * Whether the screen offers to move an objective's period: draft or active
+ * (ADR-0034). The API holds the rule and refuses a closed objective whatever
+ * this says; this only decides whether the control is shown.
+ */
+export function isOpenObjective(status: Objective['status']): boolean {
+  return status === 'draft' || status === 'active';
+}

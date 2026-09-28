@@ -32,8 +32,10 @@ export {
 
 export {
   assertCreatable,
+  assertEditable,
   assertReadable,
   canCreate,
+  canEdit,
   createRoleBindings,
   isReadable,
   PAGE_ROLE_FOR,
@@ -150,4 +152,5 @@ export type {
   DocStoreDescription,
   DocTemplate,
   DocToolClient,
+  SetEntryDateInput,
 } from './doc-tool/types.js';

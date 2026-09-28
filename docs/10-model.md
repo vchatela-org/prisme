@@ -229,7 +229,9 @@ the weekly review. The two fields never fight because they are never owned by th
 Objectives are authored **in prisme** and synchronised outward. They were historically written in
 the document tool only because that was the only option — and from there they can never reach the
 task tool, which is why they stay invisible. Those already written there are **adopted** from their pages, which
-stay their narrative ([`13-migration.md` §4](13-migration.md#what-becomes-what)).
+stay their narrative ([`13-migration.md` §4](13-migration.md#what-becomes-what)). A linked page's date
+column is written from the objective's period, and an open objective's period can move
+([ADR-0034](20-decisions/0034-an-open-objective-moves-and-its-page-follows.md)).
 
 ### Objective
 

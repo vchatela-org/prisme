@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { isConnectorError } from './errors.js';
 import {
   assertCreatable,
+  assertEditable,
   assertReadable,
   canCreate,
+  canEdit,
   createRoleBindings,
   isReadable,
   PAGE_ROLE_FOR,
@@ -105,6 +107,37 @@ describe('least privilege outbound (docs/14-threat-model.md §5)', () => {
     expect(ROLE_ACCESS.objectives_db).toBe('read_write');
     expect(ROLE_ACCESS.takeaways_db).toBe('read');
     expect(ROLE_ACCESS.processes_db).toBe('read');
+  });
+
+  describe('the edit capability (ADR-0034)', () => {
+    it('is held by the objectives store alone', () => {
+      expect(ROLE_KEYS.filter(canEdit)).toEqual(['objectives_db']);
+    });
+
+    it('refuses an edit in a store prisme only reads, only writes, or only creates in', () => {
+      // `reviews_db` is `write` and still refused: an edit is made to an entry
+      // prisme has read, and prisme does not read that store.
+      for (const role of [
+        'takeaways_db',
+        'areas_db',
+        'reviews_db',
+        'initiative_pages_db',
+      ] as const) {
+        expect(() => assertEditable(role, 'set entry date')).toThrow(
+          /no entry of it may be edited/,
+        );
+      }
+      expect(() => assertEditable('objectives_db', 'set entry date')).not.toThrow();
+    });
+
+    it('fails as its own kind, naming the role and never an identifier', () => {
+      try {
+        assertEditable('processes_db', 'set entry date');
+        expect.unreachable();
+      } catch (error) {
+        expect(isConnectorError(error) && error.failure).toBe('role_not_editable');
+      }
+    });
   });
 
   describe('the create capability (ADR-0025, ADR-0028, ADR-0030)', () => {

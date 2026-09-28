@@ -207,7 +207,9 @@ export default tseslint.config(
   // has to speak about what the connectors return. Everything that *does*
   // something lives in `apps/sync/src/apply` and `apps/sync/src/state`.
   {
-    files: ['apps/sync/src/reconcile/**/*.ts'],
+    // The objective pages' planner (ADR-0034) is the same kind of file and
+    // holds to the same rule; its runner, beside it, does the I/O.
+    files: ['apps/sync/src/reconcile/**/*.ts', 'apps/sync/src/objective-pages/plan.ts'],
     ignores: ['apps/sync/src/reconcile/**/*.test.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [

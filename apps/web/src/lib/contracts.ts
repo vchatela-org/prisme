@@ -424,6 +424,7 @@ export const eventSchema = z.object({
     'completed',
     'sync_action',
     'adoption_decision',
+    'period_changed',
   ]),
   entityKind: z.string(),
   entityId: z.string(),
@@ -1197,6 +1198,7 @@ export const WRITE_AUDIT_OPERATIONS = [
   'create_section',
   'create_capture_task',
   'create_page',
+  'update_page',
 ] as const;
 export type WriteAuditOperation = (typeof WRITE_AUDIT_OPERATIONS)[number];
 

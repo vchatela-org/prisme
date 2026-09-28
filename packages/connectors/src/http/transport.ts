@@ -16,7 +16,8 @@ import { ConnectorError, type ExternalTool } from '../errors.js';
  */
 
 export interface HttpRequest {
-  readonly method: 'GET' | 'POST';
+  /** `PATCH` is the document tool's page update, and only that (ADR-0034). */
+  readonly method: 'GET' | 'POST' | 'PATCH';
   readonly url: string;
   /**
    * Including `Authorization`. **Never log this object** — CLAUDE.md §4, and

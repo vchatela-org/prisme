@@ -22,7 +22,7 @@ export type WriteAuditTool = (typeof WRITE_AUDIT_TOOLS)[number];
 
 /**
  * Every outward write prisme can make — the whole write surface, one entry per
- * method on the three writer ports in `@prisme/connectors/write`. A method added
+ * method on the four writer ports in `@prisme/connectors/write`. A method added
  * there without an entry here does not compile where the two meet.
  */
 export const WRITE_AUDIT_OPERATIONS = [
@@ -33,6 +33,7 @@ export const WRITE_AUDIT_OPERATIONS = [
   'create_section',
   'create_capture_task',
   'create_page',
+  'update_page',
 ] as const;
 export type WriteAuditOperation = (typeof WRITE_AUDIT_OPERATIONS)[number];
 

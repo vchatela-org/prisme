@@ -183,6 +183,18 @@ export function canCreate(role: RoleKey): boolean {
   return ROLE_ACCESS[role] === 'create';
 }
 
+/**
+ * Whether prisme may change a property of an entry already in the store.
+ *
+ * Only `read_write`, and not `write`: an edit is made to an entry prisme has
+ * *read* — it checks the entry is the store's and holds the property before
+ * sending anything — so a store it may only write to (`reviews_db`, review
+ * summaries) is not one whose entries it edits (ADR-0034).
+ */
+export function canEdit(role: RoleKey): boolean {
+  return ROLE_ACCESS[role] === 'read_write';
+}
+
 export interface RoleBinding {
   readonly role: RoleKey;
   /**
@@ -250,6 +262,25 @@ export function assertReadable(role: RoleKey, operation: string): void {
     throw new ConnectorError(
       'role_not_readable',
       `role ${role} is ${ROLE_ACCESS[role]}-only for prisme (docs/14-threat-model.md §5); the read path may not query it`,
+      { tool: 'doc', operation },
+    );
+  }
+}
+
+/**
+ * Refuses an edit of an entry in a store prisme does not both read and write.
+ *
+ * The third of the capability checks, and the same argument as the other two:
+ * the least-privilege table in docs/14-threat-model.md §5 is a boundary only if
+ * something refuses to cross it. An edit reaches an entry somebody has been
+ * writing in — the failure `create` was made narrower than `write` to avoid —
+ * so only `objectives_db`, whose entries carry fields prisme owns, allows one.
+ */
+export function assertEditable(role: RoleKey, operation: string): void {
+  if (!canEdit(role)) {
+    throw new ConnectorError(
+      'role_not_editable',
+      `role ${role} is ${ROLE_ACCESS[role]} for prisme (docs/14-threat-model.md §5, ADR-0034); no entry of it may be edited`,
       { tool: 'doc', operation },
     );
   }

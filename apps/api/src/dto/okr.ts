@@ -85,12 +85,23 @@ export const createObjectiveBody = defineWrite(
   OBJECTIVE_READ_ONLY,
 );
 
+/**
+ * `type` and `period` move an **open** objective to another period (ADR-0034).
+ * Either may be sent alone — a monthly objective moved a month sends only its
+ * period — so whether the pair agrees is decided against the objective as it
+ * will be, by the service, and refused there with a 422.
+ */
 export const updateObjectiveBody = defineWrite(
   'UpdateObjective',
   z.strictObject({
     title: z.string().min(1).max(300).optional(),
     status: objectiveStatus.optional(),
     externalPageId: z.string().min(1).max(200).nullable().optional(),
+    type: objectiveType.optional(),
+    period: z
+      .string()
+      .regex(PERIOD, 'expected YYYY for an annual period or YYYY-MM for a month')
+      .optional(),
   }),
   OBJECTIVE_READ_ONLY,
 );

@@ -1,12 +1,13 @@
 import type { WriteAuditOperation, WriteAuditOutcome, WriteAuditTool } from '@prisme/domain';
 import { isConnectorError, type ConnectorFailure } from '../errors.js';
 import type { CreationWriter, DocumentCreationWriter } from './create/types.js';
+import type { DocumentEntryWriter } from './entry.js';
 import type { IdempotencyKey, TaskToolWriter } from './types.js';
 
 /**
  * The audit of outward writes (ADR-0031) — the writers, wrapped.
  *
- * Each of the three writer ports is decorated **where it is constructed**, so
+ * Each of the four writer ports is decorated **where it is constructed**, so
  * an audited writer is the only kind a pass holds. That is the same move the
  * write freeze makes (`./frozen.ts`): a record a call site has to remember to
  * make is a record some call site forgets, and a write path added later would
@@ -210,6 +211,33 @@ export function auditDocumentCreationWriter(
       call(
         { tool: 'document', operation: 'create_page', request: { ...draft }, key, made: idOf },
         () => writer.createPage(draft, key),
+      ),
+  };
+}
+
+/**
+ * The document tool's editing writer, audited (ADR-0034).
+ *
+ * The request is recorded in prisme's vocabulary — the dates — and not the
+ * column's name, which is the workspace's and adds nothing a person reading the
+ * audit needs: the record already names the page.
+ */
+export function auditDocumentEntryWriter(
+  writer: DocumentEntryWriter,
+  options: AuditOptions,
+): DocumentEntryWriter {
+  const call = audited(options);
+  return {
+    setObjectivePageDates: (write, key) =>
+      call(
+        {
+          tool: 'document',
+          operation: 'update_page',
+          request: { startsOn: write.startsOn, endsOn: write.endsOn },
+          key,
+          target: write.pageId,
+        },
+        () => writer.setObjectivePageDates(write, key),
       ),
   };
 }

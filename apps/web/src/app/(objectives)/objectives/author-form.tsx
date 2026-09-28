@@ -22,10 +22,10 @@ export interface AreaChoice {
  * real thing to do, but the default is the common case and the pairing rule
  * is enforced before the round trip rather than arriving back as a 400.
  *
- * The period cannot be changed afterwards. The form says so where the field
- * is, not in a confirmation dialog after the fact: an objective that moves
- * between months is a different objective, and attainment history depends on
- * that being true.
+ * The period can be moved afterwards only while the objective is open — draft
+ * or active (ADR-0034). The form says so where the field is, not in a
+ * confirmation dialog after the fact: once an objective is met, missed or
+ * dropped, it keeps the period it was judged against.
  *
  * ## No key result here
  *
@@ -133,7 +133,8 @@ export function AuthorObjectiveForm({
             }}
           />
           <FieldHint>
-            {type === 'annual' ? 'A year, as 2026.' : 'A month, as 2026-03.'} Fixed once it exists.
+            {type === 'annual' ? 'A year, as 2026.' : 'A month, as 2026-03.'} Movable while it is
+            open.
           </FieldHint>
         </div>
 

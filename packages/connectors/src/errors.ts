@@ -48,6 +48,8 @@ export type ConnectorFailure =
   | 'role_not_readable'
   /** A creation against a role that does not carry the `create` capability (ADR-0025). */
   | 'role_not_creatable'
+  /** An edit of an entry in a store prisme does not both read and write (ADR-0034). */
+  | 'role_not_editable'
   /** Pagination that does not terminate: a repeated cursor, or too many pages. */
   | 'pagination';
 

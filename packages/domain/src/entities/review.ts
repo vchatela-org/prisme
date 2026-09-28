@@ -37,7 +37,8 @@ export type EventKind =
   | 'weight_changed'
   | 'completed'
   | 'sync_action'
-  | 'adoption_decision';
+  | 'adoption_decision'
+  | 'period_changed';
 
 export const EVENT_KINDS = [
   'score_changed',
@@ -46,6 +47,8 @@ export const EVENT_KINDS = [
   'completed',
   'sync_action',
   'adoption_decision',
+  /** An open objective moved to another period (ADR-0034). `before`/`after` are `{ type, period }`. */
+  'period_changed',
 ] as const;
 
 export interface EventLogEntry {

@@ -362,7 +362,8 @@ export interface AppendEventInput {
     | 'weight_changed'
     | 'completed'
     | 'sync_action'
-    | 'adoption_decision';
+    | 'adoption_decision'
+    | 'period_changed';
   readonly entityKind: string;
   readonly entityId: string;
   readonly field?: string | undefined;
@@ -781,6 +782,8 @@ export interface ApiStore {
         title?: string | undefined;
         status?: string | undefined;
         externalPageId?: string | null | undefined;
+        type?: 'annual' | 'monthly' | undefined;
+        period?: string | undefined;
       },
     ): Promise<ObjectiveRecord | undefined>;
     keyResults(objectiveIds: readonly string[]): Promise<readonly KeyResultRecord[]>;

@@ -285,7 +285,7 @@ export default async function ObjectivesPage() {
 
       <Section
         title="Author an objective"
-        description="What the coming period is for. The period and type are fixed once it exists — an objective that moves between months is a different objective."
+        description="What the coming period is for. The period can move while the objective is open; once it is met, missed or dropped, it keeps the period it was judged against."
       >
         {!areas.ok ? (
           <ApiFailureState failure={areas} surface="the areas" />

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { AreaKey } from './area.js';
-import { isCalendarDate } from './calendar.js';
+import { isCalendarDate, type CalendarDate } from './calendar.js';
 import type { InitiativeId } from './initiative.js';
 
 /**
@@ -25,6 +25,18 @@ export type ObjectiveStatus = 'draft' | 'active' | 'met' | 'missed' | 'dropped';
 
 export const OBJECTIVE_TYPES = ['annual', 'monthly'] as const;
 export const OBJECTIVE_STATUSES = ['draft', 'active', 'met', 'missed', 'dropped'] as const;
+
+/**
+ * The statuses of an objective that is still open — whose period may still be
+ * changed (ADR-0034). A met, missed or dropped objective has been judged
+ * against its period, and changing the period afterwards would rewrite the
+ * judgement, so it keeps the one it has.
+ */
+export const OBJECTIVE_OPEN_STATUSES = ['draft', 'active'] as const;
+
+export function isObjectiveOpen(status: ObjectiveStatus): boolean {
+  return (OBJECTIVE_OPEN_STATUSES as readonly string[]).includes(status);
+}
 
 export interface Objective {
   readonly id: ObjectiveId;
@@ -111,6 +123,41 @@ export function objectivePeriodOf(
   }
 
   return undefined;
+}
+
+/**
+ * Whether a period is written the way its type says: `YYYY` for an annual
+ * objective, `YYYY-MM` (month 01–12) for a monthly one.
+ */
+export function periodMatchesType(type: ObjectiveType, period: string): boolean {
+  if (type === 'annual') return /^\d{4}$/.test(period);
+  if (!/^\d{4}-\d{2}$/.test(period)) return false;
+  const month = Number(period.slice(5, 7));
+  return month >= 1 && month <= 12;
+}
+
+/**
+ * The calendar days an objective's period covers — the inverse of
+ * {@link objectivePeriodOf}, and what an objectives page's date column is set
+ * to when the objective is linked to one (ADR-0034): `2027` is 2027-01-01 to
+ * 2027-12-31, `2027-02` is 2027-02-01 to 2027-02-28. `undefined` when the
+ * period is not written the way its type says, rather than a guess.
+ */
+export function objectiveDatesOf(
+  type: ObjectiveType,
+  period: string,
+): { readonly startsOn: CalendarDate; readonly endsOn: CalendarDate } | undefined {
+  if (!periodMatchesType(type, period)) return undefined;
+  if (type === 'annual') {
+    return {
+      startsOn: `${period}-01-01` as CalendarDate,
+      endsOn: `${period}-12-31` as CalendarDate,
+    };
+  }
+  return {
+    startsOn: `${period}-01` as CalendarDate,
+    endsOn: `${period}-${lastDayOfMonth(period)}` as CalendarDate,
+  };
 }
 
 /** `28` to `31`, for a `YYYY-MM`. Day 0 of the next month is the last of this one. */

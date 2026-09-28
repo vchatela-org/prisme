@@ -5,6 +5,7 @@ import {
   divergenceOf,
   elapsedPctOf,
   groupByPeriod,
+  isOpenObjective,
   LATE_IN_PERIOD_PCT,
   looksLikeAHabit,
   MATERIAL_GAP_PCT,
@@ -340,5 +341,15 @@ describe('period helpers', () => {
   it('gives the period an objective of each type would be authored for', () => {
     expect(currentPeriod('annual', '2026-09-19')).toBe('2026');
     expect(currentPeriod('monthly', '2026-09-19')).toBe('2026-09');
+  });
+});
+
+describe('isOpenObjective', () => {
+  it('offers a move for a draft or active objective, and never for a judged or dropped one', () => {
+    expect(isOpenObjective('draft')).toBe(true);
+    expect(isOpenObjective('active')).toBe(true);
+    expect(isOpenObjective('met')).toBe(false);
+    expect(isOpenObjective('missed')).toBe(false);
+    expect(isOpenObjective('dropped')).toBe(false);
   });
 });

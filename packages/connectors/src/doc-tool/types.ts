@@ -103,6 +103,25 @@ export interface CreatePageInput {
 }
 
 /**
+ * An entry's date column, as prisme sets it (ADR-0034).
+ *
+ * The one edit prisme makes to a page that already exists, and it is narrow on
+ * purpose: one property, of one entry, in a store whose role carries the edit
+ * capability (`objectives_db`). `property` is the column chosen on
+ * Settings → Notion — a name the workspace chose, so instance data, never
+ * logged and never in an error. `start` and `end` are calendar days; no time of
+ * day is sent, because a period is days.
+ */
+export interface SetEntryDateInput {
+  readonly role: RoleKey;
+  /** The entry — a page whose parent is the role's bound data source. */
+  readonly pageId: string;
+  readonly property: string;
+  readonly start: CalendarDate;
+  readonly end: CalendarDate;
+}
+
+/**
  * One of a store's templates, as the document tool lists it.
  *
  * `name` is sanitised text a person typed; it is shown on a screen and printed
@@ -166,9 +185,17 @@ export interface DocToolClient {
   listTemplates(role: RoleKey): Promise<readonly DocTemplate[]>;
   /**
    * Creates an entry in the role's bound database, or returns the live one that
-   * already has this title. The only **writing** method on this client, and the
-   * reason it exists is ADR-0025 — see the implementation for why the operation
-   * is level-triggered rather than keyed.
+   * already has this title. The only **creating** method on this client, and
+   * the reason it exists is ADR-0025 — see the implementation for why the
+   * operation is level-triggered rather than keyed.
    */
   createPage(input: CreatePageInput): Promise<DocPage>;
+  /**
+   * Sets one date property of one entry that already exists — the objective's
+   * page's date column, the outward form of its period (ADR-0034). The only
+   * **editing** method on this client: it reads the entry first and refuses one
+   * that is not the role's, is in the trash, or holds no date property by that
+   * name, so nothing is sent to a page prisme was not told about.
+   */
+  setEntryDate(input: SetEntryDateInput): Promise<void>;
 }

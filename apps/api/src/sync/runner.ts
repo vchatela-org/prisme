@@ -5,7 +5,10 @@ import {
   createTaskToolClient,
 } from '@prisme/connectors';
 import {
+  auditDocumentEntryWriter,
   auditTaskToolWriter,
+  createDocToolEntryWriter,
+  createFrozenDocumentEntryWriter,
   createFrozenWriter,
   createTaskToolWriter,
 } from '@prisme/connectors/write';
@@ -13,10 +16,13 @@ import { RECONCILER_LOCK_ID, withAdvisoryLock } from '@prisme/db';
 import {
   adopt,
   createAdoptionStore,
+  createObjectivePageStore,
   createPostgresStore,
   readBindings,
   reconcile,
+  reconcileObjectivePages,
   writeAuditOptions,
+  type ObjectivePagesResult,
 } from '@prisme/sync';
 import type { SyncRunRequest, SyncRunResult, SyncRunner } from './port.js';
 
@@ -73,6 +79,12 @@ export interface SyncRunnerOptions {
    * The write stands on its own result either way; this is the log line.
    */
   readonly onAuditRecordError?: ((error: unknown) => void) | undefined;
+  /**
+   * Told when the objectives store could not be read for the objective-pages
+   * step (ADR-0034). The task-tool half has already run and its result stands,
+   * as it does in the CronJob; this is the log line.
+   */
+  readonly onObjectivePagesError?: ((error: unknown) => void) | undefined;
 }
 
 const NO_COUNTS: Readonly<Record<string, number>> = {};
@@ -122,8 +134,15 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
       const transport = createFetchTransport();
       const runId = options.runId();
 
-      const outcome = await withAdvisoryLock(options.client, RECONCILER_LOCK_ID, () =>
-        reconcile({
+      const audit = writeAuditOptions(options.client, {
+        origin: 'reconciler',
+        runId,
+        now: options.now,
+        onRecordError: options.onAuditRecordError ?? (() => undefined),
+      });
+
+      const outcome = await withAdvisoryLock(options.client, RECONCILER_LOCK_ID, async () => {
+        const reconciled = await reconcile({
           mode: request.mode,
           full: request.full,
           store: createPostgresStore(options.client),
@@ -142,20 +161,45 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
                   transport,
                 })
               : createFrozenWriter(),
-            writeAuditOptions(options.client, {
-              origin: 'reconciler',
-              runId,
-              now: options.now,
-              onRecordError: options.onAuditRecordError ?? (() => undefined),
-            }),
+            audit,
           ),
           writeEnabled: options.writeEnabled,
           createThreshold: options.createThreshold,
           baseUrl: options.baseUrl,
           runId,
           now: options.now,
-        }),
-      );
+        });
+
+        // The objectives' pages, as the CronJob's pass does them (ADR-0034):
+        // same library, same lock, same mode, same freeze and audit.
+        let objectivePages: ObjectivePagesResult | undefined;
+        try {
+          const docClient = createDocToolClient({
+            token: options.docToolToken,
+            baseUrl: options.docToolBaseUrl,
+            bindings: await readBindings(options.client),
+            transport,
+          });
+          objectivePages = await reconcileObjectivePages({
+            mode: request.mode,
+            store: createObjectivePageStore(options.client),
+            docClient,
+            writer: auditDocumentEntryWriter(
+              options.writeEnabled
+                ? createDocToolEntryWriter({ client: docClient })
+                : createFrozenDocumentEntryWriter(),
+              audit,
+            ),
+            writeEnabled: options.writeEnabled,
+            runId,
+            now: options.now,
+          });
+        } catch (error) {
+          options.onObjectivePagesError?.(error);
+        }
+
+        return { reconciled, objectivePages };
+      });
 
       const finishedAt = options.now();
 
@@ -176,20 +220,32 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
         };
       }
 
-      const result = outcome.result;
+      const { reconciled: result, objectivePages: pages } = outcome.result;
+      // A page write is one more change, counted beside the anchors' — only
+      // the verdicts that write, so "changes pending" stays a count of writes.
+      const counts =
+        pages?.plan === undefined
+          ? result.plan.counts
+          : {
+              ...result.plan.counts,
+              objective_page_update: pages.plan.counts.update,
+              objective_page_conflict: pages.plan.counts.conflict,
+            };
       return {
         mode: request.mode,
         ran: true,
         full: result.full,
         startedAt,
         finishedAt,
-        counts: result.plan.counts,
-        applied: result.applied?.applied ?? null,
-        conflicts: result.applied?.conflicts ?? null,
-        refused: result.applied?.refused ?? result.applied?.stopped ?? null,
-        failures: result.applied?.failures.length ?? 0,
+        counts,
+        applied:
+          result.applied === undefined ? null : result.applied.applied + (pages?.applied ?? 0),
+        conflicts:
+          result.applied === undefined ? null : result.applied.conflicts + (pages?.conflicts ?? 0),
+        refused: result.applied?.refused ?? result.applied?.stopped ?? pages?.stopped ?? null,
+        failures: (result.applied?.failures.length ?? 0) + (pages?.failures.length ?? 0),
         drift: result.drift,
-        report: result.report,
+        report: pages === undefined ? result.report : `${result.report}\n\n${pages.report}`,
       };
     },
   };

@@ -134,6 +134,16 @@ An object the full view finds changed that the incremental stream never reported
 incremental path would have missed, and the count of those is `prisme_sync_drift_objects`. It runs
 only during `apply` — advancing a cursor is a side effect, and `plan` has none.
 
+#### The objectives' pages (ADR-0034)
+
+The same pass, after the task tool and under the same lock, reconciles one field into the document
+tool: each linked objective page's **date column** is set to its objective's period
+([`11-ownership.md`](11-ownership.md) §6). It is the same shape as the anchor half — a full read of
+the objectives store, a pure planner (`apps/sync/src/objective-pages/`), `last_applied` keyed by the
+page, and a hand edit restored and recorded as a conflict (§4) — and the same mode: `plan` prints it,
+`apply` writes it. Nothing is read when no objective is linked or the store has no date column
+chosen. A failed read is logged and does not fail the pass; a failed write does.
+
 ### Watermark handling
 
 Change timestamps in the document tool are rounded down to the minute. Querying for

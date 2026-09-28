@@ -42,6 +42,7 @@ function client(records: readonly DocRecord[], failOn?: RoleKey): DocToolClient 
     createPage: () => Promise.reject(new Error('not used')),
     describe: () => Promise.reject(new Error('not used')),
     listTemplates: () => Promise.reject(new Error('not used')),
+    setEntryDate: () => Promise.reject(new Error('not used')),
   };
 }
 

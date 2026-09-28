@@ -29,6 +29,35 @@ export type {
 export { createPostgresStore } from './state/postgres.js';
 
 /**
+ * The objectives' pages (ADR-0034): each linked page's date column set to its
+ * objective's period, inside the reconciler's pass. The planner is pure and
+ * exported for the same reason the reconciler's is.
+ */
+export { reconcileObjectivePages } from './objective-pages/run.js';
+export type {
+  ObjectivePageFailure,
+  ObjectivePagesOptions,
+  ObjectivePagesResult,
+  ObjectivePageStore,
+} from './objective-pages/run.js';
+export { createObjectivePageStore } from './objective-pages/store.js';
+export {
+  datesValue,
+  formatObjectivePagePlan,
+  observedDatesOf,
+  planObjectivePages,
+  OBJECTIVE_PAGE,
+  OBJECTIVE_PAGE_VERDICTS,
+} from './objective-pages/plan.js';
+export type {
+  LinkedObjective,
+  ObjectivePageAction,
+  ObjectivePagePlan,
+  ObjectivePageVerdict,
+  ObservedEntry,
+} from './objective-pages/plan.js';
+
+/**
  * The pass's outcome, as a row.
  *
  * The API imports the *reader* so that `/metrics` can republish what the

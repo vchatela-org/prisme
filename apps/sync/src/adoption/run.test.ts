@@ -200,6 +200,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     const result = await adopt({
@@ -234,6 +235,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     });
 
     const { store } = storeOf();
@@ -270,6 +272,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     };
     const { store } = storeOf();
     await adopt({ store, taskClient: taskClientOf(), docClient, now: () => NOW });
@@ -312,6 +315,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     };
 
     const { store, recorded } = storeOf();
@@ -372,6 +376,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     };
 
     // Only the objectives store has a date property chosen.
@@ -416,6 +421,7 @@ describe('the adoption pass', () => {
       createPage: () => Promise.reject(new Error('not used')),
       describe: () => Promise.reject(new Error('not used')),
       listTemplates: () => Promise.reject(new Error('not used')),
+      setEntryDate: () => Promise.reject(new Error('not used')),
     };
     // An objectives page is proposed against an objective; one with the same
     // title in the same area is what rule 2 proposes.
