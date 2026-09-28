@@ -106,9 +106,10 @@ Two things to know:
   **Settings → Areas**, and under **Its page in Notion** pick its page from the Life areas database
   (it is picked by page, so renaming the page in Notion changes nothing; one page belongs to one
   area). From the next *Rescan* on Adoption, an entry related to **exactly one** area's page gets
-  that area — so an action takeaway can be adopted, an objective can be matched to a key result in
-  the same area, and the Area filter reaches Notion rows. An entry related to no page, to several,
-  or to a page no area has, gets no area rather than a guess. A takeaway's area is Notion's and is
+  that area — so an action takeaway can be linked to the initiative its promotion made, an
+  objective can be matched to a key result in the same area, and the Area filter reaches Notion
+  rows. An entry related to no page, to several, or to a page no area has, gets no area rather than
+  a guess. A takeaway's area is Notion's and is
   re-read every scan; an objective's or a ritual's area is prisme's, so Notion's is only a
   starting point.
 - **Templates are Notion's own.** Create and edit them in the database, in Notion — prisme picks up
@@ -138,6 +139,10 @@ are never ranked against initiatives; the KPI dashboard shows how often they hap
   Todoist; the task stays exactly where it is, with its deadline and priority.
 - **Merge** — link it to something prisme already has.
 - **Ignore** — never show it again.
+
+An **action takeaway** is the exception: *Adopt* refuses it. Promote it from the **Inbox** instead —
+that makes an initiative which gets its Todoist task — and then *Merge* its row here onto that
+initiative, or ignore the row.
 
 A title opens what it names in a new tab — the page in Notion, or the project in Todoist — so you
 can read it before you decide. That needs `DOCTOOL_PAGE_URL_TEMPLATE` (and, for projects,

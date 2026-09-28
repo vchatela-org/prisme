@@ -1811,6 +1811,21 @@ export function createPostgresStore(client: Sql): ApiStore {
        * anywhere in a candidate. Refusing is the rule (apps/sync/CLAUDE.md §5);
        * both are adoptable through the merge path, against an entity that
        * already exists.
+       *
+       * **A document-tool page proposed as an initiative is refused too** — an
+       * action takeaway, today the only page the classifier proposes as one. It
+       * is *promoted, not copied* (docs/13-migration.md §4): the Inbox's
+       * promotion makes an initiative prisme created, records the promotion
+       * link, and lets it get its task-tool anchor. Adopting it here would make
+       * a second, `adopted` initiative bound to a `page` link — which the
+       * reconciler never binds, so guard 2 leaves it without an anchor for
+       * ever — and nothing would stop both happening to one takeaway
+       * (ADR-0033). The predicate is the **external kind**, not the store:
+       * `external_kind` is never null, where `source_role` is on a row scanned
+       * before 0015, and the reason — a page link cannot anchor an initiative —
+       * holds for a page from any store. It is checked before the area, whose
+       * advice ("map its location") would be the wrong one. Merging the row onto
+       * an initiative that exists — the one its promotion made — stays open.
        */
       async adoptCandidate(input) {
         return client.begin(async (tx) => {
@@ -1823,6 +1838,15 @@ export function createPostgresStore(client: Sql): ApiStore {
             for update`;
           const candidate = candidates[0];
           if (candidate === undefined) return undefined;
+          if (candidate.external_kind === 'page' && candidate.proposed_kind === 'initiative') {
+            return {
+              ok: false,
+              reason:
+                'an action takeaway is promoted, not adopted — promote it from the Inbox, which ' +
+                'creates an initiative that gets its task; to link this row to the initiative a ' +
+                'promotion already made, merge it through POST /adoption/decisions',
+            };
+          }
           if (candidate.area_key === null) {
             return {
               ok: false,

@@ -605,6 +605,93 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect((body as { message: string }).message).toMatch(/merge it onto an entity/);
     });
 
+    describe('an action takeaway (ADR-0033)', () => {
+      /**
+       * A takeaway page proposed as an initiative, in an area now that its
+       * store's area column gave it one — the row #115 made adoptable, and the
+       * one this refusal closes. `sourceRole: null` is a row scanned before
+       * 0015, which the predicate must refuse all the same.
+       */
+      async function seedTakeaway(externalId: string, sourceRole: string | null): Promise<string> {
+        const areaKey = (
+          await database.client<{ key: string }[]>`
+            select key from area where kind = 'area' order by key limit 1`
+        )[0]?.key as string;
+        await database.client`
+          insert into adoption_candidate
+            (external_kind, external_id, title, area_key, proposed_kind, reason, scanned_at,
+             source_role)
+          values ('page', ${externalId}, 'Fix the garden gate', ${areaKey}, 'initiative',
+                  'an actionable takeaway — promoted, not copied',
+                  ${new Date('2026-09-19T09:00:00Z').toISOString()}::timestamptz, ${sourceRole})`;
+        return areaKey;
+      }
+
+      const counts = async () => {
+        const [row] = await database.client<
+          { initiatives: string; links: string; decisions: string }[]
+        >`
+          select (select count(*) from initiative) as initiatives,
+                 (select count(*) from entity_link) as links,
+                 (select count(*) from event_log where kind = 'adoption_decision') as decisions`;
+        return row;
+      };
+
+      it('is refused, and pointed at the Inbox', async () => {
+        await seedTakeaway('ext-takeaway', 'takeaways_db');
+        const { status, body } = await api().request('POST', url('/adoption/adopt'), {
+          externalKind: 'page',
+          externalId: 'ext-takeaway',
+        });
+        expect(status).toBe(400);
+        expect((body as { message: string }).message).toMatch(/promote it from the Inbox/);
+      });
+
+      it('inserts no initiative, no link and no decision — whichever store it came from', async () => {
+        // Adversarial: the refusal must come before the insert, not after it,
+        // and must not depend on the store being recorded on the row.
+        await seedTakeaway('ext-takeaway', 'takeaways_db');
+        await seedTakeaway('ext-takeaway-old', null);
+        const before = await counts();
+
+        for (const externalId of ['ext-takeaway', 'ext-takeaway-old']) {
+          const { status } = await api().request('POST', url('/adoption/adopt'), {
+            externalKind: 'page',
+            externalId,
+          });
+          expect(status).toBe(400);
+        }
+
+        expect(await counts()).toEqual(before);
+        const adopted = await database.client`
+          select 1 from initiative where origin = 'adopted' and title = 'Fix the garden gate'`;
+        expect(adopted).toHaveLength(0);
+      });
+
+      it('can still be merged onto the initiative its promotion made', async () => {
+        const areaKey = await seedTakeaway('ext-takeaway', 'takeaways_db');
+        const [promoted] = await database.client<{ id: string }[]>`
+          insert into initiative (title, area_key, status, value, time_criticality, risk, size,
+                                  origin)
+          values ('Fix the garden gate', ${areaKey}, 'inbox', 3, 3, 3, 3, 'created_in_prisme')
+          returning id::text`;
+
+        const merged = await api().request('POST', url('/adoption/decisions'), {
+          prismeId: (promoted as { id: string }).id,
+          externalKind: 'page',
+          externalId: 'ext-takeaway',
+          matchRule: 'manual',
+          confidence: 'manual',
+        });
+        expect(merged.status).toBeLessThan(300);
+
+        const queue = (await api().request('GET', url('/adoption/queue?when=all'))).body as {
+          items: { externalId: string }[];
+        };
+        expect(queue.items.map((item) => item.externalId)).not.toContain('ext-takeaway');
+      });
+    });
+
     it('refuses a candidate outside every mapped area', async () => {
       // An entity belonging to no area cannot be allocated to, and allocation
       // comes before ranking.
