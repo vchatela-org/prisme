@@ -145,6 +145,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | Recurring tasks | **T** | ← | |
 | Run hours consumed vs budget | **∂** | — | Completions × declared duration |
 | Ritual definition: area, cadence, target adherence | **P** | — | |
+| A ritual's process page (`ritual.external_page_id`) | **P** | — | A reference, held in prisme and never written to the page (ADR-0016). Set on Rituals, or by linking the page's processes row in Adoption — which is refused while the ritual names a different page, rather than replacing or ignoring it |
 | The process page's area relation (the processes store's area column) | **D** | ← seed | Part of the process page, the document tool's outright (ADR-0016). Read into the adoption candidate; seeds a ritual's area only at adoption. Never written, never read again after, and a later difference is not a conflict: the ritual's area is a different field ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Ritual adherence series | **∂** | — | The metric neither tool provides |
 | Signals volume | **∂** | — | Counted as noise; excluded from capacity |

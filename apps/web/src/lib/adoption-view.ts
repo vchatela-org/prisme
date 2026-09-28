@@ -147,7 +147,7 @@ const ADOPT_REFUSAL_TEXT: Readonly<Record<AdoptRefusal, string>> = {
   needs_objective:
     'A key result needs its objective and a target. Add it under its objective on Objectives; after a Rescan, one with this title in this area is offered as a link.',
   needs_cadence:
-    'A ritual needs a cadence and a target. Create it on Rituals; after a Rescan, one with this title in this area is offered as a link.',
+    'A ritual needs a cadence and a target. Create it on Rituals; after a Rescan, one with this title in this area is offered as a link, and Link makes this page its process page.',
   not_adoptable: 'This stays where it is: it does not become anything in prisme.',
   no_area:
     'Outside every area. Give it one — a Todoist location on Settings → Areas, or the database’s area column on Settings → Notion — then Rescan.',

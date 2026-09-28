@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adoptRefusal, isAdoptableKind, type AdoptionSubject } from './adoption.js';
+import { adoptRefusal, isAdoptableKind, ritualPageLink, type AdoptionSubject } from './adoption.js';
 import { objectivePeriodOf } from './objective.js';
 
 describe('the objective a period names', () => {
@@ -102,5 +102,20 @@ describe('why adopting a candidate would be refused', () => {
       expect(isAdoptableKind(kind)).toBe(false);
       expect(adoptRefusal({ ...objective, proposedKind: kind })).toBe('not_adoptable');
     }
+  });
+});
+
+describe('what linking a page does to a ritual', () => {
+  it('attaches the page to a ritual that names none', () => {
+    expect(ritualPageLink(undefined, 'page-stretching')).toBe('attach');
+  });
+
+  it('changes nothing when the ritual already names that page', () => {
+    expect(ritualPageLink('page-stretching', 'page-stretching')).toBe('already');
+  });
+
+  it('refuses a page other than the one the ritual names', () => {
+    // Neither replaced nor kept: a person chose the first page on Rituals.
+    expect(ritualPageLink('page-stretching', 'page-journaling')).toBe('other_page');
   });
 });

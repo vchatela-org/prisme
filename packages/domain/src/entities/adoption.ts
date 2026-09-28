@@ -90,3 +90,33 @@ export function adoptRefusal(subject: AdoptionSubject): AdoptRefusal | undefined
   }
   return undefined;
 }
+
+/**
+ * What *Link* does to a ritual's process page — docs/13-migration.md §4.
+ *
+ * A merge binds an external reference to an entity prisme already has, and a
+ * ritual holds one reference to the document tool: its process page, the page
+ * the declared-duration tier reads (ADR-0016). So linking a page to a ritual
+ * **is** setting that page:
+ *
+ * | The ritual names | Linking a page |
+ * |---|---|
+ * | no page | `attach` — it becomes the ritual's page |
+ * | that page | `already` — nothing changes |
+ * | another page | `other_page` — refused, and nothing is written |
+ *
+ * The third is refused rather than settled either way. Replacing the page would
+ * undo a choice somebody made on Rituals; keeping it would record a link the
+ * ritual does not honour. Only a person knows which page is right, and Rituals
+ * is where they say so.
+ *
+ * Both arguments are **keys**: the caller reduces each identifier to the form
+ * two are compared in first, because the document tool writes one page's
+ * identifier two ways.
+ */
+export type RitualPageLink = 'attach' | 'already' | 'other_page';
+
+export function ritualPageLink(heldKey: string | undefined, linkedKey: string): RitualPageLink {
+  if (heldKey === undefined) return 'attach';
+  return heldKey === linkedKey ? 'already' : 'other_page';
+}

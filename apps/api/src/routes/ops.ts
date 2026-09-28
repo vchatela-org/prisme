@@ -186,7 +186,7 @@ export const opsRoutes: readonly ApiRoute[] = [
     scope: 'write:adoption',
     summary: 'Link an existing external object to a prisme entity',
     description:
-      'Adopting binds; it never creates. A decision made through this endpoint is a human one by definition, and nothing above "certain" is ever applied automatically.',
+      'Adopting binds; it never creates. A decision made through this endpoint is a human one by definition, and nothing above "certain" is ever applied automatically. A page linked to a ritual becomes its process page; `409` if the ritual already names another one, and then nothing is recorded.',
     body: decideAdoptionBody,
     response: AdoptionEntryDto,
     handle: (context, services) =>

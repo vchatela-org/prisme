@@ -175,6 +175,7 @@ filters by source store and by area, with a count beside each value
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
 | Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
 | Objective or key result stored as a task | Key result, with that task as its anchor |
+| Page in the processes store | Ritual — only by *Merge*: *Adopt* refuses it, since a cadence and a target are in no candidate. Create the ritual on Rituals, and linking the row makes the page its process page; a ritual that already names another page is refused, and nothing is written |
 | Recurring task | Run lane, or a Ritual if it serves a habit goal |
 | Machine-generated notification | Signals lane |
 | Loose task, no structure | Stays a task. Not everything is an initiative |

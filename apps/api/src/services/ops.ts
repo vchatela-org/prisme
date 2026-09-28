@@ -252,6 +252,14 @@ export function createOpsService(
 
     async decideAdoption(input, identity, now): Promise<AdoptionDtoShape> {
       const decided = await store.ops.decideAdoption({ ...input, decidedAt: now });
+      if (!decided.ok) {
+        throw new ApiError(
+          'conflict',
+          'this ritual already names another process page, and linking a page to a ritual ' +
+            'makes it that page — change or clear it through PATCH /rituals/{id}, then link ' +
+            'this one; or ignore this row',
+        );
+      }
       await store.ops.appendEvent({
         kind: 'adoption_decision',
         entityKind: input.externalKind,
@@ -262,7 +270,7 @@ export function createOpsService(
         actor: identity.kind,
         occurredAt: now,
       });
-      return toAdoptionDto(decided);
+      return toAdoptionDto(decided.record);
     },
 
     // The whole undecided set, then one pure function filters, counts and pages
