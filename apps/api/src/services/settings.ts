@@ -1,5 +1,6 @@
 import {
   canCreate,
+  docIdKey,
   isConnectorError,
   isReadable,
   ROLE_ACCESS,
@@ -8,7 +9,12 @@ import {
   type RoleKey,
 } from '@prisme/connectors';
 import type { z } from 'zod';
-import type { bindingDto, bindingListDto, taskLocationsDto } from '../dto/settings.js';
+import type {
+  areaPagesDto,
+  bindingDto,
+  bindingListDto,
+  taskLocationsDto,
+} from '../dto/settings.js';
 import { ApiError } from '../http/errors.js';
 import type { ApiStore, RoleBindingRecord } from '../store/types.js';
 import type { ExternalDirectory } from '../sync/directory.js';
@@ -50,6 +56,14 @@ import type { ExternalDirectory } from '../sync/directory.js';
  * nothing, silently. A failed check keeps it — the store was not read, so
  * nothing is known to have changed.
  *
+ * ## …and its relation properties, for its area column
+ *
+ * The same shape, for ADR-0033: one relation property may be chosen as the
+ * store's **area column** (`area_property`), and the adoption scan reads each
+ * entry's area from it. Chosen from the list, carried across a re-check by the
+ * same rule as the date. The page each area is recognised by is picked from the
+ * Life areas store's entries, which {@link SettingsService.areaPages} lists.
+ *
  * ## Nothing upstream reaches the caller
  *
  * A connector error's message can carry the identifier it was about. What is
@@ -60,6 +74,7 @@ import type { ExternalDirectory } from '../sync/directory.js';
 export type BindingShape = z.infer<typeof bindingDto>;
 export type BindingListShape = z.infer<typeof bindingListDto>;
 export type TaskLocationsShape = z.infer<typeof taskLocationsDto>;
+export type AreaPagesShape = z.infer<typeof areaPagesDto>;
 
 export interface SettingsService {
   listBindings(): Promise<BindingListShape>;
@@ -67,7 +82,11 @@ export interface SettingsService {
   checkBindings(now: Date): Promise<BindingListShape>;
   /** Choose, or clear, the date property the adoption queue reads for this store. */
   setDateProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
+  /** Choose, or clear, the relation property the adoption scan reads areas from (ADR-0033). */
+  setAreaProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
   taskLocations(): Promise<TaskLocationsShape>;
+  /** The Life areas store's entries, to pick an area's own page from (ADR-0033). */
+  areaPages(): Promise<AreaPagesShape>;
 }
 
 function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): BindingShape {
@@ -88,15 +107,18 @@ function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): Bin
       })) ?? null,
     dateProperty: record?.dateProperty ?? null,
     dateProperties: record?.dateProperties ? [...record.dateProperties] : null,
+    areaProperty: record?.areaProperty ?? null,
+    relationProperties: record?.relationProperties ? [...record.relationProperties] : null,
   };
 }
 
 /**
- * The date property a binding keeps after a check found `found`.
+ * The column a binding keeps after a check found `found` — its date column,
+ * and by the same rule its area column (ADR-0033).
  *
- * Kept while the store still has a date property of that name; dropped once it
- * does not. `null` found means the check did not read the schema, which says
- * nothing about the property, so the choice stands.
+ * Kept while the store still has a property of that name and type; dropped
+ * once it does not. `null` found means the check did not read the schema,
+ * which says nothing about the property, so the choice stands.
  */
 export function carriedDateProperty(
   previous: string | null,
@@ -135,11 +157,14 @@ export function createSettingsService(
         templates: null,
         dateProperty: previous?.dateProperty ?? null,
         dateProperties: null,
+        areaProperty: previous?.areaProperty ?? null,
+        relationProperties: null,
       };
     }
 
-    // Only a store prisme reads has entries to date.
+    // Only a store prisme reads has entries to date, or to place in an area.
     const dateProperties = isReadable(role) ? (described.dateProperties ?? null) : null;
+    const relationProperties = isReadable(role) ? (described.relationProperties ?? null) : null;
     const found = {
       role,
       externalId: described.externalId,
@@ -148,6 +173,8 @@ export function createSettingsService(
       checkedAt: now,
       dateProperty: carriedDateProperty(previous?.dateProperty ?? null, dateProperties),
       dateProperties,
+      areaProperty: carriedDateProperty(previous?.areaProperty ?? null, relationProperties),
+      relationProperties,
     };
     if (!canCreate(role)) return { ...found, checkError: null, templates: null };
 
@@ -248,6 +275,69 @@ export function createSettingsService(
 
       await store.bindings.setDateProperty(role, property);
       return toBindingDto(role, { ...record, dateProperty: property });
+    },
+
+    async setAreaProperty(role, property): Promise<BindingShape> {
+      const record = (await store.bindings.list()).find((binding) => binding.role === role);
+      if (record === undefined) {
+        throw new ApiError(
+          'conflict',
+          `${role} is not bound — bind the store before choosing its area column`,
+        );
+      }
+      if (!isReadable(role)) {
+        throw new ApiError('unprocessable', `${role} is not a store prisme reads entries from`);
+      }
+      // Chosen from what the last check found, never typed — the date column's
+      // reasoning: a name that is not one of the store's relation properties
+      // would place nothing in an area, and nothing would say so.
+      if (property !== null && !(record.relationProperties ?? []).includes(property)) {
+        throw new ApiError(
+          'unprocessable',
+          'that is not one of this store’s relation properties — check the binding to refresh the list',
+        );
+      }
+
+      await store.bindings.setAreaProperty(role, property);
+      return toBindingDto(role, { ...record, areaProperty: property });
+    },
+
+    async areaPages(): Promise<AreaPagesShape> {
+      const binding = (await store.bindings.list()).find((record) => record.role === 'areas_db');
+      if (binding === undefined) return { bound: false, failure: null, pages: [] };
+
+      let entries;
+      try {
+        entries = await directory.areaPages(binding.externalId);
+      } catch (error) {
+        // An answer rather than an error, as for the task tool's locations: the
+        // screen still shows the page an area already has, by identifier.
+        return { bound: true, failure: failureKind(error), pages: [] };
+      }
+
+      // Which area already names each page, compared the way the scan compares
+      // them — so the screen can say so rather than offer a choice the API
+      // would refuse.
+      const holder = new Map<string, string>();
+      for (const area of await store.areas.list()) {
+        if (area.externalPageId !== null) holder.set(docIdKey(area.externalPageId), area.key);
+      }
+
+      return {
+        bound: true,
+        failure: null,
+        pages: [...entries]
+          .sort(
+            (left, right) =>
+              left.title.localeCompare(right.title) ||
+              left.externalId.localeCompare(right.externalId),
+          )
+          .map((entry) => ({
+            id: entry.externalId,
+            title: entry.title,
+            heldBy: holder.get(docIdKey(entry.externalId)) ?? null,
+          })),
+      };
     },
 
     async taskLocations(): Promise<TaskLocationsShape> {

@@ -140,6 +140,8 @@ export {
 
 export { TEXT_BLOCK_TYPES } from './doc-tool/map.js';
 
+export { docIdKey } from './doc-tool/ids.js';
+
 export type {
   DocBlock,
   DocPage,

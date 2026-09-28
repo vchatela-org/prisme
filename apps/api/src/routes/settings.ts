@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
+  AreaPagesDto,
   BindingDto,
   BindingListDto,
   checkBindingsBody,
+  putAreaPropertyBody,
   putBindingBody,
   putDatePropertyBody,
   roleKey,
@@ -14,8 +16,11 @@ import { defineRoute, noQuery, type ApiRoute } from './kit.js';
  * What the Settings screens read and change that is not an area.
  *
  * The role bindings are set here and only here (docs/15-runtime.md §2), with a
- * check that reads the store's title so a binding says what it points at. All three are `admin:settings` — a binding is an identifier from a
- * real workspace.
+ * check that reads the store's title so a binding says what it points at. Every
+ * binding route is `admin:settings` — a binding is an identifier from a real
+ * workspace. The two lists an area is configured from — the task tool's
+ * locations and the Life areas store's pages — are `admin:areas`, like the area
+ * writes they serve.
  */
 export const settingsRoutes: readonly ApiRoute[] = [
   defineRoute({
@@ -64,6 +69,22 @@ export const settingsRoutes: readonly ApiRoute[] = [
   }),
 
   defineRoute({
+    operationId: 'putBindingAreaProperty',
+    method: 'put',
+    path: '/bindings/:role/area-property',
+    scope: 'admin:settings',
+    summary: 'Choose which relation property says which area a store’s entries belong to',
+    description:
+      "Optional, and for a store prisme reads (ADR-0033). The adoption scan gives each entry the area whose own page — `externalPageId` on the area — is the one page this property relates it to; none, several or an unknown page is no area. The name must be one of the binding's `relationProperties` from its last check — chosen, never typed; `null` clears it.",
+    params: z.strictObject({ role: roleKey }),
+    body: putAreaPropertyBody,
+    status: 200,
+    response: BindingDto,
+    handle: (context, services) =>
+      services.settings.setAreaProperty(context.params.role, context.body.property),
+  }),
+
+  defineRoute({
     operationId: 'checkBindings',
     method: 'post',
     path: '/bindings/check',
@@ -88,5 +109,18 @@ export const settingsRoutes: readonly ApiRoute[] = [
     query: noQuery,
     response: TaskLocationsDto,
     handle: (_context, services) => services.settings.taskLocations(),
+  }),
+
+  defineRoute({
+    operationId: 'listAreaPages',
+    method: 'get',
+    path: '/document-tool/area-pages',
+    scope: 'admin:areas',
+    summary: 'The Life areas store’s entries, by title',
+    description:
+      'What an area’s own page is picked from (ADR-0033): the entries of the store bound to `areas_db`, each as an identifier and a title and nothing else of the page. Read live. `bound: false` when no store is bound to that role; when it cannot be read the list is empty and `failure` says why, so a screen can still show the page an area already has.',
+    query: noQuery,
+    response: AreaPagesDto,
+    handle: (_context, services) => services.settings.areaPages(),
   }),
 ];

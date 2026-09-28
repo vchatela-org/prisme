@@ -8,6 +8,7 @@ import type {
 } from '@prisme/connectors';
 import { parseCalendarDate } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
+import { indexAreaPages } from './area-relation.js';
 import {
   adaptDocRecords,
   adaptProjects,
@@ -248,6 +249,46 @@ describe('document records', () => {
         datePropertyByRole: new Map([['objectives_db', 'When']]),
       });
       expect(elsewhere?.startsOn).toBeUndefined();
+    });
+  });
+
+  describe('the area a chosen relation names (ADR-0033)', () => {
+    const areaOptions: AdaptOptions = {
+      ...OPTIONS,
+      areaPropertyByRole: new Map([['takeaways_db', 'Sphere']]),
+      areaByPage: indexAreaPages([
+        { key: 'home', externalPageId: 'area-page-home' },
+        { key: 'signals', externalPageId: 'area-page-signals' },
+      ]),
+    };
+    const related = (...ids: string[]) => recordOf([['Sphere', { kind: 'relation', ids }]]);
+
+    it('gives the entry its area, and the area’s lane', () => {
+      const [object] = adaptDocRecords([related('area-page-home')], areaOptions);
+      expect(object).toMatchObject({ areaKey: 'home', areaLane: 'area' });
+    });
+
+    it('gives none for several pages or a page no area names', () => {
+      const [several, unknown] = adaptDocRecords(
+        [related('area-page-home', 'area-page-signals'), related('area-page-garden')],
+        areaOptions,
+      );
+      expect(several?.areaKey).toBeUndefined();
+      expect(several?.areaLane).toBeUndefined();
+      expect(unknown?.areaKey).toBeUndefined();
+    });
+
+    it('reads the column chosen for the record’s own store, and no other', () => {
+      const [elsewhere] = adaptDocRecords([related('area-page-home')], {
+        ...areaOptions,
+        areaPropertyByRole: new Map([['objectives_db', 'Sphere']]),
+      });
+      expect(elsewhere?.areaKey).toBeUndefined();
+    });
+
+    it('gives none when no column is chosen, which is how every page was read before', () => {
+      const [object] = adaptDocRecords([related('area-page-home')], OPTIONS);
+      expect(object?.areaKey).toBeUndefined();
     });
   });
 });

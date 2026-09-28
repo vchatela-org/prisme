@@ -55,6 +55,18 @@ export const bindingDto = z.object({
    * schema.
    */
   dateProperties: z.array(z.string()).nullable(),
+  /**
+   * The relation property the adoption scan reads this store's areas from
+   * (ADR-0033), by name — instance data. `null`: none chosen, and the store's
+   * candidates carry no area.
+   */
+  areaProperty: z.string().nullable(),
+  /**
+   * The store's relation properties as the last check read them, to choose
+   * from. `null` for a store prisme does not read, or when the check did not
+   * read the schema.
+   */
+  relationProperties: z.array(z.string()).nullable(),
 });
 
 export const bindingListDto = z.object({ items: z.array(bindingDto) });
@@ -128,6 +140,37 @@ export const putDatePropertyBody = defineWrite(
     property: z.string().min(1).max(200).nullable(),
   }),
 );
+
+export const putAreaPropertyBody = defineWrite(
+  'PutAreaProperty',
+  z.strictObject({
+    /** One of the binding's `relationProperties`, or `null` to stop reading its entries' areas. */
+    property: z.string().min(1).max(200).nullable(),
+  }),
+);
+
+/**
+ * The pages of the store bound to `areas_db` — Life areas — that an area's own
+ * page is picked from (ADR-0033). A title and an identifier each, nothing else
+ * of the page: the title is how a person recognises it, the identifier is what
+ * a relation is matched against.
+ */
+export const areaPagesDto = z.object({
+  /** Whether `areas_db` is bound at all; with it unbound there is nothing to pick from. */
+  bound: z.boolean(),
+  /** Why the store could not be read — a connector failure kind — or `null`. */
+  failure: z.string().nullable(),
+  pages: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      /** The key of the area whose own page this already is, or `null` — one page names one area. */
+      heldBy: z.string().nullable(),
+    }),
+  ),
+});
+
+export const AreaPagesDto = named('AreaPages', areaPagesDto);
 
 export const taskSectionDto = z.object({
   id: z.string(),

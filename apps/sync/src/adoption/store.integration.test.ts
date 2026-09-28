@@ -242,6 +242,12 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       expect(map.laneByArea.get('signals')).toBe('signals');
       expect(map.laneByArea.get('home')).toBe('area');
     });
+
+    it('indexes each area’s own page, the one a relation resolves to (ADR-0033)', async () => {
+      await client`update area set external_page_id = 'area-page-home' where key = 'home'`;
+      const map = await store().loadAreaMap();
+      expect([...map.areaByPage]).toEqual([['area-page-home', ['home']]]);
+    });
   });
 
   describe('loadDateProperties', () => {
@@ -252,6 +258,25 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
           ('takeaways_db', 'store-takeaways', null)`;
       const chosen = await store().loadDateProperties();
       expect([...chosen]).toEqual([['objectives_db', 'When']]);
+    });
+  });
+
+  describe('loadAreaProperties', () => {
+    it('reads the chosen area column of each store that has one', async () => {
+      await client`
+        insert into role_binding (role, external_id, area_property) values
+          ('objectives_db', 'store-objectives', null),
+          ('takeaways_db', 'store-takeaways', 'Sphere')`;
+      const chosen = await store().loadAreaProperties();
+      expect([...chosen]).toEqual([['takeaways_db', 'Sphere']]);
+    });
+
+    it('refuses a blank column name, at the database', async () => {
+      await expect(
+        client`
+          insert into role_binding (role, external_id, area_property)
+          values ('takeaways_db', 'store-takeaways', '  ')`,
+      ).rejects.toThrow(/area_property/);
     });
   });
 
@@ -354,6 +379,23 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       ]);
     });
 
+    it('writes the area a page’s relation named, like a task’s', async () => {
+      await store().replaceCandidates(
+        [
+          candidateOf({
+            kind: 'page',
+            externalId: 'page-1',
+            role: 'takeaways_db',
+            areaKey: 'home',
+          }),
+        ],
+        at,
+      );
+      const rows = await client<{ area_key: string | null; source_role: string | null }[]>`
+        select area_key, source_role from adoption_candidate`;
+      expect(rows).toEqual([{ area_key: 'home', source_role: 'takeaways_db' }]);
+    });
+
     it('refuses a period that runs backwards, at the database', async () => {
       await expect(
         store().replaceCandidates(
@@ -410,6 +452,39 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
       await store().mirrorTakeaways([{ externalPageId: 'tk-1', kind: 'principle' }], at);
       expect(await mirrored()).toEqual([
         { external_page_id: 'tk-1', kind: 'principle', promoted_to: null },
+      ]);
+    });
+
+    it('writes the area its relation names, and clears it when it no longer names one', async () => {
+      // The takeaway's area is the document tool's (ADR-0033): read on every
+      // scan, never kept past the read that stopped saying it.
+      const at = new Date('2026-09-26T09:00:00Z');
+      const areas = () =>
+        client<{ external_page_id: string; area_key: string | null }[]>`
+          select external_page_id, area_key from takeaway order by external_page_id`;
+
+      await store().mirrorTakeaways(
+        [
+          { externalPageId: 'tk-1', kind: 'action', areaKey: 'home' },
+          { externalPageId: 'tk-2', kind: 'principle' },
+        ],
+        at,
+      );
+      expect(await areas()).toEqual([
+        { external_page_id: 'tk-1', area_key: 'home' },
+        { external_page_id: 'tk-2', area_key: null },
+      ]);
+
+      await store().mirrorTakeaways(
+        [
+          { externalPageId: 'tk-1', kind: 'action' },
+          { externalPageId: 'tk-2', kind: 'principle', areaKey: 'home' },
+        ],
+        at,
+      );
+      expect(await areas()).toEqual([
+        { external_page_id: 'tk-1', area_key: null },
+        { external_page_id: 'tk-2', area_key: 'home' },
       ]);
     });
 

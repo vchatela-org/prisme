@@ -9,6 +9,7 @@ import type {
   TaskToolClient,
 } from '@prisme/connectors';
 import { locationKey } from '../reconcile/types.js';
+import { indexAreaPages, type AreaPage } from './area-relation.js';
 import type { AuditableEntity } from './coverage.js';
 import type { AdoptionStore, TakeawaySeen } from './ports.js';
 import { adopt } from './run.js';
@@ -36,6 +37,8 @@ function storeOf(
     decided?: DecidedSet;
     auditable?: readonly AuditableEntity[];
     dateProperties?: ReadonlyMap<string, string>;
+    areaProperties?: ReadonlyMap<string, string>;
+    areaPages?: readonly AreaPage[];
   } = {},
 ): { store: AdoptionStore; recorded: Recorded } {
   const recorded: Recorded = { candidates: [], scannedAt: [], takeaways: [] };
@@ -48,8 +51,10 @@ function storeOf(
       Promise.resolve({
         areaByLocation: new Map([[locationKey('p-home'), 'home']]),
         laneByArea: new Map<string, 'area' | 'run' | 'signals'>([['home', 'area']]),
+        areaByPage: indexAreaPages(overrides.areaPages ?? []),
       }),
     loadDateProperties: () => Promise.resolve(overrides.dateProperties ?? new Map()),
+    loadAreaProperties: () => Promise.resolve(overrides.areaProperties ?? new Map()),
     replaceCandidates: (candidates, scannedAt) => {
       recorded.candidates.push(...candidates);
       recorded.scannedAt.push(scannedAt);
@@ -378,6 +383,95 @@ describe('the adoption pass', () => {
     // The processes store carries the same column, and nobody chose it there.
     expect(byId.get('pr-1')?.startsOn).toBeUndefined();
     expect(byId.get('pr-1')?.endsOn).toBeUndefined();
+  });
+
+  it('gives a page the area its store’s relation names, so the rules can match it (ADR-0033)', async () => {
+    const entry = (role: RoleKey, id: string, title: string, related: string[]): DocRecord => ({
+      role,
+      externalId: id,
+      lastEditedAt: NOW,
+      createdAt: NOW,
+      archived: false,
+      title,
+      properties: new Map([
+        ['Sphere', { kind: 'relation' as const, ids: related }],
+        ['Kind', { kind: 'select' as const, value: 'Action' }],
+      ]),
+      urls: [],
+      contentHash: id,
+    });
+    const docClient: DocToolClient = {
+      queryByRole: (role) =>
+        Promise.resolve(
+          role === 'objectives_db'
+            ? [entry('objectives_db', 'ob-1', 'Walk to work twice a week', ['area-page-home'])]
+            : role === 'takeaways_db'
+              ? [
+                  entry('takeaways_db', 'tk-1', 'Fix the gate', ['area-page-home']),
+                  entry('takeaways_db', 'tk-2', 'Paint the fence', []),
+                ]
+              : [],
+        ),
+      fetchPage: () => Promise.reject(new Error('not used')),
+      createPage: () => Promise.reject(new Error('not used')),
+      describe: () => Promise.reject(new Error('not used')),
+      listTemplates: () => Promise.reject(new Error('not used')),
+    };
+    // A key result inherits its objective's area; one with the same statement
+    // in the same area is what rule 2 proposes.
+    const targets: MatchTarget[] = [
+      {
+        prismeId: 'kr-1',
+        kind: 'key_result',
+        title: 'Walk to work twice a week',
+        areaKey: 'home',
+        closed: false,
+      },
+    ];
+    const areaPages = [{ key: 'home', externalPageId: 'area-page-home' }];
+
+    const chosen = storeOf({
+      targets,
+      areaPages,
+      areaProperties: new Map([
+        ['objectives_db', 'Sphere'],
+        ['takeaways_db', 'Sphere'],
+      ]),
+    });
+    await adopt({
+      store: chosen.store,
+      taskClient: taskClientOf(),
+      docClient,
+      now: () => NOW,
+      persist: true,
+      takeawayTypeProperty: 'Kind',
+    });
+    const byId = new Map(chosen.recorded.candidates.map((c) => [c.object.externalId, c]));
+    expect(byId.get('ob-1')?.object.areaKey).toBe('home');
+    expect(byId.get('ob-1')?.proposal).toMatchObject({ rule: 'exact_title', prismeId: 'kr-1' });
+    expect(byId.get('tk-1')?.object.areaKey).toBe('home');
+    expect(byId.get('tk-2')?.object.areaKey).toBeUndefined();
+    // The takeaway's area is the document tool's, mirrored as read.
+    expect(chosen.recorded.takeaways).toEqual([
+      [
+        { externalPageId: 'tk-1', kind: 'action', areaKey: 'home' },
+        { externalPageId: 'tk-2', kind: 'action' },
+      ],
+    ]);
+
+    // With no column chosen, a page is outside every area, as before — and "no
+    // area" matches only "no area", so nothing is proposed.
+    const unchosen = storeOf({ targets, areaPages });
+    await adopt({
+      store: unchosen.store,
+      taskClient: taskClientOf(),
+      docClient,
+      now: () => NOW,
+      persist: true,
+    });
+    const objective = unchosen.recorded.candidates.find((c) => c.object.externalId === 'ob-1');
+    expect(objective?.object.areaKey).toBeUndefined();
+    expect(objective?.proposal).toBeUndefined();
   });
 
   it('is idempotent: two passes over an unchanged world agree exactly', async () => {

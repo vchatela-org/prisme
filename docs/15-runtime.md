@@ -320,6 +320,13 @@ adoption scan reads each entry's period from it, so the queue can hide what has 
 list rather than typed, kept across a re-check while the store still has that property, and dropped
 when it no longer does. The name is the workspace's, and instance data like the title.
 
+The check lists the store's `relation` properties the same way, and one may be chosen as its **area
+column** (`role_binding.area_property`, `PUT /bindings/{role}/area-property`), by the same rules. The
+adoption scan gives an entry the area whose own page — `area.external_page_id`, picked on Settings →
+Areas from the entries of the store bound to `areas_db` (`GET /document-tool/area-pages`, identifier
+and title only) — is the one page the relation names
+([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)).
+
 **A role with no binding is not addressable**, and the connectors report it rather than guessing: a
 scan says `document tool   not read`, and the backfill reports the declared-duration tier as
 unavailable. That is the state of every instance whose screen is still empty, and it is a state the

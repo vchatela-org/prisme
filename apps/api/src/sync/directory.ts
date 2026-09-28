@@ -39,6 +39,19 @@ export interface ExternalDirectory {
    * `ConnectorError` reduced to its failure kind by the caller.
    */
   templates(role: RoleKey, externalId: string): Promise<readonly DocTemplate[]>;
+  /**
+   * The entries of the store bound to `areas_db`, as an identifier and a title
+   * each — what an area's own page is picked from on Settings → Areas
+   * (ADR-0033). Takes the identifier the caller holds, like the two above;
+   * throws a `ConnectorError` reduced to its failure kind by the caller.
+   */
+  areaPages(externalId: string): Promise<readonly AreaPageEntry[]>;
+}
+
+/** One Life areas entry, as a screen offers it: nothing of the page but these two. */
+export interface AreaPageEntry {
+  readonly externalId: string;
+  readonly title: string;
 }
 
 export interface ExternalDirectoryOptions {
@@ -81,6 +94,23 @@ export function createExternalDirectory(options: ExternalDirectoryOptions): Exte
         bindings: createRoleBindings([{ role, externalId }]),
         transport: createFetchTransport(),
       }).listTemplates(role);
+    },
+
+    async areaPages(externalId) {
+      // The one Settings read of a store's **rows**, and it is narrow on
+      // purpose: exactly one role bound, and it is `areas_db` — a store prisme
+      // reads, whose rows are the areas' own pages. Nothing but an identifier
+      // and a title leaves this function; the properties the query returns are
+      // dropped here rather than carried to a screen that has no use for them.
+      const records = await createDocToolClient({
+        token: options.docToolToken,
+        baseUrl: options.docToolBaseUrl,
+        bindings: createRoleBindings([{ role: 'areas_db', externalId }]),
+        transport: createFetchTransport(),
+      }).queryByRole('areas_db');
+      return records
+        .filter((record) => !record.archived)
+        .map((record) => ({ externalId: record.externalId, title: record.title }));
     },
   };
 }

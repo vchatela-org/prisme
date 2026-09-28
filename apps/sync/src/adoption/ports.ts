@@ -1,3 +1,4 @@
+import type { AreaPageIndex } from './area-relation.js';
 import type { AuditableEntity } from './coverage.js';
 import type { Candidate, DecidedSet, MatchTarget } from './types.js';
 
@@ -31,10 +32,16 @@ export interface AdoptionStore {
   /** Every entity, with its provenance, for the create audit. */
   loadAuditable(): Promise<readonly AuditableEntity[]>;
 
-  /** `area_mapping` and each area's lane, for the adapter. */
+  /**
+   * `area_mapping`, each area's lane, and each area's own page in the document
+   * tool (`area.external_page_id`) — the two vocabularies an external object is
+   * folded into an area by: a task-tool location, or a relation to an area's
+   * page (ADR-0033).
+   */
   loadAreaMap(): Promise<{
     readonly areaByLocation: ReadonlyMap<string, string>;
     readonly laneByArea: ReadonlyMap<string, 'area' | 'run' | 'signals'>;
+    readonly areaByPage: AreaPageIndex;
   }>;
 
   /**
@@ -42,6 +49,12 @@ export interface AdoptionStore {
    * Only the stores that have one; the names are instance data.
    */
   loadDateProperties(): Promise<ReadonlyMap<string, string>>;
+
+  /**
+   * Each store's chosen area column, by role (`role_binding.area_property`,
+   * ADR-0033). Only the stores that have one; the names are instance data.
+   */
+  loadAreaProperties(): Promise<ReadonlyMap<string, string>>;
 
   /**
    * Replace the candidate mirror with this scan's result.
@@ -69,4 +82,10 @@ export interface AdoptionStore {
 export interface TakeawaySeen {
   readonly externalPageId: string;
   readonly kind: 'action' | 'principle';
+  /**
+   * The area its store's area column names, if any (ADR-0033). The document
+   * tool's, like everything on a takeaway (docs/11-ownership.md §7), so every
+   * read refreshes it — and clears it when the relation no longer names one.
+   */
+  readonly areaKey?: string | undefined;
 }

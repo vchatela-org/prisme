@@ -134,6 +134,12 @@ export interface DocStoreDescription {
    * title. Absent from a description that did not read the schema.
    */
   readonly dateProperties?: readonly string[] | undefined;
+  /**
+   * The names of the store's `relation`-typed properties, sorted, so a screen
+   * can offer one as the store's area column (ADR-0033). Instance data, like
+   * the date names; absent when the schema was not read.
+   */
+  readonly relationProperties?: readonly string[] | undefined;
 }
 
 /**

@@ -69,6 +69,10 @@ there: completed tasks in these locations count toward the area, and a task labe
 there becomes one of its initiatives. Work in a project mapped to no area counts toward no area;
 the backfill report lists those projects so you can map them.
 
+The same page has **Its page in Notion**: the area's own page in your Life areas database, which is
+how a Notion entry is recognised as this area's. It is optional and needs the Life areas database
+bound first — see *Area column* in §2.3.
+
 ### 2.3 Notion — which database is which
 
 **Settings → Notion.** prisme never uses a Notion database by name. It knows **roles**, and you
@@ -80,7 +84,7 @@ shows its title — and, for the databases it adds pages to, the templates each 
 | Objectives | your objectives database | reads it; its rows are proposed as key results in Adoption |
 | Takeaways | where you keep ideas from books and articles | reads it; action-type takeaways reach the Inbox |
 | Media library | books / articles / videos | reads it, for context |
-| Life areas | one page per area | reads it, for each area's narrative |
+| Life areas | one page per area | reads it; each area's own page is picked from it, and an *Area column* points at it |
 | Processes | procedures and routines | reads it; a ritual's duration comes from its page |
 | Reviews | where review summaries should go | nothing yet |
 | Initiative / Project / Capture pages | **a database with at least one template** — how a new page of that kind should start | adds a page to it when you ask for one, from one of its templates |
@@ -97,6 +101,16 @@ Two things to know:
   date has passed (a range counts until its end), so last year's objectives stop crowding the queue.
   The list is what the last check found; after adding or renaming a date column in Notion, use
   *Check again* on Settings.
+- **Area column (optional)** — for the same three, choose which of the database's **relation**
+  properties points at your Life areas database. Then give each area its page: open the area on
+  **Settings → Areas**, and under **Its page in Notion** pick its page from the Life areas database
+  (it is picked by page, so renaming the page in Notion changes nothing; one page belongs to one
+  area). From the next *Rescan* on Adoption, an entry related to **exactly one** area's page gets
+  that area — so an action takeaway can be adopted, an objective can be matched to a key result in
+  the same area, and the Area filter reaches Notion rows. An entry related to no page, to several,
+  or to a page no area has, gets no area rather than a guess. A takeaway's area is Notion's and is
+  re-read every scan; an objective's or a ritual's area is prisme's, so Notion's is only a
+  starting point.
 - **Templates are Notion's own.** Create and edit them in the database, in Notion — prisme picks up
   a new or renamed template, or a changed default, the next time it looks. A pages database with no
   template says so beside it: no page of that kind can be made until it holds one.

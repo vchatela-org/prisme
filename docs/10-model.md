@@ -61,7 +61,7 @@ A life domain. Stable, small in number, and the unit of capacity allocation.
 | `key` | slug | prisme | Stable identifier. Never changes; renaming touches `name` only. |
 | `name` | text | prisme | Display name |
 | `kind` | enum | prisme | `area` \| `run` \| `signals` — lanes are modelled as areas with a different kind so capacity accounting is uniform |
-| `external_page_id` | ref | prisme | Optional link to the narrative page in the document tool |
+| `external_page_id` | ref | prisme | Optional. The area's own page — an entry of the Life areas store, picked on Settings → Areas. A document-tool entry whose store's area column relates it to exactly this page belongs to this area ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | `active` | bool | prisme | Archived areas keep their history |
 
 ### Weights are year-scoped
@@ -113,6 +113,12 @@ area_mapping (area_key, external_project_id, external_section_id?, is_home)
 Many-to-one: several projects and sections may map to one area. This is how several disagreeing
 lists of "areas" across tools fold into one key **without restructuring anything**. Restructuring
 the external tools later is optional, and does not change the model.
+
+`area_mapping` is the task tool's vocabulary only. A **document-tool** entry is placed in an area by
+its store's *area column* — a relation to the Life areas store, chosen per store on Settings →
+Notion — resolved against each area's `external_page_id`: exactly one related page that is exactly
+one area's page names that area, and anything else names none
+([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)).
 
 When prisme has to *create* something for an area — an initiative's anchor task, a capture — it goes
 to the area's **home** mapping; with none marked, to the most specific mapping (a section beats a
@@ -288,7 +294,9 @@ and does not delete or modify it.
 The mirror is filled by the adoption scan from the takeaways store: a takeaway's kind comes from the
 select property named in `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` (a value starting *action*, or *principle* /
 *principe*). An untyped takeaway is neither and is not mirrored — guessing would risk a principle in
-the backlog. A takeaway gone from the store leaves the mirror unless it was promoted.
+the backlog. A takeaway gone from the store leaves the mirror unless it was promoted. Its area is the
+document tool's too: read from the store's area column on every scan, and cleared when the relation
+stops naming exactly one area ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)).
 
 ---
 

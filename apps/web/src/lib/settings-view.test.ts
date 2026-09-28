@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { SettingsArea, TaskLocations } from './contracts';
+import type { AreaPages, SettingsArea, TaskLocations } from './contracts';
 import {
   AREA_KEY_PATTERN,
+  areaChoice,
+  areaPageChoice,
   checkAdvice,
   dateChoice,
   holders,
@@ -36,6 +38,7 @@ function area(key: string, overrides: Partial<SettingsArea> = {}): SettingsArea 
     rankable: true,
     runBudgetHoursPerWeek: null,
     colorSlot: null,
+    externalPageId: null,
     mappings: [],
     ...overrides,
   };
@@ -179,5 +182,89 @@ describe('dateChoice', () => {
   it('asks for a check before it can offer anything, and says when there is nothing', () => {
     expect(dateChoice(binding({ dateProperties: null }))).toEqual({ state: 'unchecked' });
     expect(dateChoice(binding({ dateProperties: [] }))).toEqual({ state: 'none', chosen: null });
+  });
+});
+
+describe('areaChoice (ADR-0033)', () => {
+  const binding = (over: Partial<Parameters<typeof areaChoice>[0]> = {}) => ({
+    role: 'takeaways_db',
+    bound: true,
+    areaProperty: null,
+    relationProperties: ['Linked notes', 'Sphere'],
+    ...over,
+  });
+
+  it('offers the store’s relation columns, with what is chosen', () => {
+    expect(areaChoice(binding({ areaProperty: 'Sphere' }))).toEqual({
+      state: 'choose',
+      options: ['Linked notes', 'Sphere'],
+      chosen: 'Sphere',
+    });
+  });
+
+  it('is offered where the date column is, and not on the Life areas store itself', () => {
+    expect(areaChoice(binding({ role: 'objectives_db' })).state).toBe('choose');
+    expect(areaChoice(binding({ role: 'processes_db' })).state).toBe('choose');
+    expect(areaChoice(binding({ role: 'areas_db' }))).toEqual({ state: 'hidden' });
+    expect(areaChoice(binding({ role: 'media_db' }))).toEqual({ state: 'hidden' });
+    expect(areaChoice(binding({ bound: false }))).toEqual({ state: 'hidden' });
+  });
+
+  it('asks for a check before it can offer anything, and says when there is nothing', () => {
+    expect(areaChoice(binding({ relationProperties: null }))).toEqual({ state: 'unchecked' });
+    expect(areaChoice(binding({ relationProperties: [] }))).toEqual({
+      state: 'none',
+      chosen: null,
+    });
+  });
+});
+
+describe('areaPageChoice (ADR-0033)', () => {
+  const nameOf = (key: string): string => key.toUpperCase();
+  const pages = (
+    items: readonly { id: string; title: string; heldBy: string | null }[],
+  ): AreaPages => ({ bound: true, failure: null, pages: [...items] });
+
+  it('offers the Life areas pages, marking one another area holds', () => {
+    const choice = areaPageChoice(
+      'home',
+      'area-page-home',
+      pages([
+        { id: 'area-page-craft', title: 'Craft', heldBy: 'craft' },
+        { id: 'area-page-home', title: 'Home', heldBy: 'home' },
+        { id: 'area-page-garden', title: 'Garden', heldBy: null },
+      ]),
+      nameOf,
+    );
+    expect(choice).toEqual({
+      state: 'choose',
+      options: [
+        { id: 'area-page-craft', title: 'Craft', takenBy: 'CRAFT' },
+        { id: 'area-page-home', title: 'Home', takenBy: null },
+        { id: 'area-page-garden', title: 'Garden', takenBy: null },
+      ],
+      chosen: 'area-page-home',
+      elsewhere: null,
+    });
+  });
+
+  it('says when the page the area has is not among them', () => {
+    const choice = areaPageChoice('home', 'area-page-moved', pages([]), nameOf);
+    expect(choice).toMatchObject({ state: 'choose', chosen: null, elsewhere: 'area-page-moved' });
+  });
+
+  it('says when there is nothing to pick from, and why', () => {
+    expect(areaPageChoice('home', null, null, nameOf)).toEqual({ state: 'unbound', chosen: null });
+    expect(
+      areaPageChoice('home', null, { bound: false, failure: null, pages: [] }, nameOf),
+    ).toEqual({ state: 'unbound', chosen: null });
+    expect(
+      areaPageChoice(
+        'home',
+        'area-page-home',
+        { bound: true, failure: 'refused', pages: [] },
+        nameOf,
+      ),
+    ).toEqual({ state: 'unreadable', failure: 'refused', chosen: 'area-page-home' });
   });
 });

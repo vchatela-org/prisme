@@ -1,6 +1,7 @@
 import type postgres from 'postgres';
 import type { Origin } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
+import { indexAreaPages } from './area-relation.js';
 import type { AuditableEntity } from './coverage.js';
 import type { AdoptionStore, TakeawaySeen } from './ports.js';
 import { externalKey, type Candidate, type DecidedSet, type MatchTarget } from './types.js';
@@ -155,7 +156,8 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
           { area_key: string; external_project_id: string; external_section_id: string | null }[]
         >`
           select area_key, external_project_id, external_section_id from area_mapping`,
-        client<{ key: string; kind: string }[]>`select key, kind from area`,
+        client<{ key: string; kind: string; external_page_id: string | null }[]>`
+          select key, kind, external_page_id from area`,
       ]);
 
       const areaByLocation = new Map<string, string>();
@@ -169,13 +171,25 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
       const laneByArea = new Map<string, 'area' | 'run' | 'signals'>();
       for (const row of areas) laneByArea.set(row.key, row.kind as 'area' | 'run' | 'signals');
 
-      return { areaByLocation, laneByArea };
+      // Inactive areas included: an area is retired, not deleted, and work
+      // that still points at its page belongs to it until somebody says not.
+      const areaByPage = indexAreaPages(
+        areas.map((row) => ({ key: row.key, externalPageId: row.external_page_id })),
+      );
+
+      return { areaByLocation, laneByArea, areaByPage };
     },
 
     async loadDateProperties() {
       const rows = await client<{ role: string; date_property: string }[]>`
         select role, date_property from role_binding where date_property is not null`;
       return new Map(rows.map((row) => [row.role, row.date_property]));
+    },
+
+    async loadAreaProperties() {
+      const rows = await client<{ role: string; area_property: string }[]>`
+        select role, area_property from role_binding where area_property is not null`;
+      return new Map(rows.map((row) => [row.role, row.area_property]));
     },
 
     /**
@@ -228,14 +242,18 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
             and not (external_page_id = any(${seen}::text[]))`;
 
         for (const takeaway of takeaways) {
+          // The area is the document tool's (ADR-0033), so it is written as
+          // read — cleared too, when the relation no longer names one.
+          const areaKey = takeaway.areaKey ?? null;
           const updated = await tx`
-            update takeaway set kind = ${takeaway.kind}
+            update takeaway set kind = ${takeaway.kind}, area_key = ${areaKey}
             where external_page_id = ${takeaway.externalPageId}
             returning id`;
           if (updated.length > 0) continue;
           await tx`
-            insert into takeaway (kind, external_page_id, observed_at)
-            values (${takeaway.kind}, ${takeaway.externalPageId}, ${at}::timestamptz)`;
+            insert into takeaway (kind, external_page_id, area_key, observed_at)
+            values (${takeaway.kind}, ${takeaway.externalPageId}, ${areaKey},
+                    ${at}::timestamptz)`;
         }
       });
     },

@@ -74,17 +74,33 @@ const MAX_PAGES = 100;
 const MAX_BLOCK_DEPTH = 3;
 
 /**
- * The names of a schema's date properties, sorted so the list a screen offers
- * does not reorder itself between two checks. Only the tool's own `date` type:
+ * The names of a schema's properties of one type, sorted so the list a screen
+ * offers does not reorder itself between two checks. Only the tool's own type:
  * a formula or a rollup that happens to produce a date is not a column a person
  * sets, and the created/edited times say when a row was touched, not when its
  * period runs.
  */
-function datePropertyNames(properties: Readonly<Record<string, { readonly type: string }>>) {
+function propertyNamesOfType(
+  properties: Readonly<Record<string, { readonly type: string }>>,
+  type: 'date' | 'relation',
+) {
   return Object.entries(properties)
-    .filter(([, property]) => property.type === 'date')
+    .filter(([, property]) => property.type === type)
     .map(([name]) => name)
     .sort((left, right) => left.localeCompare(right));
+}
+
+/**
+ * The two lists a store's check offers to choose from: its date properties
+ * (#112) and its relation properties (ADR-0033). Only the tool's own
+ * `relation` type for the second: a rollup reads *through* a relation and names
+ * no page of its own.
+ */
+function choosableProperties(properties: Readonly<Record<string, { readonly type: string }>>) {
+  return {
+    dateProperties: propertyNamesOfType(properties, 'date'),
+    relationProperties: propertyNamesOfType(properties, 'relation'),
+  };
 }
 
 export interface DocToolClientOptions {
@@ -403,26 +419,26 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
         );
       }
       // The database object carries no schema; its one data source does. A
-      // failure here costs the date choice and nothing else — the binding is
-      // right, and refusing it for an optional list would be refusing a store
-      // prisme can read.
-      let dateProperties: readonly string[] | undefined;
+      // failure here costs the date and area choices and nothing else — the
+      // binding is right, and refusing it for an optional list would be
+      // refusing a store prisme can read.
+      let choosable: ReturnType<typeof choosableProperties> | undefined;
       try {
         const source = parseOrThrow(
           wireDataSourceSchema,
           await send('GET', `/v1/data_sources/${encodeURIComponent(only.id)}`, operation),
           { tool: 'doc', operation, shape: 'data source' },
         );
-        dateProperties =
-          source.properties === undefined ? undefined : datePropertyNames(source.properties);
+        choosable =
+          source.properties === undefined ? undefined : choosableProperties(source.properties);
       } catch {
-        dateProperties = undefined;
+        choosable = undefined;
       }
       return {
         externalId: only.id,
         title: plain(database.title) || only.name,
         linkId: database.id,
-        ...(dateProperties === undefined ? {} : { dateProperties }),
+        ...(choosable ?? {}),
       };
     }
 
@@ -435,9 +451,7 @@ export function createDocToolClient(options: DocToolClientOptions): DocToolClien
       externalId: source.id,
       title: plain(source.title),
       linkId: source.parent.database_id ?? source.id,
-      ...(source.properties === undefined
-        ? {}
-        : { dateProperties: datePropertyNames(source.properties) }),
+      ...(source.properties === undefined ? {} : choosableProperties(source.properties)),
     };
   }
 

@@ -90,9 +90,9 @@ export const areaRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/areas/:key',
     scope: 'admin:areas',
-    summary: 'Rename, recolour or deactivate an area',
+    summary: 'Rename, recolour or deactivate an area, or set its own page',
     description:
-      'The key and the kind are immutable: renaming touches `name`, and turning an area into a lane would rewrite the meaning of every past capacity measurement. `colorSlot: null` returns the area to its configured or hashed colour.',
+      'The key and the kind are immutable: renaming touches `name`, and turning an area into a lane would rewrite the meaning of every past capacity measurement. `colorSlot: null` returns the area to its configured or hashed colour. `externalPageId` is the area’s own page in the Life areas store — what a store’s area column is matched against (ADR-0033); a page another area already names is refused with `409`, and `null` clears it.',
     params: keyParam,
     body: updateAreaBody,
     response: AreaDto,
