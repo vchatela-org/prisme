@@ -1,7 +1,8 @@
 # ADR-0033 · Read a document-tool entry's area from its store's area column, by the area's own page
 
 **Status:** Accepted · 2026-09-27 · decided by the owner, 2026-09-27 — settles the *mapping
-vocabulary* question recorded on 2026-09-26 and 2026-09-27
+vocabulary* question recorded on 2026-09-26 and 2026-09-27 · amended 2026-09-28: point 5 decides that
+a takeaway is promoted, never adopted
 
 ## Context
 
@@ -100,6 +101,16 @@ none.**
      initiative never gets a task-tool anchor. The second creates one prisme made, which does. Nothing
      stops both being used on one takeaway. This record changes neither path; which one a takeaway
      should take is the next question, and it is recorded as a follow-up.
+
+     **Amended 2026-09-28 — decided: a takeaway is promoted, never adopted.** *Adopt* refuses a
+     document-tool page proposed as an initiative, before it inserts anything, and its reason points
+     at the Inbox, whose promotion makes an initiative that gets its anchor — the rule
+     [`13-migration.md`](../13-migration.md) §4 already stated (*promoted, not copied*). The
+     predicate is the candidate's external kind (`page`), not its store: a page link cannot anchor an
+     initiative whichever store it came from, and a row scanned before migration 0015 has no store
+     recorded. *Merge* stays open, so a queue row can be linked to the initiative its promotion
+     made. The queue does not yet leave out a takeaway that has already been promoted; that is
+     recorded as a follow-up, not decided here.
 
 ## Consequences
 

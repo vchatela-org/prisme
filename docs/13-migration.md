@@ -171,7 +171,7 @@ filters by source store and by area, with a count beside each value
 |---|---|
 | Parent task with subtasks, in an area's section | Initiative, anchored to that task |
 | Dedicated project with sections | Project, with its sections mapped |
-| Actionable takeaway | Initiative candidate — promoted, not copied |
+| Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
 | Objective or key result stored as a task | Key result, with that task as its anchor |
 | Recurring task | Run lane, or a Ritual if it serves a habit goal |

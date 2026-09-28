@@ -260,7 +260,7 @@ export const opsRoutes: readonly ApiRoute[] = [
     scope: 'write:adoption',
     summary: 'Adopt a candidate: a linked prisme entity, and nothing outward',
     description:
-      "Creates one entity with `origin = 'adopted'` — which the planner can never emit a `create` for, by guard 2 — and the link to the object that already exists. It does not bind the reference: that is the reconciler's `adopt` action on its next pass, so that `entity_external_ref` has one writer rather than two racing for guard 1. A key result or a ritual is refused rather than guessed at, because neither’s required values are anywhere in a candidate; merge those onto an entity that already exists.",
+      "Creates one entity with `origin = 'adopted'` — which the planner can never emit a `create` for, by guard 2 — and the link to the object that already exists. It does not bind the reference: that is the reconciler's `adopt` action on its next pass, so that `entity_external_ref` has one writer rather than two racing for guard 1. A key result or a ritual is refused rather than guessed at, because neither’s required values are anywhere in a candidate; merge those onto an entity that already exists. A document-tool page proposed as an initiative — an action takeaway — is refused too: it is promoted from the Inbox, not adopted, and can be merged onto the initiative its promotion made (ADR-0033).",
     body: adoptCandidateBody,
     response: AdoptionEntryDto,
     status: 201,
