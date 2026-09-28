@@ -75,6 +75,17 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
           select 1 from entity_external_ref r where r.prisme_id = p.id::text
         )
         union all
+        -- An objective is never bound by the reconciler — nothing outward is
+        -- written for one — so "unbound" is its own page link and the ledger:
+        -- no page yet, and no adopt or merge naming it.
+        select o.id::text, 'objective', o.title, o.area_key,
+               (o.status in ('met', 'missed', 'dropped'))
+        from objective o
+        where o.external_page_id is null
+          and not exists (
+            select 1 from entity_link l where l.prisme_id = o.id::text
+          )
+        union all
         select k.id::text, 'key_result', k.statement, o.area_key,
                (o.status in ('met', 'missed', 'dropped'))
         from key_result k

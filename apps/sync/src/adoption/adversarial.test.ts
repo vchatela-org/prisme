@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { INITIATIVE_STATUSES, ORIGINS } from '@prisme/domain';
 import { plan } from '../reconcile/plan.js';
 import { anchorOf, CONFIG, desiredOf, observedOf } from '../test-support/builders.js';
+import { DEFAULT_KEY_RESULT_LABEL } from './classify.js';
 import { coverage, wouldProduceCreate, type AuditableEntity } from './coverage.js';
 import { scan } from './queue.js';
 import { CANDIDATE_KINDS, type CandidateKind, type ExternalObject } from './types.js';
@@ -167,8 +168,17 @@ function corpusCoveringEveryKind(): readonly ExternalObject[] {
       title: 'House renovation',
       sectionCount: 5,
     },
-    // key_result — held in the objectives store
-    { ...base, kind: 'page', externalId: 'k-kr', title: 'Run 1000km', role: 'objectives_db' },
+    // objective — held in the objectives store
+    { ...base, kind: 'page', externalId: 'k-objective', title: 'Be fitter', role: 'objectives_db' },
+    // key_result — a task a human labelled as one
+    {
+      ...base,
+      kind: 'task',
+      externalId: 'k-kr',
+      title: 'Run 1000km',
+      areaKey: 'home',
+      labels: [DEFAULT_KEY_RESULT_LABEL],
+    },
     // ritual — held in the processes store
     { ...base, kind: 'page', externalId: 'k-ritual', title: 'Weekly review', role: 'processes_db' },
     // run — recurring

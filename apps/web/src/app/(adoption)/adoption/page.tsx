@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ApiFailureState } from '@/components/api-failure';
 import {
+  adoptRefusalText,
   candidateLink,
   ignoreEndedConfirmation,
   ignoreEndedOffer,
@@ -357,6 +358,11 @@ function CandidateList({
                 <span className="truncate">{candidate.reason}</span>
               </div>
               {hasRule(candidate) ? <Proposal candidate={candidate} /> : null}
+              {candidate.adoptRefusal === null ? null : (
+                <p className="text-xs text-ink-secondary">
+                  {adoptRefusalText(candidate.adoptRefusal)}
+                </p>
+              )}
             </div>
 
             <CandidateDecisions candidate={candidate} />
@@ -417,6 +423,7 @@ function Proposal({ candidate }: { candidate: AdoptionCandidate }) {
 const KIND_LABELS: Readonly<Record<string, string>> = {
   initiative: 'Initiative',
   project: 'Project',
+  objective: 'Objective',
   key_result: 'Key result',
   ritual: 'Ritual',
   run: 'Run lane',

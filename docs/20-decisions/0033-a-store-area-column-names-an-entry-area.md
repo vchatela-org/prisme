@@ -2,7 +2,8 @@
 
 **Status:** Accepted · 2026-09-27 · decided by the owner, 2026-09-27 — settles the *mapping
 vocabulary* question recorded on 2026-09-26 and 2026-09-27 · amended 2026-09-28: point 5 decides that
-a takeaway is promoted, never adopted
+a takeaway is promoted, never adopted · amended 2026-09-28 by the owner: point 5 decides that an
+objectives page is adopted as an objective
 
 ## Context
 
@@ -111,6 +112,33 @@ none.**
      recorded. *Merge* stays open, so a queue row can be linked to the initiative its promotion
      made. The queue does not yet leave out a takeaway that has already been promoted; that is
      recorded as a follow-up, not decided here.
+
+     **Amended 2026-09-28, by the owner — decided: an objectives page is adopted as an objective.**
+     The first bullet's refusal left the objectives store with no way into prisme at all: the scan
+     proposed every page there as a `key_result`, *Adopt* refused it, and *Merge* had nothing to
+     link to, because a page was matched against key results only and an instance that has adopted
+     nothing holds none. It was met on the live queue, where most rows were objectives pages and the
+     refusal read as an outage. But the model already said what such a page is — an **Objective**,
+     its narrative in the document tool and its `external_page_id` the link to it
+     ([`10-model.md` §7](../10-model.md#7-objective-and-key-result)) — and point 4 already wrote the
+     rule for its area "for the day that refusal is lifted". So:
+
+     - The scan proposes an objectives page as an **`objective`** (migration 0017 widens
+       `adoption_candidate.proposed_kind`), and matches it against objectives that have no page and
+       no link yet — never against key results.
+     - *Adopt* creates one, **seeded once** from the candidate and never re-read: the page's title,
+       the area its relation names (point 4), and a `type` and `period` read off the store's date
+       column — exactly one calendar year is `annual` (`YYYY`), exactly one calendar month is
+       `monthly` (`YYYY-MM`), and any other span, or none, is **refused** rather than rounded to the
+       nearest shape. Status `active`; `external_page_id` is the page. Nothing is written to the
+       document tool, and the reconciler reads no objective, so nothing outward is planned for one.
+       A person whose objective runs a quarter corrects the dates in the document tool, or creates it
+       on the Objectives screen and merges the row onto it.
+     - **A key result and a ritual are still refused**, for the reason the first bullet gives.
+     - **The refusal is one rule, stated twice.** `adoptRefusal` (`@prisme/domain`) is what the write
+       applies and what the queue returns on each row (`adoptRefusal`), so the screen leaves out
+       *Adopt* where the write would refuse it and says why instead — a deliberate refusal no longer
+       reaches a person as "the API did not answer".
 
 ## Consequences
 

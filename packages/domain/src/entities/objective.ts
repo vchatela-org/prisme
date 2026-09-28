@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AreaKey } from './area.js';
+import { isCalendarDate } from './calendar.js';
 import type { InitiativeId } from './initiative.js';
 
 /**
@@ -78,6 +79,45 @@ export const keyResultSchema: z.ZodType<KeyResult> = z.object({
   externalAnchorId: z.string().min(1).optional(),
   servedBy: z.array(z.string().min(1)).readonly(),
 });
+
+/**
+ * The objective a period names, when it names exactly one.
+ *
+ * An objectives page adopted from the document tool brings its period with it
+ * — the store's date column, chosen on Settings → Notion — and the objective's
+ * `type` and `period` are read off it rather than asked for (ADR-0033, amended
+ * 2026-09-28). The rule is exact on purpose: a whole calendar year is
+ * `annual`, a whole calendar month is `monthly`, and anything else — a quarter,
+ * a fortnight, a year that starts in March, no dates at all — is `undefined`,
+ * so adoption refuses it rather than rounding it to the nearest shape.
+ */
+export function objectivePeriodOf(
+  startsOn: string | null | undefined,
+  endsOn: string | null | undefined,
+): { readonly type: ObjectiveType; readonly period: string } | undefined {
+  if (startsOn === null || startsOn === undefined || endsOn === null || endsOn === undefined) {
+    return undefined;
+  }
+  if (!isCalendarDate(startsOn) || !isCalendarDate(endsOn)) return undefined;
+
+  const year = startsOn.slice(0, 4);
+  if (startsOn === `${year}-01-01` && endsOn === `${year}-12-31`) {
+    return { type: 'annual', period: year };
+  }
+
+  const month = startsOn.slice(0, 7);
+  if (startsOn === `${month}-01` && endsOn === `${month}-${lastDayOfMonth(month)}`) {
+    return { type: 'monthly', period: month };
+  }
+
+  return undefined;
+}
+
+/** `28` to `31`, for a `YYYY-MM`. Day 0 of the next month is the last of this one. */
+function lastDayOfMonth(month: string): string {
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
+  return String(last.getUTCDate()).padStart(2, '0');
+}
 
 /**
  * Tasks done ÷ total, shown beside `progressSelf`. Derived, never written

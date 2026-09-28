@@ -17,7 +17,9 @@
  *   with. Deny-by-default is working; the answer is a wider token, not a retry.
  * - `not_found` — the id in the URL is gone. Not an error state, a 404 page.
  * - `unavailable` — everything else: a 5xx, a timeout, an unparseable body.
- *   This is the only one a reload might fix.
+ *   This is the only one a reload might fix. A `400`, `409` or `422` lands here
+ *   too, and is *worded* as a refusal rather than an outage (`failureCopy`),
+ *   because it is the one kind a reload will not fix.
  */
 
 export type ApiFailureKind = 'unauthenticated' | 'forbidden' | 'not_found' | 'unavailable';
@@ -70,6 +72,13 @@ export function correlationIdOf(body: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
+/**
+ * The statuses that mean *understood, and declined*: a request the API refused
+ * on its merits. `423` and `429` are left out on purpose — both are "not now",
+ * and the screens that can hit either say so in their own words.
+ */
+const REFUSALS: ReadonlySet<number> = new Set([400, 409, 422]);
+
 export interface FailureCopy {
   readonly title: string;
   readonly description: string;
@@ -103,6 +112,16 @@ export function failureCopy(failure: ApiFailure, surface: string): FailureCopy {
         description: `${surface} does not exist, or it was dropped since this link was made.${trace}`,
       };
     case 'unavailable':
+      // The API answered, understood the request, and declined it: a
+      // decision, not an outage. Telling the reader it "did not answer" sends
+      // them to reload a page that will say no again, which is what the
+      // adoption queue did before it named the reason on the row.
+      if (failure.status !== undefined && REFUSALS.has(failure.status)) {
+        return {
+          title: 'Refused',
+          description: `The API answered and refused this request about ${surface}. That is a decision, not an outage — trying again will not change it.${trace}`,
+        };
+      }
       return {
         title: 'prisme could not answer',
         description: `${surface} could not be read. The API did not answer, or answered with something this page could not parse.${trace}`,

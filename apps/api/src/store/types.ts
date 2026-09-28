@@ -22,6 +22,7 @@
  */
 
 import type {
+  AdoptRefusal,
   WriteAuditOperation,
   WriteAuditOrigin,
   WriteAuditOutcome,
@@ -412,7 +413,9 @@ export interface AdoptionCandidateRecord {
  *
  * A refusal is a value rather than a thrown error because it is an **answer**:
  * a key result needs an objective and a ritual needs a cadence, and neither is
- * anywhere in a candidate. The caller gets the sentence, not a stack trace.
+ * anywhere in a candidate. It is the domain's code — the one the queue shows on
+ * the row — and the service words it; the caller gets the sentence, not a stack
+ * trace.
  */
 export type AdoptOutcome =
   | {
@@ -421,7 +424,7 @@ export type AdoptOutcome =
       readonly kind: string;
       readonly record: AdoptionRecord;
     }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly refusal: AdoptRefusal };
 
 /**
  * A capture: a small thing, which stays a task (W15).

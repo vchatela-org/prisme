@@ -164,10 +164,10 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
           (external_kind, external_id, title, area_key, proposed_kind, reason,
            scanned_at, source_role, starts_on, ends_on)
         values
-          ('page', 'ext-ended', 'An invented goal from long ago', null, 'key_result',
+          ('page', 'ext-ended', 'An invented goal from long ago', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2024-01-01', '2024-12-31'),
-          ('page', 'ext-running', 'An invented goal for this year', null, 'key_result',
+          ('page', 'ext-running', 'An invented goal for this year', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2026-01-01', '2026-12-31'),
           ('page', 'ext-later', 'An invented habit that starts later', null, 'ritual',
@@ -264,7 +264,7 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
           (external_kind, external_id, title, area_key, proposed_kind, reason,
            scanned_at, source_role, starts_on, ends_on)
         values
-          ('page', 'ext-old-goal', 'An invented goal from two years ago', null, 'key_result',
+          ('page', 'ext-old-goal', 'An invented goal from two years ago', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2024-01-01', '2024-12-31'),
           ('page', 'ext-old-habit', 'An invented habit that stopped', null, 'ritual',
@@ -274,18 +274,18 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
            'initiative', 'a parent task with subtasks, in a mapped area', ${at}::timestamptz,
            null, '2025-02-01', '2025-02-28'),
           ('page', 'ext-ends-today', 'An invented goal whose last day is today', null,
-           'key_result', 'held in the objectives store', ${at}::timestamptz, 'objectives_db',
+           'objective', 'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2026-09-01', '2026-09-17'),
-          ('page', 'ext-this-year', 'An invented goal for this year', null, 'key_result',
+          ('page', 'ext-this-year', 'An invented goal for this year', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2026-01-01', '2026-12-31'),
-          ('page', 'ext-next-year', 'An invented goal for next year', null, 'key_result',
+          ('page', 'ext-next-year', 'An invented goal for next year', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2027-01-01', '2027-12-31'),
-          ('page', 'ext-old-linked', 'An invented goal already linked', null, 'key_result',
+          ('page', 'ext-old-linked', 'An invented goal already linked', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2024-01-01', '2024-12-31'),
-          ('page', 'ext-old-ignored', 'An invented goal already ignored', null, 'key_result',
+          ('page', 'ext-old-ignored', 'An invented goal already ignored', null, 'objective',
            'held in the objectives store', ${at}::timestamptz, 'objectives_db',
            '2024-01-01', '2024-12-31')`;
       await database.client`
@@ -596,13 +596,194 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(rows[0]).toMatchObject({ origin: 'adopted', status: 'active' });
     });
 
-    it('refuses a kind whose required values no candidate carries, and says why', async () => {
+    it('refuses a key result, whose objective and target no candidate carries, and says why', async () => {
+      // `ext-kr` is also the shape of a row mirrored before 0017, when every
+      // objectives page was proposed as a key result: refused until a rescan.
       const { status, body } = await api().request('POST', url('/adoption/adopt'), {
         externalKind: 'page',
         externalId: 'ext-kr',
       });
       expect(status).toBe(400);
-      expect((body as { message: string }).message).toMatch(/merge it onto an entity/);
+      expect((body as { message: string }).message).toMatch(
+        /merge it onto a key result that already exists/,
+      );
+    });
+
+    describe('an objectives page (ADR-0033, amended)', () => {
+      /** A page of the objectives store, in an area, with the period its dates name. */
+      async function seedObjective(
+        externalId: string,
+        startsOn: string | null,
+        endsOn: string | null,
+      ): Promise<string> {
+        const areaKey = (
+          await database.client<{ key: string }[]>`
+            select key from area where kind = 'area' order by key limit 1`
+        )[0]?.key as string;
+        await database.client`
+          insert into adoption_candidate
+            (external_kind, external_id, title, area_key, proposed_kind, reason, scanned_at,
+             source_role, starts_on, ends_on)
+          values ('page', ${externalId}, 'Be fitter this year', ${areaKey}, 'objective',
+                  'held in the objectives store',
+                  ${new Date('2026-09-19T09:00:00Z').toISOString()}::timestamptz,
+                  'objectives_db', ${startsOn}, ${endsOn})`;
+        return areaKey;
+      }
+
+      const counts = async () => {
+        const [row] = await database.client<
+          { objectives: string; links: string; initiatives: string; projects: string }[]
+        >`
+          select (select count(*) from objective) as objectives,
+                 (select count(*) from entity_link) as links,
+                 (select count(*) from initiative) as initiatives,
+                 (select count(*) from project) as projects`;
+        return row;
+      };
+
+      it('becomes an annual objective linked to its page — and nothing more', async () => {
+        const areaKey = await seedObjective('ext-objective', '2026-01-01', '2026-12-31');
+        const before = await counts();
+
+        const { status, body } = await api().request('POST', url('/adoption/adopt'), {
+          externalKind: 'page',
+          externalId: 'ext-objective',
+        });
+        expect(status).toBe(201);
+        const { prismeId, bound } = body as { prismeId: string; bound: boolean };
+        expect(bound).toBe(false);
+
+        const rows = await database.client`
+          select title, type, period, area_key, status, external_page_id
+          from objective where id = ${prismeId}::uuid`;
+        expect(rows[0]).toEqual({
+          title: 'Be fitter this year',
+          type: 'annual',
+          period: '2026',
+          area_key: areaKey,
+          status: 'active',
+          external_page_id: 'ext-objective',
+        });
+
+        // One objective and its link: no initiative, no project, and nothing
+        // bound — the reconciler reads no objective, so nothing is planned outward.
+        expect(await counts()).toEqual({
+          ...before,
+          objectives: String(Number(before?.objectives) + 1),
+          links: String(Number(before?.links) + 1),
+        });
+        const refs = await database.client`
+          select 1 from entity_external_ref where prisme_id = ${prismeId}`;
+        expect(refs).toHaveLength(0);
+      });
+
+      it('becomes a monthly objective for exactly one calendar month', async () => {
+        await seedObjective('ext-objective', '2026-02-01', '2026-02-28');
+        const { status, body } = await api().request('POST', url('/adoption/adopt'), {
+          externalKind: 'page',
+          externalId: 'ext-objective',
+        });
+        expect(status).toBe(201);
+        const rows = await database.client`
+          select type, period from objective
+          where id = ${(body as { prismeId: string }).prismeId}::uuid`;
+        expect(rows[0]).toEqual({ type: 'monthly', period: '2026-02' });
+      });
+
+      it('refuses any other span, says why, and inserts nothing', async () => {
+        await seedObjective('ext-quarter', '2026-01-01', '2026-03-31');
+        await seedObjective('ext-undated', null, null);
+        const before = await counts();
+
+        for (const externalId of ['ext-quarter', 'ext-undated']) {
+          const { status, body } = await api().request('POST', url('/adoption/adopt'), {
+            externalKind: 'page',
+            externalId,
+          });
+          expect(status).toBe(400);
+          expect((body as { message: string }).message).toMatch(/exactly one calendar year/);
+        }
+        expect(await counts()).toEqual(before);
+      });
+
+      it('refuses a caller that tries to choose the type or the period', async () => {
+        await seedObjective('ext-objective', '2026-01-01', '2026-12-31');
+        const { status, body } = await api().request('POST', url('/adoption/adopt'), {
+          externalKind: 'page',
+          externalId: 'ext-objective',
+          period: '2027',
+        });
+        expect(status).toBe(400);
+        expect(JSON.stringify(body)).toContain('period');
+      });
+
+      it('leaves the queue once adopted', async () => {
+        await seedObjective('ext-objective', '2026-01-01', '2026-12-31');
+        await api().request('POST', url('/adoption/adopt'), {
+          externalKind: 'page',
+          externalId: 'ext-objective',
+        });
+        const { body } = await api().request('GET', url('/adoption/queue?when=all'));
+        expect((body as QueueBody).items.map((item) => item.externalId)).not.toContain(
+          'ext-objective',
+        );
+      });
+    });
+
+    it('names on every row why Adopt would refuse it — and the write agrees, row by row', async () => {
+      // The queue and the write read one rule (`adoptRefusal`). Asked of every
+      // row the queue shows, the write must refuse exactly the rows the queue
+      // said it would, and adopt the rest.
+      const areaKey = (
+        await database.client<{ key: string }[]>`
+          select key from area where kind = 'area' order by key limit 1`
+      )[0]?.key as string;
+      const at = new Date('2026-09-19T09:00:00Z').toISOString();
+      await database.client`
+        insert into adoption_candidate
+          (external_kind, external_id, title, area_key, proposed_kind, reason, scanned_at,
+           source_role, starts_on, ends_on)
+        values
+          ('page', 'ext-goal-year', 'An invented goal', ${areaKey}, 'objective', 'held',
+           ${at}::timestamptz, 'objectives_db', '2026-01-01', '2026-12-31'),
+          ('page', 'ext-goal-odd', 'An invented goal', ${areaKey}, 'objective', 'held',
+           ${at}::timestamptz, 'objectives_db', '2026-04-01', '2026-06-30'),
+          ('page', 'ext-goal-nowhere', 'An invented goal', null, 'objective', 'held',
+           ${at}::timestamptz, 'objectives_db', '2026-01-01', '2026-12-31'),
+          ('page', 'ext-habit', 'An invented habit', ${areaKey}, 'ritual', 'held',
+           ${at}::timestamptz, 'processes_db', null, null),
+          ('page', 'ext-action', 'An invented action', ${areaKey}, 'initiative', 'held',
+           ${at}::timestamptz, 'takeaways_db', null, null)`;
+
+      const { body } = await api().request('GET', url('/adoption/queue?when=all'));
+      const rows = (
+        body as {
+          items: { externalKind: string; externalId: string; adoptRefusal: string | null }[];
+        }
+      ).items;
+      expect(Object.fromEntries(rows.map((row) => [row.externalId, row.adoptRefusal]))).toEqual({
+        'ext-initiative': null,
+        'ext-project': null,
+        'ext-kr': 'needs_objective',
+        'ext-unmapped': 'no_area',
+        'ext-goal-year': null,
+        'ext-goal-odd': 'period_not_calendar',
+        'ext-goal-nowhere': 'no_area',
+        'ext-habit': 'needs_cadence',
+        'ext-action': 'promote_takeaway',
+      });
+
+      for (const row of rows) {
+        const { status } = await api().request('POST', url('/adoption/adopt'), {
+          externalKind: row.externalKind,
+          externalId: row.externalId,
+        });
+        expect({ row: row.externalId, status }).toEqual({
+          row: row.externalId,
+          status: row.adoptRefusal === null ? 201 : 400,
+        });
+      }
     });
 
     describe('an action takeaway (ADR-0033)', () => {

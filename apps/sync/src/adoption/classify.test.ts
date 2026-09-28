@@ -61,9 +61,13 @@ describe('what becomes what', () => {
       }),
     );
     expect(labelled.kind).toBe('key_result');
+  });
 
+  it('a page in the objectives store → an objective, never a key result', () => {
+    // docs/10-model.md §7: the page is the objective's narrative. A key result
+    // is a measurable part of one, and a page is not that (ADR-0033, amended).
     const stored = classify(objectOf({ kind: 'page', role: 'objectives_db' }));
-    expect(stored.kind).toBe('key_result');
+    expect(stored.kind).toBe('objective');
   });
 
   it('recurring task → the run lane, or a ritual when a human says so', () => {

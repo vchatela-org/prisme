@@ -116,7 +116,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
-| `title`, `type`, `period`, `area_key`, `status` | **P** | → | Authored in prisme |
+| `title`, `type`, `period`, `area_key`, `status` | **P** | → | Authored in prisme — or, for an objective adopted from an objectives page, **seeded once** at adoption from the page's title, area relation and dates, and prisme's from then on ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
 | The objective page's area relation (the objectives store's area column) | **P** | ← seed | The outward form of `area_key`. Read into the adoption candidate to match and filter; taken into prisme only at adoption; after that a different value is a conflict (§10), never an update. **Nothing writes it yet** — an outward write of `area_key`, if built, writes here ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Objective narrative, reflections, review notes | **D** | ← | Prose |
 | Key result `statement`, `target`, `unit` | **P** | → | |

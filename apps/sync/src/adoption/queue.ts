@@ -68,6 +68,7 @@ function emptyCounts(): Record<CandidateKind, number> {
   return {
     initiative: 0,
     project: 0,
+    objective: 0,
     key_result: 0,
     ritual: 0,
     run: 0,

@@ -1,3 +1,5 @@
+import { ADOPTABLE_KINDS as DOMAIN_ADOPTABLE_KINDS } from '@prisme/domain';
+
 /**
  * The vocabulary of adoption.
  *
@@ -33,11 +35,20 @@ export const EXTERNAL_KINDS: readonly ExternalKind[] = ['page', 'project', 'sect
  * a bug report.
  */
 export type CandidateKind =
-  'initiative' | 'project' | 'key_result' | 'ritual' | 'run' | 'signal' | 'takeaway' | 'task';
+  | 'initiative'
+  | 'project'
+  | 'objective'
+  | 'key_result'
+  | 'ritual'
+  | 'run'
+  | 'signal'
+  | 'takeaway'
+  | 'task';
 
 export const CANDIDATE_KINDS: readonly CandidateKind[] = [
   'initiative',
   'project',
+  'objective',
   'key_result',
   'ritual',
   'run',
@@ -46,13 +57,14 @@ export const CANDIDATE_KINDS: readonly CandidateKind[] = [
   'task',
 ];
 
-/** The kinds that produce a prisme entity when adopted. The rest stay put. */
-export const ADOPTABLE_KINDS: readonly CandidateKind[] = [
-  'initiative',
-  'project',
-  'key_result',
-  'ritual',
-];
+/**
+ * The kinds that produce a prisme entity when adopted. The rest stay put.
+ *
+ * The domain's list, not a copy of it: the API's queue shows exactly these
+ * kinds, and a kind the scan queued that the queue did not show would be a row
+ * nobody can ever decide.
+ */
+export const ADOPTABLE_KINDS: readonly CandidateKind[] = DOMAIN_ADOPTABLE_KINDS;
 
 export function isAdoptable(kind: CandidateKind): boolean {
   return ADOPTABLE_KINDS.includes(kind);

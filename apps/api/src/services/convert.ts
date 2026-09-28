@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import {
   adherencePct,
+  adoptRefusal,
   computeProgress,
   isRankable,
   isSizedForNow,
@@ -380,6 +381,7 @@ export function toCandidateDto(record: AdoptionCandidateRecord): CandidateDtoSha
     areaKey: record.areaKey,
     proposedKind: record.proposedKind as CandidateDtoShape['proposedKind'],
     reason: record.reason,
+    adoptRefusal: adoptRefusal(record) ?? null,
     matchRule: record.matchRule as CandidateDtoShape['matchRule'],
     confidence: record.confidence as CandidateDtoShape['confidence'],
     proposedId: record.proposedId,

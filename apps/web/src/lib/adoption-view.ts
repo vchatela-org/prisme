@@ -1,5 +1,6 @@
 import {
   QUEUE_WHEN,
+  type AdoptRefusal,
   type AdoptionCandidate,
   type AdoptionQueue,
   type QueueWhen,
@@ -132,6 +133,30 @@ export function sourceLabel(key: string): string {
 /** The key a candidate's source is filtered by — the same rule as the API's. */
 export function sourceKey(candidate: Pick<AdoptionCandidate, 'sourceRole' | 'externalKind'>) {
   return candidate.sourceRole ?? candidate.externalKind;
+}
+
+/**
+ * Why *Adopt* is not offered on a row, in a person's words.
+ *
+ * The API decides — the queue row carries its `adoptRefusal`, the same rule the
+ * write applies — and this only words the code. Each sentence says what to do
+ * instead, because a refusal with no next step is a row nobody decides.
+ */
+const ADOPT_REFUSAL_TEXT: Readonly<Record<AdoptRefusal, string>> = {
+  promote_takeaway: 'An action takeaway is promoted from the Inbox, not adopted.',
+  needs_objective:
+    'A key result needs its objective and a target. Add it under its objective on Objectives; after a Rescan, one with this title in this area is offered as a link.',
+  needs_cadence:
+    'A ritual needs a cadence and a target. Create it on Rituals; after a Rescan, one with this title in this area is offered as a link.',
+  not_adoptable: 'This stays where it is: it does not become anything in prisme.',
+  no_area:
+    'Outside every area. Give it one — a Todoist location on Settings → Areas, or the database’s area column on Settings → Notion — then Rescan.',
+  period_not_calendar:
+    'Its dates are not exactly one calendar year or one calendar month. Correct them in Notion, then Rescan.',
+};
+
+export function adoptRefusalText(refusal: AdoptRefusal): string {
+  return ADOPT_REFUSAL_TEXT[refusal];
 }
 
 /**

@@ -1,4 +1,5 @@
 import type postgres from 'postgres';
+import { ADOPTABLE_KINDS, adoptRefusal, objectivePeriodOf } from '@prisme/domain';
 import type {
   AdherenceRecord,
   AdoptionCandidateRecord,
@@ -1764,7 +1765,7 @@ export function createPostgresStore(client: Sql): ApiStore {
                  c.source_role, c.starts_on::text as starts_on, c.ends_on::text as ends_on,
                  count(*) over () as total
           from adoption_candidate c
-          where c.proposed_kind in ('initiative', 'project', 'key_result', 'ritual')
+          where c.proposed_kind = any(${[...ADOPTABLE_KINDS]}::text[])
             and not exists (
               select 1 from entity_link l
               where l.external_kind = c.external_kind and l.external_id = c.external_id
@@ -1806,26 +1807,24 @@ export function createPostgresStore(client: Sql): ApiStore {
        * from this endpoint would mean the API and the reconciler both writing
        * `entity_external_ref`, and guard 1 is not a race to be won.
        *
-       * Two kinds are refused rather than guessed at: a key result needs an
-       * objective and a ritual needs a cadence and a target, and neither is
-       * anywhere in a candidate. Refusing is the rule (apps/sync/CLAUDE.md §5);
-       * both are adoptable through the merge path, against an entity that
-       * already exists.
+       * **What is refused is `adoptRefusal`'s answer** (`@prisme/domain`), the
+       * same rule the queue shows on the row. A key result needs an objective
+       * and a ritual a cadence and a target, and neither is anywhere in a
+       * candidate; both stay open to the merge path, against an entity that
+       * already exists. A document-tool page proposed as an initiative — an
+       * action takeaway — is *promoted, not copied* (docs/13-migration.md §4):
+       * adopting it would make an initiative bound to a `page` link, which the
+       * reconciler never binds, so guard 2 would leave it without a task-tool
+       * anchor for ever (ADR-0033).
        *
-       * **A document-tool page proposed as an initiative is refused too** — an
-       * action takeaway, today the only page the classifier proposes as one. It
-       * is *promoted, not copied* (docs/13-migration.md §4): the Inbox's
-       * promotion makes an initiative prisme created, records the promotion
-       * link, and lets it get its task-tool anchor. Adopting it here would make
-       * a second, `adopted` initiative bound to a `page` link — which the
-       * reconciler never binds, so guard 2 leaves it without an anchor for
-       * ever — and nothing would stop both happening to one takeaway
-       * (ADR-0033). The predicate is the **external kind**, not the store:
-       * `external_kind` is never null, where `source_role` is on a row scanned
-       * before 0015, and the reason — a page link cannot anchor an initiative —
-       * holds for a page from any store. It is checked before the area, whose
-       * advice ("map its location") would be the wrong one. Merging the row onto
-       * an initiative that exists — the one its promotion made — stays open.
+       * **An objectives page becomes an objective** (ADR-0033, amended
+       * 2026-09-28), seeded once from the candidate: its title, its area, and
+       * its type and period from the store's date column — which must be
+       * exactly one calendar year or month, or the rule refused it above. Its
+       * `external_page_id` is the page, because the narrative stays there
+       * (docs/10-model.md §7). An objective has no `origin`: the reconciler
+       * reads no objective, so nothing outward is ever planned for one, adopted
+       * or not.
        */
       async adoptCandidate(input) {
         return client.begin(async (tx) => {
@@ -1838,23 +1837,9 @@ export function createPostgresStore(client: Sql): ApiStore {
             for update`;
           const candidate = candidates[0];
           if (candidate === undefined) return undefined;
-          if (candidate.external_kind === 'page' && candidate.proposed_kind === 'initiative') {
-            return {
-              ok: false,
-              reason:
-                'an action takeaway is promoted, not adopted — promote it from the Inbox, which ' +
-                'creates an initiative that gets its task; to link this row to the initiative a ' +
-                'promotion already made, merge it through POST /adoption/decisions',
-            };
-          }
-          if (candidate.area_key === null) {
-            return {
-              ok: false,
-              reason:
-                'this candidate sits outside every mapped area, and an entity belonging to no area ' +
-                'cannot be allocated to — map its location to an area first',
-            };
-          }
+          const refusal = adoptRefusal(toCandidate(candidate));
+          if (refusal !== undefined) return { ok: false, refusal };
+          const period = objectivePeriodOf(candidate.starts_on, candidate.ends_on);
 
           let prismeId: string;
           if (candidate.proposed_kind === 'initiative') {
@@ -1876,14 +1861,18 @@ export function createPostgresStore(client: Sql): ApiStore {
               values (${candidate.title}, ${candidate.area_key}, 'active', 'adopted')
               returning id::text`;
             prismeId = (inserted[0] as { id: string }).id;
+          } else if (candidate.proposed_kind === 'objective' && period !== undefined) {
+            const inserted = await tx<{ id: string }[]>`
+              insert into objective (title, type, period, area_key, status, external_page_id)
+              values (${candidate.title}, ${period.type}, ${period.period}, ${candidate.area_key},
+                      'active',
+                      ${candidate.external_kind === 'page' ? candidate.external_id : null})
+              returning id::text`;
+            prismeId = (inserted[0] as { id: string }).id;
           } else {
-            return {
-              ok: false,
-              reason:
-                `adopting a ${candidate.proposed_kind} needs values no candidate carries ` +
-                '(an objective, or a cadence and a target) — merge it onto an entity that ' +
-                'already exists instead, through POST /adoption/decisions',
-            };
+            // Unreachable while the rule and these branches agree; a kind the
+            // rule lets through with no branch here is refused, not guessed at.
+            return { ok: false, refusal: 'not_adoptable' };
           }
 
           // The decision is a human one by definition — it arrived through an
@@ -1962,7 +1951,7 @@ export function createPostgresStore(client: Sql): ApiStore {
               from unnest(${kinds}::text[], ${ids}::text[]) as k(external_kind, external_id)
               join adoption_candidate c
                 on c.external_kind = k.external_kind and c.external_id = k.external_id
-              where c.proposed_kind in ('initiative', 'project', 'key_result', 'ritual')
+              where c.proposed_kind = any(${[...ADOPTABLE_KINDS]}::text[])
                 and c.ends_on < ${input.endedBefore}::date
                 and not exists (
                   select 1 from entity_link l

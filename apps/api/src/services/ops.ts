@@ -1,5 +1,10 @@
 import type { z } from 'zod';
-import { CANDIDATE_SELECTION_LIMITS, SCHEDULE_DEFAULTS, type Registry } from '@prisme/domain';
+import {
+  CANDIDATE_SELECTION_LIMITS,
+  SCHEDULE_DEFAULTS,
+  type AdoptRefusal,
+  type Registry,
+} from '@prisme/domain';
 import type { adoptionQueuePageDto, settingsDto, syncRunDto, syncStatusDto } from '../dto/ops.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { Identity } from '../http/authorize.js';
@@ -38,6 +43,33 @@ import type { MeasureService } from './measure.js';
  */
 
 export type SettingsShape = z.infer<typeof settingsDto>;
+
+/**
+ * The API's sentence for each refusal, addressed to an API client — so it
+ * names the endpoint to use instead. The screen words the same codes for a
+ * person, from the queue row's `adoptRefusal`.
+ */
+const ADOPT_REFUSAL_MESSAGES: Readonly<Record<AdoptRefusal, string>> = {
+  promote_takeaway:
+    'an action takeaway is promoted, not adopted — promote it from the Inbox, which creates an ' +
+    'initiative that gets its task; to link this row to the initiative a promotion already made, ' +
+    'merge it through POST /adoption/decisions',
+  needs_objective:
+    'adopting a key result needs values no candidate carries (its objective, and a target) — ' +
+    'merge it onto a key result that already exists, through POST /adoption/decisions',
+  needs_cadence:
+    'adopting a ritual needs values no candidate carries (a cadence, and a target) — merge it ' +
+    'onto a ritual that already exists, through POST /adoption/decisions',
+  not_adoptable: 'this kind stays where it is: adopting it would make no prisme entity',
+  no_area:
+    'this candidate sits outside every mapped area, and an entity belonging to no area cannot be ' +
+    'allocated to — give it an area first (a task-tool location on Settings → Areas, or the ' +
+    "store's area column on Settings → Notion), then rescan",
+  period_not_calendar:
+    "an objective's dates must cover exactly one calendar year (annual) or one calendar month " +
+    "(monthly) — correct the page's dates in the document tool and rescan, or create the " +
+    'objective and merge this row onto it',
+};
 export type SyncStatusShape = z.infer<typeof syncStatusDto>;
 export type SyncRunShape = z.infer<typeof syncRunDto>;
 /** The queue page without the paging echo, which the route adds. */
@@ -267,7 +299,9 @@ export function createOpsService(
     async adoptCandidate(input, identity, now): Promise<AdoptionDtoShape> {
       const outcome = await store.ops.adoptCandidate({ ...input, decidedAt: now });
       if (outcome === undefined) throw notFound('adoption candidate', input.externalId);
-      if (!outcome.ok) throw new ApiError('invalid_request', outcome.reason);
+      if (!outcome.ok) {
+        throw new ApiError('invalid_request', ADOPT_REFUSAL_MESSAGES[outcome.refusal]);
+      }
 
       await store.ops.appendEvent({
         kind: 'adoption_decision',

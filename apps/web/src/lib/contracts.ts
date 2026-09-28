@@ -461,6 +461,18 @@ export type QueueWhen = (typeof QUEUE_WHEN)[number];
  * shows it whenever it is there — a similarity score nobody can see is a number
  * nobody can disagree with, and disagreeing is the whole job of this queue.
  */
+/** Why *Adopt* would be refused — `ADOPT_REFUSALS` in `@prisme/domain`, which this tier cannot import. */
+export const ADOPT_REFUSALS = [
+  'promote_takeaway',
+  'needs_objective',
+  'needs_cadence',
+  'not_adoptable',
+  'no_area',
+  'period_not_calendar',
+] as const;
+
+export type AdoptRefusal = (typeof ADOPT_REFUSALS)[number];
+
 export const adoptionCandidateSchema = z.object({
   externalKind: z.enum(['page', 'project', 'section', 'task']),
   externalId: z.string().min(1).max(200),
@@ -469,6 +481,7 @@ export const adoptionCandidateSchema = z.object({
   proposedKind: z.enum([
     'initiative',
     'project',
+    'objective',
     'key_result',
     'ritual',
     'run',
@@ -477,6 +490,12 @@ export const adoptionCandidateSchema = z.object({
     'task',
   ]),
   reason: z.string(),
+  /**
+   * Why *Adopt* would be refused for this row, or `null` when it would not —
+   * the API's own rule, so the screen never offers a button the write refuses.
+   * Defaults to `null` so an older API only loses the explanation.
+   */
+  adoptRefusal: z.enum(ADOPT_REFUSALS).nullable().default(null),
   matchRule: z
     .enum(['existing_mapping', 'exact_title', 'normalised_title', 'fuzzy_title', 'manual'])
     .nullable(),
