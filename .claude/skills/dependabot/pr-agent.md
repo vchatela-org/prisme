@@ -151,9 +151,8 @@ bump should never touch one. If yours does, stop and read `packages/domain/CLAUD
 **Majors.** Integrate them fully rather than parking on sight: adapt the source and bump the companion
 packages in the same pull request when that is the mechanical fix — a `typescript` major usually needs
 `typescript-eslint` and its plugins moved with it, an `eslint` major its config. Park only when the
-fix would contradict an Accepted ADR or needs a product decision. As this was written, the
-`typescript 5.9.3 → 6.0.3` pull request was red on `typecheck`, `lint`, `test`, `build` and `images`
-at once, which is what a major looks like when the companion has not moved.
+fix would contradict an Accepted ADR or needs a product decision. A major whose companion has not
+moved is red on `typecheck`, `lint`, `test`, `build` and `images` at once.
 
 ## 5. The local checks — serially, and named
 
@@ -204,7 +203,7 @@ gate. If the only way to green is to weaken one, that is a park, not a fix.
 
 **Compose the message before you push, because there is no second chance.** The branch is
 Dependabot's, a force-push is forbidden, and `git commit --amend` is refused by this harness's
-permission classifier anyway (observed 2026-09-23, on the first run) — so a message that is wrong
+permission classifier anyway — so a message that is wrong
 after the push stays wrong. Step 2 left the merge uncommitted for exactly this reason:
 
 ```sh
@@ -269,8 +268,7 @@ gh run rerun <run_id> --job <job_id>
 
 Read that output for one field above all: `conclusion`. Its two readings look alike and want opposite
 things. All steps `success` with `conclusion: null` is a job that is genuinely still finishing — often
-its own post-steps, upload and `Complete job`, which is where `images` sat for two minutes on the first
-run — so wait. All steps `success` with `conclusion: success` while the rollup still says `pending` is
+its own post-steps, upload and `Complete job`, which can take minutes — so wait. All steps `success` with `conclusion: success` while the rollup still says `pending` is
 finished-and-wedged: that one is un-wedged with the re-run, without touching the tree, so the green
 read stays attached to the same commit.
 

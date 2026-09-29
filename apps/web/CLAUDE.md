@@ -10,9 +10,9 @@ Owned by [W08](../../docs/40-workstreams/W08-ui-focus.md) (Focus, Backlog, Inbox
 
 ## ⚠ Coordination
 
-Wave 4 runs W09, W10, W11 and W13 in parallel, and the first three all live here. **Stay inside your
-route group.** If you need something shared, add it to `packages/ui` rather than editing a sibling's
-route — a component in the shared package merges cleanly; an edit to someone else's screen does not.
+Several workstreams share this tree and run in parallel. **Stay inside your route group.** If you
+need something shared, add it to `packages/ui` rather than editing a sibling's route — a component
+in the shared package merges cleanly; an edit to someone else's screen does not.
 
 ## Non-negotiables
 
@@ -30,8 +30,7 @@ route — a component in the shared package merges cleanly; an edit to someone e
 ## Conventions
 
 - Server components for reads; optimistic updates for score and status changes.
-- Route groups per surface: `(focus)`, `(backlog)`, `(inbox)`, `(areas)`, `(kpi)`, `(timeline)`,
-  `(objectives)`, `(review)`, `(adoption)`, `(create)`, `(settings)`.
+- One route group per surface under `src/app/` — the directory is the list.
 - Every screen needs loading, empty, error and permission-denied states. The empty states matter
   most — a first-run empty backlog should explain how to fill it.
 - Keyboard-first: every action reachable without a mouse, and every drag interaction has a keyboard
