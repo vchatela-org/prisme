@@ -369,6 +369,23 @@ writes** (7 to 3650 days). The daily full pass deletes older ones; shortening th
 nothing until then. The Audit is empty while writing is frozen — prisme attempts nothing, so there is
 nothing to record.
 
+### Scripts and agents — API tokens
+
+A script, an agent or an MCP client cannot sign in the way you do, so it gets a **token**:
+**Settings → API tokens → Manage** (or *Go to API tokens* in the palette). Name it after what will
+use it, tick only the scopes it needs — a script that loads rituals needs `write:ritual` and nothing
+else — and choose how long it lives, up to a year. It goes in an `Authorization: Bearer …` header.
+
+- **The token is shown once**, when you mint it. prisme keeps only a hash, so copy it then; if it is
+  lost, revoke it and mint another.
+- **You do not need one.** Signed in, you hold every scope, including the one that manages tokens —
+  and that one, `admin:tokens`, **no token can be given**, so no script can mint itself a wider
+  token or revoke yours.
+- **Revoke** takes effect on the token's next request. **Revoke all**, for the day a laptop goes
+  missing, asks you to type *revoke all* and signs out every script at once; your own session is
+  untouched, and it works even with the write freeze engaged.
+- Revoked and expired tokens stay in the list, and **Last used** shows one nothing uses any more.
+
 ---
 
 ## 7. Questions
