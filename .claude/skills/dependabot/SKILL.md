@@ -111,8 +111,8 @@ git log "$last..origin/main" --merges --pretty=%s | grep 'dependabot/'   # what 
 ```
 
 No output from that last one is a legitimate answer — it means nothing is waiting to be released, not
-a failure to investigate. The prefix is what makes the answer mean something: on the first real run
-the word-matched version returned two hits and both were the skill's own pull requests.
+a failure to investigate. The prefix is what makes the answer mean something: a word match also hits
+the skill's own pull requests.
 
 **Confirm the tag you are about to cut is not already there** — `git tag -l "v<version>"` must be
 empty. A version that exists is never reused and never re-pointed.
@@ -129,9 +129,8 @@ empty. A version that exists is never reused and never re-pointed.
 - **Pending is an obligation, not a paragraph.** That rule has one cost, and it is the run's to pay:
   at the moment a run ends, the merges are a human's and the tag is this skill's, and **nothing
   re-runs to notice the precondition has been met**. A pending version therefore sits unborn until
-  somebody asks where it is — which is exactly what happened to the first real run, whose `v0.0.6`
-  waited on a merge nobody had made yet and then on a run nobody had scheduled
-  ([the entry](../../../docs/50-journal/P0-2026-09-23-dependabot-wave.md)). So a
+  somebody asks where it is
+  ([precedent](../../../docs/50-journal/P0-2026-09-23-dependabot-wave.md)). So a
   pending version is recorded where a human will look — a line under *Releases* in
   [`STATUS.md`](../../../STATUS.md#releases), naming the one merge that unblocks it — and handed to
   something that will act: a scheduled re-run, or, in a watched run, the report's release line.

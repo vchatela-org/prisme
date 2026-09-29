@@ -115,7 +115,7 @@ repository's ordinary node environment, alongside the domain tests.
 
 What a unit test cannot see — a focus ring that never paints, a server/client boundary that only
 fails on request, a label colliding with its axis — is checked by **running the gallery and driving
-it**. Do that before claiming a component works; two real bugs in this package were found that way
-and neither was visible to `tsc`, ESLint or Vitest.
+it**. Do that before claiming a component works; bugs of that kind are invisible to `tsc`, ESLint
+and Vitest.
 
 Fixture data only — this repository is public ([`17-privacy.md`](../../docs/17-privacy.md)).

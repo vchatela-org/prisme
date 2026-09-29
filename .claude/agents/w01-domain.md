@@ -14,7 +14,7 @@ Read first, in order:
 
 This is the heart of the system and everything downstream is wrong if it is wrong. It is also pure —
 no I/O, no clock, no randomness — which makes it the easiest thing in the repository to verify
-properly. Take the time.
+properly.
 
 The invariants that matter most:
 - **Nothing outside `scoring/` may read a method-specific field.** No `wsjf` column, ever. Add the
