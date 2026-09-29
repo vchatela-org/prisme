@@ -1191,6 +1191,45 @@ export const writeSwitchSchema = z.object({
 });
 
 /**
+ * Scoped API tokens for scripts and agents (ADR-0015) — `GET /tokens`.
+ *
+ * A scope is a plain string here rather than a restated vocabulary: the
+ * vocabulary comes from `GET /tokens/scopes`, so a scope the API adds tomorrow
+ * is listed and offered without this file learning its name.
+ */
+export const apiTokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  scopes: z.array(z.string()),
+  createdAt: instant,
+  createdBy: z.string(),
+  expiresAt: instant,
+  lastUsedAt: instant.nullable(),
+  revokedAt: instant.nullable(),
+  active: z.boolean(),
+});
+
+export type ApiToken = z.infer<typeof apiTokenSchema>;
+
+export const apiTokenListSchema = z.object({ items: z.array(apiTokenSchema) });
+
+/**
+ * `POST /tokens` — the one response carrying a credential. `token` is the
+ * plaintext, shown once and never again; nothing on this tier stores or logs it.
+ */
+export const mintedTokenSchema = z.object({ token: z.string().min(1), apiToken: apiTokenSchema });
+
+/** `GET /tokens/scopes` — what each scope allows, and whether a token may hold it. */
+export const tokenScopeListSchema = z.object({
+  items: z.array(z.object({ name: z.string(), description: z.string(), grantable: z.boolean() })),
+});
+
+export type TokenScope = z.infer<typeof tokenScopeListSchema>['items'][number];
+
+/** `DELETE /tokens/{id}` and `POST /tokens/revocations`. */
+export const revocationSchema = z.object({ revoked: z.number().int().min(0) });
+
+/**
  * The audit of outward writes (ADR-0031) — `GET /audit/writes`.
  *
  * The vocabularies are restated here rather than imported, for the reason at

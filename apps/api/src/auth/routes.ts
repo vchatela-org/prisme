@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { instant } from '../dto/common.js';
 import { ApiError } from '../http/errors.js';
 import { defineWrite, named } from '../http/schema.js';
-import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
+import {
+  HUMAN_ONLY_SCOPES,
+  SCOPE_NAMES,
+  SCOPES,
+  TOKEN_SCOPE_NAMES,
+  type Scope,
+} from '../http/scopes.js';
 import { defineRoute, type ApiRoute } from '../routes/kit.js';
 import type { ApiTokenRecord, WriteSwitchRecord } from './store.js';
 import {
@@ -19,7 +25,9 @@ import { withheldScopes, type WriteSwitch } from './write-switch.js';
  * Tokens are "minted from the UI, which is itself behind the identity provider"
  * (docs/14-threat-model.md §3) — so minting is a route like any other, behind a
  * scope like any other, and reachable only by a verified human because only a
- * verified human ever holds `admin:tokens`.
+ * verified human ever holds `admin:tokens`. That last clause is enforced, not
+ * assumed: the mint refuses `HUMAN_ONLY_SCOPES`, so no token can be given the
+ * scope that mints tokens.
  *
  * ### The plaintext is returned once, from here, and never again
  *
@@ -35,6 +43,9 @@ import { withheldScopes, type WriteSwitch } from './write-switch.js';
  */
 
 const scope = z.enum(SCOPE_NAMES as unknown as [Scope, ...Scope[]]);
+
+/** What a mint may ask for: the vocabulary less the scopes only a person holds. */
+const tokenScope = z.enum(TOKEN_SCOPE_NAMES as unknown as [Scope, ...Scope[]]);
 
 const ApiTokenDto = named(
   'ApiToken',
@@ -72,7 +83,7 @@ const mintTokenBody = defineWrite(
     name: z.string().trim().min(1).max(100),
     // No wildcard, and no default: a token whose scopes were not stated is a
     // token somebody will assume is narrower than it is.
-    scopes: z.array(scope).min(1).max(SCOPE_NAMES.length),
+    scopes: z.array(tokenScope).min(1).max(TOKEN_SCOPE_NAMES.length),
     expiresInSeconds: z
       .int()
       .min(60)
@@ -84,6 +95,20 @@ const mintTokenBody = defineWrite(
     hash: 'the stored hash is not a field of this API',
     lastUsedAt: 'recorded by prisme when the token is used',
   },
+);
+
+const TokenScopeListDto = named(
+  'TokenScopeList',
+  z.object({
+    items: z.array(
+      z.object({
+        name: scope,
+        description: z.string(),
+        /** False for a scope only a signed-in person holds: a mint naming it is refused. */
+        grantable: z.boolean(),
+      }),
+    ),
+  }),
 );
 
 const RevocationDto = named('Revocation', z.object({ revoked: z.int().min(0) }));
@@ -178,6 +203,26 @@ export function createAuthRoutes(deps?: AuthDeps): readonly ApiRoute[] {
         const records = await need(deps).tokens.list();
         return { items: records.map((record) => tokenDto(record, context.now)) };
       },
+    }),
+
+    defineRoute({
+      operationId: 'listTokenScopes',
+      method: 'get',
+      path: '/tokens/scopes',
+      scope: 'admin:tokens',
+      summary: 'Every scope, what it allows, and whether a token may hold it',
+      description:
+        'The vocabulary a mint chooses from, so a screen offering it need not restate it. A scope with `grantable: false` is held only by a signed-in person, and a mint naming it is refused.',
+      query: z.strictObject({}),
+      response: TokenScopeListDto,
+      handle: () =>
+        Promise.resolve({
+          items: SCOPE_NAMES.map((name) => ({
+            name,
+            description: SCOPES[name],
+            grantable: !HUMAN_ONLY_SCOPES.includes(name),
+          })),
+        }),
     }),
 
     defineRoute({

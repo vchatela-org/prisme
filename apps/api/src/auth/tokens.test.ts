@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMemoryAuthStore } from './memory-store.js';
 import { MAX_TOKEN_LIFETIME_SECONDS, TokenRejection, createTokenService } from './tokens.js';
 import { TOKEN_PREFIX, looksLikeApiToken, parseToken } from './token-format.js';
+import { TOKEN_SCOPE_NAMES } from '../http/scopes.js';
 
 /**
  * The token half of ADR-0015, against the rules in
@@ -117,6 +118,34 @@ describe('scopes, expiry and revocation', () => {
     await expect(
       tokens.issue({ name: 'useless', scopes: [], expiresInSeconds: 3600, createdBy: 'owner' }),
     ).rejects.toBeInstanceOf(TokenRejection);
+  });
+
+  it('refuses to mint a token that could mint tokens', async () => {
+    const { tokens, store } = service();
+    // Beside an ordinary scope, so the refusal is about the one scope and not
+    // about the request as a whole looking odd.
+    await expect(
+      tokens.issue({
+        name: 'minter',
+        scopes: ['read:focus', 'admin:tokens'],
+        expiresInSeconds: 3600,
+        createdBy: 'owner',
+      }),
+    ).rejects.toMatchObject({ reason: 'scopes' });
+    expect(await store.listTokens()).toEqual([]);
+  });
+
+  it('still mints every other scope, the administrative ones included', async () => {
+    const { tokens } = service();
+    const issued = await tokens.issue({
+      name: 'everything a machine may hold',
+      scopes: TOKEN_SCOPE_NAMES,
+      expiresInSeconds: 3600,
+      createdBy: 'owner',
+    });
+    expect(issued.record.scopes).toEqual(TOKEN_SCOPE_NAMES);
+    expect(issued.record.scopes).toContain('admin:settings');
+    expect(issued.record.scopes).not.toContain('admin:tokens');
   });
 
   it('clamps a lifetime rather than honouring it', async () => {

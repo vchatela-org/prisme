@@ -110,6 +110,9 @@ becomes worth the coupling.
 
 - Argon2id-hashed at rest; the plaintext is displayed exactly once, at creation.
 - **Scoped** — `read:focus`, `write:initiative`, `admin:settings` — with no implicit wildcard.
+- **Never `admin:tokens`.** The scope that mints tokens is held only by a verified human, and a mint
+  naming it is refused: a token that could mint tokens would make every other token's scopes
+  decorative. Minting and revoking happen on *Settings → API tokens*.
 - Expiring by default; `last_used_at` recorded so stale tokens are visible.
 - Revocable individually and in bulk.
 - A recognisable prefix so secret scanners can detect a leak.

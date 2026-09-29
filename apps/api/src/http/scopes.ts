@@ -60,3 +60,20 @@ export const SCOPE_NAMES = Object.keys(SCOPES) as readonly Scope[];
 export function isScope(value: string): value is Scope {
   return Object.prototype.hasOwnProperty.call(SCOPES, value);
 }
+
+/**
+ * Scopes a signed-in person holds and no API token ever may.
+ *
+ * `admin:tokens` is the one scope that can widen what a future caller may do:
+ * a token holding it could mint a token with every other scope, and the scopes
+ * written on the first one would then mean nothing. So a machine never holds
+ * it. The owner still does — through the identity provider's assertion, which
+ * carries every scope (`OWNER_SCOPES` in `auth/principal.ts`) — and that is how
+ * tokens are managed from Settings.
+ */
+export const HUMAN_ONLY_SCOPES: readonly Scope[] = ['admin:tokens'];
+
+/** Every scope a token may be minted with, in vocabulary order. */
+export const TOKEN_SCOPE_NAMES: readonly Scope[] = SCOPE_NAMES.filter(
+  (scope) => !HUMAN_ONLY_SCOPES.includes(scope),
+);

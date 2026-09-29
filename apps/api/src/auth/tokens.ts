@@ -1,6 +1,6 @@
 import { hash as argon2Hash, verify as argon2Verify, type Algorithm } from '@node-rs/argon2';
 import type { Scope } from '../http/scopes.js';
-import { isScope } from '../http/scopes.js';
+import { HUMAN_ONLY_SCOPES, isScope } from '../http/scopes.js';
 import type { Principal } from './principal.js';
 import type { ApiTokenRecord, AuthStore } from './store.js';
 import { fingerprint, mintTokenMaterial, parseToken, type MintedToken } from './token-format.js';
@@ -158,6 +158,15 @@ export function createTokenService(options: TokenServiceOptions): TokenService {
         // in the vocabulary would be stored, granted and forever unmatched.
         if (!isScope(scope))
           throw new TokenRejection('scopes', `${String(scope)} is not a known scope`);
+        // The route's schema offers only `TOKEN_SCOPE_NAMES`; this is the one
+        // place every mint passes, so the rule holds for a caller that is not
+        // the route too.
+        if (HUMAN_ONLY_SCOPES.includes(scope)) {
+          throw new TokenRejection(
+            'scopes',
+            `${scope} is held only by a signed-in person; no token may hold it`,
+          );
+        }
       }
 
       const lifetime = Math.min(input.expiresInSeconds, MAX_TOKEN_LIFETIME_SECONDS);

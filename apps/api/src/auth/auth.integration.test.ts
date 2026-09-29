@@ -23,6 +23,7 @@ import {
   type TestKeys,
 } from '@prisme/auth/test-support';
 import { createTokenService, type TokenService } from './tokens.js';
+import { TOKEN_SCOPE_NAMES } from '../http/scopes.js';
 import { createWriteSwitch, type WriteSwitch } from './write-switch.js';
 
 /**
@@ -268,9 +269,89 @@ describe.runIf(describeWithDatabase === 'run')('authentication end to end', () =
         'POST',
         '/tokens',
         { [HEADER]: await keys.sign(goodClaims()), origin: 'https://evil.invalid' },
-        { name: 'sneaky', scopes: ['admin:tokens'] },
+        { name: 'sneaky', scopes: ['read:focus'] },
       );
       expect(response.status).toBe(403);
+    });
+
+    it('refuses to give a token the scope that mints tokens', async () => {
+      const response = await call('POST', '/tokens', await asOwner(), {
+        name: 'minter',
+        scopes: ['write:ritual', 'admin:tokens'],
+      });
+      expect(response.status).toBe(400);
+
+      const listed = (await (await call('GET', '/tokens', await asOwner())).json()) as {
+        items: unknown[];
+      };
+      expect(listed.items).toEqual([]);
+    });
+  });
+
+  describe('the owner keeps the keys', () => {
+    async function asOwner(): Promise<Record<string, string>> {
+      return { [HEADER]: await keys.sign(goodClaims()), origin: ORIGIN };
+    }
+
+    it('lists the scopes, mints, and revokes through a signed-in session', async () => {
+      const scopes = await call('GET', '/tokens/scopes', await asOwner());
+      expect(scopes.status).toBe(200);
+      const { items } = (await scopes.json()) as {
+        items: { name: string; description: string; grantable: boolean }[];
+      };
+      expect(items.find((item) => item.name === 'admin:tokens')?.grantable).toBe(false);
+      expect(items.find((item) => item.name === 'write:ritual')).toMatchObject({
+        grantable: true,
+        description: expect.any(String) as string,
+      });
+
+      const minted = await call('POST', '/tokens', await asOwner(), {
+        name: 'ritual loader',
+        scopes: ['write:ritual'],
+      });
+      expect(minted.status).toBe(201);
+      const { apiToken } = (await minted.json()) as { apiToken: { id: string } };
+
+      const revoked = await call('DELETE', `/tokens/${apiToken.id}`, await asOwner());
+      expect(revoked.status).toBe(200);
+      expect(await revoked.json()).toEqual({ revoked: 1 });
+
+      const listed = (await (await call('GET', '/tokens', await asOwner())).json()) as {
+        items: { id: string; active: boolean }[];
+      };
+      expect(listed.items).toEqual([expect.objectContaining({ id: apiToken.id, active: false })]);
+    });
+
+    it('can still revoke with every write frozen', async () => {
+      // The morning after a laptop goes missing is also a morning somebody may
+      // have pulled the freeze. Neither may stand in the way of the other.
+      const issued = await tokens.issue({
+        name: 'on the lost laptop',
+        scopes: ['write:ritual'],
+        expiresInSeconds: 3600,
+        createdBy: 'owner',
+      });
+      await writeSwitch.engage({ mode: 'all', by: 'owner', reason: 'integration test' });
+
+      const one = await call('DELETE', `/tokens/${issued.record.id}`, await asOwner());
+      expect(one.status).toBe(200);
+      const all = await call('POST', '/tokens/revocations', await asOwner());
+      expect(all.status).toBe(200);
+    });
+
+    it('is the only one: a token holding every other scope cannot manage tokens', async () => {
+      const issued = await tokens.issue({
+        name: 'as wide as a token gets',
+        scopes: TOKEN_SCOPE_NAMES,
+        expiresInSeconds: 3600,
+        createdBy: 'owner',
+      });
+      const auth = { authorization: `Bearer ${issued.token}` };
+
+      expect((await call('GET', '/tokens', auth)).status).toBe(403);
+      expect(
+        (await call('POST', '/tokens', auth, { name: 'child', scopes: ['read:focus'] })).status,
+      ).toBe(403);
     });
   });
 

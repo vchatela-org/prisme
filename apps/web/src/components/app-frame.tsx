@@ -200,6 +200,15 @@ export function AppFrame({ children, inboxCount, banner, headerRight }: AppFrame
         },
       },
       {
+        id: 'go-tokens',
+        label: 'Go to API tokens',
+        group: 'Navigate',
+        keywords: ['token', 'api', 'agent', 'mcp', 'script', 'scope', 'mint', 'revoke'],
+        run: () => {
+          router.push('/settings/tokens');
+        },
+      },
+      {
         id: 'go-focus',
         label: 'Go to Focus',
         group: 'Navigate',

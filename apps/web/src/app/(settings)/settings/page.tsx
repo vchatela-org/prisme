@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import {
+  apiTokenListSchema,
   areaWeightsSchema,
   auditRetentionSchema,
   bindingListSchema,
@@ -48,12 +49,13 @@ export const metadata = {
  * - **year weights** are editable only at the Year Review (ADR-0007);
  * - **how long the audit of outward writes is kept** is prisme's own too, and
  *   is edited here (ADR-0031);
+ * - **API tokens** are minted and revoked on their own screen (ADR-0015);
  * - **the write freeze, create threshold, sync window and scoring method** are
  *   deployment configuration, validated at boot, and shown read-only.
  */
 export default async function SettingsPage() {
   const year = new Date().getUTCFullYear();
-  const [settings, writeSwitch, sync, areas, weights, bindings, locations, retention] =
+  const [settings, writeSwitch, sync, areas, weights, bindings, locations, retention, tokens] =
     await Promise.all([
       apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
       apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
@@ -67,7 +69,9 @@ export default async function SettingsPage() {
       apiFetch({ path: '/bindings', schema: bindingListSchema }),
       apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
       apiFetch({ path: '/audit/retention', schema: auditRetentionSchema }),
+      apiFetch({ path: '/tokens', schema: apiTokenListSchema }),
     ]);
+  const liveTokens = tokens.ok ? tokens.data.items.filter((token) => token.active).length : 0;
 
   const config = webRuntime().config;
   const docTemplate = config.doctoolPageUrlTemplate;
@@ -281,6 +285,31 @@ export default async function SettingsPage() {
               </tbody>
             </table>
           </Card>
+        )}
+      </Section>
+
+      <Section
+        title="API tokens"
+        description="How scripts, agents and MCP clients get in — each with a name, the scopes it may use and an expiry."
+        actions={
+          <Button asChild size="sm">
+            <Link href="/settings/tokens">Manage</Link>
+          </Button>
+        }
+      >
+        {tokens.ok ? (
+          <Card className="text-sm text-ink-secondary">
+            {liveTokens === 0 ? (
+              <p>No live token: nothing but you, signed in, can reach the API.</p>
+            ) : (
+              <p>
+                {String(liveTokens)} live token{liveTokens === 1 ? '' : 's'}. Revoke any you no
+                longer use.
+              </p>
+            )}
+          </Card>
+        ) : (
+          <ApiFailureState failure={tokens} surface="the API tokens" />
         )}
       </Section>
 
