@@ -386,6 +386,47 @@ else — and choose how long it lives, up to a year. It goes in an `Authorizatio
   untouched, and it works even with the write freeze engaged.
 - Revoked and expired tokens stay in the list, and **Last used** shows one nothing uses any more.
 
+### Scripting the API — adopting in bulk
+
+Everything a screen does is a call on the API, so a script can do it too. The recipe below brings a
+Notion *Processes* database in as rituals; the same shape serves any row the queue cannot *Adopt*.
+
+- **Where.** The API's own host — not the web's — under **`/api/v1`**: `https://<api-host>/api/v1/…`.
+  A path without the prefix answers `404 not_found`. Send `Authorization: Bearer <token>`. With the
+  `read:meta` scope, `GET /api/v1/openapi.json` describes every route, its body and its scope.
+- **Scopes.** A refusal names the scope it wanted (`403 … does not hold the read:areas scope`), but
+  they are cheaper to tick once. For this recipe: `read:areas` (rituals and areas), `read:adoption`
+  (the queue), `write:ritual` (create a ritual), `write:adoption` (link, ignore, rescan). Setting a
+  store's area column needs `admin:settings`; do it on the screen instead and keep the token narrow.
+- **Before you start.** Every row must have an area, or it cannot match a ritual (which always has
+  one). A *Processes* row gets its area from the store's area column — **Settings → Notion →
+  Processes** — so set that first, then *Rescan*. In the queue, `areaKey: null` means it is not set.
+
+The loop, in order:
+
+1. **Read.** `GET /adoption/queue?source=processes_db&when=all&limit=200` — `limit` is at most 200.
+   `source` is the store's role key (or `project` for Todoist projects). Each item has a `title`,
+   `areaKey`, `externalKind`, `externalId`, and — once a match exists — `proposedId`, `matchRule` and
+   `confidence`.
+2. **Create.** `POST /rituals` with `name` (the page's title, exactly), `areaKey`, `cadence`
+   (`daily`, `weekly`, `monthly`, `quarterly`, `yearly`) and `targetAdherencePct`. A row's cadence is
+   in its Notion page; its target is nowhere in Notion, so you choose it. `externalPageId` is
+   optional — linking sets it.
+3. **Rescan.** `POST /adoption/scan` with `{}`. The answer is `{ ran, queued, … }`. **`ran: false`
+   means another pass holds the lock, so nothing was read — not that it failed.** Wait and repeat
+   until `ran` is `true`; it can take a couple of minutes. Only then does the row carry a proposal.
+4. **Link.** For each item with a `proposedId`: `POST /adoption/decisions` with `prismeId` =
+   `proposedId`, `externalKind` and `externalId` from the item, and the item's own `matchRule` and
+   `confidence`. This is the screen's *Link* button; on a *Processes* row it also makes the page the
+   ritual's process page. A row that still reads `adoptRefusal: needs_cadence` after it has a
+   `proposedId` is not stuck: *Adopt* is what is refused, *Link* is the way in.
+5. **Ignore** what is not a habit — a process marked *on demand*. `POST /adoption/ignore` with
+   `externalKind`, `externalId` and an optional `reason`. It is permanent: there is no un-ignore.
+
+Steps 2, 4 and 5 change prisme's own records; none of them writes to Notion or Todoist. They have no
+dry run of their own, so print the list of rituals you would create and the rows you would ignore,
+read it, then send it — an ignore cannot be taken back.
+
 ---
 
 ## 7. Questions
