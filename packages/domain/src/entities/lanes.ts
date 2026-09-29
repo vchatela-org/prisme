@@ -41,9 +41,9 @@ export function mayEnterBacklog(takeaway: Takeaway): boolean {
   return takeaway.kind === 'action';
 }
 
-export type RitualCadence = 'daily' | 'weekly' | 'monthly';
+export type RitualCadence = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
-export const RITUAL_CADENCES = ['daily', 'weekly', 'monthly'] as const;
+export const RITUAL_CADENCES = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const;
 
 export interface Ritual {
   readonly id: RitualId;

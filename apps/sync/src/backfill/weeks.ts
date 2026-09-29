@@ -32,6 +32,16 @@ export function startOfMonth(instant: Date): Date {
   return new Date(Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), 1));
 }
 
+/** The first day of the calendar quarter an instant falls in, in UTC. */
+export function startOfQuarter(instant: Date): Date {
+  return new Date(Date.UTC(instant.getUTCFullYear(), Math.floor(instant.getUTCMonth() / 3) * 3, 1));
+}
+
+/** The first day of the calendar year an instant falls in, in UTC. */
+export function startOfYear(instant: Date): Date {
+  return new Date(Date.UTC(instant.getUTCFullYear(), 0, 1));
+}
+
 export function dayText(instant: Date): string {
   return instant.toISOString().slice(0, 10);
 }

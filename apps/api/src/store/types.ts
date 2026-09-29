@@ -23,6 +23,7 @@
 
 import type {
   AdoptRefusal,
+  RitualCadence,
   WriteAuditOperation,
   WriteAuditOrigin,
   WriteAuditOutcome,
@@ -320,7 +321,7 @@ export interface RitualRecord {
   readonly id: string;
   readonly name: string;
   readonly areaKey: string;
-  readonly cadence: 'daily' | 'weekly' | 'monthly';
+  readonly cadence: RitualCadence;
   readonly targetAdherencePct: number;
   readonly externalPageId: string | null;
 }

@@ -1,5 +1,5 @@
 import type { AdherencePeriod, AttributedCompletion, RitualRecord } from './types.js';
-import { dayText, startOfMonth, startOfWeek } from './weeks.js';
+import { dayText, startOfMonth, startOfQuarter, startOfWeek, startOfYear } from './weeks.js';
 
 /**
  * Reconstructing the adherence series for a habit.
@@ -58,14 +58,22 @@ interface Period {
   readonly opportunities: number;
 }
 
+/** How a cadence that is a calendar span, not a run of weeks, finds its periods. */
+const CALENDAR_SPANS = {
+  monthly: { start: startOfMonth, months: 1 },
+  quarterly: { start: startOfQuarter, months: 3 },
+  yearly: { start: startOfYear, months: 12 },
+} as const;
+
 function periodsFor(cadence: RitualRecord['cadence'], range: AdherenceRange): readonly Period[] {
   const periods: Period[] = [];
 
-  if (cadence === 'monthly') {
-    let cursor = startOfMonth(range.from);
+  if (cadence === 'monthly' || cadence === 'quarterly' || cadence === 'yearly') {
+    const span = CALENDAR_SPANS[cadence];
+    let cursor = span.start(range.from);
     while (cursor.getTime() < range.to.getTime()) {
       periods.push({ start: cursor, opportunities: 1 });
-      cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+      cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + span.months, 1));
     }
     return periods;
   }
@@ -80,7 +88,10 @@ function periodsFor(cadence: RitualRecord['cadence'], range: AdherenceRange): re
 }
 
 function periodStartFor(cadence: RitualRecord['cadence'], instant: Date): string {
-  return dayText(cadence === 'monthly' ? startOfMonth(instant) : startOfWeek(instant));
+  if (cadence === 'monthly' || cadence === 'quarterly' || cadence === 'yearly') {
+    return dayText(CALENDAR_SPANS[cadence].start(instant));
+  }
+  return dayText(startOfWeek(instant));
 }
 
 /**

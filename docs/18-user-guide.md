@@ -128,8 +128,11 @@ ends up matching whatever you already did. Run and Signals get no share.
 ### 2.5 Rituals
 
 **Rituals** in the sidebar. A ritual is a habit with a cadence and a target — a weekly review, a
-daily walk: *Weekly review · weekly · 80 %*, optionally linked to its process page in Notion. Rituals
-are never ranked against initiatives; the KPI dashboard shows how often they happen.
+daily walk: *Weekly review · weekly · 80 %*, optionally linked to its process page in Notion. The
+cadence is daily, weekly, monthly, quarterly or yearly; a quarterly or yearly habit has one
+opportunity per calendar quarter or year. A process that has no rhythm (*on demand*) is a procedure,
+not a habit — leave it out of the queue with *Ignore*. Rituals are never ranked against initiatives;
+the KPI dashboard shows how often they happen.
 
 ### 2.6 Bring in what already exists — Adoption
 

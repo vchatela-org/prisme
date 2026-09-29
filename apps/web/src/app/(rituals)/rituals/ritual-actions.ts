@@ -21,7 +21,7 @@ export type RitualResult =
   | { readonly ok: true; readonly title: string; readonly description: string }
   | { readonly ok: false; readonly title: string; readonly description: string };
 
-const cadence = z.enum(['daily', 'weekly', 'monthly']);
+const cadence = z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly']);
 
 const ritualInput = z.object({
   id: z.string().min(1).max(200).optional(),

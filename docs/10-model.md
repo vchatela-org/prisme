@@ -330,6 +330,10 @@ The task tool owns the recurring task; the document tool keeps the narrative; **
 adherence time series**. A habit is measured by adherence over time, not by task completion — which
 is precisely the metric that reveals a stated goal quietly sitting near zero.
 
+A ritual's cadence is one of `daily`, `weekly`, `monthly`, `quarterly` or `yearly`. An adherence
+period is the ISO week (Monday), the calendar month, quarter or year that starts on `period_start`;
+a daily habit has seven opportunities in its week, every other cadence one.
+
 ---
 
 ## 10. Review, event log, reconciliation state

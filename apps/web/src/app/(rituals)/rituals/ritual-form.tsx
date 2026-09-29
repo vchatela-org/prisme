@@ -21,7 +21,7 @@ export interface RitualDraft {
   readonly id?: string | undefined;
   readonly name: string;
   readonly areaKey: string;
-  readonly cadence: 'daily' | 'weekly' | 'monthly';
+  readonly cadence: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   readonly targetAdherencePct: number;
   readonly page: string;
 }
@@ -110,6 +110,8 @@ export function RitualForm({
               <SelectItem value="daily">Daily</SelectItem>
               <SelectItem value="weekly">Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
             </SelectContent>
           </Select>
         </Field>

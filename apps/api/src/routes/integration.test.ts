@@ -1367,6 +1367,43 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  describe('rituals', () => {
+    it.each(['quarterly', 'yearly'] as const)(
+      'defines a %s ritual, keeps it, and lets its cadence be changed',
+      async (cadence) => {
+        const app = api();
+        const created = await app.request('POST', url('/rituals'), {
+          name: 'Invented review',
+          areaKey: 'home',
+          cadence,
+          targetAdherencePct: 80,
+        });
+        expect(created.status).toBe(201);
+        expect(created.body).toMatchObject({ name: 'Invented review', cadence });
+
+        const listed = await app.request('GET', url('/rituals'));
+        expect((listed.body as { items: { cadence: string }[] }).items).toContainEqual(
+          expect.objectContaining({ cadence }),
+        );
+
+        const id = (created.body as { id: string }).id;
+        const moved = await app.request('PATCH', url(`/rituals/${id}`), { cadence: 'monthly' });
+        expect(moved.status).toBe(200);
+        expect(moved.body).toMatchObject({ cadence: 'monthly' });
+      },
+    );
+
+    it('still refuses a cadence that is not one of the five', async () => {
+      const refused = await api().request('POST', url('/rituals'), {
+        name: 'Invented review',
+        areaKey: 'home',
+        cadence: 'fortnightly',
+        targetAdherencePct: 80,
+      });
+      expect(refused.status).toBe(400);
+    });
+  });
+
   describe('authorization, on the real routes', () => {
     it('lets a read-scoped credential read and nothing else', async () => {
       const readOnly = api(identityWith(['read:backlog', 'read:areas']));

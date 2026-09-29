@@ -1,4 +1,4 @@
-import type { AreaKey, AreaKind, DurationSource } from '@prisme/domain';
+import type { AreaKey, AreaKind, DurationSource, RitualCadence } from '@prisme/domain';
 
 /**
  * What the backfill works with.
@@ -92,7 +92,7 @@ export interface CapacityWeek {
 /** One reconstructed adherence period for one ritual. */
 export interface AdherencePeriod {
   readonly ritualId: string;
-  /** `YYYY-MM-DD`: the Monday for a daily or weekly cadence, the 1st for monthly. */
+  /** `YYYY-MM-DD`: the Monday for a daily or weekly cadence, the 1st of the month, quarter or year otherwise. */
   readonly periodStart: string;
   readonly opportunities: number;
   readonly completions: number;
@@ -111,7 +111,7 @@ export interface RitualRecord {
   readonly id: string;
   readonly name: string;
   readonly areaKey: AreaKey;
-  readonly cadence: 'daily' | 'weekly' | 'monthly';
+  readonly cadence: RitualCadence;
   /** The task whose completions are this habit's, when one is bound. */
   readonly externalTaskId?: string | undefined;
   /** The process page in the document tool, when there is one. */

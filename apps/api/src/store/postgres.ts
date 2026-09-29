@@ -6,6 +6,7 @@ import {
   objectivePeriodOf,
   ritualPageLink,
 } from '@prisme/domain';
+import type { RitualCadence } from '@prisme/domain';
 import { docIdKey } from '@prisme/connectors';
 import type {
   AdherenceRecord,
@@ -2321,7 +2322,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     id: string;
     name: string;
     area_key: string;
-    cadence: 'daily' | 'weekly' | 'monthly';
+    cadence: RitualCadence;
     target_adherence_pct: number;
     external_page_id: string | null;
   }
