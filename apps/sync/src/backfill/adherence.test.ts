@@ -62,6 +62,40 @@ describe('opportunities per cadence', () => {
     expect(series.map((period) => period.periodStart)).toEqual(['2026-09-01', '2026-10-01']);
     expect(series.every((period) => period.opportunities === 1)).toBe(true);
   });
+
+  it('gives a quarterly habit one chance a calendar quarter', () => {
+    const wide = { from: new Date('2026-02-10T00:00:00Z'), to: new Date('2026-10-05T00:00:00Z') };
+    const series = reconstructAdherence([ritual({ cadence: 'quarterly' })], [], wide);
+
+    expect(series.map((period) => period.periodStart)).toEqual([
+      '2026-01-01',
+      '2026-04-01',
+      '2026-07-01',
+      '2026-10-01',
+    ]);
+    expect(series.every((period) => period.opportunities === 1)).toBe(true);
+  });
+
+  it('gives a yearly habit one chance a calendar year, across a year end', () => {
+    const wide = { from: new Date('2025-11-03T00:00:00Z'), to: new Date('2026-10-05T00:00:00Z') };
+    const series = reconstructAdherence([ritual({ cadence: 'yearly' })], [], wide);
+
+    expect(series.map((period) => period.periodStart)).toEqual(['2025-01-01', '2026-01-01']);
+    expect(series.every((period) => period.opportunities === 1)).toBe(true);
+  });
+
+  it('counts a completion into the quarter it fell in, capping the excess', () => {
+    const series = reconstructAdherence(
+      [ritual({ cadence: 'quarterly' })],
+      [done('2026-09-08T07:00:00Z'), done('2026-09-30T07:00:00Z')],
+      RANGE,
+    );
+
+    expect(series).toEqual([
+      { ritualId: 'r-1', periodStart: '2026-07-01', opportunities: 1, completions: 1, excess: 1 },
+      { ritualId: 'r-1', periodStart: '2026-10-01', opportunities: 1, completions: 0, excess: 0 },
+    ]);
+  });
 });
 
 describe('counting what happened', () => {

@@ -1034,7 +1034,7 @@ export const ritualSchema = z.object({
   id,
   name: z.string(),
   areaKey,
-  cadence: z.enum(['daily', 'weekly', 'monthly']),
+  cadence: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly']),
   targetAdherencePct: z.number(),
   externalPageId: z.string().nullable(),
   latestAdherencePct: z.number().nullable(),

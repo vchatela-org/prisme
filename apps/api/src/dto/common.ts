@@ -67,7 +67,7 @@ export const origin = z.enum(['created_in_prisme', 'adopted']);
 export const projectStatus = z.enum(['active', 'paused', 'done', 'dropped']);
 export const objectiveType = z.enum(['annual', 'monthly']);
 export const objectiveStatus = z.enum(['draft', 'active', 'met', 'missed', 'dropped']);
-export const ritualCadence = z.enum(['daily', 'weekly', 'monthly']);
+export const ritualCadence = z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly']);
 export const reviewCadence = z.enum(['weekly', 'monthly', 'quarterly', 'yearly']);
 export const taskPriority = z.enum(['highest', 'high', 'medium', 'lowest']);
 
