@@ -11,7 +11,7 @@
 # ---------------------------------------------------------------------------
 # Builder — the only stage with a toolchain.
 # ---------------------------------------------------------------------------
-FROM node:26.9-trixie-slim@sha256:3a771f83944bb763050c23c0225c260638c4b7899e7a72485ef75e5e570499e5 AS builder
+FROM node:26.10-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS builder
 
 ENV NEXT_TELEMETRY_DISABLED=1 \
     CI=true
