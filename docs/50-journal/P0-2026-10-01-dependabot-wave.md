@@ -1,7 +1,7 @@
 # P0 · 2026-10-01 · Two advisories turned `main` red, and one pull request carries the way back
 
 **Agent:** Claude (orchestrator, inline) · **Duration:** one watched run · **Outcome:** #135
-integrated to green and merged, `v0.15.1` cut; the other five wait on `main` merged in again
+integrated to green and merged, `v0.15.1` cut; the other five then re-integrated to green
 
 The six pull requests the [2026-09-29 run](P0-2026-09-29-dependabot-wave.md) left green went red
 without a commit of their own. Overnight, `main` (`cf9950e`) began failing two required checks,
@@ -95,12 +95,44 @@ was cut on it as a patch. It contains one dependency merge and documentation, an
 configuration change. The *Releases* row replaces the pending line, and the Release notes say what
 the version contains. #130–#134 are not in it.
 
+## The second pass, after #135 merged
+
+With #135 on `main` (`72924a1`), each of the other five pull requests had `main` merged in and was
+re-integrated by its own subagent, one at a time:
+
+| PR | Bump | Result |
+|---|---|---|
+| #134 | dev-dependencies group | green, read at `14d45eb`. The lockfile conflicted with #135's refresh, so it was regenerated rather than hand-merged. The `esbuild` override stays, because its parent still pulls the deprecated packages it guards against |
+| #130 / #133 | builder `node` 26.9 → 26.10 (api / web) | green, read at `ff1cd4e` / `0379bf9`. One `FROM` line each, and the pinned digest matches the tag |
+| #131 / #132 | distroless digest `bf3d7b0` → `afc6657` (api / web) | green, read at `43eece6` / green, read at `6055277`. One `FROM` line each |
+
+The two Docker pairs merge as pairs, so that the api and web images never sit on different tags.
+With all four merged, the builder and the runtime both report Node 26.10. ADR-0023 holds either way,
+because the majors already match. `.nvmrc` stays at 26.8.2, as it did in the #47/#49 precedent.
+Whether it should follow builder minors is left open.
+
+**The digest that ends the waiver already exists.** `afc6657`, the target of #131/#132, still ships
+`libssl3t64` deb13u2, so the two `.trivyignore` entries are still needed with it. Trivy on an api
+image built from #131 fails on exactly those two CVEs without the file, and reports nothing with it.
+But the floating `nonroot` tag has since moved to `2ee7b2c`, which ships deb13u3, the fixed version,
+and is still Node 26.10. Neither pull request was retargeted to it. Dependabot owns the target, and a
+hand edit to its branch would stop it from updating that branch.
+
+**Release: `v0.15.2`, patch, pending.** The five are green and unmerged, so no tag would be true yet.
+Dependency moves only, so the field is patch. Any one merge makes a tag true. Cutting once the whole
+wave is on `main` makes one version instead of several. The pending line is under *Releases* in
+`STATUS.md`.
+
 ## Follow-ups
 
 - **2026-10-15**: the two `.trivyignore` entries lapse and `images` fails on every branch again.
-  Delete them in the pull request that moves the distroless digest to one shipping deb13u3
-  (Dependabot opens it when distroless republishes). If that has not happened by then, the failure
-  is the prompt to decide again, not a flake.
+  Delete them in the pull request that moves the distroless digest to one shipping deb13u3. That
+  digest now exists (`2ee7b2c`, see above). Dependabot checks Docker weekly, on Mondays by default,
+  so the 2026-10-05 check should propose it, ahead of the expiry. That will be a new pair if #131/#132
+  are merged first, or a replacement for them if not. If no such pull request exists by the expiry, a
+  hand-made one that moves both Dockerfiles and deletes the two entries is the way out. Extending the
+  expiry is not. If none of that has happened by then, the failure is the prompt to decide again, not
+  a flake.
 - `node`'s own bundled OpenSSL is outside the scanner's view and was not assessed against these
   two CVEs.
 - No `ignore:` entry proposed for `.github/dependabot.yml`.
