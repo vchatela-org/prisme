@@ -19,6 +19,7 @@ gate before the first outward write, and the open decisions below
 
 | Phase | What it delivers | Exit criteria | State |
 |---|---|---|---|
+| `v0.15.1` (pending) | not cut | Dependabot wave [#130](https://github.com/vchatela-org/prisme/pull/130)–[#135](https://github.com/vchatela-org/prisme/pull/135): two npm groups and two Docker pairs, patch | ⏳ **Pending, unborn.** Unblocked by merging those pull requests (all green, none merged); the next `/dependabot` run cuts it and removes this line |
 | **P0** | Data model, ownership matrix, scoring contract, workstream briefs | Model reviewed and frozen; every field singly owned; both rituals map onto surfaces | 🟢 **frozen 2026-09-15** |
 | P1 | Foundations + read-only ingest + Focus & Areas | prisme answers "what now?" from real data, writing nothing | ⚪ not started |
 | P2 | Initiative ownership + reconciler write-back | A week of reviews with no manual copying and no drift | ⚪ not started |
