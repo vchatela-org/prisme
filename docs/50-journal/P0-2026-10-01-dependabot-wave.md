@@ -1,7 +1,7 @@
 # P0 · 2026-10-01 · Two advisories turned `main` red, and one pull request carries the way back
 
 **Agent:** Claude (orchestrator, inline) · **Duration:** one watched run · **Outcome:** #135
-integrated to green, the other five wait on its merge, release still pending
+integrated to green and merged, `v0.15.1` cut; the other five wait on `main` merged in again
 
 The six pull requests the [2026-09-29 run](P0-2026-09-29-dependabot-wave.md) left green went red
 without a commit of their own. Overnight, `main` (`cf9950e`) began failing two required checks,
@@ -88,6 +88,12 @@ unblocked by **one merge: #135**. That alone makes the tag true, and because #13
 a critical advisory, it is worth cutting as soon as #135 lands rather than holding it for the Docker
 pairs. The line under *Releases* in `STATUS.md` says so. The 2026-09-29 run had put it in the
 *Phases* table by mistake, and it has moved.
+
+**Cut the same afternoon.** The owner approved merging #135, and it landed at 13:53 UTC. `main`
+(`72924a1`) then read green on every check, `dependency audit` and `images` included, and `v0.15.1`
+was cut on it as a patch. It contains one dependency merge and documentation, and no ADR, migration or
+configuration change. The *Releases* row replaces the pending line, and the Release notes say what
+the version contains. #130–#134 are not in it.
 
 ## Follow-ups
 
