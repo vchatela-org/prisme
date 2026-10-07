@@ -1,8 +1,8 @@
 # P0 · 2026-10-06 · Two more advisories turned `main` red, and #144 carries the way back
 
 **Agent:** Claude (orchestrator, scheduled and unattended) · **Duration:** one run · **PR:** this
-entry's own · **Outcome:** #144 green and unmerged. #143 and the distroless pair #141 + #142 wait on
-it. `v0.15.3` is pending on #144
+entry's own · **Outcome:** #144 integrated to green and merged, `v0.15.3` cut. #143 and the
+distroless pair #141 + #142 then re-integrated to green, waiting on a human merge
 
 The shape is the one the [2026-10-01 run](P0-2026-10-01-dependabot-wave.md) met. Four new Dependabot
 pull requests were already based on `main`'s tip (`a880f3a`), and every one was red on a single
@@ -56,6 +56,16 @@ version clears advisories, and sharp's is in the deployed web image. #143 and th
 follow in a later version. The pending line is under *Releases* in `STATUS.md`, and the run that
 cuts it removes the line.
 
+**Cut the next morning.** The owner approved merging #144, and it landed at 06:15 UTC on 2026-10-07.
+`main` (`64baed0`) then read green on every workflow, `dependency audit` included, and `v0.15.3` was
+cut on it as a patch: one dependency merge, no ADR, migration or configuration change. The session
+that integrated #144 could tag but not push a tag, because its git access reached only its own
+branch. It stopped there rather than work around that. The cut was made again from a checkout that
+could push, from the same facts, and the unpushed tag went nowhere. #141–#143 were re-integrated to
+green once #144 was on `main` (`main` merged into #141 and #142, and #143 rebased by Dependabot
+because it shares the lockfile), and none of them is in `v0.15.3`. The *Releases* row is the record
+pull request's, #146, and this entry's branch no longer adds the pending line.
+
 ## Surprises
 
 - **Writes to GitHub returned `502 Bad Gateway`.** Two attempts to comment on #144 failed this way
@@ -68,9 +78,9 @@ cuts it removes the line.
 
 ## Follow-ups
 
-- **Merge #144 first** (a human). Once it is on `main`, the next run cuts `v0.15.3`. That run also
-  merges `main` into #143 and regenerates #143's lockfile rather than hand-merging it, and merges
-  `main` into #141 and #142.
+- **Merge #141, #142 and #143** (a human). #144 has merged and `v0.15.3` is cut. All three were
+  re-integrated to green on `64baed0`, and each needs `main` merged in again after the one before it
+  lands. #143 shares the lockfile, so it is regenerated rather than hand-merged.
 - **The `.trivyignore` waiver lapses on 2026-10-15.** `2ee7b2c`, the digest #141 and #142 move to,
   ships `libssl3t64` deb13u3, which is the fixed version. The 2026-10-01 run found that, and this run
   did not re-verify it. Its two entries can therefore be deleted
