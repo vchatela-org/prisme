@@ -28,7 +28,7 @@ two implementations that drift.
 - Base images pinned **by digest**, not tag.
 - No shell in the runtime layer where the stack allows it.
 - SBOM and provenance attestation emitted at build.
-- Built and scanned in CI on every pull request, and pushed to Harbor on a `v*` tag —
+- Built and scanned in CI on every pull request, and pushed to GHCR on a `v*` tag —
   `.github/workflows/images.yml` and `.github/workflows/publish.yml`.
 
 Built as of W00: `node:26-trixie-slim` builder, `gcr.io/distroless/nodejs26-debian13:nonroot`
@@ -37,13 +37,18 @@ into and nothing to run but `node`. Node 26 is the baseline for builder, runtime
 alike — [ADR-0023](20-decisions/0023-node-26-toolchain-baseline.md), which also records why the
 builder installs pnpm from npm rather than through corepack.
 
-**Correction (W00).** An earlier version of this section named
-`vchatela-org/shared-workflows/.github/workflows/docker-build-push-harbor.yml@v1` as the build path.
-That workflow builds one image from `context: .` and exposes no input for the Dockerfile path or the
-build target, so it cannot build a monorepo that ships two Dockerfiles which both need the
-repository root as their context. `publish.yml` therefore pushes directly, emitting the SBOM and
-provenance attestation itself. Moving back is a one-line change once the shared workflow grows a
-`dockerfile_path` input.
+**Correction (W00).** An earlier version of this section named a shared
+`vchatela-org/shared-workflows` build workflow as the build path. That workflow builds one image from
+`context: .` and exposes no input for the Dockerfile path or the build target, so it cannot build a
+monorepo that ships two Dockerfiles which both need the repository root as their context.
+`publish.yml` therefore pushes directly, emitting the SBOM and provenance attestation itself.
+Moving back is a one-line change once the shared workflow grows a `dockerfile_path` input.
+
+**Where the images go.** `publish.yml` pushes to GHCR (`ghcr.io/vchatela-org/prisme-{api,web}`) on a
+GitHub-hosted runner, and scans the pushed image by digest with Trivy. It ran on the organisation's
+self-hosted runners and pushed to Harbor until 2026-10-14, when public repositories were barred from
+those runners: their token can read cluster secrets, and Harbor is not reachable from a hosted
+runner. The deployment pins `ghcr.io/vchatela-org/prisme-{api,web}:<tag>@sha256:<digest>`.
 
 ### Health endpoints
 
