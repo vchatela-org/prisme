@@ -23,7 +23,7 @@
     "dev": "node --watch dist/main.js"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.4",
+    "@hono/node-server": "^2.1.5",
     "@node-rs/argon2": "^2.2.2",
     "@prisme/auth": "workspace:*",
     "@prisme/config": "workspace:*",
@@ -34,6 +34,6 @@
     "@prisme/sync": "workspace:*",
     "hono": "^4.13.13",
     "postgres": "^3.4.0",
-    "zod": "^4.6.6"
+    "zod": "^4.6.7"
   }
 }
