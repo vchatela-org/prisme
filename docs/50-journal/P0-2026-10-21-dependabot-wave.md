@@ -46,3 +46,10 @@ the version itself.
 - **Record the `v0.15.7` cut.** The tag exists, but no journal entry says who cut it, when, or from
   which commit. A later entry should say so.
 - No `ignore:` entry proposed for `.github/dependabot.yml`.
+- **`dependency audit` is red on `main` at `5038cad`, and it is not this branch.** The audit reports
+  four `vite` advisories against the lockfile's `vite@7.3.6` (transitive): three moderate and one
+  high, all in the `launch-editor` and `server.fs` paths, all newly published. No open Dependabot
+  pull request carries the fix, and this docs branch must not bump a dependency to clear it. The
+  unblocking change is a `vite` bump to a patched release, integrated by a later `/dependabot` run
+  once Dependabot opens it or the operator asks. Until then the audit stays red on every pull request.
+  It is not weakened, and this PR is blocked on it alone.
