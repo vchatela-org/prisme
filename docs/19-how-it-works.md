@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | An anchor task, so it can be broken down; initiatives **serve** it |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. Its own anchor task is specified but not built yet (S15) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -203,7 +203,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result, with that task as its anchor — by *Link*, after creating it (see S1) |
+| An objective or key result kept **as a task** | Key result, linked to that task — by *Link*, after creating it (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
 | A loose task | Stays a task |
@@ -412,6 +412,7 @@ ADRs, some may be answered by copy alone.
 | S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
 | S13 | There is no map of the objects | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
+| S15 | Key results have no anchor task yet | Spec ahead of code |
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
 says an objective or key result stored as a task becomes a **key result** anchored to that task. In
@@ -509,6 +510,14 @@ but never toward ranking*; [`10-model.md`](10-model.md) §9 says Signals are *ex
 and from capacity*, and the attribution code (`laneOf` in `apps/sync/src/backfill/attribute.ts`)
 excludes them. This document follows the code. **Explore:** correct `12-scoring.md` §4, or decide
 otherwise in an ADR.
+
+**S15 · Key results have no anchor task yet.** [`10-model.md`](10-model.md) §7 says *every key
+result gets an anchor task* and calls it *the capability that was missing*: a key result you can
+break into subtasks is one that gets worked on. The reconciler manages initiative anchors only, and
+a key result's computed progress is derived from the initiatives that serve it. So today the only
+way to break a key result down in the task tool is to create an initiative that serves it — which
+works, and may be the better model, but it is not the one the spec describes. **Explore:** build
+key-result anchors, or amend §7 to make *served by initiatives* the rule.
 
 ---
 

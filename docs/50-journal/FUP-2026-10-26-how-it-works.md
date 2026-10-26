@@ -14,8 +14,8 @@ instance is used — so that it can be iterated on.
   five families with a *which object is it?* guide; the five doors in, with the adoption queue's
   *what becomes what*; the core loop (allocate → measure → rank → select → push) with its formulas
   and a synthetic example; sync and the intent channel; an initiative's lifecycle; what each review
-  cadence asks and what prisme prepares for each step; how to read the numbers; and fourteen
-  structural findings (S1–S14), each with a direction to explore.
+  cadence asks and what prisme prepares for each step; how to read the numbers; and fifteen
+  structural findings (S1–S15), each with a direction to explore.
 - Linked from `README.md`'s document table and from the layout block in `CLAUDE.md`.
 
 ## Decisions taken
@@ -41,12 +41,16 @@ instance is used — so that it can be iterated on.
   say they do not (S14). Recorded as a finding rather than corrected here, since which one is right
   is a decision.
 - `POST /rituals/:id/adherence` exists and is reachable from no screen (S2).
+- `10-model.md` §7 promises every key result an anchor task; the reconciler manages initiative
+  anchors only, and an earlier entry (`FUP-2026-09-28-objective-period.md`) already said *key
+  results have no anchors yet* (S15). The adoption table's *key result, with that task as its
+  anchor* therefore describes a link that nothing acts on.
 
 ## Follow-ups
 
 | Item | Owner |
 |---|---|
-| Triage S1–S14: which become ADRs, which are copy, which are dropped | the owner |
+| Triage S1–S15: which become ADRs, which are copy, which are dropped | the owner |
 | Correct `12-scoring.md` §4 on Signals, or decide otherwise (S14) | whoever takes S14 |
 
 ## Specs touched
