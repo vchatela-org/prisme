@@ -71,6 +71,7 @@ The core ideas:
 | [`docs/16-sync.md`](docs/16-sync.md) | Sync cadence, conflict policy, the intent channel |
 | [`docs/17-privacy.md`](docs/17-privacy.md) | What may and may not be committed here |
 | [`docs/18-user-guide.md`](docs/18-user-guide.md) | **Using prisme** — setup, the daily loop, the reviews |
+| [`docs/19-how-it-works.md`](docs/19-how-it-works.md) | **How prisme works** — the objects, the doors in, the loop, the cadences, and the structural findings to iterate on |
 | [`docs/20-decisions/`](docs/20-decisions/) | ADRs, plus `OPEN.md` for what's still undecided |
 | [`docs/30-roadmap.md`](docs/30-roadmap.md) | Phases and exit criteria |
 | [`docs/40-workstreams/`](docs/40-workstreams/) | One brief per workstream — the unit of work |
