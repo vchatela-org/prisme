@@ -30,6 +30,7 @@ import {
   type EndedFilter,
   type QueueFilter,
 } from './adoption-queue.js';
+import { refreshReviewRituals } from './lanes.js';
 import type { MeasureService } from './measure.js';
 
 /**
@@ -185,6 +186,10 @@ const DECIDE_REFUSALS = {
     'this ritual is already measured from another recurring task, and linking a task to a ' +
     'ritual makes it that task — change or clear it through PATCH /rituals/{id}, then link ' +
     'this one; or ignore this row',
+  ritual_fulfilled_by_review:
+    'this ritual is fulfilled by its review, and a ritual is measured from one source — ' +
+    'stop measuring it by its review through PATCH /rituals/{id}, then link this task; or ' +
+    'ignore this row',
   task_bound_elsewhere:
     'that task already belongs to something else in prisme — an initiative, a key result or ' +
     'another ritual — and one task cannot measure two things',
@@ -239,6 +244,8 @@ export function createOpsService(
         ...(capacitySnapshot === undefined ? {} : { capacitySnapshot }),
       });
       if (updated === undefined) throw notFound('review session', id);
+      // The close is the completion of a ritual its review fulfils (S3).
+      if (completedAt !== undefined) await refreshReviewRituals(store, updated.cadence, now);
       return toReviewDto(updated);
     },
 

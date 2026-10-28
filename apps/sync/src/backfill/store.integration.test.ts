@@ -373,6 +373,15 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
       expect(rituals[0]?.externalTaskId).toBeUndefined();
     });
 
+    it('says when a ritual is fulfilled by its review (S3)', async () => {
+      const id = await insertRitual('Invented review habit', 'weekly');
+      await client`update ritual set fulfilled_by_review = true where id = ${id}::uuid`;
+
+      const rituals = await store().loadRituals();
+      expect(rituals[0]).toMatchObject({ id, fulfilledByReview: true });
+      expect(rituals[0]?.externalTaskId).toBeUndefined();
+    });
+
     it('does not mistake a page binding for a task binding', async () => {
       const id = await insertRitual('Invented habit', 'monthly');
       await client`

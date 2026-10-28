@@ -134,17 +134,22 @@ opportunity per calendar quarter or year. A process that has no rhythm (*on dema
 not a habit — leave it out of the queue with *Ignore*. Rituals are never ranked against initiatives;
 the KPI dashboard shows how often they happen.
 
-How often it happened is read from one of two places:
+How often it happened is read from one of three places — *Measured from*, on the ritual:
 
 - **Its recurring task** — choose it on the ritual (*Edit*, or when defining it). The list is your
   open recurring tasks in Todoist, this area's first; one that already belongs to an initiative, a
   key result or another ritual is shown and cannot be chosen. Each completion of that task is one
   occurrence, counted from the next daily capacity refresh over the last four weeks. Nothing is
   written to Todoist. *None* unties it.
+- **Closing its review** — *Closing the weekly review in prisme* (or monthly, quarterly, yearly: the
+  ritual's own cadence). Each review session of that cadence you close on Reviews is that period
+  done, and the sessions you closed before choosing it count too; a period you closed no review in
+  reads as missed, and the current one shows only once it is done. This is how a *weekly review*
+  ritual is measured by the review itself. A daily ritual cannot be measured this way.
 - **By hand** — a ritual with no task shows *This week: 3 of 7 days* (or *This month: not yet*) on
   its row, with **Done** and **Undo**. A daily habit has seven chances a week; every other cadence
-  has one a period. A ritual measured from its task has no such buttons: its completions are the
-  record.
+  has one a period. A ritual measured from its task or its review has no such buttons: its
+  completions or its closes are the record.
 
 ### 2.6 Bring in what already exists — Adoption
 

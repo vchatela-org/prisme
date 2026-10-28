@@ -20,8 +20,9 @@ export const metadata = {
  * initiative competing for a slot, it is something that should simply happen.
  * The KPI dashboard's adherence is measured over the rituals defined here, and
  * until this screen existed only a hand-written `POST /rituals` could define
- * one. Each is measured from its recurring task in Todoist, chosen here, or —
- * for a habit that is not a task — recorded by hand on its row (S2).
+ * one. Each is measured from its recurring task in Todoist, chosen here (S2);
+ * from closing the review of its cadence (S3); or — for a habit that is
+ * neither — recorded by hand on its row.
  */
 export default async function RitualsPage() {
   const [rituals, areas, recurring] = await Promise.all([
@@ -46,7 +47,8 @@ export default async function RitualsPage() {
         <p className="max-w-prose text-sm text-ink-secondary">
           Habits with a cadence and a target — a weekly review, a daily walk. They are never ranked
           against initiatives; the KPI dashboard measures how often they actually happen, from the
-          completions of each one&rsquo;s recurring task in Todoist, or from what you record here.
+          completions of each one&rsquo;s recurring task in Todoist, from the reviews you close in
+          prisme, or from what you record here.
         </p>
       </header>
 
@@ -72,10 +74,12 @@ export default async function RitualsPage() {
                     targetAdherencePct: ritual.targetAdherencePct,
                     page: ritual.externalPageId ?? '',
                     task: ritual.externalTaskId,
+                    byReview: ritual.fulfilledByReview,
                   }}
                   areaName={nameOf.get(ritual.areaKey) ?? ritual.areaKey}
                   latestAdherencePct={ritual.latestAdherencePct}
                   currentPeriod={ritual.currentPeriod}
+                  measuredFrom={ritual.measuredFrom}
                   taskTitle={taskTitleOf(tasks, ritual.externalTaskId)}
                   pageHref={pageUrl(template, ritual.externalPageId) ?? null}
                   areas={areaList}
@@ -98,6 +102,7 @@ export default async function RitualsPage() {
               targetAdherencePct: 80,
               page: '',
               task: null,
+              byReview: false,
             }}
             areas={areaList}
             tasks={tasks}

@@ -1879,6 +1879,125 @@ describeOrSkip('the API against PostgreSQL', () => {
       });
     });
 
+    /**
+     * S3: closing a review session is the completion of a ritual its review
+     * fulfils. PINNED_NOW is Thursday 2026-09-17, in the week of 2026-09-14.
+     */
+    describe('fulfilled by its review', () => {
+      async function closeAt(cadence: string, at: string): Promise<void> {
+        await database.client`
+          insert into review_session (cadence, started_at, completed_at)
+          values (${cadence}, ${at}::timestamptz, ${at}::timestamptz)`;
+      }
+
+      async function series(id: string): Promise<unknown[]> {
+        const { body } = await api().request('GET', url(`/rituals/${id}/adherence`));
+        return (body as { items: { periodStart: string; completions: number }[] }).items.map(
+          ({ periodStart, completions }) => ({ periodStart, completions }),
+        );
+      }
+
+      it('rebuilds the series from the sessions already closed, and counts the next close', async () => {
+        await closeAt('weekly', '2026-09-03T18:00:00Z');
+        // Another cadence's review is not this ritual's.
+        await closeAt('monthly', '2026-09-10T18:00:00Z');
+
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented weekly review',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+          fulfilledByReview: true,
+        });
+        expect(created.status).toBe(201);
+        expect(created.body).toMatchObject({
+          fulfilledByReview: true,
+          measuredFrom: 'review',
+          externalTaskId: null,
+          // This week is not over, and not done yet: not a zero.
+          currentPeriod: { periodStart: '2026-09-14', opportunities: 1, completions: 0 },
+        });
+        const id = (created.body as { id: string }).id;
+        expect(await series(id)).toEqual([
+          { periodStart: '2026-08-31', completions: 1 },
+          { periodStart: '2026-09-07', completions: 0 },
+        ]);
+
+        const opened = await api().request('POST', url('/reviews'), { cadence: 'weekly' });
+        const session = (opened.body as { id: string }).id;
+        expect(
+          (await api().request('PATCH', url(`/reviews/${session}`), { complete: true })).status,
+        ).toBe(200);
+
+        expect(await series(id)).toEqual([
+          { periodStart: '2026-08-31', completions: 1 },
+          { periodStart: '2026-09-07', completions: 0 },
+          { periodStart: '2026-09-14', completions: 1 },
+        ]);
+      });
+
+      it('leaves a ritual its review does not fulfil alone when a session closes', async () => {
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented habit',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+        });
+        const id = (created.body as { id: string }).id;
+        expect(created.body).toMatchObject({ fulfilledByReview: false, measuredFrom: 'hand' });
+
+        const opened = await api().request('POST', url('/reviews'), { cadence: 'weekly' });
+        const session = (opened.body as { id: string }).id;
+        await api().request('PATCH', url(`/reviews/${session}`), { complete: true });
+
+        expect(await series(id)).toEqual([]);
+      });
+
+      it('has one source: refuses a daily ritual, a task beside it, and a period by hand', async () => {
+        const daily = await api().request('POST', url('/rituals'), {
+          name: 'Invented daily review',
+          areaKey: 'home',
+          cadence: 'daily',
+          targetAdherencePct: 90,
+          fulfilledByReview: true,
+        });
+        expect(daily.status).toBe(422);
+
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented weekly review',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+          externalTaskId: 'task-invented-review',
+        });
+        const id = (created.body as { id: string }).id;
+
+        const both = await api().request('PATCH', url(`/rituals/${id}`), {
+          fulfilledByReview: true,
+        });
+        expect(both.status).toBe(422);
+        expect((both.body as { message: string }).message).toMatch(/one source/);
+
+        const switched = await api().request('PATCH', url(`/rituals/${id}`), {
+          externalTaskId: null,
+          fulfilledByReview: true,
+        });
+        expect(switched.status).toBe(200);
+        expect(switched.body).toMatchObject({ externalTaskId: null, measuredFrom: 'review' });
+
+        const toDaily = await api().request('PATCH', url(`/rituals/${id}`), { cadence: 'daily' });
+        expect(toDaily.status).toBe(422);
+
+        const byHand = await api().request('POST', url(`/rituals/${id}/adherence`), {
+          periodStart: '2026-09-14',
+          opportunities: 1,
+          completions: 1,
+        });
+        expect(byHand.status).toBe(409);
+        expect((byHand.body as { message: string }).message).toMatch(/fulfilled by its review/);
+      });
+    });
+
     it('still refuses a cadence that is not one of the five', async () => {
       const refused = await api().request('POST', url('/rituals'), {
         name: 'Invented review',

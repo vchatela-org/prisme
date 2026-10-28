@@ -116,4 +116,10 @@ export interface RitualRecord {
   readonly externalTaskId?: string | undefined;
   /** The process page in the document tool, when there is one. */
   readonly externalPageId?: string | undefined;
+  /**
+   * Closing a review session of its cadence is its completion (S3). The API
+   * rebuilds its series on each close, so the backfill neither writes it nor
+   * reports it as unmeasurable.
+   */
+  readonly fulfilledByReview?: boolean | undefined;
 }

@@ -97,7 +97,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'write:ritual',
     summary: 'Define a ritual',
     description:
-      'With `externalTaskId`, the ritual is measured from that recurring task’s completions from the next capacity refresh on; `409` if another entity holds the task, and then no ritual is made.',
+      'With `externalTaskId`, the ritual is measured from that recurring task’s completions from the next capacity refresh on; `409` if another entity holds the task, and then no ritual is made. With `fulfilledByReview`, closing a review session of its cadence is its completion, and its adherence is rebuilt from the sessions already closed; `422` for a daily ritual or together with a task — a ritual has one source.',
     body: createRitualBody,
     response: RitualDto,
     handle: (context, services) =>
@@ -109,6 +109,7 @@ export const laneRoutes: readonly ApiRoute[] = [
           targetAdherencePct: context.body.targetAdherencePct,
           externalPageId: context.body.externalPageId,
           externalTaskId: context.body.externalTaskId,
+          fulfilledByReview: context.body.fulfilledByReview,
         },
         context.now,
       ),
@@ -119,9 +120,9 @@ export const laneRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/rituals/:id',
     scope: 'write:ritual',
-    summary: 'Change a ritual’s name, cadence, target, process page or recurring task',
+    summary: 'Change a ritual’s name, cadence, target, process page, or what it is measured from',
     description:
-      'Tying a recurring task (`externalTaskId`) binds it to the ritual — the binding adherence is read through — and records the link; another task replaces it, and `null` unties it so it can be offered again. Nothing is written to the task tool. `409` if another entity holds the task, and then nothing changes.',
+      'Tying a recurring task (`externalTaskId`) binds it to the ritual — the binding adherence is read through — and records the link; another task replaces it, and `null` unties it so it can be offered again. Nothing is written to the task tool. `409` if another entity holds the task, and then nothing changes. `fulfilledByReview: true` makes closing a review session of its cadence the completion and rebuilds its adherence from the sessions already closed; `422` while it has a task (untie it in the same write) or for a daily cadence.',
     params: idParam,
     body: updateRitualBody,
     response: RitualDto,
@@ -164,7 +165,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'write:ritual',
     summary: 'Record one period’s opportunities and completions',
     description:
-      'For a habit that is not a task: *done this period* on Rituals writes here. A ritual measured from its recurring task answers `409` — the capacity refresh rewrites its periods from the task’s completions.',
+      'For a habit that is not a task: *done this period* on Rituals writes here. A ritual measured from its recurring task answers `409` — the capacity refresh rewrites its periods from the task’s completions — and so does one fulfilled by its review, whose periods each close rebuilds.',
     params: idParam,
     body: recordAdherenceBody,
     status: 200,

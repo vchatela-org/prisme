@@ -125,6 +125,42 @@ export function periodLine(
   return { label: PERIOD_NAME[cadence], status };
 }
 
+/**
+ * Whether the review of this cadence can fulfil the ritual (S3) — every cadence
+ * a review has. A daily habit has no review that comes round as often.
+ */
+export function reviewCanFulfil(cadence: Ritual['cadence']): boolean {
+  return cadence !== 'daily';
+}
+
+const REVIEW_NAME: Readonly<Record<Ritual['cadence'], string>> = {
+  daily: 'review',
+  weekly: 'weekly review',
+  monthly: 'monthly review',
+  quarterly: 'quarterly review',
+  yearly: 'yearly review',
+};
+
+/** "the weekly review", for a sentence. */
+export function reviewName(cadence: Ritual['cadence']): string {
+  return `the ${REVIEW_NAME[cadence]}`;
+}
+
+/** What a ritual's row says it is measured from — one source each. */
+export function measuredFromLine(
+  ritual: Pick<Ritual, 'cadence' | 'measuredFrom'>,
+  taskTitle: string | null,
+): string {
+  switch (ritual.measuredFrom) {
+    case 'task':
+      return `Measured from ${taskTitle === null ? 'a Todoist task' : `“${taskTitle}”`} in Todoist`;
+    case 'review':
+      return `Done each time ${reviewName(ritual.cadence)} is closed in prisme`;
+    case 'hand':
+      return 'Recorded by hand — no recurring task';
+  }
+}
+
 /** The completions after one more, or one fewer — never outside 0 … opportunities. */
 export function stepCompletions(period: Ritual['currentPeriod'], step: 1 | -1): number {
   return Math.min(period.opportunities, Math.max(0, period.completions + step));

@@ -1052,6 +1052,10 @@ export const ritualSchema = z.object({
   externalPageId: z.string().nullable(),
   /** The recurring task it is measured from, or null for a habit recorded by hand (S2). */
   externalTaskId: z.string().nullable(),
+  /** Closing the review of its cadence is its completion (S3). */
+  fulfilledByReview: z.boolean(),
+  /** What its adherence is measured from — one source each. */
+  measuredFrom: z.enum(['task', 'review', 'hand']),
   latestAdherencePct: z.number().nullable(),
   /** The period today falls in, and what is recorded for it so far. */
   currentPeriod: z.object({

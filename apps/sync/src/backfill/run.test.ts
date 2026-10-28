@@ -331,6 +331,21 @@ describe('rituals', () => {
     expect(state.adherence.size).toBe(0);
     expect(result.unmeasurableRituals.map((entry) => entry.id)).toEqual([ritual.id]);
   });
+
+  it('leaves a ritual its review fulfils to the API, and does not call it unmeasurable', async () => {
+    const { store, state } = createFakeStore({
+      rituals: [{ ...ritual, externalTaskId: undefined, fulfilledByReview: true }],
+    });
+
+    const result = await backfill({
+      ...options(),
+      store,
+      taskClient: createFakeTaskClient(HISTORY).client,
+    });
+
+    expect(state.adherence.size).toBe(0);
+    expect(result.unmeasurableRituals).toEqual([]);
+  });
 });
 
 describe('the report', () => {
