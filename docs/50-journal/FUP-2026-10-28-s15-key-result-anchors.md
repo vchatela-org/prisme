@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S15: key results get their anchor tasks
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** the reconciler gives every
+**Agent:** Claude · **Duration:** one run · **PR:** [#200](https://github.com/vchatela-org/prisme/pull/200) · **Outcome:** the reconciler gives every
 key result of an objective under way an anchor task — bound, linked or created — and keeps its
 statement, deadline, label and backlink in step. S15 is closed.
 
