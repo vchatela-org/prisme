@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S3: a ritual can be fulfilled by closing its review
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** a ritual's *Measured
+**Agent:** Claude · **Duration:** one run · **PR:** [#188](https://github.com/vchatela-org/prisme/pull/188) · **Outcome:** a ritual's *Measured
 from* offers *Closing the weekly review in prisme*, and closing a session of that cadence is the
 period's completion. S3 is closed.
 
