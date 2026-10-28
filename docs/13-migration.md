@@ -104,6 +104,17 @@ entity_link (
 that is wrong produces exactly the corruption this document exists to prevent, and it does so
 invisibly.
 
+**Rules 2–4 compare a candidate with prisme entities of its own kind — with one exception: a task
+kept as a key result or an objective.** The classifier reads structure and labels, never titles, so
+such a task arrives as a loose task or as an initiative. So a top-level task with no label of
+prisme's, and no match of its own kind, has its title compared once more, by rules 2 and 3 only, in
+the same area: against the **unbound key results** — a match is proposed as that key result, for
+*Link* — and then against **every objective**, bound or not — a match makes the row a key result
+with nothing to link yet, since the objective's one external object is its page. Fuzzy titles never
+cross kinds: that would be a guess about what a thing is on top of a guess about which one it is.
+A key result already named by a link is not offered again — nothing binds a key result to its task
+yet, so the ledger is what says it has one.
+
 **"Same area" needs an area on both sides, and a document-tool entry gets one from its store's area
 column.** A task or a project is placed by `area_mapping`, which speaks the task tool's vocabulary
 only. A page is placed by the relation property chosen as its store's *area column* on Settings →
@@ -174,7 +185,7 @@ filters by source store and by area, with a count beside each value
 | Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
 | Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
-| Objective or key result stored as a task | Key result, with that task as its anchor |
+| Objective or key result stored as a task | Key result, with that task as its anchor. Found by title (§3): a task named as a key result is proposed against it, for *Link*; a task named as an objective is queued as a key result, to be written under that objective first. A task with prisme's label is not compared — the label decides |
 | Page in the processes store | Ritual — only by *Merge*: *Adopt* refuses it, since a cadence and a target are in no candidate. Create the ritual on Rituals, and linking the row makes the page its process page; a ritual that already names another page is refused, and nothing is written |
 | Recurring task | Run lane, or a Ritual if it serves a habit goal |
 | Machine-generated notification | Signals lane |

@@ -187,3 +187,139 @@ describe('what a machine may do on its own', () => {
     expect(unresolved(result).map((candidate) => candidate.object.externalId)).toEqual(['exact']);
   });
 });
+
+/**
+ * S1 (docs/19-how-it-works.md): an objective or a key result kept as a task.
+ * The classifier never reads a title, so without this rule such a task is a
+ * loose task left in place, or an initiative — never the key result
+ * docs/13-migration.md §4 says it becomes.
+ */
+describe('a task kept as a key result or an objective', () => {
+  const keyResult = targetOf({ prismeId: 'k-1', kind: 'key_result', title: 'Run 1000 km' });
+  const objective = targetOf({ prismeId: 'o-1', kind: 'objective', title: 'Be fitter' });
+
+  function only(input: Partial<ScanInput>) {
+    const result = scan({ objects: [], targets: [], decided: nothingDecided(), ...input });
+    expect(result.queue).toHaveLength(1);
+    return result.queue[0];
+  }
+
+  it('is proposed as the key result its title names, rather than left in place', () => {
+    const candidate = only({
+      objects: [objectOf({ title: 'Run 1000 km', childCount: 0 })],
+      targets: [keyResult],
+    });
+    expect(candidate?.classification.kind).toBe('key_result');
+    expect(candidate?.proposal).toEqual({
+      rule: 'exact_title',
+      confidence: 'high',
+      prismeId: 'k-1',
+    });
+  });
+
+  it('matches a key result on a normalised title, at medium confidence', () => {
+    const candidate = only({
+      objects: [objectOf({ title: '1. run 1000 KM!', childCount: 0 })],
+      targets: [keyResult],
+    });
+    expect(candidate?.proposal).toMatchObject({ rule: 'normalised_title', confidence: 'medium' });
+  });
+
+  it('is read as a key result of an objective its title repeats, with nothing to link yet', () => {
+    // The objective is in `objectives`, not `targets`: it was adopted from its
+    // page, so it is bound — and that is exactly the one a task beside it repeats.
+    const candidate = only({
+      objects: [objectOf({ title: 'Be fitter' })],
+      objectives: [objective],
+    });
+    expect(candidate?.classification.kind).toBe('key_result');
+    expect(candidate?.proposal).toBeUndefined();
+  });
+
+  it('prefers the key result to the objective when the title names both', () => {
+    const candidate = only({
+      objects: [objectOf({ title: 'Be fitter', childCount: 0 })],
+      targets: [targetOf({ prismeId: 'k-2', kind: 'key_result', title: 'Be fitter' })],
+      objectives: [objective],
+    });
+    expect(candidate?.proposal?.prismeId).toBe('k-2');
+  });
+
+  it('never replaces a match of the task’s own kind', () => {
+    const candidate = only({
+      objects: [objectOf({ title: 'Be fitter' })],
+      targets: [targetOf({ prismeId: 'i-1', title: 'Be fitter' })],
+      objectives: [objective],
+    });
+    expect(candidate?.classification.kind).toBe('initiative');
+    expect(candidate?.proposal?.prismeId).toBe('i-1');
+  });
+
+  it('is never a fuzzy guess across kinds', () => {
+    const result = scan({
+      objects: [objectOf({ title: 'Run 1000 km this year', childCount: 0 })],
+      targets: [keyResult],
+      objectives: [targetOf({ prismeId: 'o-2', kind: 'objective', title: 'Run 1000 km this yr' })],
+      decided: nothingDecided(),
+    });
+    expect(result.queue).toEqual([]);
+    expect(result.leftInPlace.task).toBe(1);
+  });
+
+  it('needs the same area, and the same open-or-closed', () => {
+    const result = scan({
+      objects: [
+        objectOf({ externalId: 'a', title: 'Run 1000 km', childCount: 0, areaKey: 'work' }),
+        objectOf({ externalId: 'b', title: 'Be fitter', childCount: 0, closed: true }),
+      ],
+      targets: [keyResult],
+      objectives: [objective],
+      decided: nothingDecided(),
+    });
+    expect(result.queue).toEqual([]);
+  });
+
+  it('is no match when two key results share the title', () => {
+    const result = scan({
+      objects: [objectOf({ title: 'Run 1000 km', childCount: 0 })],
+      targets: [keyResult, { ...keyResult, prismeId: 'k-9' }],
+      decided: nothingDecided(),
+    });
+    expect(result.queue).toEqual([]);
+  });
+
+  it('leaves a labelled task to its label, and a subtask to its parent', () => {
+    const result = scan({
+      objects: [
+        objectOf({ externalId: 'a', title: 'Be fitter', labels: ['prisme'] }),
+        objectOf({ externalId: 'b', title: 'Be fitter', childCount: 0, parentId: 'p' }),
+      ],
+      objectives: [objective],
+      targets: [],
+      decided: nothingDecided(),
+    });
+    // The labelled one is the reconciler's intent channel, still an initiative.
+    expect(result.queue.map((candidate) => candidate.classification.kind)).toEqual(['initiative']);
+    expect(result.leftInPlace.task).toBe(1);
+  });
+
+  it('is never certain, so a machine never applies it', () => {
+    const result = scan({
+      objects: [objectOf({ title: 'Run 1000 km', childCount: 0 })],
+      targets: [keyResult],
+      decided: nothingDecided(),
+    });
+    expect(result.autoLinkable).toEqual([]);
+  });
+
+  it('converges: once linked, the task is not asked about again', () => {
+    const object = objectOf({ title: 'Run 1000 km', childCount: 0 });
+    const result = scan({
+      objects: [object],
+      targets: [keyResult],
+      decided: { linked: new Set([externalKey('task', object.externalId)]), ignored: new Set() },
+    });
+    expect(result.queue).toEqual([]);
+    expect(result.alreadyLinked).toBe(1);
+  });
+});

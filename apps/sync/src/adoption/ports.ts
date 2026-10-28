@@ -26,6 +26,13 @@ export interface AdoptionStore {
    */
   loadTargets(): Promise<readonly MatchTarget[]>;
 
+  /**
+   * Every objective, **bound or not**, for the cross-kind rule alone: a task
+   * titled as an objective is read as a key result of it (`resolveAcrossKinds`).
+   * Never a proposal's target — an objective's one external object is its page.
+   */
+  loadObjectives(): Promise<readonly MatchTarget[]>;
+
   /** `entity_link` and `adoption_ignore` — what a human has already settled. */
   loadDecided(): Promise<DecidedSet>;
 
