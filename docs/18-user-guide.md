@@ -231,6 +231,11 @@ Only work that is **under way** is offered a slot or queued in *Up next*. An ini
 until that day comes or the project is active again, and you do not have to change anything. What
 is already in *now* stays: you put it there.
 
+**An empty Focus says why.** Right after adoption everything sits in the Inbox, and only work in
+*next* or *later* can be suggested or queued — so Focus has nothing to show. When nothing is in
+flight, suggested or queued, Focus says how many items wait in the Inbox and links to it; with an
+empty Inbox too, it points at Adoption.
+
 **Force sync** reads both tools and shows what *would* change. It never writes anything — it is the
 safest button in the app.
 

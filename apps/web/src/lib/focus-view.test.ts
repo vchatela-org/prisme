@@ -5,6 +5,7 @@ import {
   daysSince,
   deadlineSentence,
   dueSummary,
+  emptyFocusPointer,
   groupByArea,
   orderSlots,
   reasonSentence,
@@ -206,5 +207,28 @@ describe('orderSlots', () => {
     ]);
 
     expect(ordered.map((slot) => slot.areaKey)).toEqual(['craft', 'home', 'run', 'signals']);
+  });
+});
+
+describe('what an empty Focus points at (S7)', () => {
+  it('says nothing while anything is in flight, suggested or queued', () => {
+    expect(emptyFocusPointer({ now: 1, suggested: 0, upNext: 0, inbox: 4 })).toBeNull();
+    expect(emptyFocusPointer({ now: 0, suggested: 0, upNext: 2, inbox: 4 })).toBeNull();
+  });
+
+  it('names the Inbox count and links to it when nothing has been triaged', () => {
+    const pointer = emptyFocusPointer({ now: 0, suggested: 0, upNext: 0, inbox: 12 });
+    expect(pointer?.title).toContain('12 items wait in the Inbox');
+    expect(pointer?.href).toBe('/inbox');
+    expect(emptyFocusPointer({ now: 0, suggested: 0, upNext: 0, inbox: 1 })?.title).toContain(
+      '1 item waits',
+    );
+  });
+
+  it('points at Adoption when there is nothing anywhere, and stays quiet if the Inbox is unread', () => {
+    expect(emptyFocusPointer({ now: 0, suggested: 0, upNext: 0, inbox: 0 })?.href).toBe(
+      '/adoption',
+    );
+    expect(emptyFocusPointer({ now: 0, suggested: 0, upNext: 0, inbox: null })).toBeNull();
   });
 });
