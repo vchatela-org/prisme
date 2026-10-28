@@ -406,7 +406,7 @@ ADRs, some may be answered by copy alone.
 | S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, flagged on the label path, and convertible. **Done** | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen — picked on Rituals, bound by *Link*, or recorded by hand. **Done** | Missing surface |
 | S3 | prisme's own review does not count as the review ritual — a ritual can be fulfilled by closing its review. **Done** | Model gap |
-| S4 | The review's "push the narrative" has no destination | Unfinished |
+| S4 | The review's "push the narrative" has no destination — a session links its page and copies its summary there. **Done** | Unfinished |
 | S5 | Adopted initiatives all score the same, and nothing says so | Signal gap |
 | S6 | An objective without a key result can never be served | Model rule, unexplained |
 | S7 | A freshly adopted instance has an empty Focus with no pointer | Onboarding |
@@ -480,6 +480,15 @@ writes there yet ([`18-user-guide.md`](18-user-guide.md) §2.3: *nothing yet*). 
 history lives in the document tool must either keep doing the review there or keep two records.
 **Explore:** on close, add a page to the reviews database from its template with the decisions and
 the snapshot — or let a session link the page it was written in.
+**Built, the second way:** a review session links **its page** in the document tool, on the
+review's last step or afterwards on *Review history* (`PATCH /reviews/:id` with `externalPageId`,
+settable after the close, `null` to unlink), and **Copy summary** puts the session's artefact —
+decisions, steps covered and not, the capacity snapshot — on the clipboard as Markdown, to paste
+into that page. One record, in the document tool, joined to prisme's. Nothing is written outward.
+The first way stays out: prisme writing a page **body** is outside what the creating path does
+(ADR-0030 sends a title and a template, nothing else), and `reviews_db` is write-only, so the
+duplicate guard that reads a store's titles cannot run there. Pushing on close needs its own ADR.
+S4 is closed.
 
 **S5 · Adopted initiatives all score the same, and nothing says so.** Adoption sets every estimate
 to the same middle value, so every adopted initiative in an area has the same score and the ranking

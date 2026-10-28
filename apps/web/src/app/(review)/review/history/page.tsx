@@ -3,7 +3,10 @@ import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import { areaListSchema, reviewSessionPageSchema } from '@/lib/contracts';
+import { pageUrl } from '@/lib/page-link';
 import { artefactFor, CADENCE_LABELS, progressOf, stepsFor } from '@/lib/review-wizard';
+import { webRuntime } from '@/lib/runtime';
+import { ReviewPageLink } from '../review-page-link';
 
 export const metadata = {
   title: 'Review history · prisme',
@@ -56,6 +59,7 @@ export default async function ReviewHistoryPage() {
   );
 
   const closed = sessions.data.items.filter((session) => session.completedAt !== null);
+  const template = webRuntime().config.doctoolPageUrlTemplate;
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,6 +132,14 @@ export default async function ReviewHistoryPage() {
                   ))}
                 </div>
               ) : null}
+
+              <ReviewPageLink
+                reviewId={session.id}
+                cadence={session.cadence}
+                externalPageId={session.externalPageId}
+                pageHref={pageUrl(template, session.externalPageId) ?? null}
+                artefact={artefactFor({ session, steps, areaNames })}
+              />
 
               <details>
                 <summary className="cursor-pointer text-sm text-ink-secondary">

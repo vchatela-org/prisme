@@ -86,7 +86,7 @@ shows its title — and, for the databases it adds pages to, the templates each 
 | Media library | books / articles / videos | reads it, for context |
 | Life areas | one page per area | reads it; each area's own page is picked from it, and an *Area column* points at it |
 | Processes | procedures and routines | reads it; a ritual's duration comes from its page |
-| Reviews | where review summaries should go | nothing yet |
+| Reviews | where review summaries should go | nothing yet — a review links its page on the review itself (§4) |
 | Initiative / Project / Capture pages | **a database with at least one template** — how a new page of that kind should start | adds a page to it when you ask for one, from one of its templates |
 
 Two things to know:
@@ -303,6 +303,12 @@ You can leave and come back; decisions are saved as you go.
 Started one you do not mean to finish? **Discard** (on the review, or beside *Resume* on the
 Reviews page) deletes it with its ticks and decisions, after asking. A closed review cannot be
 discarded.
+
+**Its page in Notion.** If you write your reviews in Notion, link the page on the review's last step
+or later on **Review history** — *Link a page*, then paste its link (*⋯ → Copy link*). **Copy
+summary** puts the session's written artefact on the clipboard (decisions, what was and was not
+covered, the capacity snapshot), as Markdown, to paste into that page. prisme writes nothing to the
+page itself; *Unlink* forgets it.
 
 **Weekly** — triage what arrived · confirm what finished · check the now set · clear the conflict
 ledger · look ahead at deadlines · re-score what changed · refill free now slots · record decisions.
