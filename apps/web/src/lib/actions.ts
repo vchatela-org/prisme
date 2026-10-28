@@ -710,3 +710,59 @@ export async function ignoreEndedCandidates(input: {
         : `Ignored ${String(ignored)} ended entries. They will not come back.`,
   };
 }
+
+const conversionSchema = z.object({
+  id: z.string().min(1).max(200),
+  objectiveId: z.string().min(1).max(200),
+  statement: z.string().trim().min(1).max(500),
+  target: z.number().finite(),
+  unit: z.string().trim().min(1).max(50),
+});
+
+export type ConversionInput = z.infer<typeof conversionSchema>;
+
+/** What the API answers: enough to know it happened and where the key result went. */
+const conversionResultSchema = z.object({
+  keyResult: z.object({ id: z.string(), objectiveId: z.string() }),
+  initiative: initiativeSchema,
+  anchorMoved: z.boolean(),
+});
+
+/**
+ * Convert an initiative into a key result of an objective
+ * (docs/19-how-it-works.md S1).
+ *
+ * The API does all of it in one transaction — the key result, the task moving
+ * to it, the initiative dropped with a reason — and refuses with a `409` that
+ * says why when it cannot. Nothing is written to the task tool by this call.
+ */
+export async function convertToKeyResult(input: ConversionInput): Promise<ActionResult> {
+  const parsed = conversionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'That key result is incomplete',
+      description: 'Choose an objective, and give the key result a statement, a number and a unit.',
+    };
+  }
+
+  const { id, objectiveId, statement, target, unit } = parsed.data;
+  const result = await apiFetch({
+    path: `/initiatives/${encodeURIComponent(id)}/convert-to-key-result`,
+    method: 'POST',
+    body: { objectiveId, statement, target, unit },
+    schema: conversionResultSchema,
+  });
+
+  if (!result.ok) return failed(result, 'this conversion');
+
+  revalidateInitiative(id);
+  revalidatePath('/objectives');
+  revalidatePath(`/objectives/${objectiveId}`);
+  return {
+    ok: true,
+    message: result.data.anchorMoved
+      ? 'Its task now belongs to the key result.'
+      : 'It had no task, so nothing moved.',
+  };
+}

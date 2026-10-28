@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import { pageRequestBody } from '../dto/create.js';
+import { forbidden, holdsScope } from '../http/authorize.js';
 import { ApiError } from '../http/errors.js';
 import {
+  ConversionDto,
+  convertToKeyResultBody,
   createInitiativeBody,
   InitiativeDto,
   replaceDependenciesBody,
@@ -117,6 +120,31 @@ export const initiativeRoutes: readonly ApiRoute[] = [
         context.identity,
         context.now,
       ),
+  }),
+
+  defineRoute({
+    operationId: 'convertInitiativeToKeyResult',
+    method: 'post',
+    path: '/initiatives/:id/convert-to-key-result',
+    scope: 'write:initiative',
+    summary: 'Turn an initiative into a key result of an objective',
+    description:
+      "For a goal that arrived as an initiative — usually a task labelled in the task tool — when it is really a measurable part of an objective (docs/19-how-it-works.md S1). In one transaction: the key result is created under the objective with the statement, target and unit given; the initiative's task, if it has one, moves to the key result, which is recorded as its anchor in the adoption ledger; and the initiative is dropped, with a reason naming what it became, so its history stays and its score leaves the ranking. Nothing is written outward, and from the next pass the reconciler leaves that task alone: the label it kept is not read as a request, and no anchor field is written to it. `409` when the initiative is already in review, done or dropped, when the objective is met, missed or dropped, or when a task link decided in Adoption has not been bound by a pass yet — nothing is written then. Both changes reach the event log. Needs `write:objective` as well as `write:initiative`, since it writes a key result.",
+    params: idParam,
+    body: convertToKeyResultBody,
+    status: 200,
+    response: ConversionDto,
+    handle: (context, services) => {
+      // It is a key-result write as much as an initiative one, and a credential
+      // trusted with initiatives alone must not reach objectives through it.
+      if (!holdsScope(context.identity, 'write:objective')) throw forbidden('write:objective');
+      return services.work.convertToKeyResult(
+        context.params.id,
+        context.body,
+        context.identity,
+        context.now,
+      );
+    },
   }),
 
   defineRoute({

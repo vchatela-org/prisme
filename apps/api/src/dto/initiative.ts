@@ -14,6 +14,7 @@ import {
   taskPriority,
 } from './common.js';
 import { externalRequest, pageDecision } from './create.js';
+import { keyResultDto } from './okr.js';
 import {
   INITIATIVE_READ_ONLY,
   INITIATIVE_STATUS_READ_ONLY,
@@ -122,6 +123,16 @@ export const taskDto = z.object({
 });
 
 export const InitiativeDto = named('Initiative', initiativeDto);
+export const ConversionDto = named(
+  'Conversion',
+  z.object({
+    keyResult: keyResultDto,
+    /** The initiative, now `dropped`, with a reason naming what it became. */
+    initiative: initiativeDto,
+    /** Whether a task moved from the initiative to the key result. */
+    anchorMoved: z.boolean(),
+  }),
+);
 export const InitiativePageDto = named('InitiativePage', page(initiativeDto));
 export const ProjectDto = named('Project', projectDto);
 export const ProjectPageDto = named('ProjectPage', page(projectDto));
@@ -201,6 +212,21 @@ export const transitionInitiativeBody = defineWrite(
     reason: z.string().min(1).max(500).optional(),
   }),
   INITIATIVE_STATUS_READ_ONLY,
+);
+
+/**
+ * Turn an initiative into a key result of an objective — docs/19-how-it-works.md
+ * S1. The statement, target and unit are the key result's own, as when one is
+ * written on Objectives; the statement usually starts as the initiative's title.
+ */
+export const convertToKeyResultBody = defineWrite(
+  'ConvertToKeyResult',
+  z.strictObject({
+    objectiveId: entityId,
+    statement: z.string().min(1).max(500),
+    target: z.number(),
+    unit: z.string().min(1).max(50),
+  }),
 );
 
 export const replaceDependenciesBody = defineWrite(

@@ -218,7 +218,7 @@ So a defined set of external edits is reclassified as **requests**:
 
 | Action in the task tool | prisme's response |
 |---|---|
-| Add the anchor label to any task | Create the initiative (status `inbox`) and link both |
+| Add the anchor label to any task | Create the initiative (status `inbox`) and link both — unless another entity, such as a key result, already holds the task |
 | Complete an anchor | Move status to `review` for confirmation |
 | Add a status-request label | Apply the status change, then **remove the label** |
 | Edit `due`, subtasks, content, comments | Nothing — those fields are yours |

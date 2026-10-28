@@ -1,4 +1,4 @@
-import type { KeyResultHint } from './contracts';
+import type { KeyResultHint, Objective } from './contracts';
 
 /**
  * Why an initiative looks like a key result, in a person's words
@@ -26,4 +26,26 @@ export function keyResultHintNote(hints: readonly KeyResultHint[]): string | und
   if (hints.length === 0) return undefined;
   const reasons = hints.map(keyResultHintText).join(', and ');
   return `An initiative is an outcome of one to six weeks, but ${reasons}. A goal kept as a task is usually a key result of its objective.`;
+}
+
+/** An objective a key result can be added to: draft or active. */
+const OPEN_OBJECTIVE = new Set(['draft', 'active']);
+
+/**
+ * The objectives an initiative can be converted under, in the order the picker
+ * offers them: its own area first — where the objective it repeats almost
+ * always is — then the rest, each group newest period first.
+ */
+export function conversionObjectives(
+  objectives: readonly Objective[],
+  areaKey: string,
+): readonly Objective[] {
+  return objectives
+    .filter((objective) => OPEN_OBJECTIVE.has(objective.status))
+    .sort(
+      (left, right) =>
+        Number(right.areaKey === areaKey) - Number(left.areaKey === areaKey) ||
+        right.period.localeCompare(left.period) ||
+        left.title.localeCompare(right.title),
+    );
 }

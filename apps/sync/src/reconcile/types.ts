@@ -88,6 +88,13 @@ export interface DesiredState {
    * into one area; one location belongs to exactly one area.
    */
   readonly areaByLocation: ReadonlyMap<string, string>;
+  /**
+   * Tasks bound to a prisme entity that is **not** an initiative — a key result
+   * converted from one, or a capture — by external id. Taken, in the sense of
+   * guard 1: the intent channel never makes one of these an initiative, and a
+   * decided link may not bind one to an initiative either.
+   */
+  readonly boundElsewhere: ReadonlySet<string>;
 }
 
 export function locationKey(projectId: string, sectionId?: string): string {

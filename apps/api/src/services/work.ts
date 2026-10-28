@@ -28,8 +28,21 @@ import type {
 } from '../dto/views.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { Identity } from '../http/authorize.js';
-import type { ApiStore, InitiativeFilter, PageRequest, ScoreRecord } from '../store/types.js';
-import { toInitiativeDto, toTakeawayDto, toTaskDto, type InitiativeDtoShape } from './convert.js';
+import type {
+  ApiStore,
+  ConvertRefusal,
+  InitiativeFilter,
+  PageRequest,
+  ScoreRecord,
+} from '../store/types.js';
+import {
+  toInitiativeDto,
+  toKeyResultDto,
+  toTakeawayDto,
+  toTaskDto,
+  type InitiativeDtoShape,
+  type KeyResultDtoShape,
+} from './convert.js';
 import { buildRanking, type Ranking } from './ranking.js';
 
 /**
@@ -116,6 +129,29 @@ export interface UpdateInitiativeRequest {
   readonly droppedReason?: string | null | undefined;
 }
 
+export interface ConvertToKeyResultRequest {
+  readonly objectiveId: string;
+  readonly statement: string;
+  readonly target: number;
+  readonly unit: string;
+}
+
+/**
+ * What each refusal of a conversion says, to an API client. Each names the
+ * state that blocks it and what changes it.
+ */
+const CONVERT_REFUSALS: Readonly<Record<ConvertRefusal, string>> = {
+  initiative_closed:
+    'only open work converts: this initiative is in review, done or dropped already',
+  objective_closed:
+    'a key result is added to an open objective: this one is met, missed or dropped',
+  link_not_bound:
+    'this initiative’s task link was decided but is not bound yet — run a sync pass, then convert',
+};
+
+/** `dropped_reason` is read in a sentence; the statement is capped to keep it one. */
+const DROPPED_REASON_LIMIT = 500;
+
 export interface WorkService {
   focus(now: Date): Promise<FocusShape>;
   inbox(now: Date): Promise<InboxShape>;
@@ -149,6 +185,16 @@ export interface WorkService {
     dependsOn: readonly string[],
     now: Date,
   ): Promise<InitiativeDtoShape>;
+  convertToKeyResult(
+    id: string,
+    input: ConvertToKeyResultRequest,
+    identity: Identity,
+    now: Date,
+  ): Promise<{
+    keyResult: KeyResultDtoShape;
+    initiative: InitiativeDtoShape;
+    anchorMoved: boolean;
+  }>;
   tasks(id: string): Promise<{ initiativeId: string; items: ReturnType<typeof toTaskDto>[] }>;
   scoreHistory(id: string, limit: number): Promise<readonly ScoreRecord[]>;
   rescore(identity: Identity, now: Date): Promise<{ scored: number; changed: number }>;
@@ -623,6 +669,41 @@ export function createWorkService(
 
       const snapshot = await ranking(now);
       return dtoOf(snapshot, id);
+    },
+
+    async convertToKeyResult(id, input, identity, now) {
+      const statement = input.statement.trim();
+      const reason = `Converted to a key result: ${statement}`;
+      const outcome = await store.initiatives.convertToKeyResult({
+        initiativeId: id,
+        objectiveId: input.objectiveId,
+        statement,
+        target: input.target,
+        unit: input.unit.trim(),
+        droppedReason:
+          reason.length <= DROPPED_REASON_LIMIT
+            ? reason
+            : `${reason.slice(0, DROPPED_REASON_LIMIT - 1)}…`,
+        actor: identity.kind,
+        at: now,
+      });
+
+      if (outcome === undefined) {
+        const initiative = await store.initiatives.get(id);
+        throw initiative === undefined
+          ? notFound('initiative', id)
+          : notFound('objective', input.objectiveId);
+      }
+      if (!outcome.ok) throw new ApiError('conflict', CONVERT_REFUSALS[outcome.refusal]);
+
+      const keyResult = await store.okr.getKeyResult(outcome.keyResultId);
+      if (keyResult === undefined) throw new Error('the converted key result vanished');
+      const snapshot = await ranking(now);
+      return {
+        keyResult: toKeyResultDto(keyResult),
+        initiative: dtoOf(snapshot, id),
+        anchorMoved: outcome.anchorMoved,
+      };
     },
 
     async replaceDependencies(id, dependsOn, now): Promise<InitiativeDtoShape> {

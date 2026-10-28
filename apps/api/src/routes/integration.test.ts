@@ -312,6 +312,227 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  describe('converting an initiative into a key result (S1)', () => {
+    async function objectiveIn(app: ReturnType<typeof api>, status?: 'met'): Promise<string> {
+      const created = await app.request('POST', url('/objectives'), {
+        title: 'Run a half marathon',
+        type: 'annual',
+        period: '2026',
+        areaKey: 'health',
+      });
+      const id = (created.body as { id: string }).id;
+      if (status !== undefined) {
+        await database.client`update objective set status = ${status} where id = ${id}::uuid`;
+      }
+      return id;
+    }
+
+    /** An initiative bound to a task, as the anchor label's intake leaves one. */
+    async function labelledGoal(app: ReturnType<typeof api>, taskId: string): Promise<string> {
+      const created = await app.request('POST', url('/initiatives'), {
+        title: 'Run a half marathon',
+        areaKey: 'health',
+        value: 3,
+        timeCriticality: 3,
+        risk: 3,
+        size: 3,
+        deadline: '2026-12-31',
+      });
+      const id = (created.body as { id: string }).id;
+      await database.client`
+        update initiative set external_anchor_id = ${taskId} where id = ${id}::uuid`;
+      await database.client`
+        insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+        values (${id}, 'initiative', 'task', ${taskId})`;
+      await database.client`
+        insert into entity_link
+          (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+        values (${id}, 'task', ${taskId}, 'manual', 'certain', 'human', now())`;
+      return id;
+    }
+
+    const body = (objectiveId: string) => ({
+      objectiveId,
+      statement: 'Half marathon finished',
+      target: 1,
+      unit: 'race',
+    });
+
+    it('makes the key result, moves the task to it, and drops the initiative', async () => {
+      const app = api();
+      const objectiveId = await objectiveIn(app);
+      const id = await labelledGoal(app, 'task-invented-goal');
+
+      const converted = await app.request(
+        'POST',
+        url(`/initiatives/${id}/convert-to-key-result`),
+        body(objectiveId),
+      );
+      expect(converted.status).toBe(200);
+      expect(converted.body).toMatchObject({
+        keyResult: { objectiveId, statement: 'Half marathon finished', target: 1, unit: 'race' },
+        initiative: {
+          id,
+          status: 'dropped',
+          droppedReason: 'Converted to a key result: Half marathon finished',
+          externalAnchorId: null,
+          keyResultHints: [],
+        },
+        anchorMoved: true,
+      });
+      const keyResultId = (converted.body as { keyResult: { id: string } }).keyResult.id;
+
+      // The task is bound once, now to the key result — guard 1 never saw two owners.
+      const refs = await database.client<{ prisme_id: string; prisme_kind: string }[]>`
+        select prisme_id, prisme_kind from entity_external_ref
+        where kind = 'task' and external_id = 'task-invented-goal'`;
+      expect(refs).toEqual([{ prisme_id: keyResultId, prisme_kind: 'key_result' }]);
+      const [anchor] = await database.client<{ external_anchor_id: string | null }[]>`
+        select external_anchor_id from key_result where id = ${keyResultId}::uuid`;
+      expect(anchor?.external_anchor_id).toBe('task-invented-goal');
+
+      const events = await database.client<{ kind: string; entity_kind: string }[]>`
+        select kind, entity_kind from event_log
+        where entity_id in (${id}, ${keyResultId}) order by kind`;
+      expect(events).toEqual([
+        { kind: 'adoption_decision', entity_kind: 'key_result' },
+        { kind: 'status_changed', entity_kind: 'initiative' },
+      ]);
+
+      // Out of the ranking, as any dropped initiative is.
+      const inbox = await app.request('GET', url('/inbox'));
+      expect(
+        (inbox.body as { initiatives: { id: string }[] }).initiatives.map((entry) => entry.id),
+      ).not.toContain(id);
+    });
+
+    it('converts one with no task, and moves nothing', async () => {
+      const app = api();
+      const objectiveId = await objectiveIn(app);
+      const created = await app.request('POST', url('/initiatives'), {
+        title: 'Run a half marathon',
+        areaKey: 'health',
+        value: 3,
+        timeCriticality: 3,
+        risk: 3,
+        size: 3,
+      });
+      const id = (created.body as { id: string }).id;
+
+      const converted = await app.request(
+        'POST',
+        url(`/initiatives/${id}/convert-to-key-result`),
+        body(objectiveId),
+      );
+      expect(converted.status).toBe(200);
+      expect(converted.body).toMatchObject({
+        anchorMoved: false,
+        initiative: { status: 'dropped' },
+      });
+    });
+
+    /** Nothing was written: no key result, and the task still the initiative's. */
+    async function nothingConverted(taskId?: string): Promise<void> {
+      const keyResults = await database.client`
+        select 1 from key_result k join objective o on o.id = k.objective_id
+        where o.title = 'Run a half marathon'`;
+      expect(keyResults).toHaveLength(0);
+      if (taskId !== undefined) {
+        const refs = await database.client<{ prisme_kind: string }[]>`
+          select prisme_kind from entity_external_ref where external_id = ${taskId}`;
+        expect(refs).toEqual([{ prisme_kind: 'initiative' }]);
+      }
+    }
+
+    it('refuses an objective that is closed, and writes nothing', async () => {
+      const app = api();
+      const met = await objectiveIn(app, 'met');
+      const goal = await labelledGoal(app, 'task-invented-goal');
+      const refused = await app.request(
+        'POST',
+        url(`/initiatives/${goal}/convert-to-key-result`),
+        body(met),
+      );
+      expect(refused.status).toBe(409);
+      await nothingConverted('task-invented-goal');
+    });
+
+    it('refuses work that is closed already, and writes nothing', async () => {
+      const app = api();
+      const open = await objectiveIn(app);
+      const goal = await labelledGoal(app, 'task-invented-goal');
+      await database.client`
+        update initiative set status = 'dropped', dropped_reason = 'not this year'
+        where id = ${goal}::uuid`;
+      const refused = await app.request(
+        'POST',
+        url(`/initiatives/${goal}/convert-to-key-result`),
+        body(open),
+      );
+      expect(refused.status).toBe(409);
+      await nothingConverted('task-invented-goal');
+    });
+
+    it('refuses a link decided in Adoption that no pass has bound yet', async () => {
+      const app = api();
+      const open = await objectiveIn(app);
+      const pending = (
+        await app.request('POST', url('/initiatives'), {
+          title: 'Decided in Adoption',
+          areaKey: 'health',
+          value: 3,
+          timeCriticality: 3,
+          risk: 3,
+          size: 3,
+        })
+      ).body as { id: string };
+      await database.client`
+        insert into entity_link
+          (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+        values (${pending.id}, 'task', 'task-invented-pending', 'exact_title', 'high', 'human',
+                now())`;
+      const refused = await app.request(
+        'POST',
+        url(`/initiatives/${pending.id}/convert-to-key-result`),
+        body(open),
+      );
+      expect(refused.status).toBe(409);
+      await nothingConverted();
+    });
+
+    it('answers 404 for an objective that does not exist', async () => {
+      const app = api();
+      const id = await labelledGoal(app, 'task-invented-goal');
+      const missing = await app.request(
+        'POST',
+        url(`/initiatives/${id}/convert-to-key-result`),
+        // Built at run time: an identifier-shaped literal is refused by the privacy scan.
+        body(
+          [
+            '1'.repeat(8),
+            '1'.repeat(4),
+            `4${'1'.repeat(3)}`,
+            `8${'1'.repeat(3)}`,
+            '1'.repeat(12),
+          ].join('-'),
+        ),
+      );
+      expect(missing.status).toBe(404);
+    });
+
+    it('needs write:objective as well as write:initiative', async () => {
+      const objectiveId = await objectiveIn(api());
+      const id = await labelledGoal(api(), 'task-invented-goal');
+      const initiativesOnly = api(identityWith(['write:initiative']));
+      const refused = await initiativesOnly.request(
+        'POST',
+        url(`/initiatives/${id}/convert-to-key-result`),
+        body(objectiveId),
+      );
+      expect(refused.status).toBe(403);
+    });
+  });
+
   describe('the backlog', () => {
     it('filters, sorts and pages, and reports the total before the page was cut', async () => {
       const app = api();

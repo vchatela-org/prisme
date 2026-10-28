@@ -228,3 +228,86 @@ describe('where a linked anchor lives', () => {
     expect(patchedFields(changesOf(result))).toContain('move_task');
   });
 });
+
+/**
+ * S1's *convert to key result*: the initiative is dropped and the key result
+ * takes over the task it was anchored to. The task keeps prisme's label — it
+ * was an anchor — so without these rules the next pass would read the label as
+ * a request and make the initiative all over again.
+ */
+describe('a task a key result now holds', () => {
+  const converted = taskOf({
+    externalId: 'task-goal',
+    labels: [CONFIG.anchorLabel],
+    priority: 'high',
+  });
+
+  it('is not made an initiative again by the label it kept', () => {
+    const result = plan(
+      desiredOf([], undefined, ['task-goal']),
+      observedOf([converted]),
+      new Map(),
+      CONFIG,
+    );
+    expect(changesOf(result)).toEqual([]);
+    expect(result.counts.adopt).toBe(0);
+  });
+
+  it('is not written to: nothing anchors it to an initiative any more', () => {
+    const result = plan(
+      desiredOf(
+        [
+          anchorOf({
+            initiativeId: 'init-converted',
+            status: 'dropped',
+            externalAnchorId: undefined,
+          }),
+        ],
+        undefined,
+        ['task-goal'],
+      ),
+      observedOf([converted]),
+      new Map(),
+      CONFIG,
+    );
+    expect(changesOf(result)).toEqual([]);
+  });
+
+  it('ends the converted initiative’s old link quietly, since that work is finished', () => {
+    const result = plan(
+      desiredOf(
+        [
+          anchorOf({
+            initiativeId: 'init-converted',
+            status: 'dropped',
+            externalAnchorId: undefined,
+            pendingExternalId: 'task-goal',
+          }),
+        ],
+        undefined,
+        ['task-goal'],
+      ),
+      observedOf([converted]),
+      new Map(),
+      CONFIG,
+    );
+    expect(changesOf(result)).toEqual([]);
+    expect(result.counts.skip).toBe(1);
+    expect(result.counts.review).toBe(0);
+  });
+
+  it('asks a human when an open initiative’s decided link names it', () => {
+    const result = plan(
+      desiredOf(
+        [anchorOf({ status: 'next', externalAnchorId: undefined, pendingExternalId: 'task-goal' })],
+        undefined,
+        ['task-goal'],
+      ),
+      observedOf([converted]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.actions.flatMap((action) => action.operations)).toEqual([]);
+    expect(result.counts.review).toBe(1);
+  });
+});

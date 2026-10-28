@@ -6,6 +6,7 @@ import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
 import { KeyResultHintNote } from '@/components/key-result-hint';
 import { StatusMenu } from '@/components/status-menu';
+import { ConvertToKeyResult } from './convert-to-key-result';
 import { DependencyEditor } from './dependency-editor';
 import { apiFetch } from '@/lib/api';
 import {
@@ -15,6 +16,7 @@ import {
   eventPageSchema,
   focusSchema,
   initiativeSchema,
+  objectivePageSchema,
   pageTemplatesSchema,
   scoreHistorySchema,
   taskListSchema,
@@ -23,6 +25,7 @@ import {
 import { pageStateOf } from '@/lib/create-view';
 import { dayOf, daysSince, dueSummary } from '@/lib/focus-view';
 import { countsFrom } from '@/lib/guardrails';
+import { conversionObjectives } from '@/lib/key-result-hint';
 import { pageUrl } from '@/lib/page-link';
 import { webRuntime } from '@/lib/runtime';
 
@@ -40,37 +43,53 @@ import { webRuntime } from '@/lib/runtime';
  * about how the initiative arrived. A field with an editor beside it is a claim
  * about who owns it (docs/11-ownership.md).
  */
+/** The statuses at which an initiative may still become a key result. */
+const CONVERTIBLE_STATUSES: ReadonlySet<string> = new Set([
+  'inbox',
+  'later',
+  'next',
+  'now',
+  'waiting',
+]);
+
 export default async function InitiativePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [initiative, tasks, scores, areas, focus, events, creations, others] = await Promise.all([
-    apiFetch({ path: `/initiatives/${encodeURIComponent(id)}`, schema: initiativeSchema }),
-    apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/tasks`, schema: taskListSchema }),
-    apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/scores`, schema: scoreHistorySchema }),
-    apiFetch({ path: '/areas', schema: areaListSchema }),
-    apiFetch({ path: '/focus', schema: focusSchema }),
-    apiFetch({
-      path: '/events',
-      query: { entityKind: 'initiative', entityId: id, limit: '20' },
-      schema: eventPageSchema,
-    }),
-    // W15: whether a page has been *asked for* and not yet made. Without it
-    // the button would read `external_page_id IS NULL` as "no page" and offer
-    // to create a second — creating is no longer synchronous, which is a
-    // state ADR-0011's two-state rule predates.
-    apiFetch({
-      path: '/creations',
-      query: { entityId: id, limit: '20' },
-      schema: creationListSchema,
-    }),
-    // Every other initiative, by title — what a dependency is chosen from and
-    // named by. Sorted by title because this is a picker, not a ranking.
-    apiFetch({
-      path: '/backlog',
-      query: { limit: '200', sort: 'title' },
-      schema: backlogSchema,
-    }),
-  ]);
+  const [initiative, tasks, scores, areas, focus, events, creations, others, objectives] =
+    await Promise.all([
+      apiFetch({ path: `/initiatives/${encodeURIComponent(id)}`, schema: initiativeSchema }),
+      apiFetch({ path: `/initiatives/${encodeURIComponent(id)}/tasks`, schema: taskListSchema }),
+      apiFetch({
+        path: `/initiatives/${encodeURIComponent(id)}/scores`,
+        schema: scoreHistorySchema,
+      }),
+      apiFetch({ path: '/areas', schema: areaListSchema }),
+      apiFetch({ path: '/focus', schema: focusSchema }),
+      apiFetch({
+        path: '/events',
+        query: { entityKind: 'initiative', entityId: id, limit: '20' },
+        schema: eventPageSchema,
+      }),
+      // W15: whether a page has been *asked for* and not yet made. Without it
+      // the button would read `external_page_id IS NULL` as "no page" and offer
+      // to create a second — creating is no longer synchronous, which is a
+      // state ADR-0011's two-state rule predates.
+      apiFetch({
+        path: '/creations',
+        query: { entityId: id, limit: '20' },
+        schema: creationListSchema,
+      }),
+      // Every other initiative, by title — what a dependency is chosen from and
+      // named by. Sorted by title because this is a picker, not a ranking.
+      apiFetch({
+        path: '/backlog',
+        query: { limit: '200', sort: 'title' },
+        schema: backlogSchema,
+      }),
+      // What *Convert to key result* offers (S1): the objectives, of which the
+      // open ones are shown, its own area first.
+      apiFetch({ path: '/objectives', query: { limit: '200' }, schema: objectivePageSchema }),
+    ]);
 
   if (!initiative.ok) {
     if (initiative.kind === 'not_found') notFound();
@@ -89,6 +108,28 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
   const area = areaList.find((candidate) => candidate.key === data.areaKey);
   const method =
     data.score === null ? undefined : `${data.score.methodId} v${String(data.score.methodVersion)}`;
+
+  // Open work only: a goal is converted while it is still a question, never
+  // after it was finished or dropped.
+  const convertible = CONVERTIBLE_STATUSES.has(data.status);
+  const nameOfArea = (key: string): string =>
+    areaList.find((candidate) => candidate.key === key)?.name ?? key;
+  const objectiveChoices = objectives.ok
+    ? conversionObjectives(objectives.data.items, data.areaKey).map((objective) => ({
+        id: objective.id,
+        title: objective.title,
+        period: objective.period,
+        areaName: nameOfArea(objective.areaKey),
+      }))
+    : [];
+  const converter = convertible ? (
+    <ConvertToKeyResult
+      id={data.id}
+      title={data.title}
+      hasTask={data.externalAnchorId !== null}
+      objectives={objectiveChoices}
+    />
+  ) : null;
 
   const counts = focus.ok
     ? countsFrom(
@@ -142,7 +183,6 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
               </Badge>
               {data.sizedForNow ? null : <Badge variant="outline">Larger than a now slot</Badge>}
             </div>
-            <KeyResultHintNote hints={data.keyResultHints} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -158,6 +198,9 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
             <StatusMenu initiative={data} {...(counts === undefined ? {} : { counts })} size="md" />
           </div>
         </div>
+
+        <KeyResultHintNote hints={data.keyResultHints} />
+        {data.keyResultHints.length > 0 ? converter : null}
       </header>
 
       <Section
@@ -260,6 +303,15 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
         )}
         <DependencyEditor id={data.id} current={data.dependsOn} candidates={candidates} />
       </Section>
+
+      {convertible && data.keyResultHints.length === 0 ? (
+        <Section
+          title="Is it a key result?"
+          description="An initiative is an outcome of one to six weeks. If this is a measurable part of an objective instead, convert it: it becomes a key result, and this initiative is dropped."
+        >
+          {converter}
+        </Section>
+      ) : null}
 
       <Section
         title="Tasks"
