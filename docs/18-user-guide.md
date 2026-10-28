@@ -227,6 +227,11 @@ What arrived since you last looked: captures, adopted items, and action takeaway
 For each, decide: **promote** it (becomes an initiative, with a title you write), move it to
 **later**, or drop it. Principles never appear here — they stay in Notion.
 
+An initiative marked **Looks like a key result** has a deadline more than six weeks away, or the
+same title as an objective in its area — the usual sign of a goal kept as a Todoist task and
+labelled `prisme`. An initiative is an outcome of one to six weeks; a goal like that is usually a
+key result of its objective. The mark is a question, not a rule: it changes no score and no slot.
+
 ### Backlog — the ranking
 
 Initiatives ranked **within each area**. Never compare a score across areas: the allocation already
@@ -252,6 +257,8 @@ under its anchor, and its Notion page.
 
 - **Status** — `inbox` → `later` / `next` → `now` → `review` → `done` (or `waiting`, `dropped`).
   A drop asks for a one-line reason.
+- **Looks like a key result** — shown, with its reasons, while the initiative is open and has a
+  deadline more than six weeks away or an objective's title in its area. See *Inbox* above.
 - **Deadline** is a hard external constraint and is prisme's. The **due date** is when *you* plan
   to do it and stays yours, in Todoist.
 - **Dependencies** — *Edit dependencies* and tick what it waits on. The timeline replans around

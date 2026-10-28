@@ -2,6 +2,7 @@ import { AreaBadge, Badge, Card, ClearedState, Section } from '@prisme/ui';
 import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
+import { KeyResultHintNote } from '@/components/key-result-hint';
 import { apiFetch } from '@/lib/api';
 import { areaListSchema, inboxSchema, type Area } from '@/lib/contracts';
 import { PromoteDialog, TriageButtons } from './inbox-actions';
@@ -94,6 +95,7 @@ export default async function InboxPage() {
                         <Badge variant="outline">Adopted</Badge>
                       ) : null}
                     </div>
+                    <KeyResultHintNote hints={initiative.keyResultHints} />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

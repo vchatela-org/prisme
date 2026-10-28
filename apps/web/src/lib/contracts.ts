@@ -81,6 +81,14 @@ export const scoreSchema = z.object({
 
 export type Score = z.infer<typeof scoreSchema>;
 
+/**
+ * Why an initiative looks like a key result — `KEY_RESULT_HINTS` in
+ * `@prisme/domain`, which this tier cannot import (docs/19-how-it-works.md S1).
+ */
+export const KEY_RESULT_HINTS = ['long_horizon', 'objective_title'] as const;
+const keyResultHint = z.enum(KEY_RESULT_HINTS);
+export type KeyResultHint = z.infer<typeof keyResultHint>;
+
 export const initiativeSchema = z.object({
   id,
   title: z.string(),
@@ -112,6 +120,8 @@ export const initiativeSchema = z.object({
   }),
   blockedBy: z.array(id),
   sizedForNow: z.boolean(),
+  /** Why it looks like a key result (S1). The API decides; the screen words it. */
+  keyResultHints: z.array(keyResultHint),
 });
 
 export type Initiative = z.infer<typeof initiativeSchema>;
