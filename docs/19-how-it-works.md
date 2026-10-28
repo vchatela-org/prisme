@@ -409,7 +409,7 @@ ADRs, some may be answered by copy alone.
 | S4 | The review's "push the narrative" has no destination — a session links its page and copies its summary there. **Done** | Unfinished |
 | S5 | Adopted initiatives all score the same, and nothing says so — *Unestimated* shows, and such work is held out of `now`. **Done** | Signal gap |
 | S6 | An objective without a key result can never be served — the rule is stated where it bites, with *add a key result*. **Done** | Model rule, unexplained |
-| S7 | A freshly adopted instance has an empty Focus with no pointer | Onboarding |
+| S7 | A freshly adopted instance has an empty Focus with no pointer — it names the Inbox count and links to it. **Done** | Onboarding |
 | S8 | Deployment settings silently switch features off | Onboarding |
 | S9 | A project mapped only by section leaves its root tasks in no area | Measurement gap |
 | S10 | Multi-area general projects are offered as Projects | Queue noise |
@@ -520,6 +520,10 @@ straight to the objective's *Add a key result*, or *nothing linked to its key re
 `inbox`, and only `next` and `later` are candidates for `now` — so Focus and *Up next* stay empty
 until triage, and nothing on Focus says why. **Explore:** an empty state that names the Inbox count
 and links to it.
+**Built:** when nothing is in flight, suggested or queued, Focus leads with *Focus is empty because
+nothing has been triaged — N items wait in the Inbox*, the reason in one sentence, and *Triage the
+inbox*. The count is the Inbox's own (initiatives and action takeaways). With an empty Inbox too it
+points at Adoption instead (`emptyFocusPointer` on the web). S7 is closed.
 
 **S8 · Deployment settings silently switch features off.** Without
 `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` the reading pipeline is off and the Inbox never receives a

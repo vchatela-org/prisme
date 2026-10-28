@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api';
 import {
   areaListSchema,
   focusSchema,
+  inboxSchema,
   syncStatusSchema,
   taskListSchema,
   type Area,
@@ -14,6 +15,7 @@ import {
   dayOf,
   dueSummary,
   type DueSummaryMap,
+  emptyFocusPointer,
   groupByArea,
   orderSlots,
   stalenessOf,
@@ -58,10 +60,11 @@ export const metadata = {
  * the page works out for itself is how long something has sat untouched.
  */
 export default async function FocusPage() {
-  const [focus, areas, sync] = await Promise.all([
+  const [focus, areas, sync, inbox] = await Promise.all([
     apiFetch({ path: '/focus', schema: focusSchema }),
     apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({ path: '/sync', schema: syncStatusSchema }),
+    apiFetch({ path: '/inbox', schema: inboxSchema }),
   ]);
 
   if (!focus.ok) {
@@ -99,6 +102,14 @@ export default async function FocusPage() {
     (entry) => stalenessOf(entry, new Date(data.asOf), STALE_AFTER_DAYS).stale,
   );
 
+  // A fresh instance has everything in the Inbox and nothing here (S7).
+  const pointer = emptyFocusPointer({
+    now: data.now.length,
+    suggested: data.suggested.length,
+    upNext: data.upNext.length,
+    inbox: inbox.ok ? inbox.data.initiatives.length + inbox.data.takeaways.length : null,
+  });
+
   const countsFor = (key: string) =>
     countsFrom(data.slotsByArea, key, areaName(key), data.limits, data.now.length);
 
@@ -117,6 +128,16 @@ export default async function FocusPage() {
         }
         subtitle={`${String(data.now.length)} of ${String(data.limits.maxNow)} slots in flight${data.suggested.length === 0 ? '' : ` · ${String(data.suggested.length)} suggested`} · ranked by ${method}`}
       />
+
+      {pointer === null ? null : (
+        <Card className="flex flex-col gap-3 p-4">
+          <p className="font-medium text-ink">{pointer.title}</p>
+          <p className="max-w-prose text-sm text-ink-secondary">{pointer.description}</p>
+          <Button asChild size="sm" className="self-start">
+            <Link href={pointer.href}>{pointer.action}</Link>
+          </Button>
+        </Card>
+      )}
 
       {data.weightsStale ? (
         <Card className="border-status-warning p-4 text-sm text-ink">
