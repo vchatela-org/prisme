@@ -4,7 +4,13 @@ import {
   openTestDatabase,
   type TestDatabase,
 } from '../test-support/database.js';
-import { createTestApp, identityWith, PINNED_NOW, stubRunner } from '../test-support/app.js';
+import {
+  createTestApp,
+  identityWith,
+  PINNED_NOW,
+  stubDirectory,
+  stubRunner,
+} from '../test-support/app.js';
 import { fixtureId, seedCompletions, seedFixtures } from '../test-support/seed.js';
 import { API_BASE_PATH } from './index.js';
 
@@ -1693,6 +1699,185 @@ describeOrSkip('the API against PostgreSQL', () => {
         expect(moved.body).toMatchObject({ cadence: 'monthly' });
       },
     );
+
+    /**
+     * S2: a ritual tied to its recurring task from Rituals, and a habit that is
+     * not a task recorded by hand. Invented task identifiers throughout.
+     */
+    describe('its recurring task', () => {
+      async function define(body: Record<string, unknown> = {}): Promise<{ id: string }> {
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented walk',
+          areaKey: 'health',
+          cadence: 'daily',
+          targetAdherencePct: 80,
+          ...body,
+        });
+        expect(created.status).toBe(201);
+        return created.body as { id: string };
+      }
+
+      const bindings = (ritualId: string) => database.client<
+        { external_id: string; prisme_kind: string }[]
+      >`
+        select external_id, prisme_kind from entity_external_ref
+        where prisme_id = ${ritualId} and kind = 'task' order by external_id`;
+
+      const links = (ritualId: string) => database.client<
+        { external_id: string; decided_by: string }[]
+      >`
+        select external_id, decided_by from entity_link
+        where prisme_id = ${ritualId} and external_kind = 'task' order by external_id`;
+
+      it('ties a task when the ritual is defined, and reads it back', async () => {
+        const { id } = await define({ externalTaskId: 'task-invented-walk' });
+
+        expect(await bindings(id)).toEqual([
+          { external_id: 'task-invented-walk', prisme_kind: 'ritual' },
+        ]);
+        expect(await links(id)).toEqual([
+          { external_id: 'task-invented-walk', decided_by: 'human' },
+        ]);
+        const listed = (await api().request('GET', url('/rituals'))).body as {
+          items: { id: string; externalTaskId: string | null }[];
+        };
+        expect(listed.items.find((ritual) => ritual.id === id)?.externalTaskId).toBe(
+          'task-invented-walk',
+        );
+      });
+
+      it('replaces the task, and unties it, leaving no stale binding or link', async () => {
+        const { id } = await define({ externalTaskId: 'task-invented-walk' });
+
+        const replaced = await api().request('PATCH', url(`/rituals/${id}`), {
+          externalTaskId: 'task-invented-stroll',
+        });
+        expect(replaced.status).toBe(200);
+        expect(replaced.body).toMatchObject({ externalTaskId: 'task-invented-stroll' });
+        expect((await bindings(id)).map((row) => row.external_id)).toEqual([
+          'task-invented-stroll',
+        ]);
+        expect((await links(id)).map((row) => row.external_id)).toEqual(['task-invented-stroll']);
+
+        const untied = await api().request('PATCH', url(`/rituals/${id}`), {
+          externalTaskId: null,
+        });
+        expect(untied.status).toBe(200);
+        expect(untied.body).toMatchObject({ externalTaskId: null });
+        expect(await bindings(id)).toEqual([]);
+        expect(await links(id)).toEqual([]);
+      });
+
+      it('leaves the task alone when a change does not name it', async () => {
+        const { id } = await define({ externalTaskId: 'task-invented-walk' });
+        const renamed = await api().request('PATCH', url(`/rituals/${id}`), {
+          name: 'Invented longer walk',
+        });
+        expect(renamed.body).toMatchObject({ externalTaskId: 'task-invented-walk' });
+      });
+
+      it('refuses a task another entity holds, and changes nothing', async () => {
+        await database.client`
+          insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+          values (${fixtureId('init-001')}, 'initiative', 'task', 'task-invented-anchor')`;
+
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented habit',
+          areaKey: 'health',
+          cadence: 'weekly',
+          targetAdherencePct: 80,
+          externalTaskId: 'task-invented-anchor',
+        });
+        expect(created.status).toBe(409);
+        // A refused task leaves no ritual behind.
+        const named = await database.client`select 1 from ritual where name = 'Invented habit'`;
+        expect(named).toHaveLength(0);
+
+        const { id } = await define();
+        const refused = await api().request('PATCH', url(`/rituals/${id}`), {
+          name: 'Renamed in the same request',
+          externalTaskId: 'task-invented-anchor',
+        });
+        expect(refused.status).toBe(409);
+        expect((refused.body as { message: string }).message).toMatch(/belongs to something else/);
+        const [ritual] = await database.client<{ name: string }[]>`
+          select name from ritual where id = ${id}::uuid`;
+        expect(ritual?.name).toBe('Invented walk');
+        expect(await bindings(id)).toEqual([]);
+      });
+
+      it('lists the open recurring tasks with their area and what holds them', async () => {
+        const { id } = await define({ externalTaskId: 'task-invented-walk' });
+        const app = createTestApp({
+          client: database.client,
+          runner: stubRunner(),
+          directory: stubDirectory({}, undefined, {}, {}, [
+            { externalId: 'task-invented-walk', title: 'Walk', projectId: 'project-0001' },
+            {
+              externalId: 'task-invented-budget',
+              title: 'Budget check',
+              projectId: 'project-0001',
+              sectionId: 'section-0001',
+            },
+            { externalId: 'task-invented-call', title: 'Call home', projectId: 'project-9999' },
+          ]),
+        });
+
+        const { status, body } = await app.request('GET', url('/task-tool/recurring-tasks'));
+
+        expect(status).toBe(200);
+        expect(body).toEqual({
+          failure: null,
+          items: [
+            { id: 'task-invented-budget', title: 'Budget check', areaKey: 'money', heldBy: null },
+            { id: 'task-invented-call', title: 'Call home', areaKey: null, heldBy: null },
+            {
+              id: 'task-invented-walk',
+              title: 'Walk',
+              areaKey: 'health',
+              heldBy: { kind: 'ritual', id },
+            },
+          ],
+        });
+      });
+
+      it('records a period by hand for a habit that is not a task, and says which period is current', async () => {
+        const { id } = await define();
+
+        const before = (await api().request('GET', url('/rituals'))).body as {
+          items: { id: string; currentPeriod: unknown }[];
+        };
+        // PINNED_NOW is a Thursday; a daily habit's period is its Monday week.
+        expect(before.items.find((ritual) => ritual.id === id)?.currentPeriod).toEqual({
+          periodStart: '2026-09-14',
+          opportunities: 7,
+          completions: 0,
+        });
+
+        const recorded = await api().request('POST', url(`/rituals/${id}/adherence`), {
+          periodStart: '2026-09-14',
+          opportunities: 7,
+          completions: 3,
+        });
+        expect(recorded.status).toBe(200);
+
+        const after = (await api().request('GET', url('/rituals'))).body as {
+          items: { id: string; currentPeriod: { completions: number } }[];
+        };
+        expect(after.items.find((ritual) => ritual.id === id)?.currentPeriod.completions).toBe(3);
+      });
+
+      it('refuses a period recorded by hand for a ritual measured from its task', async () => {
+        const { id } = await define({ externalTaskId: 'task-invented-walk' });
+        const refused = await api().request('POST', url(`/rituals/${id}/adherence`), {
+          periodStart: '2026-09-14',
+          opportunities: 7,
+          completions: 3,
+        });
+        expect(refused.status).toBe(409);
+        expect((refused.body as { message: string }).message).toMatch(/recurring task/);
+      });
+    });
 
     it('still refuses a cadence that is not one of the five', async () => {
       const refused = await api().request('POST', url('/rituals'), {

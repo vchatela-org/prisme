@@ -343,6 +343,30 @@ export interface RitualRecord {
   readonly cadence: RitualCadence;
   readonly targetAdherencePct: number;
   readonly externalPageId: string | null;
+  /**
+   * The recurring task the ritual is measured from — its `entity_external_ref`
+   * binding, the one the backfill reads adherence through (S2). `null` for a
+   * habit that is not a task, whose adherence is recorded by hand.
+   */
+  readonly externalTaskId: string | null;
+}
+
+/**
+ * Writing a ritual, or why it could not be.
+ *
+ * `task_bound_elsewhere` is guard 1 answered before the database has to: a task
+ * bound to another entity — an initiative's anchor, a key result's task, another
+ * ritual's — cannot be this ritual's too.
+ */
+export type RitualWriteOutcome =
+  | { readonly ok: true; readonly record: RitualRecord }
+  | { readonly ok: false; readonly refusal: 'not_found' | 'task_bound_elsewhere' };
+
+/** Which prisme entity holds an external task, by its binding. */
+export interface TaskHolder {
+  readonly externalId: string;
+  readonly prismeKind: string;
+  readonly prismeId: string;
 }
 
 export interface AdherenceRecord {
@@ -450,13 +474,18 @@ export type AdoptOutcome =
 /**
  * What a merge did, or why it could not.
  *
- * One refusal, and only for a ritual: a page linked to a ritual becomes its
- * process page, and a ritual that already names another page is refused
- * rather than overwritten (`ritualPageLink`, `@prisme/domain`).
+ * Refusals, only for a ritual: a page linked to a ritual becomes its process
+ * page, and a task linked to one becomes the recurring task it is measured
+ * from (S2). A ritual that already names another page or task is refused
+ * rather than overwritten (`ritualPageLink`, `ritualTaskLink`,
+ * `@prisme/domain`), and so is a task another entity already holds.
  */
 export type DecideOutcome =
   | { readonly ok: true; readonly record: AdoptionRecord }
-  | { readonly ok: false; readonly refusal: 'ritual_has_other_page' };
+  | {
+      readonly ok: false;
+      readonly refusal: 'ritual_has_other_page' | 'ritual_has_other_task' | 'task_bound_elsewhere';
+    };
 
 /**
  * A capture: a small thing, which stays a task (W15).
@@ -866,13 +895,24 @@ export interface ApiStore {
     promoteTakeaway(id: string, initiativeId: string): Promise<void>;
     rituals(): Promise<readonly RitualRecord[]>;
     getRitual(id: string): Promise<RitualRecord | undefined>;
+    /**
+     * The ritual and, when `externalTaskId` is given, its binding to that task —
+     * one transaction, so a refused task leaves no ritual behind.
+     */
     createRitual(input: {
       name: string;
       areaKey: string;
       cadence: string;
       targetAdherencePct: number;
       externalPageId?: string | undefined;
-    }): Promise<RitualRecord>;
+      externalTaskId?: string | undefined;
+      at: Date;
+    }): Promise<RitualWriteOutcome>;
+    /**
+     * `externalTaskId`: absent leaves the task alone, `null` unties it, a value
+     * ties that task instead of the one before. Untying or replacing removes
+     * the old task's binding **and** its link, so it can be offered again.
+     */
     updateRitual(
       id: string,
       input: {
@@ -880,8 +920,12 @@ export interface ApiStore {
         cadence?: string | undefined;
         targetAdherencePct?: number | undefined;
         externalPageId?: string | null | undefined;
+        externalTaskId?: string | null | undefined;
+        at: Date;
       },
-    ): Promise<RitualRecord | undefined>;
+    ): Promise<RitualWriteOutcome>;
+    /** The entities holding any of these tasks, by their bindings. */
+    taskHolders(externalIds: readonly string[]): Promise<readonly TaskHolder[]>;
     adherence(
       ritualIds: readonly string[],
       from?: string,

@@ -543,9 +543,11 @@ const mergeSchema = candidateSchema.extend({
  * overstating how it was reached would make the ledger useless for working out,
  * later, which links to re-examine.
  *
- * A page linked to a ritual becomes its process page, so Rituals is redrawn
- * too. The API refuses (409) a ritual that already names another page; that is
- * the only thing a 409 means for this call, so it is worded here.
+ * A page linked to a ritual becomes its process page, and a task linked to one
+ * the recurring task it is measured from (S2), so Rituals is redrawn too. The
+ * API refuses (409) a ritual that already names another page or task, or a task
+ * something else holds; those are the only things a 409 means for this call, so
+ * they are worded here, by what was linked.
  */
 export async function mergeCandidate(input: {
   externalKind: string;
@@ -578,6 +580,14 @@ export async function mergeCandidate(input: {
   });
 
   if (!result.ok) {
+    if (result.status === 409 && parsed.data.externalKind === 'task') {
+      return {
+        ok: false,
+        title: 'That task cannot measure this ritual',
+        description:
+          'Linking a task to a ritual makes it the recurring task the ritual is measured from, and either this ritual already has a different one or the task belongs to something else in prisme. If this task is the right one, change the ritual’s task on Rituals instead. If not, ignore this row.',
+      };
+    }
     if (result.status === 409) {
       return {
         ok: false,

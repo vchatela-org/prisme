@@ -102,6 +102,8 @@ export const KEY_RESULT_READ_ONLY = {
 
 export const RITUAL_READ_ONLY = {
   adherence: 'the adherence series is prisme’s own derived metric (∂, docs/11-ownership.md §8)',
+  currentPeriod:
+    'the period is derived from the cadence and today — record it through POST /rituals/{id}/adherence',
   duration:
     'process pages are read-only: prisme writes nothing in the document tool here (ADR-0016)',
   frequency:

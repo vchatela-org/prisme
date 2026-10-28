@@ -344,7 +344,12 @@ is precisely the metric that reveals a stated goal quietly sitting near zero.
 
 A ritual's cadence is one of `daily`, `weekly`, `monthly`, `quarterly` or `yearly`. An adherence
 period is the ISO week (Monday), the calendar month, quarter or year that starts on `period_start`;
-a daily habit has seven opportunities in its week, every other cadence one.
+a daily habit has seven opportunities in its week, every other cadence one (`ritualPeriodOf`).
+
+A ritual is measured from **at most one** recurring task, bound in `entity_external_ref` and chosen
+on Rituals or by *Link*; its completions are the series. A ritual with no task — a habit that is
+not a task — is recorded by hand, period by period. The two never mix: a ritual with a task refuses
+a period recorded by hand, because the capacity refresh rewrites its periods from the task.
 
 ---
 

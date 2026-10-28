@@ -1,3 +1,4 @@
+import { ritualOpportunities, ritualPeriodOf } from '@prisme/domain';
 import type { AdherencePeriod, AttributedCompletion, RitualRecord } from './types.js';
 import { dayText, startOfMonth, startOfQuarter, startOfWeek, startOfYear } from './weeks.js';
 
@@ -15,7 +16,8 @@ import { dayText, startOfMonth, startOfQuarter, startOfWeek, startOfYear } from 
  *
  * An opportunity is a chance the cadence offered, counted over a **period**
  * rather than per tick, because `ritual_adherence` is keyed by period and the
- * KPI series buckets from that key:
+ * KPI series buckets from that key. The rule is `ritualPeriodOf` in
+ * `@prisme/domain`, which *done this period* on Rituals records by as well:
  *
  * | Cadence | Period | Opportunities |
  * |---|---|---|
@@ -72,13 +74,13 @@ function periodsFor(cadence: RitualRecord['cadence'], range: AdherenceRange): re
     const span = CALENDAR_SPANS[cadence];
     let cursor = span.start(range.from);
     while (cursor.getTime() < range.to.getTime()) {
-      periods.push({ start: cursor, opportunities: 1 });
+      periods.push({ start: cursor, opportunities: ritualOpportunities(cadence) });
       cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + span.months, 1));
     }
     return periods;
   }
 
-  const opportunities = cadence === 'daily' ? 7 : 1;
+  const opportunities = ritualOpportunities(cadence);
   let cursor = startOfWeek(range.from);
   while (cursor.getTime() < range.to.getTime()) {
     periods.push({ start: cursor, opportunities });
@@ -88,10 +90,7 @@ function periodsFor(cadence: RitualRecord['cadence'], range: AdherenceRange): re
 }
 
 function periodStartFor(cadence: RitualRecord['cadence'], instant: Date): string {
-  if (cadence === 'monthly' || cadence === 'quarterly' || cadence === 'yearly') {
-    return dayText(CALENDAR_SPANS[cadence].start(instant));
-  }
-  return dayText(startOfWeek(instant));
+  return ritualPeriodOf(cadence, instant).periodStart;
 }
 
 /**

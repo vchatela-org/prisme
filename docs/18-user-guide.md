@@ -134,6 +134,18 @@ opportunity per calendar quarter or year. A process that has no rhythm (*on dema
 not a habit — leave it out of the queue with *Ignore*. Rituals are never ranked against initiatives;
 the KPI dashboard shows how often they happen.
 
+How often it happened is read from one of two places:
+
+- **Its recurring task** — choose it on the ritual (*Edit*, or when defining it). The list is your
+  open recurring tasks in Todoist, this area's first; one that already belongs to an initiative, a
+  key result or another ritual is shown and cannot be chosen. Each completion of that task is one
+  occurrence, counted from the next daily capacity refresh over the last four weeks. Nothing is
+  written to Todoist. *None* unties it.
+- **By hand** — a ritual with no task shows *This week: 3 of 7 days* (or *This month: not yet*) on
+  its row, with **Done** and **Undo**. A daily habit has seven chances a week; every other cadence
+  has one a period. A ritual measured from its task has no such buttons: its completions are the
+  record.
+
 ### 2.6 Bring in what already exists — Adoption
 
 **Adoption** lists everything in Todoist and Notion that prisme is not linked to yet. For each:
@@ -157,7 +169,9 @@ Where *Adopt* would be refused, the row has no *Adopt* button and says why inste
   same area is proposed against it, and *Link* joins them. Linking a **Processes** row to a ritual
   also makes that page the ritual's process page, so its link need not be pasted on Rituals; if the
   ritual already names a different page, *Link* is refused and says so — change the page on
-  Rituals, or ignore the row.
+  Rituals, or ignore the row. Linking a Todoist task to a ritual — one labelled as a ritual, the only
+  kind the queue offers — makes it the ritual's recurring task, the same way and with the same
+  refusal. An unlabelled recurring task never reaches the queue: choose it on Rituals instead.
 - **A Todoist task named like an objective** — it is offered as a **key result** rather than left
   out or turned into an initiative, because an objective kept as a task is usually one of its
   measurable parts. Add that key result under the objective on **Objectives** with the task's title,

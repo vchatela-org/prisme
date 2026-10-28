@@ -46,6 +46,21 @@ export interface ExternalDirectory {
    * throws a `ConnectorError` reduced to its failure kind by the caller.
    */
   areaPages(externalId: string): Promise<readonly AreaPageEntry[]>;
+  /**
+   * The open recurring tasks — what a ritual's task is picked from (S2). The one
+   * read of tasks here, and narrow: an identifier, a title and a location each,
+   * nothing of the description, labels or dates. Throws a `ConnectorError`
+   * reduced to its failure kind by the caller.
+   */
+  recurringTasks(): Promise<readonly RecurringTaskEntry[]>;
+}
+
+/** One open recurring task, as the ritual picker offers it. */
+export interface RecurringTaskEntry {
+  readonly externalId: string;
+  readonly title: string;
+  readonly projectId: string;
+  readonly sectionId?: string | undefined;
 }
 
 /** One Life areas entry, as a screen offers it: nothing of the page but these two. */
@@ -94,6 +109,22 @@ export function createExternalDirectory(options: ExternalDirectoryOptions): Exte
         bindings: createRoleBindings([{ role, externalId }]),
         transport: createFetchTransport(),
       }).listTemplates(role);
+    },
+
+    async recurringTasks() {
+      const snapshot = await createTaskToolClient({
+        token: options.taskToolToken,
+        baseUrl: options.taskToolBaseUrl,
+        transport: createFetchTransport(),
+      }).fetchAll();
+      return snapshot.tasks
+        .filter((task) => !task.completed && task.due?.isRecurring === true)
+        .map((task) => ({
+          externalId: task.externalId,
+          title: task.content,
+          projectId: task.projectId,
+          ...(task.sectionId === undefined ? {} : { sectionId: task.sectionId }),
+        }));
     },
 
     async areaPages(externalId) {

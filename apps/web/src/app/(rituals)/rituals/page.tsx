@@ -1,8 +1,9 @@
 import { Card, EmptyState, Section } from '@prisme/ui';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
-import { areaListSchema, ritualListSchema } from '@/lib/contracts';
+import { areaListSchema, recurringTasksSchema, ritualListSchema } from '@/lib/contracts';
 import { pageUrl } from '@/lib/page-link';
+import { taskTitleOf } from '@/lib/rituals-view';
 import { webRuntime } from '@/lib/runtime';
 import { RitualForm } from './ritual-form';
 import { RitualRow } from './ritual-row';
@@ -19,13 +20,19 @@ export const metadata = {
  * initiative competing for a slot, it is something that should simply happen.
  * The KPI dashboard's adherence is measured over the rituals defined here, and
  * until this screen existed only a hand-written `POST /rituals` could define
- * one.
+ * one. Each is measured from its recurring task in Todoist, chosen here, or —
+ * for a habit that is not a task — recorded by hand on its row (S2).
  */
 export default async function RitualsPage() {
-  const [rituals, areas] = await Promise.all([
+  const [rituals, areas, recurring] = await Promise.all([
     apiFetch({ path: '/rituals', schema: ritualListSchema }),
     apiFetch({ path: '/areas', schema: areaListSchema }),
+    apiFetch({ path: '/task-tool/recurring-tasks', schema: recurringTasksSchema }),
   ]);
+  const tasks = recurring.ok ? recurring.data : null;
+  const ritualNames: Record<string, string> = rituals.ok
+    ? Object.fromEntries(rituals.data.items.map((ritual) => [ritual.id, ritual.name]))
+    : {};
   const template = webRuntime().config.doctoolPageUrlTemplate;
   const areaList = areas.ok
     ? areas.data.items.map((area) => ({ key: area.key, name: area.name }))
@@ -38,7 +45,8 @@ export default async function RitualsPage() {
         <h1 className="text-xl font-semibold text-ink">Rituals</h1>
         <p className="max-w-prose text-sm text-ink-secondary">
           Habits with a cadence and a target — a weekly review, a daily walk. They are never ranked
-          against initiatives; the KPI dashboard measures how often they actually happen.
+          against initiatives; the KPI dashboard measures how often they actually happen, from the
+          completions of each one&rsquo;s recurring task in Todoist, or from what you record here.
         </p>
       </header>
 
@@ -63,11 +71,16 @@ export default async function RitualsPage() {
                     cadence: ritual.cadence,
                     targetAdherencePct: ritual.targetAdherencePct,
                     page: ritual.externalPageId ?? '',
+                    task: ritual.externalTaskId,
                   }}
                   areaName={nameOf.get(ritual.areaKey) ?? ritual.areaKey}
                   latestAdherencePct={ritual.latestAdherencePct}
+                  currentPeriod={ritual.currentPeriod}
+                  taskTitle={taskTitleOf(tasks, ritual.externalTaskId)}
                   pageHref={pageUrl(template, ritual.externalPageId) ?? null}
                   areas={areaList}
+                  tasks={tasks}
+                  ritualNames={ritualNames}
                 />
               ))}
             </ul>
@@ -84,8 +97,11 @@ export default async function RitualsPage() {
               cadence: 'weekly',
               targetAdherencePct: 80,
               page: '',
+              task: null,
             }}
             areas={areaList}
+            tasks={tasks}
+            ritualNames={ritualNames}
           />
         </Card>
       </Section>

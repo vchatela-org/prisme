@@ -175,6 +175,21 @@ export interface OpsService {
   ): Promise<{ ran: boolean; queued: number; certain: number; scannedAt: string }>;
 }
 
+/** What each refused merge says, with what to do instead. */
+const DECIDE_REFUSALS = {
+  ritual_has_other_page:
+    'this ritual already names another process page, and linking a page to a ritual ' +
+    'makes it that page — change or clear it through PATCH /rituals/{id}, then link ' +
+    'this one; or ignore this row',
+  ritual_has_other_task:
+    'this ritual is already measured from another recurring task, and linking a task to a ' +
+    'ritual makes it that task — change or clear it through PATCH /rituals/{id}, then link ' +
+    'this one; or ignore this row',
+  task_bound_elsewhere:
+    'that task already belongs to something else in prisme — an initiative, a key result or ' +
+    'another ritual — and one task cannot measure two things',
+} as const;
+
 export function createOpsService(
   store: ApiStore,
   registry: Registry,
@@ -253,12 +268,7 @@ export function createOpsService(
     async decideAdoption(input, identity, now): Promise<AdoptionDtoShape> {
       const decided = await store.ops.decideAdoption({ ...input, decidedAt: now });
       if (!decided.ok) {
-        throw new ApiError(
-          'conflict',
-          'this ritual already names another process page, and linking a page to a ritual ' +
-            'makes it that page — change or clear it through PATCH /rituals/{id}, then link ' +
-            'this one; or ignore this row',
-        );
+        throw new ApiError('conflict', DECIDE_REFUSALS[decided.refusal]);
       }
       await store.ops.appendEvent({
         kind: 'adoption_decision',

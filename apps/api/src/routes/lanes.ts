@@ -6,6 +6,7 @@ import {
   createRitualBody,
   promoteTakeawayBody,
   recordAdherenceBody,
+  RecurringTasksDto,
   RitualDto,
   RitualListDto,
   TakeawayPageDto,
@@ -86,7 +87,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     summary: 'Rituals with their latest adherence',
     query: noQuery,
     response: RitualListDto,
-    handle: (_context, services) => services.lanes.rituals(),
+    handle: (context, services) => services.lanes.rituals(context.now),
   }),
 
   defineRoute({
@@ -95,16 +96,22 @@ export const laneRoutes: readonly ApiRoute[] = [
     path: '/rituals',
     scope: 'write:ritual',
     summary: 'Define a ritual',
+    description:
+      'With `externalTaskId`, the ritual is measured from that recurring task’s completions from the next capacity refresh on; `409` if another entity holds the task, and then no ritual is made.',
     body: createRitualBody,
     response: RitualDto,
     handle: (context, services) =>
-      services.lanes.createRitual({
-        name: context.body.name,
-        areaKey: context.body.areaKey,
-        cadence: context.body.cadence,
-        targetAdherencePct: context.body.targetAdherencePct,
-        externalPageId: context.body.externalPageId,
-      }),
+      services.lanes.createRitual(
+        {
+          name: context.body.name,
+          areaKey: context.body.areaKey,
+          cadence: context.body.cadence,
+          targetAdherencePct: context.body.targetAdherencePct,
+          externalPageId: context.body.externalPageId,
+          externalTaskId: context.body.externalTaskId,
+        },
+        context.now,
+      ),
   }),
 
   defineRoute({
@@ -112,11 +119,27 @@ export const laneRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/rituals/:id',
     scope: 'write:ritual',
-    summary: 'Change a ritual’s name, cadence or target',
+    summary: 'Change a ritual’s name, cadence, target, process page or recurring task',
+    description:
+      'Tying a recurring task (`externalTaskId`) binds it to the ritual — the binding adherence is read through — and records the link; another task replaces it, and `null` unties it so it can be offered again. Nothing is written to the task tool. `409` if another entity holds the task, and then nothing changes.',
     params: idParam,
     body: updateRitualBody,
     response: RitualDto,
-    handle: (context, services) => services.lanes.updateRitual(context.params.id, context.body),
+    handle: (context, services) =>
+      services.lanes.updateRitual(context.params.id, context.body, context.now),
+  }),
+
+  defineRoute({
+    operationId: 'listRecurringTasks',
+    method: 'get',
+    path: '/task-tool/recurring-tasks',
+    scope: 'write:ritual',
+    summary: 'The task tool’s open recurring tasks, for a ritual to be measured from',
+    description:
+      'What a ritual’s task is chosen from, so it is scoped like the write it serves. Read live from the task tool — an identifier, a title, the area its location maps to and what in prisme already holds it; nothing else of the task. When the tool cannot be read the list is empty and `failure` says why.',
+    query: noQuery,
+    response: RecurringTasksDto,
+    handle: (_context, services) => services.lanes.recurringTasks(),
   }),
 
   defineRoute({
@@ -140,6 +163,8 @@ export const laneRoutes: readonly ApiRoute[] = [
     path: '/rituals/:id/adherence',
     scope: 'write:ritual',
     summary: 'Record one period’s opportunities and completions',
+    description:
+      'For a habit that is not a task: *done this period* on Rituals writes here. A ritual measured from its recurring task answers `409` — the capacity refresh rewrites its periods from the task’s completions.',
     params: idParam,
     body: recordAdherenceBody,
     status: 200,
