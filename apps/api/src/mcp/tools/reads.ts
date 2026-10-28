@@ -109,7 +109,7 @@ const focusNow = defineReadTool({
   title: 'What to work on now',
   scope: 'read:focus',
   description:
-    'The current now set — what prisme says to work on, with the reason each item is there and what is blocking it — plus the queue a freed slot would draw from. This is the answer to "what should I do today". It does not change anything and does not decide what is *next*: work in flight keeps its slot whatever it scores, and promoting something is `set_status` or `propose_now_set`. Scores here compare only within an area (ADR-0005); ranking two items from different areas by score is meaningless.',
+    'The current now set — the work in flight, with the reason each item is there and what is blocking it — plus `suggested`, the free slots the ranking proposes filling, and the queue a freed slot would draw from. A suggestion is still `next` or `later` until someone promotes it. This is the answer to "what should I do today". It does not change anything and does not decide what is *next*: work in flight keeps its slot whatever it scores, and promoting something is `set_status` or `propose_now_set`. Scores here compare only within an area (ADR-0005); ranking two items from different areas by score is meaningless.',
   input: z.strictObject({}),
   result: z.object({
     asOf: z.string(),
@@ -119,7 +119,10 @@ const focusNow = defineReadTool({
     overCapacity: z.boolean(),
     /** The weights behind every balance factor were carried forward from an earlier year. */
     weightsStale: z.boolean(),
+    /** In flight: status `now`. */
     now: z.array(focusRow),
+    /** Free slots the ranking proposes filling. Not promoted, not counted in `slotsByArea`. */
+    suggested: z.array(focusRow),
     upNext: z.array(focusRow),
     slotsByArea: z.array(z.object({ areaKey, used: z.int(), limit: z.int() })),
   }),
@@ -139,6 +142,7 @@ const focusNow = defineReadTool({
       overCapacity: focus.overCapacity,
       weightsStale: focus.weightsStale,
       now: focus.now.map(row),
+      suggested: focus.suggested.map(row),
       upNext: focus.upNext.map(row),
       slotsByArea: focus.slotsByArea.map((slot) => ({
         areaKey: slot.areaKey,

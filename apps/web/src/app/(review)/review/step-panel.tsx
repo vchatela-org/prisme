@@ -466,6 +466,9 @@ async function RefillPanel() {
   if (!focus.ok) return <ApiFailureState failure={focus} surface="the free slots" />;
 
   const free = focus.data.slotsByArea.filter((slot) => slot.used < slot.limit);
+  // The suggestions are what the ranking would put in those slots; the queue
+  // is what comes after them.
+  const candidates = [...focus.data.suggested, ...focus.data.upNext];
 
   return (
     <PanelCard>
@@ -488,14 +491,14 @@ async function RefillPanel() {
           </ul>
 
           <h4 className="text-sm font-medium text-ink">What the ranking would put there</h4>
-          {focus.data.upNext.length === 0 ? (
+          {candidates.length === 0 ? (
             <p className="text-sm text-ink-secondary">
               Nothing is queued behind the now set. A free slot with nothing to put in it is worth
               knowing about.
             </p>
           ) : (
             <ul className="flex flex-col gap-1">
-              {focus.data.upNext.slice(0, 12).map((entry) => (
+              {candidates.slice(0, 12).map((entry) => (
                 <li key={entry.initiative.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <Link
                     href={`/initiative/${entry.initiative.id}`}

@@ -202,8 +202,10 @@ the new count to confirm.
 ### Focus — "what now?"
 
 The first screen. **Now** is what you are working on (a handful at most, one per area by default);
-**Up next** is what comes when a slot frees up; **Slots** shows where this week's capacity is going.
-A *stale* warning means something in *now* has not been touched in a while.
+**Suggested** is what the ranking would put in a slot that is free — it is still *next* until you
+press **Start**, and nothing is promoted for you; **Up next** is what comes when a slot frees up;
+**Slots** shows where this week's capacity is going, counting only what is in *now*. A *stale*
+warning means something in *now* has not been touched in a while.
 
 Only work that is **under way** is offered a slot or queued in *Up next*. An initiative with an
 *earliest start* after today, or one in a project you have paused or closed, waits outside both

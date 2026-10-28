@@ -74,9 +74,17 @@ export const focusDto = z.object({
   overCapacity: z.boolean(),
   /** True when the weights behind every balance factor were carried forward. */
   weightsStale: z.boolean(),
+  /** In flight: the initiatives whose status is `now`. */
   now: z.array(focusEntryDto),
+  /**
+   * Free slots selection proposes filling, top of the ranking first. Their
+   * status is still `next` or `later` — a person promotes them, nothing else
+   * does — so they are neither in `now` nor counted in `slotsByArea`.
+   */
+  suggested: z.array(focusEntryDto),
   /** The queue the next free slot would draw from, in ranked order. */
   upNext: z.array(focusEntryDto),
+  /** `used` counts work in flight, never a suggestion. */
   slotsByArea: z.array(z.object({ areaKey, kind: areaKind, used: z.int(), limit: z.int() })),
 });
 

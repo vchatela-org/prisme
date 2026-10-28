@@ -12,9 +12,11 @@ import {
   type DueSummary,
 } from '@/lib/focus-view';
 import type { WipCounts } from '@/lib/guardrails';
+import { StartButton } from './start-button';
 
 /**
- * One line of the now set, or of the queue behind it.
+ * One line of the now set, of a suggestion to fill a free slot, or of the
+ * queue behind them.
  *
  * Everything on this card is something the API decided: the score and its
  * sentence, the rank, why it is here, whether its deadline is reachable, how
@@ -37,8 +39,11 @@ export interface EntryCardProps {
   weightsStale: boolean;
   counts?: WipCounts;
   due?: DueSummary;
-  /** `queue` entries are not in `now`; they explain why instead. */
-  variant?: 'now' | 'queue';
+  /**
+   * `suggested` entries are proposed for a free slot and carry a Start button;
+   * `queue` entries are not in `now` and explain why instead.
+   */
+  variant?: 'now' | 'suggested' | 'queue';
 }
 
 export function EntryCard({
@@ -85,6 +90,9 @@ export function EntryCard({
             method={method}
             stale={weightsStale}
           />
+          {variant === 'suggested' ? (
+            <StartButton id={initiative.id} title={initiative.title} />
+          ) : null}
           <EstimateEditor initiative={initiative} />
           <StatusMenu initiative={initiative} {...(counts === undefined ? {} : { counts })} />
         </div>
@@ -117,7 +125,7 @@ export function EntryCard({
           </Badge>
         ) : null}
 
-        {due === undefined || variant === 'queue' ? null : (
+        {due === undefined || variant !== 'now' ? null : (
           <Badge variant="neutral" className={due.overdue > 0 ? 'text-status-warning' : undefined}>
             <ListTodo aria-hidden className="size-3" />
             {taskLine(due)}
