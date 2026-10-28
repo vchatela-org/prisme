@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S7: an empty Focus says why, and points at the Inbox
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** when nothing is in flight,
+**Agent:** Claude · **Duration:** one run · **PR:** [#192](https://github.com/vchatela-org/prisme/pull/192) · **Outcome:** when nothing is in flight,
 suggested or queued, Focus names the Inbox count, says why that leaves it empty, and links there.
 S7 is closed.
 
