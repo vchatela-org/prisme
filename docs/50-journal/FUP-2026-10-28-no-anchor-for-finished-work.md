@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · No anchor is created for work that finished without one
 
-**Agent:** Claude · **Duration:** one run · **PR:** this entry's own · **Outcome:** the planner no
+**Agent:** Claude · **Duration:** one run · **PR:** [#183](https://github.com/vchatela-org/prisme/pull/183) · **Outcome:** the planner no
 longer plans a `create` for an initiative in `review`, `done` or `dropped` that never had an anchor
 
 Found while designing S1's *convert to key result*, which drops the initiative it converts. The
