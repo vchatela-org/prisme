@@ -255,12 +255,15 @@ export async function closeReview(input: CloseInput): Promise<ActionResult> {
   if (!result.ok) return failed(result, 'this review');
 
   revalidateReview(parsed.data.cadence);
+  // The close is the completion of a ritual this review fulfils (S3).
+  revalidatePath('/rituals');
+  revalidatePath('/kpi');
 
   return {
     ok: true,
     title: 'Review closed',
     description:
-      'Per-area capacity as it stood right now is stored with the session, and is never retaken.',
+      'Per-area capacity as it stood right now is stored with the session, and is never retaken. A ritual fulfilled by this review counts this period as done.',
     session: result.data,
   };
 }

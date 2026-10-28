@@ -1069,6 +1069,19 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       ).toEqual(before);
     });
 
+    it('refuses a task when the ritual is fulfilled by its review (S3)', async () => {
+      const { ritualId } = await seedRitual(null);
+      await database.client`
+        update ritual set cadence = 'weekly', fulfilled_by_review = true
+        where id = ${ritualId}::uuid`;
+
+      const { status, body } = await link(ritualId, 'task', 'ext-initiative');
+
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/fulfilled by its review/);
+      expect(await taskOf(ritualId)).toEqual([]);
+    });
+
     it('leaves the ritual’s page alone when what is linked is not a page', async () => {
       const { ritualId } = await seedRitual(null);
 

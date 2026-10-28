@@ -349,6 +349,11 @@ export interface RitualRecord {
    * habit that is not a task, whose adherence is recorded by hand.
    */
   readonly externalTaskId: string | null;
+  /**
+   * Closing a review session of its cadence is its completion (S3). Never with
+   * a task: one source per series.
+   */
+  readonly fulfilledByReview: boolean;
 }
 
 /**
@@ -484,7 +489,11 @@ export type DecideOutcome =
   | { readonly ok: true; readonly record: AdoptionRecord }
   | {
       readonly ok: false;
-      readonly refusal: 'ritual_has_other_page' | 'ritual_has_other_task' | 'task_bound_elsewhere';
+      readonly refusal:
+        | 'ritual_has_other_page'
+        | 'ritual_has_other_task'
+        | 'ritual_fulfilled_by_review'
+        | 'task_bound_elsewhere';
     };
 
 /**
@@ -906,6 +915,7 @@ export interface ApiStore {
       targetAdherencePct: number;
       externalPageId?: string | undefined;
       externalTaskId?: string | undefined;
+      fulfilledByReview?: boolean | undefined;
       at: Date;
     }): Promise<RitualWriteOutcome>;
     /**
@@ -921,6 +931,7 @@ export interface ApiStore {
         targetAdherencePct?: number | undefined;
         externalPageId?: string | null | undefined;
         externalTaskId?: string | null | undefined;
+        fulfilledByReview?: boolean | undefined;
         at: Date;
       },
     ): Promise<RitualWriteOutcome>;
@@ -932,6 +943,11 @@ export interface ApiStore {
       to?: string,
     ): Promise<readonly AdherenceRecord[]>;
     recordAdherence(record: AdherenceRecord): Promise<void>;
+    /** Upsert a series for one ritual — what its review rebuilds (S3). Other periods stay. */
+    writeAdherence(
+      ritualId: string,
+      periods: readonly Omit<AdherenceRecord, 'ritualId'>[],
+    ): Promise<void>;
   };
 
   readonly ops: {
@@ -955,6 +971,8 @@ export interface ApiStore {
      * close racing a discard cannot delete a closed session.
      */
     discardOpenReview(id: string): Promise<ReviewRecord | undefined>;
+    /** When each closed session of this cadence was closed — what a ritual fulfilled by it counts (S3). */
+    reviewClosings(cadence: string): Promise<readonly Date[]>;
 
     events(
       filter: {

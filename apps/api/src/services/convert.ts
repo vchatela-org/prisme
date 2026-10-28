@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import {
   adherencePct,
+  ritualMeasure,
   ritualPeriodOf,
   adoptRefusal,
   computeProgress,
@@ -331,6 +332,8 @@ export function toRitualDto(
     targetAdherencePct: record.targetAdherencePct,
     externalPageId: record.externalPageId,
     externalTaskId: record.externalTaskId,
+    fulfilledByReview: record.fulfilledByReview,
+    measuredFrom: ritualMeasure(record),
     latestAdherencePct: latest === undefined ? null : toAdherenceDto(latest).adherencePct,
     currentPeriod: {
       periodStart: period.periodStart,

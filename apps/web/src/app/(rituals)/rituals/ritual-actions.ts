@@ -32,6 +32,8 @@ const ritualInput = z.object({
   page: z.string().trim().max(2000),
   /** The recurring task it is measured from, or null for a habit recorded by hand. */
   task: z.string().min(1).max(200).nullable(),
+  /** Closing the review of its cadence is its completion (S3). */
+  byReview: z.boolean(),
 });
 
 export async function saveRitual(input: z.input<typeof ritualInput>): Promise<RitualResult> {
@@ -65,6 +67,7 @@ export async function saveRitual(input: z.input<typeof ritualInput>): Promise<Ri
             targetAdherencePct: value.targetAdherencePct,
             ...(pageId === null ? {} : { externalPageId: pageId }),
             ...(value.task === null ? {} : { externalTaskId: value.task }),
+            ...(value.byReview ? { fulfilledByReview: true } : {}),
           },
           schema: ritualSchema,
         })
@@ -79,11 +82,20 @@ export async function saveRitual(input: z.input<typeof ritualInput>): Promise<Ri
             // Sent as it is: the task the ritual already has is a no-op, and
             // the form holds it even when the task tool cannot be read.
             externalTaskId: value.task,
+            fulfilledByReview: value.byReview,
           },
           schema: ritualSchema,
         });
 
   if (!result.ok) {
+    if (result.status === 422 && value.byReview) {
+      return {
+        ok: false,
+        title: 'Not saved',
+        description:
+          'A ritual fulfilled by its review needs a weekly, monthly, quarterly or yearly cadence — no review comes round every day.',
+      };
+    }
     if (result.status === 409) {
       return {
         ok: false,
@@ -139,9 +151,9 @@ export async function recordPeriod(input: z.input<typeof periodInput>): Promise<
     if (result.status === 409) {
       return {
         ok: false,
-        title: 'Measured from its task',
+        title: 'Measured elsewhere',
         description:
-          'This ritual counts the completions of its recurring task, so a period recorded here would be overwritten. Complete the task instead.',
+          'This ritual counts its recurring task’s completions or its review’s closes, so a period recorded here would be overwritten. Complete the task, or close the review, instead.',
       };
     }
     const copy = failureCopy(result, 'this ritual');

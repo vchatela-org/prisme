@@ -266,7 +266,9 @@ export async function materialise(options: MaterialiseOptions): Promise<Material
     attribution,
     weeks,
     adherence,
-    unmeasurableRituals: rituals.filter((ritual) => ritual.externalTaskId === undefined),
+    unmeasurableRituals: rituals.filter(
+      (ritual) => ritual.externalTaskId === undefined && ritual.fulfilledByReview !== true,
+    ),
     declaredDurationsKnown: declared.byTask.size,
     documentToolRead: declared.read,
     ...(declared.unread === undefined ? {} : { documentToolUnread: declared.unread }),

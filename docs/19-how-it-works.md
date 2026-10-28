@@ -139,9 +139,9 @@ exists to show.
 
 A ritual joins two external things: its **process page** (the written procedure, owned by the
 document tool, which also declares a duration) and its **recurring task** (owned by the task tool,
-whose completions are the adherence data). Both are chosen on Rituals. A habit that is not a task
-has no recurring task and is recorded by hand there, one period at a time. prisme owns only the
-adherence series.
+whose completions are the adherence data). Both are chosen on Rituals. A ritual that *is* a review —
+the weekly review, say — is measured by closing that review in prisme instead (S3), and a habit that
+is neither is recorded by hand there, one period at a time. prisme owns only the adherence series.
 
 ### 3.5 The rhythm
 
@@ -386,8 +386,8 @@ The monthly set over the year, then **Allocate next year**: the only moment a we
 - **Areas whose work never becomes a task read as starved.** Relationships and health often live
   outside any task list. The balance factor errs toward surfacing them, which is tolerable — but it
   is a lens, not a verdict.
-- **Adherence exists only for rituals that are measured**: tied to a recurring task, or recorded by
-  hand with *done this period*. A newly tied task counts from the next daily capacity refresh, over
+- **Adherence exists only for rituals that are measured**: tied to a recurring task, fulfilled by
+  their review, or recorded by hand with *done this period*. A newly tied task counts from the next daily capacity refresh, over
   its four-week window; older periods fill in only with a backfill.
 - **Objective attainment covers objectives under way** in the range: no drafts, nothing from a
   later period.
@@ -405,7 +405,7 @@ ADRs, some may be answered by copy alone.
 |---|---|---|
 | S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, flagged on the label path, and convertible. **Done** | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen — picked on Rituals, bound by *Link*, or recorded by hand. **Done** | Missing surface |
-| S3 | prisme's own review does not count as the review ritual | Model gap |
+| S3 | prisme's own review does not count as the review ritual — a ritual can be fulfilled by closing its review. **Done** | Model gap |
 | S4 | The review's "push the narrative" has no destination | Unfinished |
 | S5 | Adopted initiatives all score the same, and nothing says so | Signal gap |
 | S6 | An objective without a key result can never be served | Model rule, unexplained |
@@ -466,6 +466,13 @@ periods the refresh rewrites. S2 is closed.
 records decisions and a capacity snapshot, and adds nothing to the adherence of a *weekly review*
 ritual. The product's central ritual is the one it cannot see. **Explore:** let a ritual be
 *fulfilled by* a review cadence, so closing a session is the completion.
+**Built:** a ritual's *Measured from* on Rituals offers **Closing the weekly review in prisme** (its
+own cadence's review; never for a daily ritual), stored as `ritual.fulfilled_by_review`
+(migration 0020). Closing a session of that cadence rebuilds the ritual's adherence whole from every
+closed session — `reviewAdherence` in `@prisme/domain` — so the sessions closed before it was chosen
+count, a skipped period reads as a zero, and a lost rebuild is healed by the next close. A ritual has
+one source: one fulfilled by its review takes no task, by *Link* or on Rituals, and refuses a period
+recorded by hand. S3 is closed.
 
 **S4 · The review's "push the narrative" has no destination.** The last step of every cadence is
 named *record decisions and push the narrative*, and the *Reviews* role can be bound — but nothing

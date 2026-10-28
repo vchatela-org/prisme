@@ -1711,9 +1711,10 @@ export function createPostgresStore(client: Sql): ApiStore {
         return refusable(() =>
           client.begin(async (tx: Tx): Promise<RitualWriteOutcome> => {
             const inserted = await tx<{ id: string }[]>`
-            insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id)
+            insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id,
+                                fulfilled_by_review)
             values (${input.name}, ${input.areaKey}, ${input.cadence}, ${input.targetAdherencePct},
-                    ${input.externalPageId ?? null})
+                    ${input.externalPageId ?? null}, ${input.fulfilledByReview ?? false})
             returning id::text`;
             const id = inserted[0]?.id;
             if (id === undefined) throw new Error('the ritual insert returned no row');
@@ -1731,7 +1732,8 @@ export function createPostgresStore(client: Sql): ApiStore {
               cadence = coalesce(${input.cadence ?? null}, cadence),
               target_adherence_pct = coalesce(${input.targetAdherencePct ?? null}, target_adherence_pct),
               external_page_id = case when ${input.externalPageId === undefined}
-                                  then external_page_id else ${input.externalPageId ?? null} end
+                                  then external_page_id else ${input.externalPageId ?? null} end,
+              fulfilled_by_review = coalesce(${input.fulfilledByReview ?? null}, fulfilled_by_review)
             where id = ${id}::uuid
             returning id::text`;
             if (updated[0] === undefined) return { ok: false, refusal: 'not_found' };
@@ -1791,6 +1793,21 @@ export function createPostgresStore(client: Sql): ApiStore {
             opportunities = excluded.opportunities,
             completions = excluded.completions`;
       },
+
+      async writeAdherence(ritualId, periods): Promise<void> {
+        if (periods.length === 0) return;
+        await client`
+          insert into ritual_adherence (ritual_id, period_start, opportunities, completions)
+          select ${ritualId}::uuid, period_start, opportunities, completions
+          from unnest(
+            cast(${periods.map((period) => period.periodStart)}::text[] as date[]),
+            ${periods.map((period) => period.opportunities)}::integer[],
+            ${periods.map((period) => period.completions)}::integer[]
+          ) as given (period_start, opportunities, completions)
+          on conflict (ritual_id, period_start) do update set
+            opportunities = excluded.opportunities,
+            completions = excluded.completions`;
+      },
     },
 
     ops: {
@@ -1846,6 +1863,14 @@ export function createPostgresStore(client: Sql): ApiStore {
                     capacity_snapshot::text, external_page_id`;
         const row = rows[0];
         return row === undefined ? undefined : toReview(row);
+      },
+
+      async reviewClosings(cadence: string): Promise<readonly Date[]> {
+        const rows = await client<{ completed_at: Date | string }[]>`
+          select completed_at from review_session
+          where cadence = ${cadence} and completed_at is not null
+          order by completed_at`;
+        return rows.map((row) => required(row.completed_at, 'review_session.completed_at'));
       },
 
       async discardOpenReview(id: string): Promise<ReviewRecord | undefined> {
@@ -1979,10 +2004,16 @@ export function createPostgresStore(client: Sql): ApiStore {
             // measured from (S2). Bound here and now: the reconciler binds
             // initiatives' anchors and nothing else, so a link left for it
             // would be a decision no pass ever honoured.
-            const rituals = await tx<{ id: string; external_task_id: string | null }[]>`
+            const rituals = await tx<
+              { id: string; external_task_id: string | null; fulfilled_by_review: boolean }[]
+            >`
               select ${ritualColumns(tx)} from ritual r where r.id::text = ${input.prismeId}
               for update of r`;
             const ritual = rituals[0];
+            if (ritual?.fulfilled_by_review === true) {
+              // One source per series (S3): its review already measures it.
+              return { ok: false as const, refusal: 'ritual_fulfilled_by_review' as const };
+            }
             if (ritual !== undefined) {
               const link = ritualTaskLink(ritual.external_task_id ?? undefined, input.externalId);
               if (link === 'other_task') {
@@ -2554,6 +2585,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     target_adherence_pct: number;
     external_page_id: string | null;
     external_task_id: string | null;
+    fulfilled_by_review: boolean;
   }
 
   /**
@@ -2564,7 +2596,7 @@ export function createPostgresStore(client: Sql): ApiStore {
   function ritualColumns(sql: Sql | Tx) {
     return sql`
       r.id::text as id, r.name, r.area_key, r.cadence, r.target_adherence_pct,
-      r.external_page_id,
+      r.external_page_id, r.fulfilled_by_review,
       (select ref.external_id from entity_external_ref ref
         where ref.prisme_id = r.id::text and ref.prisme_kind = 'ritual' and ref.kind = 'task'
         order by ref.external_id limit 1) as external_task_id`;
@@ -2601,6 +2633,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       targetAdherencePct: row.target_adherence_pct,
       externalPageId: row.external_page_id,
       externalTaskId: row.external_task_id,
+      fulfilledByReview: row.fulfilled_by_review,
     };
   }
 

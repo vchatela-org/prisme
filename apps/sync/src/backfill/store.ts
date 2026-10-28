@@ -177,10 +177,11 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
           cadence: string;
           external_page_id: string | null;
           external_task_id: string | null;
+          fulfilled_by_review: boolean;
         }[]
       >`
         select r.id::text as id, r.name, r.area_key, r.cadence, r.external_page_id,
-               ref.external_id as external_task_id
+               r.fulfilled_by_review, ref.external_id as external_task_id
         from ritual r
         left join entity_external_ref ref
           on ref.prisme_id = r.id::text and ref.kind = 'task'
@@ -193,6 +194,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
         cadence: row.cadence as RitualRecord['cadence'],
         ...(row.external_task_id === null ? {} : { externalTaskId: row.external_task_id }),
         ...(row.external_page_id === null ? {} : { externalPageId: row.external_page_id }),
+        ...(row.fulfilled_by_review ? { fulfilledByReview: true } : {}),
       }));
     },
 

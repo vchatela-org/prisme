@@ -54,6 +54,8 @@ export interface Ritual {
   /** The share of opportunities you intend to take, 0–100. */
   readonly targetAdherencePct: number;
   readonly externalPageId?: string | undefined;
+  /** Closing a review session of its cadence is its completion (S3). */
+  readonly fulfilledByReview?: boolean | undefined;
 }
 
 /** The metric neither external tool provides. prisme owns this series outright. */
@@ -134,6 +136,98 @@ export function ritualTaskLink(
   return heldTaskId === linkedTaskId ? 'already' : 'other_task';
 }
 
+/**
+ * What a ritual's adherence is measured from (S3).
+ *
+ * - `task` — the completions of its recurring task, rewritten by the capacity
+ *   refresh (S2).
+ * - `review` — closing a prisme review session of the ritual's own cadence: the
+ *   weekly review *is* the weekly-review ritual, so its completion is the close.
+ * - `hand` — *done this period* on Rituals, for a habit that is neither.
+ *
+ * One source each. Two would write the same periods from two places, and the
+ * last writer would win without anyone seeing which.
+ */
+export type RitualMeasure = 'task' | 'review' | 'hand';
+
+export function ritualMeasure(ritual: {
+  readonly externalTaskId?: string | null | undefined;
+  readonly fulfilledByReview?: boolean | undefined;
+}): RitualMeasure {
+  if (ritual.externalTaskId !== undefined && ritual.externalTaskId !== null) return 'task';
+  return ritual.fulfilledByReview === true ? 'review' : 'hand';
+}
+
+/**
+ * Whether a review cadence comes round as often as this ritual does (S3).
+ *
+ * Reviews are weekly, monthly, quarterly and yearly — the ritual cadences bar
+ * one. A daily ritual has no review to be fulfilled by: one close a week cannot
+ * be seven chances taken.
+ */
+export function reviewCanFulfil(cadence: RitualCadence): boolean {
+  return cadence !== 'daily';
+}
+
+/** One period of a series, as `ritual_adherence` stores it. */
+export interface RitualPeriodRow {
+  readonly periodStart: CalendarDate;
+  readonly opportunities: number;
+  readonly completions: number;
+}
+
+function nextPeriodStart(cadence: RitualCadence, start: CalendarDate): CalendarDate {
+  const at = new Date(`${start}T00:00:00Z`);
+  const months = cadence === 'monthly' ? 1 : cadence === 'quarterly' ? 3 : 12;
+  const next =
+    cadence === 'daily' || cadence === 'weekly'
+      ? new Date(at.getTime() + 7 * MS_PER_DAY)
+      : new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + months, 1));
+  return parseCalendarDate(next.toISOString().slice(0, 10));
+}
+
+/**
+ * The adherence series of a ritual fulfilled by its review, from the instants
+ * the sessions of that cadence were closed (S3).
+ *
+ * The **whole** series, every time: it starts at the period of the first close
+ * and runs to today's, one opportunity each, done when a session was closed in
+ * it. Rebuilt in full rather than incremented, so a close whose write was lost
+ * is healed by the next one — level-triggered, like every other derivation.
+ *
+ * - A period with no close is a **zero**, not a gap: a week the review was
+ *   skipped is the observation.
+ * - Today's period is emitted only once it is done. It is not over, and a
+ *   review that has not come round yet must not read as a missed one.
+ * - Two closes in one period are still one completion.
+ * - Nothing before the first close is emitted, so periods recorded by hand
+ *   before the ritual was fulfilled by its review keep what they recorded.
+ */
+export function reviewAdherence(
+  cadence: RitualCadence,
+  closedAt: readonly Date[],
+  now: Date,
+): readonly RitualPeriodRow[] {
+  if (!reviewCanFulfil(cadence)) return [];
+  const current = ritualPeriodOf(cadence, now).periodStart;
+  const done = new Set<string>(
+    closedAt
+      .filter((at) => at.getTime() <= now.getTime())
+      .map((at) => ritualPeriodOf(cadence, at).periodStart),
+  );
+  const first = [...done].sort()[0];
+  if (first === undefined) return [];
+
+  const rows: RitualPeriodRow[] = [];
+  let cursor = parseCalendarDate(first);
+  while (cursor < current) {
+    rows.push({ periodStart: cursor, opportunities: 1, completions: done.has(cursor) ? 1 : 0 });
+    cursor = nextPeriodStart(cadence, cursor);
+  }
+  if (done.has(current)) rows.push({ periodStart: current, opportunities: 1, completions: 1 });
+  return rows;
+}
+
 export function adherencePct(observation: RitualAdherence): number | undefined {
   if (observation.opportunities <= 0) return undefined;
   return (observation.completions / observation.opportunities) * 100;
@@ -154,4 +248,5 @@ export const ritualSchema: z.ZodType<Ritual> = z.object({
   cadence: z.enum(RITUAL_CADENCES),
   targetAdherencePct: z.number().min(0).max(100),
   externalPageId: z.string().min(1).optional(),
+  fulfilledByReview: z.boolean().optional(),
 });

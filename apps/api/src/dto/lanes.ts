@@ -45,6 +45,16 @@ export const ritualDto = z.object({
    * that is not a task — whose periods are recorded by hand instead.
    */
   externalTaskId: z.string().nullable(),
+  /**
+   * Closing a review session of the ritual's cadence is its completion (S3):
+   * its adherence is rebuilt from the closed sessions each time one closes.
+   */
+  fulfilledByReview: z.boolean(),
+  /**
+   * What its adherence is measured from — `task`, `review`, or `hand` for
+   * *done this period* (`ritualMeasure`, `@prisme/domain`). One source each.
+   */
+  measuredFrom: z.enum(['task', 'review', 'hand']),
   /** The most recent period's adherence, or null when nothing has been recorded. */
   latestAdherencePct: z.number().nullable(),
   /**
@@ -122,6 +132,8 @@ export const createRitualBody = defineWrite(
     externalPageId: z.string().min(1).max(200).optional(),
     /** The recurring task to measure it from. Refused with `409` if another entity holds it. */
     externalTaskId: z.string().min(1).max(200).optional(),
+    /** Measure it by closing the review of its cadence (S3). Never daily, never with a task. */
+    fulfilledByReview: z.boolean().optional(),
   }),
   RITUAL_READ_ONLY,
 );
@@ -135,6 +147,11 @@ export const updateRitualBody = defineWrite(
     externalPageId: z.string().min(1).max(200).nullable().optional(),
     /** Another task replaces the one before; `null` unties it. `409` if another entity holds it. */
     externalTaskId: z.string().min(1).max(200).nullable().optional(),
+    /**
+     * Measure it by closing the review of its cadence (S3). Never daily, and
+     * never with a task — untie the task (`externalTaskId: null`) in the same write.
+     */
+    fulfilledByReview: z.boolean().optional(),
   }),
   RITUAL_READ_ONLY,
 );

@@ -346,10 +346,20 @@ A ritual's cadence is one of `daily`, `weekly`, `monthly`, `quarterly` or `yearl
 period is the ISO week (Monday), the calendar month, quarter or year that starts on `period_start`;
 a daily habit has seven opportunities in its week, every other cadence one (`ritualPeriodOf`).
 
-A ritual is measured from **at most one** recurring task, bound in `entity_external_ref` and chosen
-on Rituals or by *Link*; its completions are the series. A ritual with no task — a habit that is
-not a task — is recorded by hand, period by period. The two never mix: a ritual with a task refuses
-a period recorded by hand, because the capacity refresh rewrites its periods from the task.
+A ritual is measured from **exactly one source** (`ritualMeasure`):
+
+- **its recurring task** — at most one, bound in `entity_external_ref` and chosen on Rituals or by
+  *Link*; its completions are the series, rewritten by the capacity refresh;
+- **its review** — `ritual.fulfilled_by_review`: closing a review session of the ritual's own
+  cadence is the period's completion. The series is rebuilt whole from the closed sessions of that
+  cadence each time one closes (`reviewAdherence`): from the period of the first close, a period
+  with no close reading as a zero, and the current period appearing only once it is done. A daily
+  ritual cannot be fulfilled by a review — none comes round every day;
+- **by hand** — a habit that is neither is recorded period by period.
+
+The sources never mix. A ritual with a task cannot be fulfilled by its review, one fulfilled by its
+review cannot take a task by *Link*, and either refuses a period recorded by hand, because its
+periods are rewritten from where they come from.
 
 ---
 

@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import { isConnectorError } from '@prisme/connectors';
+import { reviewAdherence, reviewCanFulfil, type RitualCadence } from '@prisme/domain';
 import type { RecurringTasksDto } from '../dto/lanes.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { ApiStore, PageRequest, RitualWriteOutcome } from '../store/types.js';
@@ -68,6 +69,7 @@ export interface LaneService {
       targetAdherencePct: number;
       externalPageId?: string | undefined;
       externalTaskId?: string | undefined;
+      fulfilledByReview?: boolean | undefined;
     },
     now: Date,
   ): Promise<RitualDtoShape>;
@@ -79,6 +81,7 @@ export interface LaneService {
       targetAdherencePct?: number | undefined;
       externalPageId?: string | null | undefined;
       externalTaskId?: string | null | undefined;
+      fulfilledByReview?: boolean | undefined;
     },
     now: Date,
   ): Promise<RitualDtoShape>;
@@ -114,6 +117,67 @@ function written(
     'that task already belongs to something else in prisme — an initiative, a key result or ' +
       'another ritual — and one task cannot measure two things',
   );
+}
+
+/**
+ * Refuse a ritual that would have two sources, or a review that never comes
+ * round as often as it does (S3). Checked on the ritual as it would be after
+ * the write, so changing the cadence of a fulfilled ritual to daily is refused
+ * as well as asking for it outright.
+ */
+function assertOneSource(after: {
+  cadence: RitualCadence;
+  externalTaskId: string | null;
+  fulfilledByReview: boolean;
+}): void {
+  if (!after.fulfilledByReview) return;
+  if (!reviewCanFulfil(after.cadence)) {
+    throw new ApiError(
+      'unprocessable',
+      'a daily ritual cannot be fulfilled by a review: no review comes round every day — ' +
+        'measure it from its recurring task, or by hand',
+    );
+  }
+  if (after.externalTaskId !== null) {
+    throw new ApiError(
+      'unprocessable',
+      'a ritual is measured from one source: its recurring task or its review, not both — ' +
+        'untie the task (`externalTaskId: null`) in the same write to measure it by its review',
+    );
+  }
+}
+
+/**
+ * Rebuild the adherence of every ritual its review fulfils, for one cadence —
+ * or for one ritual (S3).
+ *
+ * Called when a session closes and when a ritual starts being fulfilled. The
+ * series is rebuilt **whole** from every closed session of the cadence
+ * (`reviewAdherence`), so a close whose rebuild was lost is healed by the next
+ * one rather than leaving a hole: the same level-triggered rule as the
+ * capacity refresh, which rewrites a task's window from the task's
+ * completions.
+ */
+export async function refreshReviewRituals(
+  store: ApiStore,
+  cadence: string,
+  now: Date,
+  only?: string,
+): Promise<void> {
+  const fulfilled = (await store.lanes.rituals()).filter(
+    (ritual) =>
+      ritual.fulfilledByReview &&
+      ritual.externalTaskId === null &&
+      ritual.cadence === cadence &&
+      (only === undefined || ritual.id === only),
+  );
+  if (fulfilled.length === 0) return;
+  const rows = reviewAdherence(
+    cadence as RitualCadence,
+    await store.ops.reviewClosings(cadence),
+    now,
+  );
+  for (const ritual of fulfilled) await store.lanes.writeAdherence(ritual.id, rows);
 }
 
 export function createLaneService(
@@ -192,12 +256,30 @@ export function createLaneService(
     async createRitual(input, now): Promise<RitualDtoShape> {
       const area = await store.areas.get(input.areaKey);
       if (area === undefined) throw notFound('area', input.areaKey);
+      assertOneSource({
+        cadence: input.cadence as RitualCadence,
+        externalTaskId: input.externalTaskId ?? null,
+        fulfilledByReview: input.fulfilledByReview ?? false,
+      });
       const created = written(await store.lanes.createRitual({ ...input, at: now }), undefined);
-      return toRitualDto(created.record, [], now);
+      if (!created.record.fulfilledByReview) return toRitualDto(created.record, [], now);
+      await refreshReviewRituals(store, created.record.cadence, now, created.record.id);
+      return toRitualDto(created.record, await store.lanes.adherence([created.record.id]), now);
     },
 
     async updateRitual(id, input, now): Promise<RitualDtoShape> {
+      const existing = await store.lanes.getRitual(id);
+      if (existing === undefined) throw notFound('ritual', id);
+      assertOneSource({
+        cadence: (input.cadence ?? existing.cadence) as RitualCadence,
+        externalTaskId:
+          input.externalTaskId === undefined ? existing.externalTaskId : input.externalTaskId,
+        fulfilledByReview: input.fulfilledByReview ?? existing.fulfilledByReview,
+      });
       const updated = written(await store.lanes.updateRitual(id, { ...input, at: now }), id);
+      if (updated.record.fulfilledByReview) {
+        await refreshReviewRituals(store, updated.record.cadence, now, id);
+      }
       const adherence = await store.lanes.adherence([id]);
       return toRitualDto(updated.record, adherence, now);
     },
@@ -266,6 +348,15 @@ export function createLaneService(
           'this ritual is measured from its recurring task, and the next pass would overwrite ' +
             'a period recorded by hand — complete the task instead, or untie it through ' +
             'PATCH /rituals/{id}',
+        );
+      }
+      if (ritual.fulfilledByReview) {
+        // Rebuilt from the closed sessions on every close (S3).
+        throw new ApiError(
+          'conflict',
+          'this ritual is fulfilled by its review, and the next close rebuilds its periods ' +
+            'from the closed sessions — close the review instead, or stop measuring it by ' +
+            'its review through PATCH /rituals/{id}',
         );
       }
       await store.lanes.recordAdherence({ ritualId: id, ...input });
