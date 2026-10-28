@@ -148,6 +148,7 @@ keeps what somebody set on it by hand, on every pass after the link:
 | Its priority | Left alone while the initiative is `inbox` or `later`; prisme's from `next` on |
 | Its location | Left alone while it sits anywhere its area is mapped; moved only if it has left the area, or away from an initiative's own project |
 | Labels, description | prisme's anchor label is added, and its backlink line goes **above** the existing notes |
+| (no counterpart) | Its four estimates start at the middle of the scale and the initiative is marked **unestimated** until somebody sets one: a task carries no estimate to adopt, and the placeholder is not a judgement (S5) |
 
 Without these, a first writing pass would have cleared the deadline, reset the priority to the lowest
 and moved the task — each as a first-time `update` rather than a conflict, so silently.

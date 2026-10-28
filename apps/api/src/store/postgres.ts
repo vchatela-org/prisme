@@ -284,6 +284,7 @@ interface InitiativeRow {
   origin: 'created_in_prisme' | 'adopted';
   done_at: string | null;
   dropped_reason: string | null;
+  estimated: boolean;
   created_at: Date | string;
   updated_at: Date | string;
   depends_on: string[] | null;
@@ -309,6 +310,7 @@ function toInitiative(row: InitiativeRow): InitiativeRecord {
     origin: row.origin,
     doneAt: row.done_at,
     droppedReason: row.dropped_reason,
+    estimated: row.estimated,
     createdAt: required(row.created_at, 'initiative.created_at'),
     updatedAt: required(row.updated_at, 'initiative.updated_at'),
     dependsOn: row.depends_on ?? [],
@@ -336,6 +338,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     i.origin,
     to_char(i.done_at, 'YYYY-MM-DD') as done_at,
     i.dropped_reason,
+    i.estimated,
     i.created_at,
     i.updated_at,
     (select array_agg(d.depends_on_id::text order by d.depends_on_id)
@@ -957,6 +960,14 @@ export function createPostgresStore(client: Sql): ApiStore {
             time_criticality = coalesce(${input.timeCriticality ?? null}, time_criticality),
             risk = coalesce(${input.risk ?? null}, risk),
             size = coalesce(${input.size ?? null}, size),
+            -- Any estimate written is somebody's judgement, the same value
+            -- included: that is how a placeholder is confirmed (S5).
+            estimated = estimated or ${
+              input.value !== undefined ||
+              input.timeCriticality !== undefined ||
+              input.risk !== undefined ||
+              input.size !== undefined
+            },
             deadline = case when ${input.deadline === undefined}
                          then deadline else ${input.deadline ?? null}::date end,
             earliest_start = case when ${input.earliestStart === undefined}
@@ -2160,10 +2171,10 @@ export function createPostgresStore(client: Sql): ApiStore {
             // same reasoning as the intent channel's capture.
             const inserted = await tx<{ id: string }[]>`
               insert into initiative
-                (title, area_key, status, value, time_criticality, risk, size, origin)
+                (title, area_key, status, value, time_criticality, risk, size, origin, estimated)
               values (${candidate.title}, ${candidate.area_key}, 'inbox',
                       ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE},
-                      'adopted')
+                      'adopted', false)
               returning id::text`;
             prismeId = (inserted[0] as { id: string }).id;
           } else if (candidate.proposed_kind === 'project') {

@@ -251,6 +251,9 @@ same title as an objective in its area — the usual sign of a goal kept as a To
 labelled `prisme`. An initiative is an outcome of one to six weeks; a goal like that is usually a
 key result of its objective. The mark is a question, not a rule: it changes no score and no slot.
 
+Triage is also where an adopted initiative gets its estimates: its row reads **Unestimated** until
+you set them (or keep the middle values on purpose).
+
 ### Backlog — the ranking
 
 Initiatives ranked **within each area**. Never compare a score across areas: the allocation already
@@ -268,6 +271,11 @@ other initiatives:
 | **Size** | How big is it, compared with the others? |
 
 Hover a score to see exactly how it was reached.
+
+**Unestimated** in place of the four numbers means nobody has estimated it: everything adopted, and
+anything the `prisme` label brings in, starts with the middle of the scale for all four, so it ties
+with every other such initiative. It is not proposed for *now* until it is estimated. Change any
+estimate, or **Keep these estimates** if the middle values are right.
 
 ### An initiative's page
 

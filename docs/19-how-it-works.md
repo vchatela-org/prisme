@@ -407,7 +407,7 @@ ADRs, some may be answered by copy alone.
 | S2 | A ritual cannot be tied to its recurring task from any screen — picked on Rituals, bound by *Link*, or recorded by hand. **Done** | Missing surface |
 | S3 | prisme's own review does not count as the review ritual — a ritual can be fulfilled by closing its review. **Done** | Model gap |
 | S4 | The review's "push the narrative" has no destination — a session links its page and copies its summary there. **Done** | Unfinished |
-| S5 | Adopted initiatives all score the same, and nothing says so | Signal gap |
+| S5 | Adopted initiatives all score the same, and nothing says so — *Unestimated* shows, and such work is held out of `now`. **Done** | Signal gap |
 | S6 | An objective without a key result can never be served | Model rule, unexplained |
 | S7 | A freshly adopted instance has an empty Focus with no pointer | Onboarding |
 | S8 | Deployment settings silently switch features off | Onboarding |
@@ -495,6 +495,15 @@ to the same middle value, so every adopted initiative in an area has the same sc
 is a tie broken by order. Nothing distinguishes *estimated* from *never estimated*. **Explore:**
 leave estimates empty until set, show *unestimated* on the Backlog, and make estimation part of
 triage, the way the *ready for now* rule already expects.
+**Built, with a flag rather than empty columns:** `initiative.estimated` (migration 0021) is `false`
+where adoption or the label's capture wrote the placeholder, and any estimate written sets it, the
+same value included. Existing adopted initiatives still at 3, 3, 3, 3 were marked unestimated. The
+estimates read **Unestimated** on the Inbox, the Backlog, Focus and the initiative's page, with
+**Keep these estimates** beside them. Selection holds an unestimated initiative back with the reason
+`unestimated` (`isEstimated` in `@prisme/domain`), because a placeholder size passes `size ≤ 8` by
+construction, and moving one to `now` by hand warns. Empty columns were not used: every scoring
+method, the schedule and the MCP tools read the four numbers, and a nullable estimate would have
+reached all of them for a signal one flag carries. S5 is closed.
 
 **S6 · An objective without a key result can never be served.** Initiatives serve key results, not
 objectives, so an objective adopted from a page — which arrives with none — is an orphan by

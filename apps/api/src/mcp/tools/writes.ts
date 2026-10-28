@@ -449,7 +449,11 @@ const proposeNowSet = defineWriteTool({
           `${initiative.id} waits on ${String(initiative.blockedBy.length)} unfinished dependency/ies`,
         );
       }
-      if (!initiative.sizedForNow) {
+      if (!initiative.estimated) {
+        warnings.push(
+          `${initiative.id} has never been estimated: its size is a placeholder, so whether it fits a now slot is unknown`,
+        );
+      } else if (!initiative.sizedForNow) {
         warnings.push(`${initiative.id} is too large to be started in one sitting`);
       }
     }

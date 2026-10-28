@@ -120,6 +120,8 @@ export const initiativeSchema = z.object({
   }),
   blockedBy: z.array(id),
   sizedForNow: z.boolean(),
+  /** False while its estimates are adoption's or a capture's placeholder (S5). */
+  estimated: z.boolean(),
   /** Why it looks like a key result (S1). The API decides; the screen words it. */
   keyResultHints: z.array(keyResultHint),
 });
@@ -141,6 +143,7 @@ export const selectionReason = z.enum([
   'area_at_cap',
   'wip_full',
   'blocked',
+  'unestimated',
   'too_large',
   'not_a_candidate',
   ...notUnderWayReason.options,

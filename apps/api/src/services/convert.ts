@@ -124,6 +124,7 @@ export function toDomainInitiative(record: InitiativeRecord): Initiative {
     origin: record.origin,
     doneAt: calendar(record.doneAt),
     droppedReason: record.droppedReason ?? undefined,
+    estimated: record.estimated,
   };
 }
 
@@ -210,6 +211,7 @@ export function toInitiativeDto(
     },
     blockedBy: [...context.blockedBy],
     sizedForNow: isSizedForNow(toDomainInitiative(record)),
+    estimated: record.estimated,
     keyResultHints: [...context.keyResultHints],
   };
 }

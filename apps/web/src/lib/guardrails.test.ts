@@ -34,6 +34,15 @@ describe('guardrailsFor', () => {
     expect(warnings[0]?.suggestion).toContain('Split it');
   });
 
+  it('says an unestimated initiative has no size to judge, instead of calling it large (S5)', () => {
+    const warnings = guardrailsFor(
+      anInitiative({ estimated: false, sizedForNow: true }),
+      'now',
+      ROOM,
+    );
+    expect(warnings.map((warning) => warning.code)).toEqual(['unestimated']);
+  });
+
   it('counts blockers, and says it in the singular when there is one', () => {
     const one = guardrailsFor(anInitiative({ blockedBy: ['init-002'] }), 'now', ROOM);
     const two = guardrailsFor(anInitiative({ blockedBy: ['init-002', 'init-003'] }), 'now', ROOM);

@@ -175,6 +175,8 @@ export interface InitiativeRecord {
   readonly origin: 'created_in_prisme' | 'adopted';
   readonly doneAt: CalendarDateText | null;
   readonly droppedReason: string | null;
+  /** `false` while the estimates are adoption's or a capture's placeholder (S5). */
+  readonly estimated: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly dependsOn: readonly string[];

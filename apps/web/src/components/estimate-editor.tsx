@@ -80,6 +80,38 @@ export function EstimateEditor({ initiative, variant = 'row' }: EstimateEditorPr
     });
   };
 
+  /**
+   * Keep the placeholder as the estimate (S5). Writing the four as they are is
+   * a judgement that they are right, and the API marks the initiative
+   * estimated for any estimate written — the same value included.
+   */
+  const keep = (): void => {
+    startTransition(async () => {
+      const result = await saveEstimates({ id: initiative.id, ...estimates });
+      if (result.ok) router.refresh();
+      else toast({ title: result.title, description: result.description, tone: 'error' });
+    });
+  };
+
+  const unestimated = initiative.estimated ? null : (
+    <div className="flex flex-col gap-2 rounded-md bg-surface-page p-2 text-xs text-ink-secondary">
+      <p>
+        <span className="font-medium text-ink">Not estimated yet.</span> These are the middle values
+        it was adopted with, the same as every other adopted initiative, so its score ties with
+        theirs and it is held out of now. Change any of them, or keep them if they are right.
+      </p>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="self-start"
+        disabled={pending}
+        onClick={keep}
+      >
+        Keep these estimates
+      </Button>
+    </div>
+  );
+
   const selects = FIELDS.map(({ field, label, hint }) => (
     <div key={field} className="flex flex-col gap-1">
       <FibonacciSelect
@@ -95,7 +127,12 @@ export function EstimateEditor({ initiative, variant = 'row' }: EstimateEditorPr
   ));
 
   if (variant === 'panel') {
-    return <div className="grid gap-4 sm:grid-cols-2">{selects}</div>;
+    return (
+      <div className="flex flex-col gap-4">
+        {unestimated}
+        <div className="grid gap-4 sm:grid-cols-2">{selects}</div>
+      </div>
+    );
   }
 
   const summary = `V${String(estimates.value)} · T${String(estimates.timeCriticality)} · R${String(estimates.risk)} · S${String(estimates.size)}`;
@@ -107,14 +144,15 @@ export function EstimateEditor({ initiative, variant = 'row' }: EstimateEditorPr
           variant="ghost"
           size="sm"
           className="font-mono text-xs tabular-nums"
-          aria-label={`Estimates for ${initiative.title}: ${summary}. Change them.`}
+          aria-label={`Estimates for ${initiative.title}: ${initiative.estimated ? summary : 'not estimated yet'}. Change them.`}
         >
-          {summary}
+          {initiative.estimated ? summary : 'Unestimated'}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72">
         <div className="flex flex-col gap-3">
           <p className="text-sm font-semibold text-ink">{initiative.title}</p>
+          {unestimated}
           {selects}
           <p className="border-t border-border-hairline pt-2 text-xs text-ink-muted">
             The ranking is recomputed by prisme, not here.
