@@ -32,8 +32,15 @@ export const metadata = {
  *
  * If that takes more than three seconds of reading, nothing else in prisme
  * matters, which is why the page is arranged in exactly the order the question
- * is asked: what is in flight, what is stale in it, and what the next free slot
- * would draw from.
+ * is asked: what is in flight, what is stale in it, what the ranking suggests
+ * for a free slot, and what the next free slot would draw from.
+ *
+ * ## In flight is not the same as suggested
+ *
+ * `now` is what a person put there. `suggested` is selection proposing a free
+ * slot — the initiative is still `next` until someone presses Start. They are
+ * two sections because they are two different facts, and showing a proposal
+ * under *Now* reads as a decision nobody made.
  *
  * ## One request per question
  *
@@ -108,7 +115,7 @@ export default async function FocusPage() {
             />
           ) : null
         }
-        subtitle={`${String(data.now.length)} of ${String(data.limits.maxNow)} slots in flight · ranked by ${method}`}
+        subtitle={`${String(data.now.length)} of ${String(data.limits.maxNow)} slots in flight${data.suggested.length === 0 ? '' : ` · ${String(data.suggested.length)} suggested`} · ranked by ${method}`}
       />
 
       {data.weightsStale ? (
@@ -134,7 +141,11 @@ export default async function FocusPage() {
         {data.now.length === 0 ? (
           <EmptyState
             title="Nothing is in flight"
-            description="Focus fills from the top of the ranking, area by area. Open the backlog, pick the thing you would regret not finishing this week, and move it to now."
+            description={
+              data.suggested.length === 0
+                ? 'Open the backlog, pick the thing you would regret not finishing this week, and move it to now.'
+                : 'Nothing moves to now on its own. Start one of the suggestions below, or pick something else from the backlog.'
+            }
             action={
               <Button asChild size="sm">
                 <Link href="/backlog?status=next">Open the backlog</Link>
@@ -202,6 +213,29 @@ export default async function FocusPage() {
               );
             })}
           </ul>
+        </Section>
+      ) : null}
+
+      {data.suggested.length > 0 ? (
+        <Section
+          title="Suggested"
+          description="Free slots the ranking would fill, one area at a time. Still next until you start them — nothing is promoted for you."
+        >
+          <div className="flex flex-col gap-3">
+            {data.suggested.map((entry) => (
+              <EntryCard
+                key={entry.initiative.id}
+                entry={entry}
+                areaName={areaName(entry.initiative.areaKey)}
+                areaKind={areaKind(entry.initiative.areaKey)}
+                now={data.asOf}
+                method={method}
+                weightsStale={data.weightsStale}
+                counts={countsFor(entry.initiative.areaKey)}
+                variant="suggested"
+              />
+            ))}
+          </div>
         </Section>
       ) : null}
 

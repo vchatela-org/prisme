@@ -372,6 +372,45 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(blocked?.reason).toBe('blocked');
     });
 
+    it('suggests free slots without calling them in flight or counting them as used', async () => {
+      // Nothing in flight: every `now` goes back to `next`, so every slot is free.
+      await database.client`update initiative set status = 'next' where status = 'now'`;
+
+      interface FocusBody {
+        now: { initiative: { id: string } }[];
+        suggested: {
+          initiative: { id: string; status: string; areaKey: string };
+          reason: string;
+        }[];
+        slotsByArea: { areaKey: string; used: number }[];
+      }
+      const focus = (await api().request('GET', url('/focus'))).body as FocusBody;
+
+      // What selection proposes is a suggestion: still `next`, offered under
+      // its own name, and taking no slot until a person promotes it.
+      expect(focus.now).toEqual([]);
+      expect(focus.suggested.length).toBeGreaterThan(0);
+      for (const entry of focus.suggested) {
+        expect(entry.reason).toBe('selected');
+        expect(entry.initiative.status).toBe('next');
+      }
+      expect(focus.slotsByArea.every((slot) => slot.used === 0)).toBe(true);
+
+      // Promoting one moves it from suggested to in flight, and its slot fills.
+      const first = focus.suggested[0];
+      if (first === undefined) throw new Error('nothing was suggested');
+      await api().request('POST', url(`/initiatives/${first.initiative.id}/status`), { to: 'now' });
+
+      const after = (await api().request('GET', url('/focus'))).body as FocusBody;
+      expect(after.now.map((entry) => entry.initiative.id)).toEqual([first.initiative.id]);
+      expect(after.suggested.map((entry) => entry.initiative.id)).not.toContain(
+        first.initiative.id,
+      );
+      expect(
+        after.slotsByArea.find((slot) => slot.areaKey === first.initiative.areaKey)?.used,
+      ).toBe(1);
+    });
+
     it('neither offers, queues nor ranks work not under way (ADR-0035)', async () => {
       interface FocusBody {
         now: { initiative: { id: string } }[];
