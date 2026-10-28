@@ -203,7 +203,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
+| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does, and *Convert to key result* on its page turns it into one, task included (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
 | A loose task | Stays a task |
@@ -398,7 +398,7 @@ ADRs, some may be answered by copy alone.
 
 | # | Finding | Kind |
 |---|---|---|
-| S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, and flagged on the label path; no conversion yet | Model gap |
+| S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, flagged on the label path, and convertible. **Done** | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen | Missing surface |
 | S3 | prisme's own review does not count as the review ritual | Model gap |
 | S4 | The review's "push the narrative" has no destination | Unfinished |
@@ -429,7 +429,11 @@ key result of it instead of being left in place or offered as an initiative, and
 write the key result first. For the labelled path, which the queue never sees, an open initiative whose deadline is more than
 six weeks after it can start, or whose title is an open objective's in its area, is marked **Looks
 like a key result** on the Inbox and its page, with the reason ([`10-model.md`](10-model.md) §5).
-**Explore, still:** offer *convert to key result* on an initiative.
+And any open initiative can be **converted to a key result** from its page
+(`POST /initiatives/:id/convert-to-key-result`): the key result is made under an open objective,
+the initiative's task moves to it, and the initiative is dropped with a reason naming what it
+became. From then on the reconciler leaves that task alone — the label it kept is not a request, and
+nothing writes to it as an anchor (S15). All three directions are built; S1 is closed.
 
 **S2 · A ritual cannot be tied to its recurring task from any screen.** Adherence is computed from
 the completions of the ritual's recurring task, and the declared duration of its process page only
@@ -520,8 +524,10 @@ result gets an anchor task* and calls it *the capability that was missing*: a ke
 break into subtasks is one that gets worked on. The reconciler manages initiative anchors only, and
 a key result's computed progress is derived from the initiatives that serve it. So today the only
 way to break a key result down in the task tool is to create an initiative that serves it — which
-works, and may be the better model, but it is not the one the spec describes. **Explore:** build
-key-result anchors, or amend §7 to make *served by initiatives* the rule.
+works, and may be the better model, but it is not the one the spec describes. Since S1's conversion,
+a key result can **hold** a task — `key_result.external_anchor_id`, bound in `entity_external_ref`,
+so the reconciler treats it as taken — but nothing writes to it or reads its subtree yet.
+**Explore:** build key-result anchors, or amend §7 to make *served by initiatives* the rule.
 
 ---
 

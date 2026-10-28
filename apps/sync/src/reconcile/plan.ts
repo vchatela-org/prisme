@@ -326,6 +326,30 @@ export function plan(
       });
       return;
     }
+    if (desired.boundElsewhere.has(externalId)) {
+      // The task now belongs to another kind of entity — a key result an
+      // initiative was converted into keeps the anchor it had (S1). For work
+      // that is finished that is the expected end of the link, not a question.
+      actions.push(
+        FINISHED_STATUSES.has(anchor.status)
+          ? skip(
+              anchor,
+              `status ${anchor.status}: its task now belongs to another entity`,
+              externalId,
+            )
+          : {
+              tag: 'review',
+              subject: 'initiative',
+              initiativeId: anchor.initiativeId,
+              externalId,
+              title: anchor.title,
+              detail: 'that task is bound to another kind of entity, such as a key result',
+              operations: [],
+              lastApplied: [],
+            },
+      );
+      return;
+    }
     if (boundIds.has(externalId)) {
       // Guard 1, in the pure layer: the database would refuse this, and
       // finding it here means a readable plan line instead of a constraint
@@ -734,7 +758,10 @@ export function plan(
    * (docs/16-sync.md §4).
    *
    * It produces an `adopt`, never a `create`: the task already exists, and what
-   * is created is a prisme row bound to it.
+   * is created is a prisme row bound to it. A task some other entity already
+   * holds — the key result an initiative was converted into — is not new, and
+   * its label is not a request: the label it kept from being an anchor would
+   * otherwise bring the initiative straight back.
    */
   function planIntentChannel(): void {
     const candidates = observed.tasks
@@ -742,6 +769,7 @@ export function plan(
         (task) =>
           hasLabel(task.labels, config.anchorLabel) &&
           !boundIds.has(task.externalId) &&
+          !desired.boundElsewhere.has(task.externalId) &&
           !task.completed,
       )
       .sort((left, right) => left.externalId.localeCompare(right.externalId));

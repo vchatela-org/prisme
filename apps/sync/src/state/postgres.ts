@@ -175,6 +175,15 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
           and r.external_id is null
         order by l.prisme_id, l.external_id`;
 
+      // Tasks a non-initiative entity holds — a key result converted from an
+      // initiative keeps the anchor it had (S1). Taken, so the intent channel
+      // and a decided link both leave them alone.
+      const elsewhere = await client<{ external_id: string }[]>`
+        select external_id
+        from entity_external_ref
+        where kind = 'task' and prisme_kind <> 'initiative'
+        order by external_id`;
+
       const mirror = await client<MirrorRow[]>`
         select anchor_for::text,
                count(*) as total,
@@ -263,7 +272,11 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
         };
       });
 
-      return { anchors, areaByLocation };
+      return {
+        anchors,
+        areaByLocation,
+        boundElsewhere: new Set(elsewhere.map((row) => row.external_id)),
+      };
     },
 
     async loadLastApplied(): Promise<LastAppliedIndex> {

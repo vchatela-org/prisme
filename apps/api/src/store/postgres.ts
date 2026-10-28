@@ -922,6 +922,115 @@ export function createPostgresStore(client: Sql): ApiStore {
           where id = ${id}::uuid`;
       },
 
+      /**
+       * Convert an initiative into a key result — S1 of docs/19-how-it-works.md.
+       *
+       * One transaction, so there is no instant at which the work is both an
+       * initiative and a key result, or neither:
+       *
+       * 1. The key result is inserted under the objective.
+       * 2. The initiative's task, if it has one, **moves** to the key result —
+       *    the same delete-then-insert as a capture's promotion, so guard 1
+       *    never sees two owners — and `key_result.external_anchor_id` names
+       *    it. The ledger records the decision. From the next pass the
+       *    reconciler treats the task as taken (`boundElsewhere`): the label it
+       *    kept is not a request, and nothing writes to it as an anchor.
+       * 3. The initiative is dropped, with a reason saying what it became, so
+       *    its history stays readable and its score leaves the ranking.
+       * 4. Both changes reach the event log.
+       *
+       * A decided task link that is not bound yet is refused rather than
+       * guessed at: binding it is the reconciler's next pass, and moving a
+       * binding that does not exist would leave the pass to bind the task to a
+       * dropped initiative instead.
+       */
+      async convertToKeyResult(input) {
+        return client.begin(async (tx: Tx) => {
+          const initiatives = await tx<{ status: string; external_anchor_id: string | null }[]>`
+            select status, external_anchor_id from initiative
+            where id = ${input.initiativeId}::uuid
+            for update`;
+          const initiative = initiatives[0];
+          const objectives = await tx<{ status: string }[]>`
+            select status from objective where id = ${input.objectiveId}::uuid for update`;
+          const objective = objectives[0];
+          if (initiative === undefined || objective === undefined) return undefined;
+
+          if (!['inbox', 'later', 'next', 'now', 'waiting'].includes(initiative.status)) {
+            return { ok: false as const, refusal: 'initiative_closed' as const };
+          }
+          if (!['draft', 'active'].includes(objective.status)) {
+            return { ok: false as const, refusal: 'objective_closed' as const };
+          }
+
+          const unbound = await tx<{ external_id: string }[]>`
+            select l.external_id from entity_link l
+            where l.prisme_id = ${input.initiativeId}
+              and l.external_kind = 'task'
+              and not exists (
+                select 1 from entity_external_ref r
+                where r.prisme_id = l.prisme_id and r.kind = 'task'
+                  and r.external_id = l.external_id
+              )`;
+          if (unbound.length > 0) {
+            return { ok: false as const, refusal: 'link_not_bound' as const };
+          }
+
+          const anchor = initiative.external_anchor_id;
+          const inserted = await tx<{ id: string }[]>`
+            insert into key_result (objective_id, statement, target, unit, external_anchor_id)
+            values (${input.objectiveId}::uuid, ${input.statement}, ${input.target}, ${input.unit},
+                    ${anchor})
+            returning id::text`;
+          const keyResult = inserted[0];
+          if (keyResult === undefined) throw new Error('the key result insert returned no row');
+
+          if (anchor !== null) {
+            await tx`
+              delete from entity_external_ref
+              where prisme_id = ${input.initiativeId} and kind = 'task'
+                and external_id = ${anchor}`;
+            await tx`
+              insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+              values (${keyResult.id}, 'key_result', 'task', ${anchor})`;
+            await tx`
+              insert into entity_link
+                (prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
+                 decided_at)
+              values (${keyResult.id}, 'task', ${anchor}, 'manual', 'manual', 'human',
+                      ${stamp(input.at)}::timestamptz)
+              on conflict (prisme_id, external_kind, external_id) do nothing`;
+          }
+
+          await tx`
+            update initiative set
+              status = 'dropped',
+              dropped_reason = ${input.droppedReason},
+              external_anchor_id = null,
+              updated_at = now()
+            where id = ${input.initiativeId}::uuid`;
+
+          await tx`
+            insert into event_log
+              (kind, entity_kind, entity_id, field, before, after, actor, occurred_at)
+            values ('status_changed', 'initiative', ${input.initiativeId}, 'status',
+                    ${JSON.stringify(initiative.status)}::jsonb, ${JSON.stringify('dropped')}::jsonb,
+                    ${input.actor}, ${stamp(input.at)}::timestamptz)`;
+          await tx`
+            insert into event_log
+              (kind, entity_kind, entity_id, field, before, after, actor, occurred_at)
+            values ('adoption_decision', 'key_result', ${keyResult.id}, null, null,
+                    ${JSON.stringify({
+                      decision: 'convert',
+                      fromInitiative: input.initiativeId,
+                      anchorMoved: anchor !== null,
+                    })}::jsonb,
+                    ${input.actor}, ${stamp(input.at)}::timestamptz)`;
+
+          return { ok: true as const, keyResultId: keyResult.id, anchorMoved: anchor !== null };
+        });
+      },
+
       async replaceDependencies(id: string, dependsOn: readonly string[]): Promise<void> {
         // One transaction, so a rejected cycle leaves the old set intact. The
         // acyclicity trigger fires per inserted edge and names the path.

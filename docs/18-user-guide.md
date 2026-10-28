@@ -259,6 +259,12 @@ under its anchor, and its Notion page.
   A drop asks for a one-line reason.
 - **Looks like a key result** — shown, with its reasons, while the initiative is open and has a
   deadline more than six weeks away or an objective's title in its area. See *Inbox* above.
+- **Convert to key result** — beside that mark, or under *Is it a key result?* for any open
+  initiative. Choose the objective (its own area's come first), write the statement, target and
+  unit, and *Convert*: the key result is added to the objective, the Todoist task moves to it, and
+  the initiative is dropped with a reason saying what it became. Nothing is written to Todoist, and
+  from then on prisme leaves that task alone — its `prisme` label no longer brings it back as an
+  initiative.
 - **Deadline** is a hard external constraint and is prisme's. The **due date** is when *you* plan
   to do it and stays yours, in Todoist.
 - **Dependencies** — *Edit dependencies* and tick what it waits on. The timeline replans around
@@ -336,7 +342,7 @@ estimated.
 
 | Do this in Todoist | prisme… |
 |---|---|
-| Add the label `prisme` to a task | proposes it as an initiative (at the next pass) |
+| Add the label `prisme` to a task | proposes it as an initiative (at the next pass) — unless the task already belongs to a key result |
 | Add `prisme:status:now` (or `next`, `later`, …) to an anchor | sets that status, then removes the label |
 | Complete an anchor | moves the initiative to *review* for you to confirm |
 | Anything else — subtasks, due dates, comments | nothing; it is yours |

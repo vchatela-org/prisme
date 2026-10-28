@@ -189,6 +189,25 @@ export interface InitiativeFilter {
   readonly search?: string | undefined;
 }
 
+export interface ConvertToKeyResultInput {
+  readonly initiativeId: string;
+  readonly objectiveId: string;
+  readonly statement: string;
+  readonly target: number;
+  readonly unit: string;
+  /** Written as the initiative's `dropped_reason`, so the drop says what it became. */
+  readonly droppedReason: string;
+  readonly actor: 'human' | 'agent';
+  readonly at: Date;
+}
+
+/** Why a conversion was refused. Each is a state a person can change, then retry. */
+export type ConvertRefusal = 'initiative_closed' | 'objective_closed' | 'link_not_bound';
+
+export type ConvertToKeyResultOutcome =
+  | { readonly ok: true; readonly keyResultId: string; readonly anchorMoved: boolean }
+  | { readonly ok: false; readonly refusal: ConvertRefusal };
+
 export interface CreateInitiativeInput {
   readonly title: string;
   readonly areaKey: string;
@@ -642,6 +661,15 @@ export interface ApiStore {
     rollups(): Promise<readonly RollupRecord[]>;
     tasks(id: string): Promise<readonly TaskRecord[]>;
     completions(since: Date): Promise<readonly CompletionRecord[]>;
+    /**
+     * Convert an open initiative into a key result of an open objective, in one
+     * transaction (docs/19-how-it-works.md S1). `undefined` when either is
+     * missing; a refusal when either is closed, or when a decided task link has
+     * not been bound yet.
+     */
+    convertToKeyResult(
+      input: ConvertToKeyResultInput,
+    ): Promise<ConvertToKeyResultOutcome | undefined>;
   };
 
   readonly projects: {

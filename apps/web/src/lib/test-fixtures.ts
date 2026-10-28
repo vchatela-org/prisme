@@ -1,4 +1,4 @@
-import type { FocusEntry, Initiative } from './contracts';
+import type { FocusEntry, Initiative, Objective } from './contracts';
 
 /**
  * Builders for the tests in this directory.
@@ -56,6 +56,21 @@ export function aFocusEntry(overrides: Partial<FocusEntry> = {}): FocusEntry {
     blockedBy: [],
     daysUntilDeadline: null,
     deadlineAtRisk: false,
+    ...overrides,
+  };
+}
+
+export function anObjective(overrides: Partial<Objective> = {}): Objective {
+  return {
+    id: 'objective-0001',
+    title: 'Run a half marathon',
+    type: 'annual',
+    period: '2026',
+    areaKey: 'health',
+    status: 'active',
+    externalPageId: null,
+    keyResults: [],
+    createdAt: '2026-01-02T09:00:00.000Z',
     ...overrides,
   };
 }

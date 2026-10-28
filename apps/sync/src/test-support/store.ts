@@ -37,7 +37,7 @@ export interface RecordingStore extends ReconcilerStore {
 }
 
 export function createRecordingStore(
-  desired: DesiredState = { anchors: [], areaByLocation: new Map() },
+  desired: DesiredState = { anchors: [], areaByLocation: new Map(), boundElsewhere: new Set() },
   lastApplied: LastAppliedIndex = new Map(),
   cursor: SyncCursor = {},
 ): RecordingStore {

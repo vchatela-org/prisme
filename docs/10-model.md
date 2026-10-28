@@ -261,7 +261,11 @@ First-class, not a bullet inside a document.
 | `external_anchor_id` | prisme | Anchor task, so subtasks can hang beneath it |
 
 **Every key result gets an anchor task.** This is the capability that was missing: a key result you
-can break into subtasks is a key result that gets worked on. A key result that is a *habit* rather
+can break into subtasks is a key result that gets worked on. Today a key result holds one only when
+an initiative is **converted** into it: the initiative's task moves to the key result
+(`key_result.external_anchor_id`), and the initiative is dropped with a reason naming what it became.
+The reconciler then treats the task as taken, and writes nothing to it yet
+([`19-how-it-works.md`](19-how-it-works.md) S1, S15). A key result that is a *habit* rather
 than an outcome becomes a `Ritual` instead — it needs a recurring slot, not a task.
 
 ### Progress is self-assessed, and the gap is the signal

@@ -48,12 +48,14 @@ export function anchorOf(overrides: Partial<DesiredAnchor> = {}): DesiredAnchor 
 export function desiredOf(
   anchors: readonly DesiredAnchor[],
   areas: readonly (readonly [string, string | undefined, string])[] = [[PROJECT, SECTION, 'craft']],
+  boundElsewhere: readonly string[] = [],
 ): DesiredState {
   return {
     anchors,
     areaByLocation: new Map(
       areas.map(([projectId, sectionId, areaKey]) => [locationKey(projectId, sectionId), areaKey]),
     ),
+    boundElsewhere: new Set(boundElsewhere),
   };
 }
 

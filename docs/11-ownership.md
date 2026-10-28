@@ -178,7 +178,7 @@ edits are reclassified as **requests**, not conflicts:
 
 | You do, in the task tool | prisme does |
 |---|---|
-| Add the anchor label to any task | Creates the initiative (status `inbox`), links both |
+| Add the anchor label to any task | Creates the initiative (status `inbox`), links both — unless another entity, such as a key result, already holds the task |
 | Complete an anchor | Moves status to `review` for you to confirm |
 | Add a status-request label | Moves status, then removes the label |
 | Edit `due`, subtasks, comments, content | Nothing — those are yours |
