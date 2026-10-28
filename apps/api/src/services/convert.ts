@@ -10,6 +10,7 @@ import {
   type Area,
   type CalendarDate,
   type Initiative,
+  type KeyResultHint,
 } from '@prisme/domain';
 import type { adherenceDto, ritualDto, takeawayDto } from '../dto/lanes.js';
 import type { areaDto, areaMappingDto } from '../dto/area.js';
@@ -171,6 +172,8 @@ export function toInitiativeDto(
     readonly score?: ScoreRecord | undefined;
     readonly rollup?: RollupRecord | undefined;
     readonly blockedBy: readonly string[];
+    /** From `keyResultHints`, which needs today and the objectives — the caller has both. */
+    readonly keyResultHints: readonly KeyResultHint[];
   },
 ): InitiativeDtoShape {
   const rollup = context.rollup ?? EMPTY_ROLLUP;
@@ -205,6 +208,7 @@ export function toInitiativeDto(
     },
     blockedBy: [...context.blockedBy],
     sizedForNow: isSizedForNow(toDomainInitiative(record)),
+    keyResultHints: [...context.keyResultHints],
   };
 }
 

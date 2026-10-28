@@ -199,6 +199,47 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect((after.body as { blockedBy: string[] }).blockedBy).toEqual([]);
     });
 
+    it('hints that an initiative looks like a key result, on the Inbox and on its page (S1)', async () => {
+      const app = api();
+      await app.request('POST', url('/objectives'), {
+        title: 'Run a half marathon',
+        type: 'annual',
+        period: '2026',
+        areaKey: 'health',
+      });
+      // The pinned clock reads 2026-09-17: a year-end deadline is fifteen weeks out.
+      const created = await app.request('POST', url('/initiatives'), {
+        title: 'run a half-marathon',
+        areaKey: 'health',
+        value: 3,
+        timeCriticality: 3,
+        risk: 3,
+        size: 3,
+        deadline: '2026-12-31',
+      });
+      expect(created.status).toBe(201);
+      const id = (created.body as { id: string }).id;
+      expect(created.body).toMatchObject({ keyResultHints: ['long_horizon', 'objective_title'] });
+
+      const inbox = await app.request('GET', url('/inbox'));
+      const row = (
+        inbox.body as { initiatives: { id: string; keyResultHints: string[] }[] }
+      ).initiatives.find((initiative) => initiative.id === id);
+      expect(row?.keyResultHints).toEqual(['long_horizon', 'objective_title']);
+
+      // A hint, never a decision: an ordinary one in the same area carries none.
+      const ordinary = await app.request('POST', url('/initiatives'), {
+        title: 'Book the physio',
+        areaKey: 'health',
+        value: 3,
+        timeCriticality: 3,
+        risk: 3,
+        size: 3,
+        deadline: '2026-10-01',
+      });
+      expect(ordinary.body).toMatchObject({ keyResultHints: [] });
+    });
+
     it('creates one, and refuses a dependency cycle by naming the path', async () => {
       const app = api();
 

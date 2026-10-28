@@ -4,6 +4,7 @@ import {
   computeSchedule,
   daysUntil,
   InvariantError,
+  keyResultHints,
   notUnderWay,
   parseCalendarDate,
   replan,
@@ -12,6 +13,7 @@ import {
   toScoreRows,
   type CalendarDate,
   type Initiative,
+  type KeyResultHint,
   type Registry,
   type Schedule,
   type SelectionLimits,
@@ -280,6 +282,16 @@ export function createWorkService(
     };
   }
 
+  /**
+   * Whether an initiative looks like a key result (S1), against today and every
+   * objective in the snapshot — the rule is `keyResultHints`, in the domain.
+   */
+  function hintsOf(snapshot: Ranking, id: string): readonly KeyResultHint[] {
+    const initiative = snapshot.initiatives.find((entry) => entry.id === id);
+    if (initiative === undefined) return [];
+    return keyResultHints(initiative, snapshot.objectives, snapshot.underWay.today);
+  }
+
   function dtoOf(snapshot: Ranking, id: string): InitiativeDtoShape {
     const record = snapshot.recordById.get(id);
     if (record === undefined) throw notFound('initiative', id);
@@ -300,6 +312,7 @@ export function createWorkService(
             },
       rollup: snapshot.rollupById.get(id),
       blockedBy: blockers(id),
+      keyResultHints: hintsOf(snapshot, id),
     });
   }
 
@@ -404,6 +417,7 @@ export function createWorkService(
               score: undefined,
               rollup: snapshot.rollupById.get(record.id),
               blockedBy: blockers(record.id),
+              keyResultHints: hintsOf(snapshot, record.id),
             }),
           ),
         takeaways: takeaways.items.map(toTakeawayDto),

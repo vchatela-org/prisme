@@ -13,6 +13,8 @@ import {
   type AreaCapacity,
   type AreaWeight,
   type Initiative,
+  type KeyResultHintObjective,
+  type ObjectiveStatus,
   type ProjectStatus,
   type RankedInitiative,
   type Registry,
@@ -75,6 +77,9 @@ import { toDomainArea, toDomainInitiative } from './convert.js';
  */
 const PROJECT_READ_LIMIT = 1000;
 
+/** Every objective, for the key-result hint. A few per area per year; the same guard. */
+const OBJECTIVE_READ_LIMIT = 1000;
+
 export interface RankingOptions {
   readonly now: Date;
   /** The instance's IANA timezone, which decides what day `now` is. */
@@ -103,6 +108,8 @@ export interface Ranking {
   readonly selection: Selection;
   /** Today, and each project's status: what decides whether work is under way. */
   readonly underWay: UnderWayContext;
+  /** Every objective, for the key-result hint on an initiative (S1). */
+  readonly objectives: readonly KeyResultHintObjective[];
   /**
    * Position in the active ordering, 1-based. Only ranked work appears, and
    * work not under way is not ranked.
@@ -116,13 +123,14 @@ export async function buildRanking(
   registry: Registry,
   options: RankingOptions,
 ): Promise<Ranking> {
-  const [areaRecords, weightRecords, initiativeRecords, rollupRecords, projectRecords] =
+  const [areaRecords, weightRecords, initiativeRecords, rollupRecords, projectRecords, objectives] =
     await Promise.all([
       store.areas.list(),
       store.areas.weights(),
       store.initiatives.list({}),
       store.initiatives.rollups(),
       store.projects.list(undefined, { limit: PROJECT_READ_LIMIT, offset: 0 }),
+      store.okr.listObjectives({}, { limit: OBJECTIVE_READ_LIMIT, offset: 0 }),
     ]);
 
   const areas = areaRecords.map(toDomainArea);
@@ -196,6 +204,11 @@ export async function buildRanking(
     ranked,
     selection,
     underWay,
+    objectives: objectives.items.map((record) => ({
+      title: record.title,
+      areaKey: record.areaKey,
+      status: record.status as ObjectiveStatus,
+    })),
     rankById,
     scoreById,
   };
