@@ -151,9 +151,12 @@ ranks inside it.
 Rolling 4 weeks: long enough to survive one unusual week, short enough that the balance factor still
 responds within a month.
 
-**Run and Signals count toward capacity but never toward ranking.** Excluding upkeep from the
-measurement would hide exactly the pattern the system exists to reveal — upkeep quietly consuming
-the majority of discretionary time.
+**Run counts toward capacity but never toward ranking; Signals count toward neither**
+([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md)). Excluding upkeep from the measurement would
+hide exactly the pattern the system exists to reveal — upkeep quietly consuming the majority of
+discretionary time. Signals are machine-generated: they carry volume and no time, so a Signals
+completion contributes zero minutes and is reported as a count (`laneOf` in
+`apps/sync/src/backfill/attribute.ts`).
 
 ### Known limitation, stated plainly
 

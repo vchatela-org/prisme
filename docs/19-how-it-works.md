@@ -416,7 +416,7 @@ ADRs, some may be answered by copy alone.
 | S11 | The task tool's own inbox has no home in prisme — listed as *Unsorted in Todoist*, adoptable into an area. **Done** | Model gap |
 | S12 | The link from work to key results is examined monthly, but chosen weekly — the served key result is on the refill and the Backlog. **Done** | Cadence fit |
 | S13 | There is no map of the objects — this document, linked from Settings and Adoption. **Done** | Documentation |
-| S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
+| S14 | The specs disagree on whether Signals count toward capacity — corrected to ADR-0014: they do not. **Done** | Spec drift |
 | S15 | Key results have no anchor task yet | Spec ahead of code |
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
@@ -604,6 +604,9 @@ but never toward ranking*; [`10-model.md`](10-model.md) §9 says Signals are *ex
 and from capacity*, and the attribution code (`laneOf` in `apps/sync/src/backfill/attribute.ts`)
 excludes them. This document follows the code. **Explore:** correct `12-scoring.md` §4, or decide
 otherwise in an ADR.
+**Corrected:** no decision was open — [ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), Accepted,
+already says *Run counts toward capacity; Signals do not*. [`12-scoring.md`](12-scoring.md) §4 and
+[`10-model.md`](10-model.md) §3 now say the same, and the code was right. S14 is closed.
 
 **S15 · Key results have no anchor task yet.** [`10-model.md`](10-model.md) §7 says *every key
 result gets an anchor task* and calls it *the capability that was missing*: a key result you can
