@@ -25,6 +25,8 @@ import {
   orphanObjectives,
   orphanReason,
   servedInitiativeIds,
+  servedKeyResults,
+  servesLine,
   splitUpcoming,
   type OrphanInitiative,
 } from '@/lib/objectives-view';
@@ -474,8 +476,17 @@ async function RescorePanel() {
 
 async function RefillPanel() {
   const nameOf = await areaNamer();
-  const focus = await apiFetch({ path: '/focus', schema: focusSchema });
+  const [focus, objectives] = await Promise.all([
+    apiFetch({ path: '/focus', schema: focusSchema }),
+    apiFetch({
+      path: '/objectives',
+      query: { limit: String(LIMIT) },
+      schema: objectivePageSchema,
+    }),
+  ]);
   if (!focus.ok) return <ApiFailureState failure={focus} surface="the free slots" />;
+  // Which key result each candidate serves — a weekly question (S12).
+  const serves = objectives.ok ? servedKeyResults(objectives.data.items) : null;
 
   const free = focus.data.slotsByArea.filter((slot) => slot.used < slot.limit);
   // The suggestions are what the ranking would put in those slots; the queue
@@ -523,6 +534,11 @@ async function RefillPanel() {
                     name={nameOf(entry.initiative.areaKey)}
                   />
                   <span className="text-xs text-ink-muted">{entry.reason}</span>
+                  {serves === null ? null : (
+                    <span className="basis-full text-xs text-ink-secondary">
+                      {servesLine(serves[entry.initiative.id])}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

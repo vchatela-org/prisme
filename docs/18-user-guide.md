@@ -283,6 +283,11 @@ Initiatives ranked **within each area**. Never compare a score across areas: the
 decided how much each area gets. Work that is not under way yet keeps its score but has no rank, and
 the rank column says why: **Not started** or **Project not active**.
 
+Under each title, the key result it serves — *Serves "…" — objective* — or *Serves no key result*.
+The weekly review's *Refill free now slots* shows the same line beside each candidate, so whether
+next week's work serves an objective is answered when it is chosen, not a month later. The link is
+made on the key result (*Served by*), on its objective's page.
+
 Four estimates drive the score, each on the scale 1 · 2 · 3 · 5 · 8 · 13, relative to the area's
 other initiatives:
 
