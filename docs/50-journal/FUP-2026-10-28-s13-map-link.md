@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S13: the map of the objects is linked where its questions are asked
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** Settings' overview and the
+**Agent:** Claude · **Duration:** one run · **PR:** [#198](https://github.com/vchatela-org/prisme/pull/198) · **Outcome:** Settings' overview and the
 Adoption screen link to `docs/19-how-it-works.md`, at the version that is running; the user guide's
 introduction points to it. S13 is closed.
 
