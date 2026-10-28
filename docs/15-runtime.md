@@ -163,7 +163,7 @@ provider and produces a login that cannot work:
 | `CAPACITY_DEFAULT_TASK_MINUTES` | `25` | Fallback when no duration is recorded |
 | `CAPACITY_WINDOW_WEEKS` | `4` | Rolling window for `actual_share` |
 | `SCORING_ACTIVE_METHOD` | `wsjf-balanced` | |
-| `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier |
+| `DOCTOOL_DURATION_PROPERTY` | *unset* | The document-tool property a process page carries its declared duration in. Unset leaves the duration preference order two-tier. Read by the sync; set it on the API too for *Settings → Features* to report it, since the API reports its own environment |
 | `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` | *unset* | The takeaways store's select property whose value starts with *action* or *principle*. Unset, no takeaway is typed: none is proposed as an initiative and the Inbox shows none. **Sync and API** (the adoption scan runs in both) |
 | `DOCTOOL_BASE_URL` | *the vendor's public API* | The document tool's **API host**. Set it to point the client at a self-hosted deployment, a proxy or a stub |
 | `TASKTOOL_BASE_URL` | *the vendor's public API* | The task tool's **API host**, for the same reason |

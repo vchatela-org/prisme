@@ -176,6 +176,7 @@ export function createTestApp(options: TestAppOptions): TestApp {
         windowStart: 7,
         windowEnd: 22,
       },
+      features: { readingPipeline: false, declaredDurations: false },
     },
   });
 

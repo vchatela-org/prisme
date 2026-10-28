@@ -1591,6 +1591,29 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(body).not.toHaveProperty('taskToolToken');
     });
 
+    it('says why the last pass was refused, and stops saying it once a pass is not (S8)', async () => {
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({ lastRefusal: null });
+
+      await database.client`
+        insert into sync_run_state (id, last_drift_objects, last_drift_at, last_drift_full,
+                                    last_refusal, last_refusal_creates)
+        values ('singleton', 0, '2026-09-17T08:45:00Z', false, 'create_threshold', 2)`;
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({
+        lastRefusal: { kind: 'create_threshold', creates: 2, at: '2026-09-17T08:45:00.000Z' },
+      });
+
+      await database.client`
+        update sync_run_state set last_refusal = null, last_refusal_creates = null`;
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({ lastRefusal: null });
+    });
+
+    it('says which optional reads this server is configured for, never their names (S8)', async () => {
+      const { body } = await api().request('GET', url('/settings'));
+      expect(body).toMatchObject({
+        features: { readingPipeline: false, declaredDurations: false },
+      });
+    });
+
     it('defaults a forced pass to `plan`', async () => {
       const response = await api().request('POST', url('/sync'), {});
       expect(response.status).toBe(200);

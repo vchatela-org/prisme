@@ -2,7 +2,7 @@ import { isConnectorError } from '@prisme/connectors';
 import { idempotencyKey, type TaskToolWriter } from '@prisme/connectors/write';
 import { withWriteSubject, type WriteSubject } from '../audit/subject.js';
 import type { Action, LastAppliedWrite, Operation, Plan } from '../reconcile/types.js';
-import type { ReconcilerStore } from './ports.js';
+import type { PassRefusal, ReconcilerStore } from './ports.js';
 
 /**
  * `apply` — the half that writes.
@@ -50,6 +50,8 @@ export interface ApplyResult {
   readonly failures: readonly ApplyFailure[];
   /** Set when the plan was not executed at all, with the reason a human needs. */
   readonly refused?: string | undefined;
+  /** The same refusal as a kind and a count, for a screen to word (S8). Set with `refused`. */
+  readonly refusal?: PassRefusal | undefined;
   /** Set when the pass stopped part-way, with the reason. */
   readonly stopped?: string | undefined;
 }
@@ -76,11 +78,16 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
       refused:
         `the plan creates ${String(plan.counts.create)} objects and SYNC_CREATE_THRESHOLD is ` +
         `${String(options.createThreshold)}; nothing was applied`,
+      refusal: { kind: 'create_threshold', creates: plan.counts.create },
     };
   }
 
   if (!options.writeEnabled) {
-    return { ...empty, refused: 'SYNC_WRITE_ENABLED is false: no outward write was attempted' };
+    return {
+      ...empty,
+      refused: 'SYNC_WRITE_ENABLED is false: no outward write was attempted',
+      refusal: { kind: 'write_freeze', creates: plan.counts.create },
+    };
   }
 
   let applied = 0;

@@ -86,6 +86,10 @@ const services = createServices({
       windowStart: config.sync.windowStart,
       windowEnd: config.sync.windowEnd,
     },
+    features: {
+      readingPipeline: config.doctoolTakeawayTypeProperty !== undefined,
+      declaredDurations: config.doctoolDurationProperty !== undefined,
+    },
   },
 });
 

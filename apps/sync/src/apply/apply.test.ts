@@ -56,6 +56,8 @@ describe('the guards, which run before anything is written', () => {
     const result = await apply(CREATE_PLAN, optionsFor(writer.writer, store));
 
     expect(result.refused).toMatch(/SYNC_CREATE_THRESHOLD/);
+    // The kind and the count, for a screen to word (S8) — never a title.
+    expect(result.refusal).toEqual({ kind: 'create_threshold', creates: 1 });
     expect(result.applied).toBe(0);
     expect(writer.writes).toHaveLength(0);
   });
@@ -69,6 +71,7 @@ describe('the guards, which run before anything is written', () => {
     );
 
     expect(result.refused).toMatch(/SYNC_WRITE_ENABLED is false/);
+    expect(result.refusal?.kind).toBe('write_freeze');
     expect(result.applied).toBe(0);
     expect(store.lastAppliedWrites).toHaveLength(0);
   });

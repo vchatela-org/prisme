@@ -15,7 +15,7 @@ import { createCreateService, type CreateService } from './create.js';
 import { createLaneService, type LaneService } from './lanes.js';
 import { createMeasureService, type MeasureService } from './measure.js';
 import { createObjectiveService, type ObjectiveService } from './okr.js';
-import { createOpsService, type OpsService } from './ops.js';
+import { createOpsService, type DeploymentFeatures, type OpsService } from './ops.js';
 import { createPageTemplateService, type PageTemplateService } from './page-templates.js';
 import { createSettingsService, type SettingsService } from './settings.js';
 import { createWorkService, type WorkService } from './work.js';
@@ -51,6 +51,8 @@ export interface ServiceConfig {
     readonly windowStart: number;
     readonly windowEnd: number;
   };
+  /** Which optional reads this deployment is configured for (S8). Booleans, never the names. */
+  readonly features: DeploymentFeatures;
 }
 
 /**
@@ -143,6 +145,7 @@ export function createServices(options: CreateServicesOptions): Services {
       concurrentInitiatives: config.concurrentInitiatives,
       workingWeekdays: config.workingWeekdays,
       sync: config.sync,
+      features: config.features,
     }),
     settings: createSettingsService(store, options.directory),
     audit: createAuditService(store),

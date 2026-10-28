@@ -166,6 +166,7 @@ export async function reconcile(options: ReconcileOptions): Promise<ReconcileRes
     succeeded: applied.refused === undefined && applied.stopped === undefined,
     drift,
     full,
+    refusal: applied.refusal,
   });
 
   return {

@@ -121,13 +121,18 @@ export async function recordPassOutcome(client: Sql, outcome: PassOutcome): Prom
    * gauge would be reset to the incremental drift every fifteen minutes, which
    * is the defect the column exists to close — see `SyncRunState.driftFull`.
    */
+  // The refusal is the last pass's, overwritten every time: `null` means it
+  // was not refused, so a lifted threshold clears the banner on the next pass.
   await client`
     insert into sync_run_state
       (id, last_success_at, last_drift_objects, last_drift_at, last_drift_full,
-       last_drift_full_objects, updated_at)
+       last_drift_full_objects, last_refusal, last_refusal_creates, updated_at)
     values ('singleton', ${success}::timestamptz, ${outcome.drift}, ${at}::timestamptz,
-            ${outcome.full}, ${outcome.full ? outcome.drift : null}, now())
+            ${outcome.full}, ${outcome.full ? outcome.drift : null},
+            ${outcome.refusal?.kind ?? null}, ${outcome.refusal?.creates ?? null}, now())
     on conflict (id) do update set
+      last_refusal = excluded.last_refusal,
+      last_refusal_creates = excluded.last_refusal_creates,
       last_success_at = coalesce(excluded.last_success_at, sync_run_state.last_success_at),
       last_drift_objects = excluded.last_drift_objects,
       last_drift_at = excluded.last_drift_at,

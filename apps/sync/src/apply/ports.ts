@@ -60,6 +60,21 @@ export interface PassOutcome {
   /** Objects the full view found changed that the incremental stream missed. */
   readonly drift: number;
   readonly full: boolean;
+  /** Why the pass refused its plan, when it did (S8). Absent means it was not refused. */
+  readonly refusal?: PassRefusal | undefined;
+}
+
+/**
+ * Why a pass refused its whole plan, as a kind and a count — never a title.
+ *
+ * `create_threshold` is the one worth a banner: with `SYNC_CREATE_THRESHOLD`
+ * at 0, one initiative reaching `next` without a task refuses every write of
+ * the pass, anchor updates included.
+ */
+export interface PassRefusal {
+  readonly kind: 'create_threshold' | 'write_freeze';
+  /** How many objects the refused plan would have created. */
+  readonly creates: number;
 }
 
 export interface SyncEvent {

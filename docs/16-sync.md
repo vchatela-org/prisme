@@ -180,6 +180,9 @@ Run `prisme-sync apply` to execute.
 - `apply` re-plans immediately before executing; a stale plan is never applied.
 - `apply` refuses a plan whose `create` count exceeds `SYNC_CREATE_THRESHOLD`
   ([`13-migration.md`](13-migration.md), Guard 3).
+- Every `apply` pass records whether it was refused, and why, in `sync_run_state` (a kind —
+  `create_threshold` or `write_freeze` — and the number of creates, never a title). `GET /sync`
+  reports it as `lastRefusal`, and Focus and Settings show a refusal for creations (S8).
 - `SYNC_WRITE_ENABLED=false` ships as the default, so a fresh deployment cannot write outward until
   someone decides it should.
 

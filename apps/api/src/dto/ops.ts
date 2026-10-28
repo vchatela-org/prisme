@@ -209,6 +209,16 @@ export const settingsDto = z.object({
     windowStart: z.int(),
     windowEnd: z.int(),
   }),
+  /**
+   * The optional reads this server is configured for (S8): whether the
+   * variable is set, never its value — a property name is instance data.
+   */
+  features: z.object({
+    /** `DOCTOOL_TAKEAWAY_TYPE_PROPERTY`: takeaways have a type, and actions reach the Inbox. */
+    readingPipeline: z.boolean(),
+    /** `DOCTOOL_DURATION_PROPERTY`: a process page's declared duration counts toward capacity. */
+    declaredDurations: z.boolean(),
+  }),
 });
 
 export const syncStatusDto = z.object({
@@ -221,6 +231,19 @@ export const syncStatusDto = z.object({
   lastFullPassAt: instant.nullable(),
   unresolvedConflicts: z.int(),
   lastRunAt: instant.nullable(),
+  /**
+   * Why the last apply pass refused its whole plan, or null when it did not
+   * (S8). `create_threshold`: it had `creates` objects to create and
+   * `SYNC_CREATE_THRESHOLD` is lower, so nothing was written — anchor updates
+   * included. `write_freeze`: `SYNC_WRITE_ENABLED` is false.
+   */
+  lastRefusal: z
+    .object({
+      kind: z.enum(['create_threshold', 'write_freeze']),
+      creates: z.int(),
+      at: instant,
+    })
+    .nullable(),
 });
 
 export const conflictDto = z.object({

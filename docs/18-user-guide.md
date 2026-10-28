@@ -119,6 +119,11 @@ Two things to know:
 For takeaways to reach prisme, the deployment also needs `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` — the name
 of your takeaways' *type* property, whose values start with *Action* or *Principle*.
 
+**Settings → Features** lists what the deployment switches on and off — reading and writing the
+tools, creating a task for new work, the reading pipeline, declared durations, opening pages from
+prisme — each with **On** or **Off**, and for an off one the variable that turns it on. It shows
+whether a variable is set, never its value.
+
 ### 2.4 This year's weights
 
 **Reviews → Year Review** (or *Change weights* in Settings). Give each area a share; the shares sum
@@ -418,7 +423,9 @@ you move the initiative to *next*.
 
 After adopting, the deployment's `SYNC_CREATE_THRESHOLD` has to be raised above 0 before prisme can
 create anything: at 0, one planned creation holds back the whole pass — deliberately, because during
-adoption any creation would be a mistake.
+adoption any creation would be a mistake. When that happens, Focus and Settings say so: *the last
+sync wrote nothing*, with how many things it had to create and the threshold. The message goes away
+with the next pass that is not refused.
 
 ### What prisme did — the Audit
 
