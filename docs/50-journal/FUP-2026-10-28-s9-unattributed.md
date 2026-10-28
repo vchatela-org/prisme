@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S9: Areas counts what no area got, and maps the rest of a project
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** Areas lists the
+**Agent:** Claude · **Duration:** one run · **PR:** [#194](https://github.com/vchatela-org/prisme/pull/194) · **Outcome:** Areas lists the
 completions the shares counted toward no area, by location, and offers the mapping that would count
 them. S9 is closed.
 
