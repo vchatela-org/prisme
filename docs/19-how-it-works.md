@@ -415,7 +415,7 @@ ADRs, some may be answered by copy alone.
 | S10 | Multi-area general projects are offered as Projects — left out of the queue. **Done** | Queue noise |
 | S11 | The task tool's own inbox has no home in prisme — listed as *Unsorted in Todoist*, adoptable into an area. **Done** | Model gap |
 | S12 | The link from work to key results is examined monthly, but chosen weekly — the served key result is on the refill and the Backlog. **Done** | Cadence fit |
-| S13 | There is no map of the objects | Documentation |
+| S13 | There is no map of the objects — this document, linked from Settings and Adoption. **Done** | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
 | S15 | Key results have no anchor task yet | Spec ahead of code |
 
@@ -594,6 +594,9 @@ line is left out rather than claiming *none*. S12 is closed.
 entity, and the screens by task. Nothing showed which object a thing should become, which door it
 comes in by, or how the objects connect — the gap this document fills (§3.6, §4). **Explore:** link
 this document from Settings' overview and from the Adoption screen.
+**Built:** Settings' overview and the Adoption screen link here (*How prisme works*), at the tag the
+running image was published under, or `main` for a development build (`docsUrl` on the web), and
+the user guide's introduction points to it. S13 is closed.
 
 **S14 · The specs disagree on whether Signals count toward capacity.**
 [`12-scoring.md`](12-scoring.md#4-measuring-capacity) says *Run and Signals count toward capacity

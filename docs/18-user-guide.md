@@ -2,7 +2,9 @@
 
 How to **use** prisme: setting it up, the daily loop, the reviews, and what happens in Notion and
 Todoist when you do things. This guide is written for the person using prisme, not for someone
-changing its code. For why it works the way it does, read [`00-vision.md`](00-vision.md); for the
+changing its code. For why it works the way it does, read [`00-vision.md`](00-vision.md); for a
+map of the objects — what a thing should become, which door it comes in by, how the loop and the
+reviews fit — [`19-how-it-works.md`](19-how-it-works.md), which Settings and Adoption link to; for the
 exact rules, the numbered specs.
 
 > **Privacy.** This file is public. Its examples are invented. Your own areas, weights and links
