@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S6: an objective with no key result says why nothing can serve it
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** the rule that work serves
+**Agent:** Claude · **Duration:** one run · **PR:** [#191](https://github.com/vchatela-org/prisme/pull/191) · **Outcome:** the rule that work serves
 key results, not objectives, is stated where it bites — on the objective, in the Objectives list
 and in the monthly *find orphans* step — and each offers *add a key result*. S6 is closed.
 
