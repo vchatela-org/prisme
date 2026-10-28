@@ -1,21 +1,34 @@
 'use client';
 
-import { AreaBadge, Button } from '@prisme/ui';
-import { useState } from 'react';
+import { AreaBadge, Button, useToast } from '@prisme/ui';
+import { useRouter } from 'next/navigation';
+import { useState, useTransition } from 'react';
+import type { RecurringTasks, Ritual } from '@/lib/contracts';
+import { periodLine, stepCompletions } from '@/lib/rituals-view';
+import { recordPeriod } from './ritual-actions';
 import { RitualForm, type RitualDraft } from './ritual-form';
 
 export function RitualRow({
   draft,
   areaName,
   latestAdherencePct,
+  currentPeriod,
+  taskTitle,
   pageHref,
   areas,
+  tasks,
+  ritualNames,
 }: {
   draft: RitualDraft & { id: string };
   areaName: string;
   latestAdherencePct: number | null;
+  currentPeriod: Ritual['currentPeriod'];
+  /** The task's title when Todoist listed it; null when it did not or there is none. */
+  taskTitle: string | null;
   pageHref: string | null;
   areas: readonly { key: string; name: string }[];
+  tasks: RecurringTasks | null;
+  ritualNames: Readonly<Record<string, string>>;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -39,26 +52,101 @@ export function RitualRow({
               </a>
             )}
           </span>
+          <span className="text-xs text-ink-muted">
+            {draft.task === null
+              ? 'Recorded by hand — no recurring task'
+              : `Measured from ${taskTitle === null ? 'a Todoist task' : `“${taskTitle}”`} in Todoist`}
+          </span>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setEditing(!editing);
-          }}
-        >
-          {editing ? 'Close' : 'Edit'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {draft.task === null ? (
+            <PeriodCounter id={draft.id} cadence={draft.cadence} period={currentPeriod} />
+          ) : null}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setEditing(!editing);
+            }}
+          >
+            {editing ? 'Close' : 'Edit'}
+          </Button>
+        </div>
       </div>
       {editing ? (
         <RitualForm
           initial={draft}
           areas={areas}
+          tasks={tasks}
+          ritualNames={ritualNames}
           onDone={() => {
             setEditing(false);
           }}
         />
       ) : null}
     </li>
+  );
+}
+
+/**
+ * *Done this period* — for a habit that is not a task (S2). It writes the
+ * period the API named, so a row counted here lands where a task's would.
+ */
+function PeriodCounter({
+  id,
+  cadence,
+  period,
+}: {
+  id: string;
+  cadence: Ritual['cadence'];
+  period: Ritual['currentPeriod'];
+}) {
+  const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
+  const line = periodLine(cadence, period);
+
+  const record = (step: 1 | -1): void => {
+    startTransition(async () => {
+      const result = await recordPeriod({
+        id,
+        periodStart: period.periodStart,
+        opportunities: period.opportunities,
+        completions: stepCompletions(period, step),
+      });
+      if (!result.ok) {
+        toast({ title: result.title, description: result.description, tone: 'error' });
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  return (
+    <span className="flex items-center gap-2 text-xs text-ink-secondary">
+      <span>
+        {line.label}: {line.status}
+      </span>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={pending || period.completions >= period.opportunities}
+        onClick={() => {
+          record(1);
+        }}
+      >
+        Done
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending || period.completions === 0}
+        onClick={() => {
+          record(-1);
+        }}
+      >
+        Undo
+      </Button>
+    </span>
   );
 }

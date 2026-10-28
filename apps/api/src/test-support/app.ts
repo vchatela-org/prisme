@@ -16,7 +16,7 @@ import type { Authorizer, Identity } from '../http/authorize.js';
 import { SCOPE_NAMES, type Scope } from '../http/scopes.js';
 import { createServices, SERVICE_DEFAULTS, type Services } from '../services/index.js';
 import { createPostgresStore } from '../store/postgres.js';
-import type { AreaPageEntry, ExternalDirectory } from '../sync/directory.js';
+import type { AreaPageEntry, ExternalDirectory, RecurringTaskEntry } from '../sync/directory.js';
 import type { SyncRunner, SyncRunResult } from '../sync/port.js';
 
 /**
@@ -75,6 +75,7 @@ export function stubDirectory(
   locations: TaskLocations = { projects: [], sections: [] },
   templates: Readonly<Record<string, readonly DocTemplate[]>> = {},
   areaPages: Readonly<Record<string, readonly AreaPageEntry[]>> = {},
+  recurringTasks: readonly RecurringTaskEntry[] = [],
 ): ExternalDirectory {
   const refused = (operation: string): Promise<never> =>
     Promise.reject(
@@ -86,6 +87,7 @@ export function stubDirectory(
     );
   return {
     taskLocations: () => Promise.resolve(locations),
+    recurringTasks: () => Promise.resolve(recurringTasks),
     describe: (externalId) => {
       const found = stores[externalId];
       return found === undefined ? refused('describe') : Promise.resolve(found);

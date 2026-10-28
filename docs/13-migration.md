@@ -187,7 +187,7 @@ filters by source store and by area, with a count beside each value
 | Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
 | Objective or key result stored as a task | Key result, with that task as its anchor. Found by title (§3): a task named as a key result is proposed against it, for *Link*; a task named as an objective is queued as a key result, to be written under that objective first. A task with prisme's label is not compared — the label decides |
 | Page in the processes store | Ritual — only by *Merge*: *Adopt* refuses it, since a cadence and a target are in no candidate. Create the ritual on Rituals, and linking the row makes the page its process page; a ritual that already names another page is refused, and nothing is written |
-| Recurring task | Run lane, or a Ritual if it serves a habit goal |
+| Recurring task | Run lane, or a Ritual's recurring task if it serves a habit goal — chosen on Rituals, or by *Merge* when it carries the ritual label; either binds it at once, and a ritual that already has another task is refused |
 | Machine-generated notification | Signals lane |
 | Loose task, no structure | Stays a task. Not everything is an initiative |
 

@@ -5,6 +5,7 @@ import {
   adoptRefusal,
   objectivePeriodOf,
   ritualPageLink,
+  ritualTaskLink,
 } from '@prisme/domain';
 import type { RitualCadence } from '@prisme/domain';
 import { docIdKey } from '@prisme/connectors';
@@ -43,10 +44,12 @@ import type {
   ProjectRecord,
   ReviewRecord,
   RitualRecord,
+  RitualWriteOutcome,
   RollupRecord,
   ScoreRecord,
   SyncStateRecord,
   TakeawayRecord,
+  TaskHolder,
   TaskRecord,
   UpdateAreaInput,
   UpdateInitiativeInput,
@@ -86,6 +89,73 @@ type Tx = postgres.TransactionSql;
 
 function stamp(value: Date | null | undefined): string | null {
   return value === null || value === undefined ? null : value.toISOString();
+}
+
+/**
+ * Tie a ritual to the recurring task it is measured from, or untie it (S2).
+ *
+ * The binding is a row in `entity_external_ref` — the join the backfill reads
+ * adherence through, and what tells the reconciler the task is taken — with a
+ * human link beside it in the ledger. A ritual holds at most one: the task
+ * before is unbound and unlinked first, so it can be offered again rather than
+ * sit in the ledger as a decision nothing honours.
+ *
+ * A task another entity holds is refused here, before the insert, rather than
+ * by guard 1's unique index: a constraint violation would abort the caller's
+ * transaction, and the answer is a sentence for a person, not a 500. Nothing is
+ * written to the task tool — the task stays the task tool's, exactly as it is.
+ */
+/** Thrown inside a ritual write's transaction so the refusal rolls it back. */
+class RitualRefusal extends Error {
+  constructor(readonly refusal: 'task_bound_elsewhere') {
+    super(refusal);
+  }
+}
+
+/** A ritual write, with a refusal thrown inside it turned back into an answer. */
+async function refusable(write: () => Promise<RitualWriteOutcome>): Promise<RitualWriteOutcome> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof RitualRefusal) return { ok: false, refusal: error.refusal };
+    throw error;
+  }
+}
+
+async function tieRitualTask(
+  tx: Tx,
+  ritualId: string,
+  externalTaskId: string | null,
+  at: Date,
+): Promise<'ok' | 'task_bound_elsewhere'> {
+  if (externalTaskId !== null) {
+    const held = await tx<{ prisme_id: string }[]>`
+      select prisme_id from entity_external_ref
+      where kind = 'task' and external_id = ${externalTaskId}`;
+    const holder = held[0];
+    if (holder !== undefined) {
+      return holder.prisme_id === ritualId ? 'ok' : 'task_bound_elsewhere';
+    }
+  }
+
+  await tx`
+    delete from entity_external_ref
+    where prisme_id = ${ritualId} and prisme_kind = 'ritual' and kind = 'task'`;
+  await tx`
+    delete from entity_link
+    where prisme_id = ${ritualId} and external_kind = 'task'`;
+
+  if (externalTaskId !== null) {
+    await tx`
+      insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+      values (${ritualId}, 'ritual', 'task', ${externalTaskId})`;
+    await tx`
+      insert into entity_link
+        (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+      values (${ritualId}, 'task', ${externalTaskId}, 'manual', 'manual', 'human',
+              ${stamp(at)}::timestamptz)`;
+  }
+  return 'ok';
 }
 
 /**
@@ -1626,42 +1696,64 @@ export function createPostgresStore(client: Sql): ApiStore {
 
       async rituals(): Promise<readonly RitualRecord[]> {
         const rows = await client<RitualRow[]>`
-          select id::text, name, area_key, cadence, target_adherence_pct, external_page_id
-          from ritual order by area_key, name`;
+          select ${ritualColumns(client)} from ritual r order by r.area_key, r.name`;
         return rows.map(toRitual);
       },
 
       async getRitual(id: string): Promise<RitualRecord | undefined> {
         const rows = await client<RitualRow[]>`
-          select id::text, name, area_key, cadence, target_adherence_pct, external_page_id
-          from ritual where id = ${id}::uuid`;
+          select ${ritualColumns(client)} from ritual r where r.id = ${id}::uuid`;
         const row = rows[0];
         return row === undefined ? undefined : toRitual(row);
       },
 
-      async createRitual(input): Promise<RitualRecord> {
-        const rows = await client<RitualRow[]>`
-          insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id)
-          values (${input.name}, ${input.areaKey}, ${input.cadence}, ${input.targetAdherencePct},
-                  ${input.externalPageId ?? null})
-          returning id::text, name, area_key, cadence, target_adherence_pct, external_page_id`;
-        const row = rows[0];
-        if (row === undefined) throw new Error('the ritual insert returned no row');
-        return toRitual(row);
+      async createRitual(input): Promise<RitualWriteOutcome> {
+        return refusable(() =>
+          client.begin(async (tx: Tx): Promise<RitualWriteOutcome> => {
+            const inserted = await tx<{ id: string }[]>`
+            insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id)
+            values (${input.name}, ${input.areaKey}, ${input.cadence}, ${input.targetAdherencePct},
+                    ${input.externalPageId ?? null})
+            returning id::text`;
+            const id = inserted[0]?.id;
+            if (id === undefined) throw new Error('the ritual insert returned no row');
+            return writtenRitual(tx, id, input.externalTaskId, input.at);
+          }),
+        );
       },
 
-      async updateRitual(id, input): Promise<RitualRecord | undefined> {
-        const rows = await client<RitualRow[]>`
-          update ritual set
-            name = coalesce(${input.name ?? null}, name),
-            cadence = coalesce(${input.cadence ?? null}, cadence),
-            target_adherence_pct = coalesce(${input.targetAdherencePct ?? null}, target_adherence_pct),
-            external_page_id = case when ${input.externalPageId === undefined}
-                                then external_page_id else ${input.externalPageId ?? null} end
-          where id = ${id}::uuid
-          returning id::text, name, area_key, cadence, target_adherence_pct, external_page_id`;
-        const row = rows[0];
-        return row === undefined ? undefined : toRitual(row);
+      async updateRitual(id, input): Promise<RitualWriteOutcome> {
+        return refusable(() =>
+          client.begin(async (tx: Tx): Promise<RitualWriteOutcome> => {
+            const updated = await tx<{ id: string }[]>`
+            update ritual set
+              name = coalesce(${input.name ?? null}, name),
+              cadence = coalesce(${input.cadence ?? null}, cadence),
+              target_adherence_pct = coalesce(${input.targetAdherencePct ?? null}, target_adherence_pct),
+              external_page_id = case when ${input.externalPageId === undefined}
+                                  then external_page_id else ${input.externalPageId ?? null} end
+            where id = ${id}::uuid
+            returning id::text`;
+            if (updated[0] === undefined) return { ok: false, refusal: 'not_found' };
+            return writtenRitual(tx, id, input.externalTaskId, input.at);
+          }),
+        );
+      },
+
+      async taskHolders(externalIds): Promise<readonly TaskHolder[]> {
+        if (externalIds.length === 0) return [];
+        const rows = await client<
+          { external_id: string; prisme_kind: string; prisme_id: string }[]
+        >`
+          select external_id, prisme_kind, prisme_id
+          from entity_external_ref
+          where kind = 'task' and external_id = any(${externalIds as string[]}::text[])
+          order by external_id`;
+        return rows.map((row) => ({
+          externalId: row.external_id,
+          prismeKind: row.prisme_kind,
+          prismeId: row.prisme_id,
+        }));
       },
 
       async adherence(ritualIds, from, to): Promise<readonly AdherenceRecord[]> {
@@ -1882,6 +1974,27 @@ export function createPostgresStore(client: Sql): ApiStore {
             }
           }
 
+          if (input.externalKind === 'task') {
+            // A task linked to a ritual becomes the recurring task it is
+            // measured from (S2). Bound here and now: the reconciler binds
+            // initiatives' anchors and nothing else, so a link left for it
+            // would be a decision no pass ever honoured.
+            const rituals = await tx<{ id: string; external_task_id: string | null }[]>`
+              select ${ritualColumns(tx)} from ritual r where r.id::text = ${input.prismeId}
+              for update of r`;
+            const ritual = rituals[0];
+            if (ritual !== undefined) {
+              const link = ritualTaskLink(ritual.external_task_id ?? undefined, input.externalId);
+              if (link === 'other_task') {
+                return { ok: false as const, refusal: 'ritual_has_other_task' as const };
+              }
+              if (link === 'attach') {
+                const tied = await tieRitualTask(tx, ritual.id, input.externalId, input.decidedAt);
+                if (tied !== 'ok') return { ok: false as const, refusal: tied };
+              }
+            }
+          }
+
           // `decided_by` is always `human` here: a decision that arrived through
           // an authenticated request is one somebody made. The table's check —
           // "only certainty is automatic" — is what stops an automatic fuzzy
@@ -1899,7 +2012,13 @@ export function createPostgresStore(client: Sql): ApiStore {
               decided_by = excluded.decided_by,
               decided_at = excluded.decided_at
             returning prisme_id, external_kind, external_id, match_rule, confidence, decided_by,
-                      decided_at, false as bound`;
+                      decided_at,
+                      exists (
+                        select 1 from entity_external_ref ref
+                        where ref.prisme_id = entity_link.prisme_id
+                          and ref.kind = entity_link.external_kind
+                          and ref.external_id = entity_link.external_id
+                      ) as bound`;
           const row = rows[0];
           if (row === undefined) throw new Error('the adoption decision returned no row');
           return { ok: true as const, record: toAdoption(row) };
@@ -2434,6 +2553,43 @@ export function createPostgresStore(client: Sql): ApiStore {
     cadence: RitualCadence;
     target_adherence_pct: number;
     external_page_id: string | null;
+    external_task_id: string | null;
+  }
+
+  /**
+   * A ritual's columns, with the task it is measured from. A subquery rather
+   * than a join: `tieRitualTask` keeps one binding per ritual, and a join would
+   * repeat the ritual for every row if that ever stopped being true.
+   */
+  function ritualColumns(sql: Sql | Tx) {
+    return sql`
+      r.id::text as id, r.name, r.area_key, r.cadence, r.target_adherence_pct,
+      r.external_page_id,
+      (select ref.external_id from entity_external_ref ref
+        where ref.prisme_id = r.id::text and ref.prisme_kind = 'ritual' and ref.kind = 'task'
+        order by ref.external_id limit 1) as external_task_id`;
+  }
+
+  /** After a ritual write: tie the task when one was named, then read the ritual back. */
+  async function writtenRitual(
+    tx: Tx,
+    id: string,
+    externalTaskId: string | null | undefined,
+    at: Date,
+  ): Promise<RitualWriteOutcome> {
+    if (externalTaskId !== undefined) {
+      const tied = await tieRitualTask(tx, id, externalTaskId, at);
+      if (tied !== 'ok') {
+        // Rolls back the ritual's own change too: one write, one answer.
+        throw new RitualRefusal(tied);
+      }
+    }
+    const rows = await tx<
+      RitualRow[]
+    >`select ${ritualColumns(tx)} from ritual r where r.id = ${id}::uuid`;
+    const row = rows[0];
+    if (row === undefined) throw new Error('the ritual just written could not be read back');
+    return { ok: true, record: toRitual(row) };
   }
 
   function toRitual(row: RitualRow): RitualRecord {
@@ -2444,6 +2600,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       cadence: row.cadence,
       targetAdherencePct: row.target_adherence_pct,
       externalPageId: row.external_page_id,
+      externalTaskId: row.external_task_id,
     };
   }
 

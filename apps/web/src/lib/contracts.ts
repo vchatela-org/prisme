@@ -1050,12 +1050,35 @@ export const ritualSchema = z.object({
   cadence: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly']),
   targetAdherencePct: z.number(),
   externalPageId: z.string().nullable(),
+  /** The recurring task it is measured from, or null for a habit recorded by hand (S2). */
+  externalTaskId: z.string().nullable(),
   latestAdherencePct: z.number().nullable(),
+  /** The period today falls in, and what is recorded for it so far. */
+  currentPeriod: z.object({
+    periodStart: z.string(),
+    opportunities: z.number(),
+    completions: z.number(),
+  }),
 });
 
 export type Ritual = z.infer<typeof ritualSchema>;
 
 export const ritualListSchema = z.object({ items: z.array(ritualSchema) });
+
+/** `GET /task-tool/recurring-tasks` — what a ritual's task is picked from. */
+export const recurringTasksSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      areaKey: z.string().nullable(),
+      heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
+    }),
+  ),
+  failure: z.string().nullable(),
+});
+
+export type RecurringTasks = z.infer<typeof recurringTasksSchema>;
 
 // ---------------------------------------------------------------------------
 // Settings

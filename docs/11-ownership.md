@@ -147,7 +147,8 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | Ritual definition: area, cadence, target adherence | **P** | — | |
 | A ritual's process page (`ritual.external_page_id`) | **P** | — | A reference, held in prisme and never written to the page (ADR-0016). Set on Rituals, or by linking the page's processes row in Adoption — which is refused while the ritual names a different page, rather than replacing or ignoring it |
 | The process page's area relation (the processes store's area column) | **D** | ← seed | Part of the process page, the document tool's outright (ADR-0016). Read into the adoption candidate; seeds a ritual's area only at adoption. Never written, never read again after, and a later difference is not a conflict: the ritual's area is a different field ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
-| Ritual adherence series | **∂** | — | The metric neither tool provides |
+| A ritual's recurring task (`entity_external_ref`, kind `task`) | **P** | — | A reference, held in prisme; the task stays the task tool's and nothing is written to it. Set on Rituals, or by linking the task in Adoption — refused while the ritual has a different task, or while another entity holds that one (guard 1). Untying it removes the binding and its link |
+| Ritual adherence series | **∂** | — | The metric neither tool provides: derived from the recurring task's completions, or — for a ritual with no task — recorded by hand on Rituals, which is refused for a ritual that has one |
 | Signals volume | **∂** | — | Counted as noise; excluded from capacity |
 
 ## 9. prisme-only

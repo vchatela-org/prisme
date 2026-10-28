@@ -134,7 +134,7 @@ export function createServices(options: CreateServicesOptions): Services {
     work,
     measure,
     objectives: createObjectiveService(store),
-    lanes: createLaneService(store, work),
+    lanes: createLaneService(store, work, options.directory),
     ops: createOpsService(store, registry, measure, options.runner, {
       timezone: config.timezone,
       version: config.version,

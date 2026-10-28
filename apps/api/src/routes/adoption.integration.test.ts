@@ -1035,6 +1035,40 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(await queued()).toContain('ext-process');
     });
 
+    const taskOf = async (ritualId: string): Promise<string[]> =>
+      (
+        await database.client<{ external_id: string }[]>`
+          select external_id from entity_external_ref
+          where prisme_id = ${ritualId} and kind = 'task'`
+      ).map((row) => row.external_id);
+
+    it('binds a linked task as the recurring task the ritual is measured from (S2)', async () => {
+      const { ritualId } = await seedRitual(null);
+
+      const { status, body } = await link(ritualId, 'task', 'ext-initiative');
+
+      expect(status).toBeLessThan(300);
+      // Bound now, not left for a pass that never binds a ritual's task.
+      expect(await taskOf(ritualId)).toEqual(['ext-initiative']);
+      expect(body).toMatchObject({ bound: true, matchRule: 'exact_title' });
+    });
+
+    it('refuses a task when the ritual is measured from another one, and writes nothing', async () => {
+      const { ritualId } = await seedRitual(null);
+      expect((await link(ritualId, 'task', 'ext-initiative')).status).toBeLessThan(300);
+      const before = await database.client<{ links: string }[]>`
+        select count(*) as links from entity_link`;
+
+      const { status, body } = await link(ritualId, 'task', 'ext-other-task');
+
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/another recurring task/);
+      expect(await taskOf(ritualId)).toEqual(['ext-initiative']);
+      expect(
+        await database.client<{ links: string }[]>`select count(*) as links from entity_link`,
+      ).toEqual(before);
+    });
+
     it('leaves the ritual’s page alone when what is linked is not a page', async () => {
       const { ritualId } = await seedRitual(null);
 

@@ -40,8 +40,34 @@ export const ritualDto = z.object({
   cadence: ritualCadence,
   targetAdherencePct: percentage,
   externalPageId: z.string().nullable(),
+  /**
+   * The recurring task its adherence is measured from (S2), or null for a habit
+   * that is not a task — whose periods are recorded by hand instead.
+   */
+  externalTaskId: z.string().nullable(),
   /** The most recent period's adherence, or null when nothing has been recorded. */
   latestAdherencePct: z.number().nullable(),
+  /**
+   * The period today falls in (`ritualPeriodOf`), and what is recorded for it so
+   * far — zero completions when nothing is. What *done this period* writes to.
+   */
+  currentPeriod: z.object({
+    periodStart: calendarDate,
+    opportunities: z.int(),
+    completions: z.int(),
+  }),
+});
+
+/**
+ * One open recurring task in the task tool, as a ritual's task is picked from.
+ * `heldBy` names what in prisme already holds it — the guard a pick would hit.
+ */
+export const recurringTaskDto = z.object({
+  id: z.string(),
+  title: z.string(),
+  /** The area its project or section maps to, or null when none does. */
+  areaKey: areaKey.nullable(),
+  heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
 });
 
 export const adherenceDto = z.object({
@@ -55,6 +81,14 @@ export const adherenceDto = z.object({
 export const TakeawayPageDto = named('TakeawayPage', page(takeawayDto));
 export const RitualListDto = named('RitualList', z.object({ items: z.array(ritualDto) }));
 export const RitualDto = named('Ritual', ritualDto);
+export const RecurringTasksDto = named(
+  'RecurringTasks',
+  z.object({
+    items: z.array(recurringTaskDto),
+    /** Why the task tool could not be read — a connector failure kind — or `null`. */
+    failure: z.string().nullable(),
+  }),
+);
 export const AdherenceSeriesDto = named(
   'AdherenceSeries',
   z.object({
@@ -86,6 +120,8 @@ export const createRitualBody = defineWrite(
     cadence: ritualCadence,
     targetAdherencePct: percentage,
     externalPageId: z.string().min(1).max(200).optional(),
+    /** The recurring task to measure it from. Refused with `409` if another entity holds it. */
+    externalTaskId: z.string().min(1).max(200).optional(),
   }),
   RITUAL_READ_ONLY,
 );
@@ -97,6 +133,8 @@ export const updateRitualBody = defineWrite(
     cadence: ritualCadence.optional(),
     targetAdherencePct: percentage.optional(),
     externalPageId: z.string().min(1).max(200).nullable().optional(),
+    /** Another task replaces the one before; `null` unties it. `409` if another entity holds it. */
+    externalTaskId: z.string().min(1).max(200).nullable().optional(),
   }),
   RITUAL_READ_ONLY,
 );

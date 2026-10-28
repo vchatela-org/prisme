@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AreaKey } from './area.js';
+import { parseCalendarDate, type CalendarDate } from './calendar.js';
 import type { InitiativeId } from './initiative.js';
 
 /**
@@ -61,6 +62,76 @@ export interface RitualAdherence {
   readonly periodStart: Date;
   readonly opportunities: number;
   readonly completions: number;
+}
+
+/**
+ * How many chances a period of this cadence offers.
+ *
+ * | Cadence | Period | Opportunities |
+ * |---|---|---|
+ * | `daily` | the week (Monday, UTC) | 7 — one per day |
+ * | `weekly` | the week (Monday, UTC) | 1 |
+ * | `monthly`, `quarterly`, `yearly` | the calendar month, quarter or year | 1 |
+ *
+ * A daily habit is counted over a week rather than a day: a daily period would
+ * make every row a 0 or a 100, which measures nothing anyone can read.
+ */
+export function ritualOpportunities(cadence: RitualCadence): number {
+  return cadence === 'daily' ? 7 : 1;
+}
+
+/** The adherence period an instant falls in, for one cadence, and what it offers. */
+export interface RitualPeriod {
+  readonly periodStart: CalendarDate;
+  readonly opportunities: number;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * The period `at` falls in — the key `ritual_adherence` is stored under.
+ *
+ * In UTC, like every other bucketing of completions: two answers to "which
+ * week is this" are two different charts. The backfill reconstructs periods
+ * with this, and *done this period* on Rituals records into the one it names,
+ * so a habit counted by hand and one counted from its task land in the same
+ * rows.
+ */
+export function ritualPeriodOf(cadence: RitualCadence, at: Date): RitualPeriod {
+  const year = at.getUTCFullYear();
+  const month = at.getUTCMonth();
+  let start: Date;
+  if (cadence === 'monthly') start = new Date(Date.UTC(year, month, 1));
+  else if (cadence === 'quarterly') start = new Date(Date.UTC(year, Math.floor(month / 3) * 3, 1));
+  else if (cadence === 'yearly') start = new Date(Date.UTC(year, 0, 1));
+  else {
+    const day = Date.UTC(year, month, at.getUTCDate());
+    // getUTCDay: 0 is Sunday, so Sunday steps back six days rather than none.
+    start = new Date(day - ((at.getUTCDay() + 6) % 7) * MS_PER_DAY);
+  }
+  return {
+    periodStart: parseCalendarDate(start.toISOString().slice(0, 10)),
+    opportunities: ritualOpportunities(cadence),
+  };
+}
+
+/**
+ * What tying a task to a ritual does, given the task it already has (S2).
+ *
+ * A ritual is measured from **one** recurring task's completions. Linking the
+ * task it already has changes nothing; linking another is refused rather than
+ * settled either way, the rule `ritualPageLink` applies to the process page:
+ * replacing the task would undo a choice made on Rituals, and keeping it would
+ * record a link the ritual does not honour. Rituals is where it is changed.
+ */
+export type RitualTaskLink = 'attach' | 'already' | 'other_task';
+
+export function ritualTaskLink(
+  heldTaskId: string | undefined,
+  linkedTaskId: string,
+): RitualTaskLink {
+  if (heldTaskId === undefined) return 'attach';
+  return heldTaskId === linkedTaskId ? 'already' : 'other_task';
 }
 
 export function adherencePct(observation: RitualAdherence): number | undefined {

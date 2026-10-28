@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import {
   adherencePct,
+  ritualPeriodOf,
   adoptRefusal,
   computeProgress,
   isRankable,
@@ -316,9 +317,12 @@ export function toAdherenceDto(record: AdherenceRecord): AdherenceDtoShape {
 export function toRitualDto(
   record: RitualRecord,
   adherence: readonly AdherenceRecord[],
+  now: Date,
 ): RitualDtoShape {
   const own = adherence.filter((entry) => entry.ritualId === record.id);
   const latest = own[own.length - 1];
+  const period = ritualPeriodOf(record.cadence, now);
+  const current = own.find((entry) => entry.periodStart === period.periodStart);
   return {
     id: record.id,
     name: record.name,
@@ -326,7 +330,13 @@ export function toRitualDto(
     cadence: record.cadence,
     targetAdherencePct: record.targetAdherencePct,
     externalPageId: record.externalPageId,
+    externalTaskId: record.externalTaskId,
     latestAdherencePct: latest === undefined ? null : toAdherenceDto(latest).adherencePct,
+    currentPeriod: {
+      periodStart: period.periodStart,
+      opportunities: current?.opportunities ?? period.opportunities,
+      completions: current?.completions ?? 0,
+    },
   };
 }
 
