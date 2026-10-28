@@ -1,3 +1,4 @@
+import { KEY_RESULT_HINTS } from '@prisme/domain';
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
 import {
@@ -79,6 +80,13 @@ export const initiativeDto = z.object({
   blockedBy: z.array(entityId),
   /** Ready for `now` in the one respect a machine can check (docs/10-model.md §5). */
   sizedForNow: z.boolean(),
+  /**
+   * Why this initiative looks like a key result rather than a one-to-six-week
+   * outcome: a deadline more than six weeks out, or an open objective's title in
+   * its area (`keyResultHints`, docs/19-how-it-works.md S1). A hint, never a
+   * decision. Empty for closed work and for work that shows neither sign.
+   */
+  keyResultHints: z.array(z.enum(KEY_RESULT_HINTS)),
 });
 
 export const projectDto = z.object({

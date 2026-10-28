@@ -203,7 +203,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
+| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
 | A loose task | Stays a task |
@@ -398,7 +398,7 @@ ADRs, some may be answered by copy alone.
 
 | # | Finding | Kind |
 |---|---|---|
-| S1 | Objectives kept as tasks take the *initiative* door — matched across kinds; the label path is open | Model gap |
+| S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, and flagged on the label path; no conversion yet | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen | Missing surface |
 | S3 | prisme's own review does not count as the review ritual | Model gap |
 | S4 | The review's "push the narrative" has no destination | Unfinished |
@@ -426,9 +426,10 @@ across kinds, on an exact or normalised title in the same area
 ([`13-migration.md`](13-migration.md) §3). A task titled as an unbound key result is proposed as
 *link as key result*; one titled as an objective — even one adopted from its page — is queued as a
 key result of it instead of being left in place or offered as an initiative, and the row says to
-write the key result first. **Explore, still:** flag an initiative whose deadline is more than six
-weeks out or whose title equals an objective's — the labelled path, which the queue never sees; offer
-*convert to key result* on an initiative.
+write the key result first. For the labelled path, which the queue never sees, an open initiative whose deadline is more than
+six weeks after it can start, or whose title is an open objective's in its area, is marked **Looks
+like a key result** on the Inbox and its page, with the reason ([`10-model.md`](10-model.md) §5).
+**Explore, still:** offer *convert to key result* on an initiative.
 
 **S2 · A ritual cannot be tied to its recurring task from any screen.** Adherence is computed from
 the completions of the ritual's recurring task, and the declared duration of its process page only

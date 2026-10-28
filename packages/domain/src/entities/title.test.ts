@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { exactForm, foldAccents, normalise, stripLeadingNumbering } from './normalise.js';
+import {
+  exactTitleForm as exactForm,
+  foldAccents,
+  normaliseTitle as normalise,
+  stripLeadingNumbering,
+} from './title.js';
 
 /**
  * Normalisation is rule 3's comparison, and rule 3 is `medium` — a proposal a

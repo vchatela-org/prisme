@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { PageButton } from '@/app/(create)/page-button';
 import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
+import { KeyResultHintNote } from '@/components/key-result-hint';
 import { StatusMenu } from '@/components/status-menu';
 import { DependencyEditor } from './dependency-editor';
 import { apiFetch } from '@/lib/api';
@@ -141,6 +142,7 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
               </Badge>
               {data.sizedForNow ? null : <Badge variant="outline">Larger than a now slot</Badge>}
             </div>
+            <KeyResultHintNote hints={data.keyResultHints} />
           </div>
 
           <div className="flex items-center gap-2">

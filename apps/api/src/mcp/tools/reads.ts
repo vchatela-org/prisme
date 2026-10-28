@@ -1,3 +1,4 @@
+import { KEY_RESULT_HINTS, type KeyResultHint } from '@prisme/domain';
 import { z } from 'zod';
 import { areaKey, calendarDate, entityId, initiativeStatus } from '../../dto/common.js';
 import { balanceDto } from '../../dto/area.js';
@@ -61,6 +62,12 @@ const initiativeBrief = z.object({
   blockedBy: z.array(entityId),
   /** Small enough to be started in one sitting, in the one respect a machine can check. */
   sizedForNow: z.boolean(),
+  /**
+   * Why it looks like a key result rather than an initiative: a deadline more
+   * than six weeks out, or an open objective's title in its area. A hint for a
+   * review to raise, never a decision (docs/19-how-it-works.md S1).
+   */
+  keyResultHints: z.array(z.enum(KEY_RESULT_HINTS)),
 });
 
 type InitiativeBrief = z.infer<typeof initiativeBrief>;
@@ -75,6 +82,7 @@ interface BriefSource {
     deadline: string | null;
     blockedBy: readonly string[];
     sizedForNow: boolean;
+    keyResultHints: readonly KeyResultHint[];
   };
   readonly score: number | null;
   readonly rank: number | null;
@@ -93,6 +101,7 @@ function brief(source: BriefSource): InitiativeBrief {
     rank: source.rank,
     blockedBy: [...initiative.blockedBy],
     sizedForNow: initiative.sizedForNow,
+    keyResultHints: [...initiative.keyResultHints],
   };
 }
 

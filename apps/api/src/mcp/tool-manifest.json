@@ -133,6 +133,16 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "keyResultHints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "long_horizon",
+                    "objective_title"
+                  ]
+                }
+              },
               "reason": {
                 "type": "string",
                 "enum": [
@@ -174,6 +184,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "keyResultHints",
               "reason",
               "daysUntilDeadline",
               "deadlineAtRisk"
@@ -256,6 +267,16 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "keyResultHints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "long_horizon",
+                    "objective_title"
+                  ]
+                }
+              },
               "reason": {
                 "type": "string",
                 "enum": [
@@ -297,6 +318,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "keyResultHints",
               "reason",
               "daysUntilDeadline",
               "deadlineAtRisk"
@@ -379,6 +401,16 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "keyResultHints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "long_horizon",
+                    "objective_title"
+                  ]
+                }
+              },
               "reason": {
                 "type": "string",
                 "enum": [
@@ -420,6 +452,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "keyResultHints",
               "reason",
               "daysUntilDeadline",
               "deadlineAtRisk"
@@ -672,6 +705,16 @@
               },
               "sizedForNow": {
                 "type": "boolean"
+              },
+              "keyResultHints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "long_horizon",
+                    "objective_title"
+                  ]
+                }
               }
             },
             "required": [
@@ -684,7 +727,8 @@
               "score",
               "rank",
               "blockedBy",
-              "sizedForNow"
+              "sizedForNow",
+              "keyResultHints"
             ],
             "additionalProperties": false
           }
@@ -1730,6 +1774,16 @@
             },
             "sizedForNow": {
               "type": "boolean"
+            },
+            "keyResultHints": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "long_horizon",
+                  "objective_title"
+                ]
+              }
             }
           },
           "required": [
@@ -1742,7 +1796,8 @@
             "score",
             "rank",
             "blockedBy",
-            "sizedForNow"
+            "sizedForNow",
+            "keyResultHints"
           ],
           "additionalProperties": false
         },
@@ -2108,6 +2163,16 @@
                 },
                 "sizedForNow": {
                   "type": "boolean"
+                },
+                "keyResultHints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "long_horizon",
+                      "objective_title"
+                    ]
+                  }
                 }
               },
               "required": [
@@ -2120,7 +2185,8 @@
                 "score",
                 "rank",
                 "blockedBy",
-                "sizedForNow"
+                "sizedForNow",
+                "keyResultHints"
               ],
               "additionalProperties": false
             },
@@ -2418,6 +2484,16 @@
                 },
                 "sizedForNow": {
                   "type": "boolean"
+                },
+                "keyResultHints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "long_horizon",
+                      "objective_title"
+                    ]
+                  }
                 }
               },
               "required": [
@@ -2430,7 +2506,8 @@
                 "score",
                 "rank",
                 "blockedBy",
-                "sizedForNow"
+                "sizedForNow",
+                "keyResultHints"
               ],
               "additionalProperties": false
             },
@@ -2711,6 +2788,16 @@
                 },
                 "sizedForNow": {
                   "type": "boolean"
+                },
+                "keyResultHints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "long_horizon",
+                      "objective_title"
+                    ]
+                  }
                 }
               },
               "required": [
@@ -2723,7 +2810,8 @@
                 "score",
                 "rank",
                 "blockedBy",
-                "sizedForNow"
+                "sizedForNow",
+                "keyResultHints"
               ],
               "additionalProperties": false
             },
@@ -2979,6 +3067,16 @@
                 },
                 "sizedForNow": {
                   "type": "boolean"
+                },
+                "keyResultHints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "long_horizon",
+                      "objective_title"
+                    ]
+                  }
                 }
               },
               "required": [
@@ -2991,7 +3089,8 @@
                 "score",
                 "rank",
                 "blockedBy",
-                "sizedForNow"
+                "sizedForNow",
+                "keyResultHints"
               ],
               "additionalProperties": false
             },
@@ -3251,6 +3350,16 @@
                       },
                       "sizedForNow": {
                         "type": "boolean"
+                      },
+                      "keyResultHints": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "long_horizon",
+                            "objective_title"
+                          ]
+                        }
                       }
                     },
                     "required": [
@@ -3263,7 +3372,8 @@
                       "score",
                       "rank",
                       "blockedBy",
-                      "sizedForNow"
+                      "sizedForNow",
+                      "keyResultHints"
                     ],
                     "additionalProperties": false
                   }

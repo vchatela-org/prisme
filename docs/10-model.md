@@ -155,6 +155,12 @@ sliced; the slice is what gets scored.
 Phrase it as a **result**, not an activity — "fence replaced", not "work on fence". An activity has
 no completion condition, which is how things stay open for two years.
 
+**An open initiative that looks like a key result says so.** A deadline more than six weeks after
+the day it can start (today, or a later `earliest_start`), or a title that normalises to an open
+objective's in the same area, is the usual sign of a goal brought in as a task. Both are computed
+by `keyResultHints` in `packages/domain`, shown on the Inbox and the initiative's page, and change
+nothing — no score, no slot, no status.
+
 | Field | Type | Owner | Notes |
 |---|---|---|---|
 | `title` | text | prisme | A result |
