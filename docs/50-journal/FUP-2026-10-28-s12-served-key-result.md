@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S12: the refill and the Backlog say which key result work serves
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** each Backlog row and each
+**Agent:** Claude · **Duration:** one run · **PR:** [#197](https://github.com/vchatela-org/prisme/pull/197) · **Outcome:** each Backlog row and each
 candidate in the weekly refill names the key result it serves, or says it serves none. S12 is closed.
 
 ## What was found first
