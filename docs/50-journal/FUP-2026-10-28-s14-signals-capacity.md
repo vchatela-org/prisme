@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S14: the specs agree that Signals do not count toward capacity
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** `12-scoring.md` §4 and
+**Agent:** Claude · **Duration:** one run · **PR:** [#199](https://github.com/vchatela-org/prisme/pull/199) · **Outcome:** `12-scoring.md` §4 and
 `10-model.md` §3 are corrected to what ADR-0014 decided and the code does. Docs only. S14 is closed.
 
 ## What was found first
