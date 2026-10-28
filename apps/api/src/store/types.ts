@@ -570,6 +570,13 @@ export interface ConflictRecord {
   readonly actor: 'sync' | 'human';
 }
 
+export interface UnattributedRecord {
+  readonly externalProjectId: string | null;
+  readonly externalSectionId: string | null;
+  readonly completions: number;
+  readonly partlyMapped: boolean;
+}
+
 export interface SyncStateRecord {
   readonly hasTaskToolCursor: boolean;
   readonly documentWatermark: Date | null;
@@ -692,6 +699,11 @@ export interface ApiStore {
     ): Promise<readonly CapacityCompletionRecord[]>;
     /** `undefined` when no backfill has ever run — a fresh instance. */
     coverage(): Promise<BackfillCoverageRecord | undefined>;
+    /**
+     * Completions in `[from, to)` the refresh attributed to no area, grouped by
+     * location (S9). `partlyMapped`: some section of that project is mapped.
+     */
+    unattributed(from: Date, to: Date): Promise<readonly UnattributedRecord[]>;
   };
 
   readonly initiatives: {

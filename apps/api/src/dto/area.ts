@@ -258,3 +258,39 @@ export const areaCompletionsDto = z.object({
 });
 
 export const AreaCompletionsDto = named('AreaCompletions', areaCompletionsDto);
+
+/**
+ * Completions the share chart counted toward **no** area, over the window the
+ * balance measured (S9), grouped by where they were completed.
+ *
+ * A completion is attributed through `area_mapping`, section first, then
+ * project. A general project mapped only by section leaves a task at its root —
+ * in no section — matching nothing, and the chart excluded it without a word.
+ * `partlyMapped` is that case: some of the project's sections are mapped, and
+ * a mapping of the project itself would catch the rest.
+ *
+ * Read from the record the chart read: a completion with no attributed row,
+ * as of the last capacity refresh. A mapping added now counts from the next.
+ */
+export const unattributedCompletionsDto = z.object({
+  from: calendarDate,
+  to: calendarDate,
+  windowWeeks: z.int(),
+  /** `task_mirror` before any backfill: that record holds attributed work only, so the list is empty. */
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  total: z.int(),
+  /** Worst first. Identifiers are the task tool's; the screen names them from its locations. */
+  items: z.array(
+    z.object({
+      externalProjectId: z.string().nullable(),
+      externalSectionId: z.string().nullable(),
+      completions: z.int(),
+      partlyMapped: z.boolean(),
+    }),
+  ),
+});
+
+export const UnattributedCompletionsDto = named(
+  'UnattributedCompletions',
+  unattributedCompletionsDto,
+);

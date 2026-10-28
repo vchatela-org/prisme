@@ -15,9 +15,18 @@ import { AreaColourNotice } from '@/components/area-colour-notice';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
 import { instanceAreaColors } from '@/lib/area-pins';
-import { areaWeightsSchema, balanceSchema, focusSchema, type AreaBalance } from '@/lib/contracts';
+import {
+  areaWeightsSchema,
+  balanceSchema,
+  focusSchema,
+  taskLocationsSchema,
+  unattributedSchema,
+  type AreaBalance,
+} from '@/lib/contracts';
 import { estimatedMinutesPct, minutesChartCaveat, mostStarved, orderAreas } from '@/lib/kpi-view';
 import { SERIES_SLOTS } from '@/lib/settings-view';
+import { unattributedRows, unattributedSummary } from '@/lib/unattributed-view';
+import { UnattributedCard } from './unattributed-card';
 
 export const metadata = {
   title: 'Areas · prisme',
@@ -65,10 +74,15 @@ export default async function AreasPage({
   // `/balance` already carries each area's name and kind, so this screen needs
   // no separate `/areas` read — one fewer round trip, and no chance of the two
   // disagreeing about an area's name halfway down the page.
-  const [balance, weights, focus] = await Promise.all([
+  const [balance, weights, focus, unattributed] = await Promise.all([
     apiFetch({ path: '/balance', query: { year: String(year) }, schema: balanceSchema }),
     apiFetch({ path: '/areas/weights', query: { year: String(year) }, schema: areaWeightsSchema }),
     apiFetch({ path: '/focus', schema: focusSchema }),
+    apiFetch({
+      path: '/areas/unattributed',
+      query: { year: String(year) },
+      schema: unattributedSchema,
+    }),
   ]);
 
   if (!balance.ok) {
@@ -98,6 +112,14 @@ export default async function AreasPage({
   );
 
   const estimated = estimatedMinutesPct(data.areas);
+
+  // What the shares leave out, and the mapping that would count it (S9). The
+  // task tool's locations are read only when there is something to name.
+  const leftOut = unattributed.ok ? unattributedSummary(unattributed.data) : null;
+  const locations =
+    leftOut === null
+      ? null
+      : await apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema });
 
   // Read off the balance factor the API already computed, never a ratio worked
   // out here — and reported as a count when the clamp has flattened several
@@ -135,6 +157,17 @@ export default async function AreasPage({
           }
         />
       ) : null}
+
+      {leftOut === null || !unattributed.ok ? null : (
+        <UnattributedCard
+          summary={leftOut}
+          rows={unattributedRows(
+            unattributed.data,
+            locations !== null && locations.ok ? locations.data : null,
+          )}
+          areas={data.areas.map((row) => ({ key: row.areaKey, name: row.name }))}
+        />
+      )}
 
       {collisions.length > 0 ? (
         <AreaColourNotice collisions={collisions} exhausted={ranked.length > SERIES_SLOTS.length} />

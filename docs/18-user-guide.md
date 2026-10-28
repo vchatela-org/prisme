@@ -66,8 +66,11 @@ Open the area (**Edit** in the Areas table), then **Where its work lives in Todo
 
 **Nothing moves in Todoist when you do this.** It only tells prisme how to read what is already
 there: completed tasks in these locations count toward the area, and a task labelled for prisme
-there becomes one of its initiatives. Work in a project mapped to no area counts toward no area;
-the backfill report lists those projects so you can map them.
+there becomes one of its initiatives. Work in a project mapped to no area counts toward no area,
+and so does a task at the root of a project you mapped only by section. **Areas** lists both under
+the shares — *N completions in the last 4 weeks counted toward no area* — with **Map the rest of
+this project to…** (or *Map this project to…*) beside each: it maps the project itself to the area
+you choose, and the sections you mapped keep their own areas.
 
 The same page has **Its page in Notion**: the area's own page in your Life areas database, which is
 how a Notion entry is recognised as this area's. It is optional and needs the Life areas database
