@@ -2100,6 +2100,98 @@ describeOrSkip('the API against PostgreSQL', () => {
     });
   });
 
+  /**
+   * S11: the task tool's own Inbox, read live, and an unsorted task made an
+   * initiative of an area — adopted, linked, never created. Invented ids.
+   */
+  describe('the task tool’s Inbox', () => {
+    function withInbox() {
+      return createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        directory: stubDirectory(
+          {},
+          undefined,
+          {},
+          {},
+          [],
+          [
+            { externalId: 'task-invented-unsorted', title: 'Call the plumber' },
+            { externalId: 'task-invented-held', title: 'Already adopted' },
+          ],
+        ),
+      });
+    }
+
+    it('lists the unsorted tasks and what in prisme holds any of them', async () => {
+      await database.client`
+        insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+        values (${fixtureId('init-001')}, 'initiative', 'task', 'task-invented-held')`;
+
+      const { status, body } = await withInbox().request('GET', url('/task-tool/inbox'));
+
+      expect(status).toBe(200);
+      expect(body).toEqual({
+        failure: null,
+        items: [
+          { id: 'task-invented-unsorted', title: 'Call the plumber', heldBy: null },
+          {
+            id: 'task-invented-held',
+            title: 'Already adopted',
+            heldBy: { kind: 'initiative', id: fixtureId('init-001') },
+          },
+        ],
+      });
+    });
+
+    it('makes one an unestimated initiative of an area, linked and not bound, and only once', async () => {
+      const app = withInbox();
+      const adopted = await app.request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: 'home' },
+      );
+
+      expect(adopted.status).toBe(201);
+      expect(adopted.body).toMatchObject({
+        title: 'Plumbing fixed',
+        areaKey: 'home',
+        status: 'inbox',
+        origin: 'adopted',
+        estimated: false,
+        externalAnchorId: null,
+      });
+      const id = (adopted.body as { id: string }).id;
+      // Linked for the reconciler to bind — which is also what moves the task.
+      expect(
+        await database.client`
+          select external_id, decided_by from entity_link where prisme_id = ${id}`,
+      ).toEqual([{ external_id: 'task-invented-unsorted', decided_by: 'human' }]);
+      expect(
+        await database.client`select 1 from entity_external_ref where prisme_id = ${id}`,
+      ).toHaveLength(0);
+
+      const again = await app.request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: 'home' },
+      );
+      expect(again.status).toBe(409);
+    });
+
+    it('refuses a lane, which no initiative belongs to', async () => {
+      const lane = await database.client<{ key: string }[]>`
+        select key from area where kind <> 'area' limit 1`;
+      if (lane[0] === undefined) return;
+      const refused = await withInbox().request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: lane[0].key },
+      );
+      expect(refused.status).toBe(422);
+    });
+  });
+
   describe('authorization, on the real routes', () => {
     it('lets a read-scoped credential read and nothing else', async () => {
       const readOnly = api(identityWith(['read:backlog', 'read:areas']));

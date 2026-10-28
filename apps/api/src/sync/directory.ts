@@ -53,6 +53,18 @@ export interface ExternalDirectory {
    * reduced to its failure kind by the caller.
    */
   recurringTasks(): Promise<readonly RecurringTaskEntry[]>;
+  /**
+   * The open top-level tasks in the task tool's own Inbox (S11) — unsorted
+   * work that belongs to no area. An identifier and a title each, nothing
+   * else; empty when the tool marks no project as the Inbox.
+   */
+  inboxTasks(): Promise<readonly InboxTaskEntry[]>;
+}
+
+/** One unsorted task in the task tool's Inbox, as triage offers it. */
+export interface InboxTaskEntry {
+  readonly externalId: string;
+  readonly title: string;
 }
 
 /** One open recurring task, as the ritual picker offers it. */
@@ -125,6 +137,24 @@ export function createExternalDirectory(options: ExternalDirectoryOptions): Exte
           projectId: task.projectId,
           ...(task.sectionId === undefined ? {} : { sectionId: task.sectionId }),
         }));
+    },
+
+    async inboxTasks() {
+      const snapshot = await createTaskToolClient({
+        token: options.taskToolToken,
+        baseUrl: options.taskToolBaseUrl,
+        transport: createFetchTransport(),
+      }).fetchAll();
+      const inbox = snapshot.projects.find((project) => project.inbox === true);
+      if (inbox === undefined) return [];
+      // Top-level only: a subtask is part of its parent, and sorting the parent
+      // sorts it.
+      return snapshot.tasks
+        .filter(
+          (task) =>
+            task.projectId === inbox.externalId && !task.completed && task.parentId === undefined,
+        )
+        .map((task) => ({ externalId: task.externalId, title: task.content }));
     },
 
     async areaPages(externalId) {

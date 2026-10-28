@@ -68,6 +68,8 @@ export const wireProjectSchema = z.object({
   is_archived: z.boolean(),
   is_deleted: z.boolean(),
   child_order: z.number().int().optional(),
+  /** Sent, as `true`, on the user's Inbox project only — otherwise absent. */
+  inbox_project: z.boolean().optional(),
 });
 
 export const wireSectionSchema = z.object({

@@ -64,7 +64,7 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
 | `title` | **P** | → | Written to the anchor's title |
-| `area_key`, `project_id` | **P** | → | Determines the anchor's project/section |
+| `area_key`, `project_id` | **P** | → | Determines the anchor's project/section. Only an **anchor's** location is prisme's: a plain task's project and section are the task tool's, so prisme never moves one — a task in the task tool's Inbox reaches an area by becoming an initiative's anchor, and then the reconciler moves it (S11) |
 | `status` | **P** | → | Drives anchor priority and existence |
 | `value`, `time_criticality`, `risk`, `size` | **P** | — | Never leave prisme |
 | Whether the estimates are anyone's (`estimated`) | **P** | — | `false` for the placeholder adoption or a capture writes; any estimate written sets it (S5) |

@@ -1220,6 +1220,20 @@ export const unattributedSchema = z.object({
 
 export type Unattributed = z.infer<typeof unattributedSchema>;
 
+/** `GET /task-tool/inbox` — the task tool's own Inbox, unsorted and in no area (S11). */
+export const taskToolInboxSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
+    }),
+  ),
+  failure: z.string().nullable(),
+});
+
+export type TaskToolInbox = z.infer<typeof taskToolInboxSchema>;
+
 /** `GET /settings` — the deployment configuration prisme is running under. */
 export const instanceSettingsSchema = z.object({
   timezone: z.string(),

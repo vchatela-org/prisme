@@ -271,6 +271,12 @@ key result of its objective. The mark is a question, not a rule: it changes no s
 Triage is also where an adopted initiative gets its estimates: its row reads **Unestimated** until
 you set them (or keep the middle values on purpose).
 
+**Unsorted in Todoist** lists what sits in Todoist's own Inbox — work in no area, which counts
+toward nothing. For one that is really an outcome, write it as one, pick an area and **Make it an
+initiative**: it is adopted, not copied, and the next sync moves the task into that area in Todoist.
+One that should stay a task is sorted in Todoist; prisme does not move a plain task. The weekly
+review's *Triage what arrived* counts them too.
+
 ### Backlog — the ranking
 
 Initiatives ranked **within each area**. Never compare a score across areas: the allocation already

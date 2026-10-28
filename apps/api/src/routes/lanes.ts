@@ -3,6 +3,7 @@ import { calendarDate } from '../dto/common.js';
 import { InitiativeDto } from '../dto/initiative.js';
 import {
   AdherenceSeriesDto,
+  adoptInboxTaskBody,
   createRitualBody,
   promoteTakeawayBody,
   recordAdherenceBody,
@@ -10,6 +11,7 @@ import {
   RitualDto,
   RitualListDto,
   TakeawayPageDto,
+  TaskToolInboxDto,
   updateRitualBody,
 } from '../dto/lanes.js';
 import { defineRoute, idParam, noQuery, pageQuery, type ApiRoute } from './kit.js';
@@ -141,6 +143,41 @@ export const laneRoutes: readonly ApiRoute[] = [
     query: noQuery,
     response: RecurringTasksDto,
     handle: (_context, services) => services.lanes.recurringTasks(),
+  }),
+
+  defineRoute({
+    operationId: 'listTaskToolInbox',
+    method: 'get',
+    path: '/task-tool/inbox',
+    scope: 'read:focus',
+    summary: 'The task tool’s own Inbox: unsorted tasks in no area',
+    description:
+      'Read live: the open top-level tasks of the project the task tool marks as the Inbox — an identifier, a title and what in prisme already holds it, nothing else. Its work counts toward no area until sorted (S11). When the tool cannot be read the list is empty and `failure` says why.',
+    query: noQuery,
+    response: TaskToolInboxDto,
+    handle: (_context, services) => services.lanes.taskToolInbox(),
+  }),
+
+  defineRoute({
+    operationId: 'adoptTaskToolInboxTask',
+    method: 'post',
+    path: '/task-tool/inbox/:id/initiative',
+    scope: 'write:initiative',
+    summary: 'Make an unsorted Inbox task an initiative of an area',
+    description:
+      'Adopted, never created: an initiative (`inbox`, unestimated) linked to the existing task, as the adoption queue’s *Adopt* records it. The next reconciler pass binds the task and, since the Inbox is in no area, moves it into the area — a task the task tool keeps as a plain task is its own to move, so this is the only move prisme makes. `409` when anything in prisme already holds or links the task; `422` for a Run or Signals lane.',
+    // The task tool's identifier, not one of prisme's: never a uuid.
+    params: z.strictObject({ id: z.string().min(1).max(200) }),
+    body: adoptInboxTaskBody,
+    status: 201,
+    response: InitiativeDto,
+    handle: (context, services) =>
+      services.lanes.adoptInboxTask(
+        context.params.id,
+        { title: context.body.title, areaKey: context.body.areaKey },
+        context.identity,
+        context.now,
+      ),
   }),
 
   defineRoute({
