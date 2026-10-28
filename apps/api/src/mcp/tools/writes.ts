@@ -391,9 +391,7 @@ const proposeNowSet = defineWriteTool({
     const focus = await context.services.work.focus(context.now);
     const desired = [...new Set(input.initiativeIds)].sort();
 
-    const currentlyNow = focus.now
-      .filter((entry) => entry.initiative.status === 'now')
-      .map((entry) => entry.initiative.id);
+    const currentlyNow = focus.now.map((entry) => entry.initiative.id);
 
     // Read every named initiative, so a bad id is a refusal at plan time rather
     // than a half-applied set at execution time.
