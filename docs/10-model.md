@@ -276,13 +276,27 @@ First-class, not a bullet inside a document.
 | `measurements[]` | prisme | Append-only time series, so trends exist |
 | `external_anchor_id` | prisme | Anchor task, so subtasks can hang beneath it |
 
-**Every key result gets an anchor task.** This is the capability that was missing: a key result you
-can break into subtasks is a key result that gets worked on. Today a key result holds one only when
-an initiative is **converted** into it: the initiative's task moves to the key result
-(`key_result.external_anchor_id`), and the initiative is dropped with a reason naming what it became.
-The reconciler then treats the task as taken, and writes nothing to it yet
-([`19-how-it-works.md`](19-how-it-works.md) S1, S15). A key result that is a *habit* rather
-than an outcome becomes a `Ritual` instead — it needs a recurring slot, not a task.
+**Every key result gets an anchor task** ([ADR-0012](20-decisions/0012-key-results-first-class.md)).
+This is the capability that was missing: a key result you can break into subtasks is a key result
+that gets worked on. The reconciler gives one to every key result of an objective **under way** —
+`active`, its period started (ADR-0035) — in one of three ways:
+
+- **bound** — it already holds a task: an initiative **converted** into it moved its task there, or
+  an earlier pass made or linked one;
+- **linked** — a task was linked to it from the adoption queue (*Link as key result*, S1): the pass
+  binds it and creates nothing;
+- **created** — neither: the pass creates the task at its objective's area's home, as it does an
+  initiative's anchor, and the create threshold counts it.
+
+prisme then owns the task's **title** (the statement), its **deadline** (the last day of the
+objective's period), the **key-result label** (`prisme:kr` — never the anchor label, which would ask
+for an initiative) and the backlink line. Not its priority — a key result is not ranked — and not
+where it lives once it exists. A managed field edited in the task tool is a `review` line, never
+overwritten: change the key result on Objectives, or put the task back. A draft, closed or future
+objective's key results get nothing. Computed progress still comes from the initiatives serving the
+key result; its anchor's subtasks are the task tool's
+([`19-how-it-works.md`](19-how-it-works.md) S15). A key result that is a *habit* rather than an
+outcome becomes a `Ritual` instead — it needs a recurring slot, not a task.
 
 ### Progress is self-assessed, and the gap is the signal
 

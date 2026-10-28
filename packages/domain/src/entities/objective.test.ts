@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  keyResultAnchorDeadline,
   adoptedObjectiveStatus,
   isObjectiveOpen,
   OBJECTIVE_STATUSES,
@@ -126,5 +127,34 @@ describe('an objective counted in a window (ADR-0035)', () => {
         '2026-12-31',
       ),
     ).toBe(false);
+  });
+});
+
+describe('which key results get anchors, and their deadline (S15)', () => {
+  it('is an active objective under way, carrying its period’s last day', () => {
+    expect(
+      keyResultAnchorDeadline(
+        { type: 'monthly', period: '2026-10', status: 'active' },
+        '2026-10-28',
+      ),
+    ).toBe('2026-10-31');
+    expect(
+      keyResultAnchorDeadline({ type: 'annual', period: '2026', status: 'active' }, '2026-10-28'),
+    ).toBe('2026-12-31');
+  });
+
+  it('is nothing for a draft, a closed objective, or a period not started', () => {
+    expect(
+      keyResultAnchorDeadline({ type: 'annual', period: '2026', status: 'draft' }, '2026-10-28'),
+    ).toBeUndefined();
+    expect(
+      keyResultAnchorDeadline({ type: 'annual', period: '2026', status: 'met' }, '2026-10-28'),
+    ).toBeUndefined();
+    expect(
+      keyResultAnchorDeadline(
+        { type: 'monthly', period: '2026-11', status: 'active' },
+        '2026-10-28',
+      ),
+    ).toBeUndefined();
   });
 });

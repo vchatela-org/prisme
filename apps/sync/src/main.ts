@@ -561,7 +561,7 @@ async function main(): Promise<number> {
 
       const result = await reconcile({
         mode,
-        store: createPostgresStore(database.client),
+        store: createPostgresStore(database.client, { timezone: config.timezone }),
         taskClient: createTaskToolClient({
           token: config.tasktoolApiToken as string,
           baseUrl: config.tasktoolBaseUrl,

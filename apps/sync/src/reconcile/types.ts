@@ -81,8 +81,32 @@ export interface DesiredAnchor {
   readonly rollup?: Rollup | undefined;
 }
 
+/**
+ * A key result's anchor, as prisme wants it (ADR-0012, S15).
+ *
+ * Only for key results of an objective under way — `active`, its period
+ * started. prisme owns the statement and the deadline (the period's last day),
+ * the key-result label and the backlink; never a priority, because a key
+ * result is not ranked, and never a location after creation.
+ */
+export interface DesiredKeyResultAnchor {
+  readonly keyResultId: string;
+  readonly objectiveId: string;
+  readonly statement: string;
+  readonly areaKey: string;
+  readonly deadline: CalendarDate;
+  /** The objective's area's home — where an anchor is created. */
+  readonly location?: TaskLocation | undefined;
+  /** The task bound to it in `entity_external_ref`. */
+  readonly externalAnchorId?: string | undefined;
+  /** A link decided and not yet bound — *Link as key result* (S1). */
+  readonly pendingExternalId?: string | undefined;
+}
+
 export interface DesiredState {
   readonly anchors: readonly DesiredAnchor[];
+  /** Key results that want an anchor (S15). Absent is none. */
+  readonly keyResultAnchors?: readonly DesiredKeyResultAnchor[] | undefined;
   /**
    * `area_mapping`, keyed by {@link locationKey}. Many external locations fold
    * into one area; one location belongs to exactly one area.
@@ -118,7 +142,7 @@ export type ActionTag = 'create' | 'adopt' | 'update' | 'skip' | 'review' | 'con
 export const ACTION_TAGS = ['create', 'adopt', 'update', 'skip', 'review', 'conflict'] as const;
 
 /** What a plan line is about, for the plan's second column. */
-export type Subject = 'anchor' | 'subtree' | 'initiative' | 'prisme';
+export type Subject = 'anchor' | 'subtree' | 'initiative' | 'key_result' | 'prisme';
 
 /**
  * One executable step.
@@ -147,6 +171,18 @@ export type Operation =
     }
   /** prisme-side only: bind an existing external object to an entity. Creates nothing. */
   | { readonly type: 'bind_ref'; readonly initiativeId: InitiativeId; readonly externalId: string }
+  /** A key result's anchor task, created at its area's home (S15). */
+  | {
+      readonly type: 'create_key_result_anchor';
+      readonly keyResultId: string;
+      readonly draft: AnchorDraft;
+    }
+  /** prisme-side only: bind a task to a key result as its anchor. Creates nothing. */
+  | {
+      readonly type: 'bind_key_result_ref';
+      readonly keyResultId: string;
+      readonly externalId: string;
+    }
   /** prisme-side only: the intent channel's "this labelled task is an initiative". */
   | {
       readonly type: 'capture_initiative';
@@ -207,6 +243,8 @@ export interface Action {
   readonly tag: ActionTag;
   readonly subject: Subject;
   readonly initiativeId?: InitiativeId | undefined;
+  /** Set on a key result's anchor actions (S15), for the audit and the event log. */
+  readonly keyResultId?: string | undefined;
   readonly externalId?: string | undefined;
   /**
    * The human label for the line — a title, at runtime. **Instance data.**
@@ -243,6 +281,12 @@ export interface PlannerConfig {
   readonly statusRequestPrefix: string;
   /** `PRISME_BASE_URL`, for the backlink prisme writes into the anchor's first line. */
   readonly baseUrl: string;
+  /**
+   * The label a key result's anchor wears (S15) — not the anchor label, which
+   * the intent channel reads as *make this an initiative*. Defaults to the
+   * adoption classifier's key-result label, `prisme:kr`.
+   */
+  readonly keyResultLabel?: string | undefined;
 }
 
 /** Actions that change something. A plan of pure skips is a converged plan. */

@@ -435,7 +435,13 @@ prisme will, and only will:
 - set the **date column** of each Notion objectives page linked to an objective to that objective's
   whole year or month (the column chosen on Settings → Notion). Changed there by hand, it is put
   back on the next pass and counted as a conflict — move the objective in prisme instead;
-- move an anchor that has left its area back into it.
+- move an anchor that has left its area back into it;
+- give each **key result** of an objective that is active and under way a task of its own, so you
+  can break it down with subtasks: the task you linked to it if there is one, otherwise a new one in
+  its area's *new work goes here* location. prisme keeps its title (the statement), its deadline
+  (the last day of the objective's period), the `prisme:kr` label and its first description line —
+  never its priority. Edit the statement on Objectives; an edit made in Todoist is flagged in the
+  plan and left as you wrote it.
 
 It never touches due dates, recurrence, completion, deletion, comments, your own labels, or anything
 below an anchor's first description line. An **adopted** task keeps its deadline and priority until

@@ -183,6 +183,27 @@ export function adoptedObjectiveStatus(
 }
 
 /**
+ * Whether an objective's key results get anchor tasks now, and the deadline
+ * those carry (ADR-0012, S15).
+ *
+ * Only what is under way (ADR-0035): an `active` objective whose period has
+ * started. A draft is a plan, and a met, missed or dropped objective is over —
+ * neither asks for work in the task tool. The deadline is the last day of the
+ * objective's period, the date the key result is judged against.
+ *
+ * `today` is the instance's calendar day, `YYYY-MM-DD`.
+ */
+export function keyResultAnchorDeadline(
+  objective: Pick<Objective, 'type' | 'period' | 'status'>,
+  today: string,
+): CalendarDate | undefined {
+  if (objective.status !== 'active') return undefined;
+  const dates = objectiveDatesOf(objective.type, objective.period);
+  if (dates === undefined || dates.startsOn > today) return undefined;
+  return dates.endsOn;
+}
+
+/**
  * Whether an objective counts towards what a window from `from` to `to`
  * measures, both `YYYY-MM-DD` and inclusive (ADR-0035): its period overlaps
  * the window, and it was ever under way.

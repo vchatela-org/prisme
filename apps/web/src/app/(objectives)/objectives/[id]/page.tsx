@@ -344,8 +344,8 @@ function KeyResultPanel({
               */}
               <p className="text-xs text-ink-muted">
                 {keyResult.externalAnchorId === null
-                  ? 'No anchor task links this key result outward yet.'
-                  : 'An anchor task links this key result outward.'}{' '}
+                  ? 'No task in Todoist yet: the next sync makes one while the objective is active and its period has started.'
+                  : 'Its task in Todoist carries the statement and the period’s last day, for subtasks.'}{' '}
                 What is computed comes from the initiatives serving it, below — a key result with
                 nothing serving it has nothing to compute from.
               </p>

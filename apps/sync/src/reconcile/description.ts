@@ -15,7 +15,12 @@ import type { InitiativeId } from '@prisme/domain';
 /** Named in the marker, and the exact set the planner enforces on an anchor. */
 export const MANAGED_FIELDS = ['title', 'priority', 'deadline', 'label'] as const;
 
-const MARKER = `prisme manages: ${MANAGED_FIELDS.join(', ')}`;
+const MARKER_PREFIX = 'prisme manages: ';
+const MARKER = `${MARKER_PREFIX}${MANAGED_FIELDS.join(', ')}`;
+
+/** A key result's anchor: no priority, because a key result is not ranked (S15). */
+export const KEY_RESULT_MANAGED_FIELDS = ['title', 'deadline', 'label'] as const;
+const KEY_RESULT_MARKER = `${MARKER_PREFIX}${KEY_RESULT_MANAGED_FIELDS.join(', ')}`;
 
 /**
  * The line prisme writes.
@@ -28,9 +33,15 @@ export function managedLine(baseUrl: string, initiativeId: InitiativeId): string
   return `${base}/initiatives/${initiativeId} · ${MARKER}`;
 }
 
-/** Whether a line is one prisme wrote, whichever initiative it points at. */
+/** The line prisme writes on a key result's anchor: its objective's page, and its marker. */
+export function keyResultLine(baseUrl: string, objectiveId: string, keyResultId: string): string {
+  const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  return `${base}/objectives/${objectiveId}#kr-${keyResultId} · ${KEY_RESULT_MARKER}`;
+}
+
+/** Whether a line is one prisme wrote, whatever it points at. */
 export function isManagedLine(line: string): boolean {
-  return line.includes(MARKER);
+  return line.includes(MARKER) || line.includes(KEY_RESULT_MARKER);
 }
 
 /**

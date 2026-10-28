@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. Its own anchor task is specified but not built yet (S15) |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -205,7 +205,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does, and *Convert to key result* on its page turns it into one, task included (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
+| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does, and *Convert to key result* on its page turns it into one, task included (S1). The next pass binds the link: the task becomes the key result's anchor (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | A recurring task that is a habit | A ritual's **recurring task** — picked on Rituals (*Its recurring task*), or *Link* from the queue when it is labelled as a ritual. Unlabelled recurring tasks are left in place, as Run |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
@@ -417,7 +417,7 @@ ADRs, some may be answered by copy alone.
 | S12 | The link from work to key results is examined monthly, but chosen weekly — the served key result is on the refill and the Backlog. **Done** | Cadence fit |
 | S13 | There is no map of the objects — this document, linked from Settings and Adoption. **Done** | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity — corrected to ADR-0014: they do not. **Done** | Spec drift |
-| S15 | Key results have no anchor task yet | Spec ahead of code |
+| S15 | Key results have no anchor task yet — the reconciler creates, links or binds one while the objective is under way. **Done** | Spec ahead of code |
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
 says an objective or key result stored as a task becomes a **key result** anchored to that task. In
@@ -437,8 +437,8 @@ like a key result** on the Inbox and its page, with the reason ([`10-model.md`](
 And any open initiative can be **converted to a key result** from its page
 (`POST /initiatives/:id/convert-to-key-result`): the key result is made under an open objective,
 the initiative's task moves to it, and the initiative is dropped with a reason naming what it
-became. From then on the reconciler leaves that task alone — the label it kept is not a request, and
-nothing writes to it as an anchor (S15). All three directions are built; S1 is closed.
+became. From then on the label it kept is not a request, and — since S15 — the task is managed as
+the key result's anchor. All three directions are built; S1 is closed.
 
 **S2 · A ritual cannot be tied to its recurring task from any screen.** Adherence is computed from
 the completions of the ritual's recurring task, and the declared duration of its process page only
@@ -617,6 +617,16 @@ works, and may be the better model, but it is not the one the spec describes. Si
 a key result can **hold** a task — `key_result.external_anchor_id`, bound in `entity_external_ref`,
 so the reconciler treats it as taken — but nothing writes to it or reads its subtree yet.
 **Explore:** build key-result anchors, or amend §7 to make *served by initiatives* the rule.
+**Built, the first way** — the second would contradict
+[ADR-0012](20-decisions/0012-key-results-first-class.md), Accepted. Every key result of an objective
+under way (`active`, its period started: `keyResultAnchorDeadline` in `@prisme/domain`) is in the
+reconciler's desired state. One bound to a task is converged: title = statement, deadline = the
+period's last day, the `prisme:kr` label (the anchor label a converted initiative kept is removed),
+the backlink line to its objective — never its priority or location. A decided link is bound and
+creates nothing. One with neither gets a task created at its area's home, counted by the create
+threshold. A hand edit of a managed field is a `review` that writes nothing, because the conflict
+ledger resolves initiatives. Its subtree is not mirrored: computed progress still comes from the
+initiatives that serve it. S15 is closed.
 
 ---
 
