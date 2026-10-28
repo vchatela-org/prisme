@@ -244,6 +244,13 @@ stay their narrative ([`13-migration.md` §4](13-migration.md#what-becomes-what)
 column is written from the objective's period, and an open objective's period can move
 ([ADR-0034](20-decisions/0034-an-open-objective-moves-and-its-page-follows.md)).
 
+**Work serves key results, never an objective directly.** An initiative is linked to a key result
+(`served_by`), and the objective is served through its key results. So an objective with **no key
+result cannot be served at all** — an objective adopted from a page always arrives that way — and
+it stays an orphan until one is written. That is the rule, not a gap: an objective nothing can
+measure is a wish. The objective's page and the monthly *find orphans* step say so, and link to its
+*Add a key result* (S6).
+
 ### Objective
 
 | Field | Owner | Notes |

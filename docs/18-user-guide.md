@@ -330,6 +330,12 @@ ledger · look ahead at deadlines · re-score what changed · refill free now sl
 progress · find orphans (objectives nothing serves, initiatives serving nothing) · author next
 month's objectives · replan what slipped.
 
+- *Find orphans*: work is linked to a **key result**, never to an objective directly, so an
+  objective with no key result can't be served by anything — every objective adopted from Notion
+  starts that way. Its row says *no key result yet — add one*, which opens its *Add a key result*.
+  One whose key results have nothing linked says so instead; link work from the weekly refill or
+  the key result's *Served by*.
+
 **Yearly** — review the year, then **allocate next year** (the weights).
 
 ---

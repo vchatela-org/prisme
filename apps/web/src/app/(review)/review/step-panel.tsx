@@ -17,10 +17,12 @@ import {
   type ReviewCadence,
 } from '@/lib/contracts';
 import {
+  addKeyResultHref,
   divergenceOf,
   elapsedPctOf,
   orphanInitiatives,
   orphanObjectives,
+  orphanReason,
   servedInitiativeIds,
   splitUpcoming,
   type OrphanInitiative,
@@ -747,13 +749,21 @@ async function OrphansPanel() {
             <p className="text-sm text-ink-secondary">None.</p>
           ) : (
             orphanedObjectives.map((objective) => (
-              <Link
-                key={objective.id}
-                href={`/objectives/${objective.id}`}
-                className="text-sm text-ink hover:underline"
-              >
-                {objective.title}
-              </Link>
+              <div key={objective.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <Link href={`/objectives/${objective.id}`} className="text-ink hover:underline">
+                  {objective.title}
+                </Link>
+                {orphanReason(objective) === 'no_key_result' ? (
+                  <Link
+                    href={addKeyResultHref(objective.id)}
+                    className="text-xs text-ink-secondary underline underline-offset-2"
+                  >
+                    no key result yet — add one
+                  </Link>
+                ) : (
+                  <span className="text-xs text-ink-muted">nothing linked to its key results</span>
+                )}
+              </div>
             ))
           )}
         </div>
@@ -781,7 +791,9 @@ async function OrphansPanel() {
       <p className="max-w-prose text-xs text-ink-muted">
         Neither direction is automatically wrong. Upkeep, a favour and an outside deadline are all
         legitimately unattached; an objective authored this morning has nothing behind it yet. The
-        question is whether any of them surprises you.
+        question is whether any of them surprises you. Work serves key results, not objectives, so
+        an objective with no key result cannot be served at all until one is written — an objective
+        adopted from a page always starts that way.
       </p>
     </PanelCard>
   );

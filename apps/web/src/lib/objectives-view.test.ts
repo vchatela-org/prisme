@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { KeyResult, Objective } from './contracts';
 import {
+  addKeyResultHref,
   currentPeriod,
   divergenceOf,
   elapsedPctOf,
@@ -14,6 +15,7 @@ import {
   objectiveProgress,
   orphanInitiatives,
   orphanObjectives,
+  orphanReason,
   servedInitiativeIds,
   splitUpcoming,
 } from './objectives-view';
@@ -387,5 +389,16 @@ describe('isOpenObjective', () => {
     expect(isOpenObjective('met')).toBe(false);
     expect(isOpenObjective('missed')).toBe(false);
     expect(isOpenObjective('dropped')).toBe(false);
+  });
+});
+
+describe('why an objective has nothing behind it (S6)', () => {
+  it('says an objective with no key result cannot be served, and one with some is unserved', () => {
+    expect(orphanReason(objective())).toBe('no_key_result');
+    expect(orphanReason(objective({ keyResults: [keyResult()] }))).toBe('unserved');
+  });
+
+  it('points at the objective’s own add-a-key-result form', () => {
+    expect(addKeyResultHref('obj 1')).toBe('/objectives/obj%201#add-key-result');
   });
 });

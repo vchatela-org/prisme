@@ -22,7 +22,12 @@ import {
   type KeyResult,
   type Measurement,
 } from '@/lib/contracts';
-import { elapsedPctOf, isOpenObjective, objectiveProgress } from '@/lib/objectives-view';
+import {
+  ADD_KEY_RESULT_ANCHOR,
+  elapsedPctOf,
+  isOpenObjective,
+  objectiveProgress,
+} from '@/lib/objectives-view';
 import { AddKeyResultForm } from './add-key-result-form';
 import { MeasurementForm } from './measurement-form';
 import { ServedByEditor } from './served-by-editor';
@@ -196,8 +201,8 @@ export default async function ObjectivePage({ params }: { params: Promise<{ id: 
 
       {data.keyResults.length === 0 ? (
         <EmptyState
-          title="Nothing measures this objective yet"
-          description="A key result says how you would know the objective happened. Without one, the objective is an intention — and it will keep appearing in the orphan list until it has at least one."
+          title="Nothing measures this objective yet — so nothing can serve it"
+          description="Work serves key results, never an objective directly: an initiative is linked to a key result, and the objective is served through it. Until this has one, no initiative can count toward it, and it stays in the review's orphan list. That is the rule on purpose — an objective you cannot measure is a wish. Add a key result below."
         />
       ) : (
         data.keyResults.map((keyResult) => (
@@ -221,12 +226,14 @@ export default async function ObjectivePage({ params }: { params: Promise<{ id: 
         ))
       )}
 
-      <Section
-        title="Add a key result"
-        description="How you would know this objective happened. A measure in a rate is usually a habit — that belongs in the Ritual lane rather than here (ADR-0012)."
-      >
-        <AddKeyResultForm objectiveId={data.id} />
-      </Section>
+      <div id={ADD_KEY_RESULT_ANCHOR} className="scroll-mt-20">
+        <Section
+          title="Add a key result"
+          description="How you would know this objective happened. A measure in a rate is usually a habit — that belongs in the Ritual lane rather than here (ADR-0012)."
+        >
+          <AddKeyResultForm objectiveId={data.id} />
+        </Section>
+      </div>
     </div>
   );
 }

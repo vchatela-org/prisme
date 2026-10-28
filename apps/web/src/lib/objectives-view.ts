@@ -305,6 +305,29 @@ export function orphanObjectives(objectives: readonly Objective[]): readonly Obj
   );
 }
 
+/**
+ * Why an orphaned objective has nothing behind it (S6).
+ *
+ * `no_key_result` is the rule, not a gap in the data: initiatives serve key
+ * results, never an objective directly (docs/10-model.md §7), so an objective
+ * with none — every one adopted from a page arrives that way — cannot be
+ * served by anything until one is written. `unserved` has key results and no
+ * work linked to any of them, which is a choice made at a weekly refill.
+ */
+export type OrphanReason = 'no_key_result' | 'unserved';
+
+export function orphanReason(objective: Objective): OrphanReason {
+  return objective.keyResults.length === 0 ? 'no_key_result' : 'unserved';
+}
+
+/** The element id of an objective's *Add a key result* section. */
+export const ADD_KEY_RESULT_ANCHOR = 'add-key-result';
+
+/** Where an objective's *Add a key result* form is. */
+export function addKeyResultHref(objectiveId: string): string {
+  return `/objectives/${encodeURIComponent(objectiveId)}#${ADD_KEY_RESULT_ANCHOR}`;
+}
+
 /** Every initiative id named by any key result of any objective given. */
 export function servedInitiativeIds(objectives: readonly Objective[]): ReadonlySet<string> {
   const ids = new Set<string>();
