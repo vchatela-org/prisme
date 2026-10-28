@@ -412,7 +412,7 @@ ADRs, some may be answered by copy alone.
 | S7 | A freshly adopted instance has an empty Focus with no pointer — it names the Inbox count and links to it. **Done** | Onboarding |
 | S8 | Deployment settings silently switch features off — *Settings → Features*, and a banner when a pass is refused for its creations. **Done** | Onboarding |
 | S9 | A project mapped only by section leaves its root tasks in no area — Areas counts them and offers *map the rest*. **Done** | Measurement gap |
-| S10 | Multi-area general projects are offered as Projects | Queue noise |
+| S10 | Multi-area general projects are offered as Projects — left out of the queue. **Done** | Queue noise |
 | S11 | The task tool's own inbox has no home in prisme | Model gap |
 | S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
 | S13 | There is no map of the objects | Documentation |
@@ -560,6 +560,12 @@ sections is proposed as a `Project`, which has exactly one area
 to several areas can only be ignored, and the queue does not say that ignoring is the expected
 answer. **Explore:** leave out of the queue a project whose sections already map to two or more
 areas.
+**Built:** the scan counts, for each task-tool project, how many areas its sections' tasks land in —
+each section's own mapping, else the project's, the rule attribution reads by (`sectionAreaCount`
+in `adaptProjects`). At two or more the classifier keeps it in place (*a general project whose
+sections map to several areas*), so it is never queued and counts among what was left in place.
+The next scan removes a row already queued. [`13-migration.md`](13-migration.md) §4 has the row.
+S10 is closed.
 
 **S11 · The task tool's own inbox has no home in prisme.** prisme's Inbox holds captures, action
 takeaways and `inbox` initiatives — not what sits unsorted in the task tool's inbox, which belongs

@@ -168,6 +168,10 @@ How often it happened is read from one of three places — *Measured from*, on t
 - **Merge** — link it to something prisme already has.
 - **Ignore** — never show it again.
 
+A Todoist project with sections is offered as a **project** — unless you have already split it
+across areas on Settings → Areas, its sections feeding two or more areas. That is a general project:
+its sections are locations, and a prisme project has one area, so it is not in the list at all.
+
 A row from your **Objectives** database is adopted as an **objective**: its title, its area (from
 the area column), and whether it is annual or monthly — read off its dates, which must cover
 **exactly** one calendar year (1 January to 31 December) or one calendar month. Its page stays its

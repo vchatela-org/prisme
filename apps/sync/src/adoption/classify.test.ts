@@ -36,6 +36,16 @@ describe('what becomes what', () => {
     expect(result.kind).toBe('project');
   });
 
+  it('a general project whose sections map to two areas stays where it is (S10)', () => {
+    const split = classify(objectOf({ kind: 'project', sectionCount: 4, sectionAreaCount: 2 }));
+    expect(split.kind).toBe('task');
+    expect(split.reason).toMatch(/several areas/);
+    // One area across its sections is still one project's worth of structure.
+    expect(classify(objectOf({ kind: 'project', sectionCount: 4, sectionAreaCount: 1 })).kind).toBe(
+      'project',
+    );
+  });
+
   it('actionable takeaway → initiative, promoted not copied', () => {
     const result = classify(
       objectOf({ kind: 'page', role: 'takeaways_db', takeawayType: 'action' }),
