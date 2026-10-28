@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S10: a general project split across areas is not offered as a Project
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** the adoption scan leaves
+**Agent:** Claude · **Duration:** one run · **PR:** [#195](https://github.com/vchatela-org/prisme/pull/195) · **Outcome:** the adoption scan leaves
 in place a task-tool project whose sections' tasks land in two or more areas, so it no longer sits
 in the queue as a Project that can only be ignored. S10 is closed.
 
