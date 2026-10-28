@@ -4,8 +4,9 @@ import { ApiFailureState } from '@/components/api-failure';
 import { EstimateEditor } from '@/components/estimate-editor';
 import { KeyResultHintNote } from '@/components/key-result-hint';
 import { apiFetch } from '@/lib/api';
-import { areaListSchema, inboxSchema, type Area } from '@/lib/contracts';
+import { areaListSchema, inboxSchema, taskToolInboxSchema, type Area } from '@/lib/contracts';
 import { PromoteDialog, TriageButtons } from './inbox-actions';
+import { UnsortedRow } from './unsorted-row';
 
 export const metadata = {
   title: 'Inbox · prisme',
@@ -30,9 +31,10 @@ export const metadata = {
  * queue rather than a first-run explanation.
  */
 export default async function InboxPage() {
-  const [inbox, areas] = await Promise.all([
+  const [inbox, areas, unsorted] = await Promise.all([
     apiFetch({ path: '/inbox', schema: inboxSchema }),
     apiFetch({ path: '/areas', schema: areaListSchema }),
+    apiFetch({ path: '/task-tool/inbox', schema: taskToolInboxSchema }),
   ]);
 
   if (!inbox.ok) {
@@ -49,6 +51,12 @@ export default async function InboxPage() {
   const nameOf = (key: string): string => byKey.get(key)?.name ?? key;
 
   const { initiatives, takeaways } = inbox.data;
+  // Todoist's own Inbox (S11): what prisme does not hold yet. Read live; when
+  // the tool cannot be read the section is simply absent.
+  const unsortedTasks =
+    unsorted.ok && unsorted.data.failure === null
+      ? unsorted.data.items.filter((task) => task.heldBy === null)
+      : [];
   const total = initiatives.length + takeaways.length;
 
   return (
@@ -61,7 +69,7 @@ export default async function InboxPage() {
         }
       />
 
-      {total === 0 ? (
+      {total === 0 && unsortedTasks.length === 0 ? (
         <ClearedState
           title="The inbox is empty"
           description="Captures and action takeaways land here between reviews. Nothing is waiting on a decision right now."
@@ -103,6 +111,26 @@ export default async function InboxPage() {
                     <TriageButtons initiative={initiative} />
                   </div>
                 </Card>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {unsortedTasks.length > 0 ? (
+        <Section
+          title={`Unsorted in Todoist (${String(unsortedTasks.length)})`}
+          description="Todoist’s own Inbox belongs to no area, so its work counts toward nothing. Make a task an initiative of an area here — the next sync moves it there — or sort it in Todoist if it should stay a task: where a plain task lives is Todoist’s."
+        >
+          <ul className="flex flex-col gap-3">
+            {unsortedTasks.map((task) => (
+              <li key={task.id}>
+                <UnsortedRow
+                  task={task}
+                  areas={areaList
+                    .filter((area) => area.kind === 'area')
+                    .map((area) => ({ key: area.key, name: area.name }))}
+                />
               </li>
             ))}
           </ul>

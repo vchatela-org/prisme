@@ -99,6 +99,34 @@ export const RecurringTasksDto = named(
     failure: z.string().nullable(),
   }),
 );
+/**
+ * The task tool's own Inbox (S11): unsorted work that belongs to no area. An
+ * identifier and a title each, and what in prisme already holds the task.
+ */
+export const TaskToolInboxDto = named(
+  'TaskToolInbox',
+  z.object({
+    items: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
+      }),
+    ),
+    /** Why the task tool could not be read — a connector failure kind — or `null`. */
+    failure: z.string().nullable(),
+  }),
+);
+
+export const adoptInboxTaskBody = defineWrite(
+  'AdoptInboxTask',
+  z.strictObject({
+    /** Written here, as an outcome — the task's own wording is usually an action. */
+    title: z.string().min(1).max(500),
+    areaKey,
+  }),
+);
+
 export const AdherenceSeriesDto = named(
   'AdherenceSeries',
   z.object({

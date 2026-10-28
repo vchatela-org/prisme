@@ -1147,6 +1147,46 @@ export function createPostgresStore(client: Sql): ApiStore {
         });
       },
 
+      async adoptInboxTask(input) {
+        return client.begin(async (tx: Tx) => {
+          // Serialise against a second click and against a scan's link of the
+          // same task: one task, one entity (guard 1, before the index has to).
+          await tx`select pg_advisory_xact_lock(hashtext(${`inbox-task:${input.externalTaskId}`}))`;
+          const taken = await tx<{ one: number }[]>`
+            select 1 as one from entity_external_ref
+            where kind = 'task' and external_id = ${input.externalTaskId}
+            union all
+            select 1 from entity_link
+            where external_kind = 'task' and external_id = ${input.externalTaskId}`;
+          if (taken.length > 0) return { ok: false as const, refusal: 'task_taken' as const };
+
+          // The placeholder estimates adoption writes, marked as such (S5).
+          const inserted = await tx<{ id: string }[]>`
+            insert into initiative
+              (title, area_key, status, value, time_criticality, risk, size, origin, estimated)
+            values (${input.title}, ${input.areaKey}, 'inbox',
+                    ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE},
+                    'adopted', false)
+            returning id::text`;
+          const initiativeId = (inserted[0] as { id: string }).id;
+
+          // Linked, not bound: the reconciler's pending link binds it and,
+          // because the Inbox is in no area, moves the task into this one.
+          await tx`
+            insert into entity_link
+              (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+            values (${initiativeId}, 'task', ${input.externalTaskId}, 'manual', 'manual', 'human',
+                    ${stamp(input.at)}::timestamptz)`;
+          await tx`
+            insert into event_log
+              (kind, entity_kind, entity_id, field, before, after, actor, occurred_at)
+            values ('adoption_decision', 'initiative', ${initiativeId}, null, null,
+                    ${JSON.stringify({ decision: 'adopt', from: 'task_tool_inbox' })}::jsonb,
+                    ${input.actor}, ${stamp(input.at)}::timestamptz)`;
+          return { ok: true as const, initiativeId };
+        });
+      },
+
       async replaceDependencies(id: string, dependsOn: readonly string[]): Promise<void> {
         // One transaction, so a rejected cycle leaves the old set intact. The
         // acyclicity trigger fires per inserted edge and names the path.

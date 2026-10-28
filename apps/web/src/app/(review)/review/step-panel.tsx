@@ -13,6 +13,7 @@ import {
   inboxSchema,
   objectivePageSchema,
   ritualListSchema,
+  taskToolInboxSchema,
   timelineSchema,
   type ReviewCadence,
 } from '@/lib/contracts';
@@ -121,14 +122,22 @@ function PanelCard({ children }: { children: ReactNode }) {
 
 async function InboxPanel() {
   const nameOf = await areaNamer();
-  const inbox = await apiFetch({ path: '/inbox', schema: inboxSchema });
+  const [inbox, unsorted] = await Promise.all([
+    apiFetch({ path: '/inbox', schema: inboxSchema }),
+    apiFetch({ path: '/task-tool/inbox', schema: taskToolInboxSchema }),
+  ]);
   if (!inbox.ok) return <ApiFailureState failure={inbox} surface="the inbox" />;
 
   const { initiatives, takeaways } = inbox.data;
   const actionable = takeaways.filter((takeaway) => takeaway.mayEnterBacklog);
   const principles = takeaways.filter((takeaway) => takeaway.kind === 'principle');
+  // Todoist's own Inbox, which belongs to no area (S11). Absent when unreadable.
+  const unsortedCount =
+    unsorted.ok && unsorted.data.failure === null
+      ? unsorted.data.items.filter((task) => task.heldBy === null).length
+      : 0;
 
-  if (initiatives.length === 0 && takeaways.length === 0) {
+  if (initiatives.length === 0 && takeaways.length === 0 && unsortedCount === 0) {
     return (
       <EmptyState
         title="Nothing arrived since the last review"
@@ -144,6 +153,7 @@ async function InboxPanel() {
         <StatTile label="Takeaways awaiting a decision" value={String(takeaways.length)} />
         <StatTile label="Of those, actionable" value={String(actionable.length)} />
         <StatTile label="Principles" value={String(principles.length)} />
+        <StatTile label="Unsorted in Todoist" value={String(unsortedCount)} />
       </StatRow>
 
       {initiatives.length > 0 ? (

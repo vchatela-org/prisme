@@ -1,7 +1,8 @@
 import type { z } from 'zod';
 import { isConnectorError } from '@prisme/connectors';
 import { reviewAdherence, reviewCanFulfil, type RitualCadence } from '@prisme/domain';
-import type { RecurringTasksDto } from '../dto/lanes.js';
+import type { RecurringTasksDto, TaskToolInboxDto } from '../dto/lanes.js';
+import type { Identity } from '../http/authorize.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { ApiStore, PageRequest, RitualWriteOutcome } from '../store/types.js';
 import type { ExternalDirectory } from '../sync/directory.js';
@@ -17,6 +18,7 @@ import type { InitiativeDtoShape } from './convert.js';
 import type { WorkService } from './work.js';
 
 export type RecurringTasksShape = z.infer<typeof RecurringTasksDto>;
+export type TaskToolInboxShape = z.infer<typeof TaskToolInboxDto.schema>;
 
 /**
  * Takeaways and rituals — the lanes, and the reading pipeline.
@@ -87,6 +89,18 @@ export interface LaneService {
   ): Promise<RitualDtoShape>;
   /** What a ritual's task is picked from: the task tool's open recurring tasks (S2). */
   recurringTasks(): Promise<RecurringTasksShape>;
+  /** The task tool's own Inbox, read live — unsorted work in no area (S11). */
+  taskToolInbox(): Promise<TaskToolInboxShape>;
+  /**
+   * Make one of those an initiative of an area (S11). Adopted, not created: the
+   * reconciler binds the task and moves it into the area on its next pass.
+   */
+  adoptInboxTask(
+    externalTaskId: string,
+    input: { title: string; areaKey: string },
+    identity: Identity,
+    now: Date,
+  ): Promise<InitiativeDtoShape>;
   adherence(
     id: string,
     from: string | undefined,
@@ -333,6 +347,59 @@ export function createLaneService(
             };
           }),
       };
+    },
+
+    async taskToolInbox(): Promise<TaskToolInboxShape> {
+      let tasks;
+      try {
+        tasks = await directory.inboxTasks();
+      } catch (error) {
+        return { items: [], failure: isConnectorError(error) ? error.failure : 'unavailable' };
+      }
+      const holders = new Map(
+        (await store.lanes.taskHolders(tasks.map((task) => task.externalId))).map((holder) => [
+          holder.externalId,
+          holder,
+        ]),
+      );
+      return {
+        failure: null,
+        items: tasks.map((task) => {
+          const holder = holders.get(task.externalId);
+          return {
+            id: task.externalId,
+            title: task.title,
+            heldBy: holder === undefined ? null : { kind: holder.prismeKind, id: holder.prismeId },
+          };
+        }),
+      };
+    },
+
+    async adoptInboxTask(externalTaskId, input, identity, now): Promise<InitiativeDtoShape> {
+      const area = await store.areas.get(input.areaKey);
+      if (area === undefined) throw notFound('area', input.areaKey);
+      if (area.kind !== 'area') {
+        // An initiative competes for a slot in an area; Run and Signals are
+        // lanes outside the ranking (ADR-0014).
+        throw new ApiError(
+          'unprocessable',
+          `${input.areaKey} is a ${area.kind} lane, and an initiative belongs to an area`,
+        );
+      }
+      const outcome = await store.initiatives.adoptInboxTask({
+        externalTaskId,
+        title: input.title,
+        areaKey: input.areaKey,
+        actor: identity.kind === 'agent' ? 'agent' : 'human',
+        at: now,
+      });
+      if (!outcome.ok) {
+        throw new ApiError(
+          'conflict',
+          'that task is already held or linked by something in prisme — open it there instead',
+        );
+      }
+      return work.get(outcome.initiativeId, now);
     },
 
     adherence: seriesOf,

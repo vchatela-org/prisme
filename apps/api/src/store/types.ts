@@ -713,6 +713,21 @@ export interface ApiStore {
     update(id: string, input: UpdateInitiativeInput): Promise<InitiativeRecord | undefined>;
     setStatus(id: string, to: string, reason: string | undefined, at: Date): Promise<void>;
     replaceDependencies(id: string, dependsOn: readonly string[]): Promise<void>;
+    /**
+     * Make an unsorted task in the task tool's Inbox an initiative of an area
+     * (S11), the way the adoption queue's *Adopt* does: the initiative
+     * (`adopted`, `inbox`, unestimated) and a human link to the task, in one
+     * transaction. The reconciler binds the link and moves the task into the
+     * area on its next pass; nothing is created. Refused when anything in
+     * prisme already holds or links the task.
+     */
+    adoptInboxTask(input: {
+      externalTaskId: string;
+      title: string;
+      areaKey: string;
+      actor: 'human' | 'agent';
+      at: Date;
+    }): Promise<{ ok: true; initiativeId: string } | { ok: false; refusal: 'task_taken' }>;
     latestScores(): Promise<readonly ScoreRecord[]>;
     scoreHistory(id: string, limit: number): Promise<readonly ScoreRecord[]>;
     saveScores(scores: readonly ScoreRecord[], activeMethodId: string): Promise<void>;

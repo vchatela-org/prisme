@@ -413,7 +413,7 @@ ADRs, some may be answered by copy alone.
 | S8 | Deployment settings silently switch features off — *Settings → Features*, and a banner when a pass is refused for its creations. **Done** | Onboarding |
 | S9 | A project mapped only by section leaves its root tasks in no area — Areas counts them and offers *map the rest*. **Done** | Measurement gap |
 | S10 | Multi-area general projects are offered as Projects — left out of the queue. **Done** | Queue noise |
-| S11 | The task tool's own inbox has no home in prisme | Model gap |
+| S11 | The task tool's own inbox has no home in prisme — listed as *Unsorted in Todoist*, adoptable into an area. **Done** | Model gap |
 | S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
 | S13 | There is no map of the objects | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
@@ -572,6 +572,14 @@ takeaways and `inbox` initiatives — not what sits unsorted in the task tool's 
 to no area. Sorting that inbox is a natural review step, and it has no surface; its completions
 count toward nothing. **Explore:** read the task tool's inbox into the triage step as *unsorted*,
 with *move to area* as the action.
+**Built, with the move prisme may make:** the connector reads the project the task tool marks as the
+Inbox (`inbox_project`), and `GET /task-tool/inbox` lists its open top-level tasks live, with what in
+prisme holds each. prisme's Inbox shows them as *Unsorted in Todoist* and the weekly triage step
+counts them. A plain task's location is the task tool's ([`11-ownership.md`](11-ownership.md)), so
+*move to area* is **Make it an initiative** (`POST /task-tool/inbox/:id/initiative`): an adopted,
+unestimated initiative linked to the task exactly as the queue's *Adopt* does — the next pass binds
+it and, the Inbox being in no area, moves the task into the area. One that should stay a task is
+sorted in the task tool. S11 is closed.
 
 **S12 · The link from work to key results is examined monthly, but chosen weekly.** The weekly
 *refill* step picks the next `now` without showing which key result each candidate serves; that link

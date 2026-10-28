@@ -169,6 +169,7 @@ export function mapProject(project: WireProject): ExternalProject {
     parentId: project.parent_id ?? undefined,
     archived: project.is_archived,
     order: project.child_order ?? 0,
+    ...(project.inbox_project === true ? { inbox: true } : {}),
   };
 }
 

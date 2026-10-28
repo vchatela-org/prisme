@@ -22,6 +22,11 @@ export interface ExternalProject {
   readonly parentId?: ExternalTaskId | undefined;
   readonly archived: boolean;
   readonly order: number;
+  /**
+   * The user's own Inbox — where a task with no project of its own lands, and
+   * which belongs to no area (S11). Absent on every other project.
+   */
+  readonly inbox?: boolean | undefined;
 }
 
 export interface ExternalSection {
