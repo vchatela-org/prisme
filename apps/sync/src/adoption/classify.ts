@@ -138,6 +138,15 @@ export function classify(
   }
 
   if (object.kind === 'project') {
+    if ((object.sectionAreaCount ?? 0) >= 2) {
+      // A `Project` has exactly one area (ADR-0029). A general project whose
+      // sections already feed two areas is a set of locations, and offering it
+      // as a Project left Ignore as the only answer, unexplained (S10).
+      return decide(
+        'task',
+        'a general project whose sections map to several areas — locations, not one project',
+      );
+    }
     if ((object.sectionCount ?? 0) >= config.minimumSections) {
       return decide('project', 'a dedicated project with sections');
     }

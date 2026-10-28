@@ -123,6 +123,37 @@ describe('projects', () => {
     expect(object?.sectionCount).toBe(1);
   });
 
+  it('counts the areas its sections’ tasks land in, section mapping first (S10)', () => {
+    const [object] = adaptProjects(
+      [projectOf()],
+      [sectionOf({ externalId: 's-2' }), sectionOf({ externalId: 's-3', archived: true })],
+      OPTIONS,
+    );
+    // `s-2` has no mapping of its own and lands in the project's area.
+    expect(object?.sectionAreaCount).toBe(1);
+
+    const [mixed] = adaptProjects(
+      [projectOf()],
+      [sectionOf({ externalId: 's-signals' }), sectionOf({ externalId: 's-2' })],
+      OPTIONS,
+    );
+    // The project is `home`, and one section is mapped to `signals`.
+    expect(mixed?.sectionAreaCount).toBe(2);
+
+    const [split] = adaptProjects(
+      [projectOf()],
+      [sectionOf({ externalId: 's-signals' }), sectionOf({ externalId: 's-house' })],
+      {
+        ...OPTIONS,
+        areaByLocation: new Map([
+          [locationKey('p-home', 's-signals'), 'signals'],
+          [locationKey('p-home', 's-house'), 'home'],
+        ]),
+      },
+    );
+    expect(split?.sectionAreaCount).toBe(2);
+  });
+
   it('treats an archived project as closed', () => {
     const [object] = adaptProjects([projectOf({ archived: true })], [], OPTIONS);
     expect(object?.closed).toBe(true);

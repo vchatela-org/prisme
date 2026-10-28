@@ -183,6 +183,7 @@ filters by source store and by area, with a count beside each value
 |---|---|
 | Parent task with subtasks, in an area's section | Initiative, anchored to that task |
 | Dedicated project with sections | Project, with its sections mapped |
+| General project whose sections' tasks land in two or more areas (by the area mappings, a section's own before its project's) | Stays where it is — a set of locations, not one Project, which has exactly one area ([ADR-0029](20-decisions/0029-one-area-per-project.md)). Not queued (S10) |
 | Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
 | Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
