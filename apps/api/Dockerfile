@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 # Builder — the only stage with a toolchain. Nothing here reaches the runtime.
 # ---------------------------------------------------------------------------
-FROM node:26.12-trixie-slim@sha256:0d1e33586362bb9e608c4e751e7a9e7edb55c9ac11461ed5666af696cc461dd4 AS builder
+FROM node:26.12-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS builder
 
 ENV CI=true
 WORKDIR /build
@@ -89,7 +89,7 @@ RUN PNPM_CONFIG_ALLOW_UNUSED_PATCHES=true pnpm deploy --filter @prisme/api --pro
 # different major than the one the code was compiled and type-checked against is
 # a difference nothing in CI would catch.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:3a6f4e6fd37efe00042667d06fd52240f2589ed09b0694fbb3b1bf860030a839 AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:96455baef11b178fc135b32206e3922c515dbed2400676c94f907f8f84e6abf6 AS runtime
 
 WORKDIR /app
 
