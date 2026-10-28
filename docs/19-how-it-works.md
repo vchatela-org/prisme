@@ -353,7 +353,7 @@ The cadences are deliberately different questions, not the same review at differ
 | Clear the conflict ledger | Every prisme-owned field changed outside prisme | Who was right |
 | Look ahead at deadlines | Deadlines, and what the schedule says cannot make it | Re-plan, re-scope |
 | Re-score what changed | The ranking, estimates editable | New estimates — appends a score row |
-| Refill free `now` slots | Free slots per area and what the ranking proposes | Which initiatives become `now` |
+| Refill free `now` slots | Free slots per area, what the ranking proposes, and the key result each candidate serves | Which initiatives become `now` |
 | Record decisions | — | The decisions, in words; closing snapshots capacity |
 
 Planning the week **into days** — due dates, calendar — is deliberately not a step: it happens in
@@ -414,7 +414,7 @@ ADRs, some may be answered by copy alone.
 | S9 | A project mapped only by section leaves its root tasks in no area — Areas counts them and offers *map the rest*. **Done** | Measurement gap |
 | S10 | Multi-area general projects are offered as Projects — left out of the queue. **Done** | Queue noise |
 | S11 | The task tool's own inbox has no home in prisme — listed as *Unsorted in Todoist*, adoptable into an area. **Done** | Model gap |
-| S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
+| S12 | The link from work to key results is examined monthly, but chosen weekly — the served key result is on the refill and the Backlog. **Done** | Cadence fit |
 | S13 | There is no map of the objects | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
 | S15 | Key results have no anchor task yet | Spec ahead of code |
@@ -585,6 +585,10 @@ sorted in the task tool. S11 is closed.
 *refill* step picks the next `now` without showing which key result each candidate serves; that link
 only appears in the monthly *orphans* step. "Does next week's work serve a key result?" is a weekly
 question. **Explore:** show the served key result on the refill and Backlog rows.
+**Built:** every Backlog row and every refill candidate says *Serves "…" — objective* or *Serves no
+key result*, from the open objectives' key results (`servedKeyResults` on the web — the same
+`servedBy` the monthly orphans step reads, turned round). When the objectives cannot be read the
+line is left out rather than claiming *none*. S12 is closed.
 
 **S13 · There is no map of the objects.** The user guide is organised by screen, the model by
 entity, and the screens by task. Nothing showed which object a thing should become, which door it

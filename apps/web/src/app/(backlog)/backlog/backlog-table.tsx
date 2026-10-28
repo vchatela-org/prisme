@@ -28,6 +28,7 @@ import {
   type InitiativeStatus,
 } from '@/lib/contracts';
 import { countsFrom, type WipCounts } from '@/lib/guardrails';
+import { servesLine, type ServedKeyResult } from '@/lib/objectives-view';
 import {
   allSelected,
   EMPTY_SELECTION,
@@ -86,6 +87,11 @@ export interface BacklogTableProps {
   slots: readonly { areaKey: string; used: number; limit: number }[];
   limits: { maxNow: number; maxNowPerArea: number } | undefined;
   nowCount: number;
+  /**
+   * The key results each initiative serves, by id (S12) — `null` when the
+   * objectives could not be read, so a row says nothing rather than "none".
+   */
+  serves: Readonly<Record<string, readonly ServedKeyResult[]>> | null;
 }
 
 export function BacklogTable({
@@ -96,6 +102,7 @@ export function BacklogTable({
   slots,
   limits,
   nowCount,
+  serves,
 }: BacklogTableProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -141,12 +148,19 @@ export function BacklogTable({
               );
             }}
           />
-          <Link
-            href={`/initiative/${entry.initiative.id}`}
-            className="truncate text-ink hover:underline"
-          >
-            {entry.initiative.title}
-          </Link>
+          <span className="flex min-w-0 flex-col">
+            <Link
+              href={`/initiative/${entry.initiative.id}`}
+              className="truncate text-ink hover:underline"
+            >
+              {entry.initiative.title}
+            </Link>
+            {serves === null ? null : (
+              <span className="truncate text-xs text-ink-muted">
+                {servesLine(serves[entry.initiative.id])}
+              </span>
+            )}
+          </span>
         </div>
       ),
     },

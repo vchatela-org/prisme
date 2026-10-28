@@ -17,6 +17,8 @@ import {
   orphanObjectives,
   orphanReason,
   servedInitiativeIds,
+  servedKeyResults,
+  servesLine,
   splitUpcoming,
 } from './objectives-view';
 
@@ -400,5 +402,36 @@ describe('why an objective has nothing behind it (S6)', () => {
 
   it('points at the objective’s own add-a-key-result form', () => {
     expect(addKeyResultHref('obj 1')).toBe('/objectives/obj%201#add-key-result');
+  });
+});
+
+describe('which key results each initiative serves (S12)', () => {
+  it('turns servedBy round, over open objectives only', () => {
+    const served = servedKeyResults([
+      objective({
+        id: 'obj-1',
+        title: 'Fitter',
+        keyResults: [keyResult({ id: 'kr-1', statement: 'Run 10 km', servedBy: ['i-1', 'i-2'] })],
+      }),
+      objective({
+        id: 'obj-2',
+        title: 'Met last year',
+        status: 'met',
+        keyResults: [keyResult({ id: 'kr-2', servedBy: ['i-1'] })],
+      }),
+    ]);
+    expect(served['i-1']?.map((entry) => entry.keyResultId)).toEqual(['kr-1']);
+    expect(served['i-2']?.[0]).toMatchObject({ statement: 'Run 10 km', objectiveTitle: 'Fitter' });
+    expect(served['i-3']).toBeUndefined();
+  });
+
+  it('says what a row serves, and says so when it serves nothing', () => {
+    expect(servesLine(undefined)).toBe('Serves no key result');
+    expect(
+      servesLine([
+        { keyResultId: 'a', statement: 'Run 10 km', objectiveId: 'o', objectiveTitle: 'Fitter' },
+        { keyResultId: 'b', statement: 'Sleep', objectiveId: 'o', objectiveTitle: 'Fitter' },
+      ]),
+    ).toBe('Serves “Run 10 km” — Fitter (+1 more)');
   });
 });
