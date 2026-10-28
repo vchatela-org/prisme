@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S8: Settings says what the deployment switches off, and a refused pass says so
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** *Settings → Features*
+**Agent:** Claude · **Duration:** one run · **PR:** [#193](https://github.com/vchatela-org/prisme/pull/193) · **Outcome:** *Settings → Features*
 names each optional feature as on or off and how to turn it on; every apply pass records why it was
 refused, and a refusal for creations is shown on Focus and Settings. S8 is closed.
 
