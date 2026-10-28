@@ -2,7 +2,7 @@
   {
     "name": "focus_now",
     "title": "What to work on now",
-    "description": "The current now set — what prisme says to work on, with the reason each item is there and what is blocking it — plus the queue a freed slot would draw from. This is the answer to \"what should I do today\". It does not change anything and does not decide what is *next*: work in flight keeps its slot whatever it scores, and promoting something is `set_status` or `propose_now_set`. Scores here compare only within an area (ADR-0005); ranking two items from different areas by score is meaningless.",
+    "description": "The current now set — the work in flight, with the reason each item is there and what is blocking it — plus `suggested`, the free slots the ranking proposes filling, and the queue a freed slot would draw from. A suggestion is still `next` or `later` until someone promotes it. This is the answer to \"what should I do today\". It does not change anything and does not decide what is *next*: work in flight keeps its slot whatever it scores, and promoting something is `set_status` or `propose_now_set`. Scores here compare only within an area (ADR-0005); ranking two items from different areas by score is meaningless.",
     "inputSchema": {
       "type": "object",
       "properties": {},
@@ -192,6 +192,129 @@
             "additionalProperties": false
           }
         },
+        "suggested": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "areaKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "inbox",
+                  "later",
+                  "next",
+                  "now",
+                  "waiting",
+                  "review",
+                  "done",
+                  "dropped"
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deadline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blockedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "sizedForNow": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "in_flight",
+                  "selected",
+                  "area_at_cap",
+                  "wip_full",
+                  "blocked",
+                  "too_large",
+                  "not_a_candidate",
+                  "not_started",
+                  "project_inactive"
+                ]
+              },
+              "daysUntilDeadline": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deadlineAtRisk": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "areaKey",
+              "status",
+              "size",
+              "deadline",
+              "score",
+              "rank",
+              "blockedBy",
+              "sizedForNow",
+              "reason",
+              "daysUntilDeadline",
+              "deadlineAtRisk"
+            ],
+            "additionalProperties": false
+          }
+        },
         "upNext": {
           "type": "array",
           "items": {
@@ -364,6 +487,7 @@
         "overCapacity",
         "weightsStale",
         "now",
+        "suggested",
         "upNext",
         "slotsByArea"
       ],

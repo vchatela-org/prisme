@@ -371,8 +371,16 @@ export function createWorkService(
       const snapshot = await ranking(now);
       const schedule = scheduleOf(snapshot, config);
 
+      // Selection's `now` holds two kinds of entry: work a person put in `now`,
+      // and free slots it proposes filling from the ranking. Only the first is
+      // in flight. A proposal is a suggestion for a person to accept, and the
+      // reconciler writes priority from the status as it is — so it neither
+      // fills a slot nor sits beside work that has actually started.
+      const inFlight = snapshot.selection.now.filter((slot) => slot.reason === 'in_flight');
+      const suggested = snapshot.selection.now.filter((slot) => slot.reason !== 'in_flight');
+
       const used = new Map<string, number>();
-      for (const slot of snapshot.selection.now) {
+      for (const slot of inFlight) {
         used.set(slot.areaKey, (used.get(slot.areaKey) ?? 0) + 1);
       }
 
@@ -383,7 +391,8 @@ export function createWorkService(
         limits: config.limits,
         overCapacity: snapshot.selection.overCapacity,
         weightsStale: snapshot.weightsStale,
-        now: snapshot.selection.now.map((slot) => focusEntry(snapshot, schedule, slot)),
+        now: inFlight.map((slot) => focusEntry(snapshot, schedule, slot)),
+        suggested: suggested.map((slot) => focusEntry(snapshot, schedule, slot)),
         upNext: snapshot.selection.next
           .slice(0, UP_NEXT_LIMIT)
           .map((slot) => focusEntry(snapshot, schedule, slot)),

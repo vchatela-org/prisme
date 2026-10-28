@@ -178,7 +178,10 @@ export const focusSchema = z.object({
   limits: z.object({ maxNow: z.number().int(), maxNowPerArea: z.number().int() }),
   overCapacity: z.boolean(),
   weightsStale: z.boolean(),
+  /** In flight: status `now`. */
   now: z.array(focusEntrySchema),
+  /** Free slots the ranking proposes filling. Still `next` or `later`; not counted in a slot. */
+  suggested: z.array(focusEntrySchema),
   upNext: z.array(focusEntrySchema),
   slotsByArea: z.array(areaSlotSchema),
 });
