@@ -1,10 +1,17 @@
 import { classify, DEFAULT_CLASSIFIER_CONFIG, type ClassifierConfig } from './classify.js';
-import { DEFAULT_RESOLVE_OPTIONS, indexTargets, resolve, type ResolveOptions } from './resolve.js';
+import {
+  DEFAULT_RESOLVE_OPTIONS,
+  indexTargets,
+  resolve,
+  resolveAcrossKinds,
+  type ResolveOptions,
+} from './resolve.js';
 import {
   externalKey,
   isAdoptable,
   type Candidate,
   type CandidateKind,
+  type Classification,
   type DecidedSet,
   type ExternalObject,
   type MatchTarget,
@@ -40,6 +47,11 @@ export interface ScanInput {
   readonly objects: readonly ExternalObject[];
   /** Unbound prisme entities — what an object might already be. */
   readonly targets: readonly MatchTarget[];
+  /**
+   * Every objective, bound or not — what a task kept as an objective repeats.
+   * Read by the cross-kind rule only, and never a proposal's target.
+   */
+  readonly objectives?: readonly MatchTarget[] | undefined;
   readonly decided: DecidedSet;
 }
 
@@ -98,10 +110,33 @@ function rank(candidate: Candidate): number {
   return candidate.proposal === undefined ? 5 : (PROPOSAL_ORDER[candidate.proposal.rule] ?? 5);
 }
 
+/**
+ * May this object be read as a key result or an objective kept as a task?
+ *
+ * A top-level task the classifier left in place or read as an initiative from
+ * its structure. Not a subtask (its parent is the unit), and not a task a human
+ * labelled: the labels are the intent channel, and they outrank a title
+ * (`classify.ts`). The anchor label in particular is answered by the
+ * reconciler's next pass, not by the queue.
+ */
+function mayCrossKinds(
+  object: ExternalObject,
+  classification: Classification,
+  classifier: ClassifierConfig,
+): boolean {
+  if (object.kind !== 'task' || object.parentId !== undefined) return false;
+  if (classification.kind !== 'task' && classification.kind !== 'initiative') return false;
+  const labels = object.labels ?? [];
+  return ![classifier.anchorLabel, classifier.keyResultLabel, classifier.ritualLabel].some(
+    (label) => labels.includes(label),
+  );
+}
+
 export function scan(input: ScanInput, options: ScanOptions = {}): ScanResult {
   const classifier = options.classifier ?? DEFAULT_CLASSIFIER_CONFIG;
   const resolveOptions = options.resolve ?? DEFAULT_RESOLVE_OPTIONS;
   const targets = indexTargets(input.targets);
+  const objectives = indexTargets(input.objectives ?? []);
 
   const queue: Candidate[] = [];
   const autoLinkable: Candidate[] = [];
@@ -121,13 +156,26 @@ export function scan(input: ScanInput, options: ScanOptions = {}): ScanResult {
       continue;
     }
 
-    const classification = classify(object, classifier);
+    let classification = classify(object, classifier);
+    let proposal = isAdoptable(classification.kind)
+      ? resolve(object, classification, targets, resolveOptions)
+      : undefined;
+
+    // A match of its own kind stands. Without one, a task whose title is a key
+    // result's or an objective's is read as what it repeats (S1).
+    if (proposal === undefined && mayCrossKinds(object, classification, classifier)) {
+      const crossed = resolveAcrossKinds(object, targets, objectives);
+      if (crossed !== undefined) {
+        classification = crossed.classification;
+        proposal = crossed.proposal;
+      }
+    }
+
     if (!isAdoptable(classification.kind)) {
       leftInPlace[classification.kind] += 1;
       continue;
     }
 
-    const proposal = resolve(object, classification, targets, resolveOptions);
     const candidate: Candidate = { object, classification, ...(proposal ? { proposal } : {}) };
     queue.push(candidate);
     if (proposal?.confidence === 'certain') autoLinkable.push(candidate);

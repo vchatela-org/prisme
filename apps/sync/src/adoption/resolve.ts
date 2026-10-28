@@ -202,3 +202,94 @@ function bestFuzzy(
 
   return tied ? undefined : best;
 }
+
+/**
+ * What the cross-kind rule found: a key result, and the proposal to link it —
+ * or an objective, and no proposal, because the key result it would be a part
+ * of does not exist yet.
+ */
+export interface CrossKindMatch {
+  readonly classification: Classification;
+  readonly proposal?: Proposal | undefined;
+}
+
+/** Exactly one comparable target of `kind` under `key`, or nothing. */
+function theOnlyOneOfKind(
+  index: ReadonlyMap<string, readonly MatchTarget[]>,
+  key: string,
+  object: ExternalObject,
+  kind: MatchTarget['kind'],
+): MatchTarget | undefined {
+  const viable = (index.get(key) ?? []).filter(
+    (target) => target.kind === kind && comparable(object, target),
+  );
+  return viable.length === 1 ? viable[0] : undefined;
+}
+
+/**
+ * An objective or a key result kept **as a task** — docs/13-migration.md §4,
+ * "Key result, with that task as its anchor"; docs/19-how-it-works.md S1.
+ *
+ * The classifier reads structure and labels, never titles, so such a task
+ * arrives as a loose task (left in place) or as a parent with subtasks
+ * (an initiative), and rules 2–4 only ever compare a candidate with targets of
+ * its own kind. This is the one place a title is compared **across** kinds:
+ *
+ * | The task's title is… | The candidate becomes | Proposal |
+ * |---|---|---|
+ * | an unbound key result's | `key_result` | link to that key result — rule 2 or 3 |
+ * | an objective's, bound or not | `key_result` | none: the key result is written first |
+ *
+ * Only rules 2 and 3 cross kinds: a fuzzy title across kinds is a guess about
+ * what a thing *is* as well as which one it is, and two guesses compound. Same
+ * area and same open-or-closed, as for every title rule, and an ambiguous
+ * match is no match.
+ *
+ * `objectives` is every objective, **including bound ones**: the objective an
+ * owner adopted from its page is exactly the one a task kept beside it repeats,
+ * and it is never offered as the link — only named as the reason.
+ */
+export function resolveAcrossKinds(
+  object: ExternalObject,
+  targets: TargetIndex,
+  objectives: TargetIndex,
+): CrossKindMatch | undefined {
+  const forms = [
+    { rule: 'exact_title' as const, key: exactForm(object.title), use: 'byExact' as const },
+    {
+      rule: 'normalised_title' as const,
+      key: normalise(object.title),
+      use: 'byNormalised' as const,
+    },
+  ];
+
+  for (const form of forms) {
+    const keyResult = theOnlyOneOfKind(targets[form.use], form.key, object, 'key_result');
+    if (keyResult !== undefined) {
+      return {
+        classification: {
+          kind: 'key_result',
+          reason: 'a task titled as a key result — link it, and it is that key result’s task',
+        },
+        proposal: {
+          rule: form.rule,
+          confidence: RULE_CONFIDENCE[form.rule],
+          prismeId: keyResult.prismeId,
+        },
+      };
+    }
+  }
+
+  for (const form of forms) {
+    if (theOnlyOneOfKind(objectives[form.use], form.key, object, 'objective') !== undefined) {
+      return {
+        classification: {
+          kind: 'key_result',
+          reason: 'a task titled as an objective — a key result of it, kept as a task',
+        },
+      };
+    }
+  }
+
+  return undefined;
+}

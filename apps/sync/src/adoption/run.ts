@@ -63,9 +63,10 @@ const SCANNED_ROLES: readonly RoleKey[] = ROLE_KEYS.filter(
 export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
   const startedAt = options.now();
 
-  const [targets, decided, auditable, areaMap, datePropertyByRole, areaPropertyByRole] =
+  const [targets, objectives, decided, auditable, areaMap, datePropertyByRole, areaPropertyByRole] =
     await Promise.all([
       options.store.loadTargets(),
+      options.store.loadObjectives(),
       options.store.loadDecided(),
       options.store.loadAuditable(),
       options.store.loadAreaMap(),
@@ -131,7 +132,7 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
   }
 
   const result = scan(
-    { objects, targets, decided },
+    { objects, targets, objectives, decided },
     { ...(options.classifier === undefined ? {} : { classifier: options.classifier }) },
   );
   const report = coverage(auditable, result);

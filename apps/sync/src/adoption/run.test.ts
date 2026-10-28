@@ -34,6 +34,7 @@ interface Recorded {
 function storeOf(
   overrides: {
     targets?: readonly MatchTarget[];
+    objectives?: readonly MatchTarget[];
     decided?: DecidedSet;
     auditable?: readonly AuditableEntity[];
     dateProperties?: ReadonlyMap<string, string>;
@@ -44,6 +45,7 @@ function storeOf(
   const recorded: Recorded = { candidates: [], scannedAt: [], takeaways: [] };
   const store: AdoptionStore = {
     loadTargets: () => Promise.resolve(overrides.targets ?? []),
+    loadObjectives: () => Promise.resolve(overrides.objectives ?? []),
     loadDecided: () =>
       Promise.resolve(overrides.decided ?? { linked: new Set(), ignored: new Set() }),
     loadAuditable: () => Promise.resolve(overrides.auditable ?? []),
@@ -160,6 +162,26 @@ describe('the adoption pass', () => {
     });
     // High is not certain, so nothing here may be applied by a machine.
     expect(result.scan.autoLinkable).toEqual([]);
+  });
+
+  it('reads every objective, so a loose task titled as one reaches the queue (S1)', async () => {
+    const { store } = storeOf({
+      objectives: [
+        {
+          prismeId: 'o-1',
+          kind: 'objective',
+          title: 'Book the dentist',
+          areaKey: 'home',
+          closed: false,
+        },
+      ],
+    });
+    const result = await adopt({ store, taskClient: taskClientOf(), now: () => NOW });
+    const loose = result.scan.queue.find((candidate) => candidate.object.externalId === 't-loose');
+    expect(loose?.classification.kind).toBe('key_result');
+    // Never a link to the objective: its one external object is its page.
+    expect(loose?.proposal).toBeUndefined();
+    expect(result.scan.leftInPlace.task).toBe(3);
   });
 
   it('reports the create audit, and says where the numbers came from', async () => {
