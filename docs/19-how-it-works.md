@@ -410,7 +410,7 @@ ADRs, some may be answered by copy alone.
 | S5 | Adopted initiatives all score the same, and nothing says so — *Unestimated* shows, and such work is held out of `now`. **Done** | Signal gap |
 | S6 | An objective without a key result can never be served — the rule is stated where it bites, with *add a key result*. **Done** | Model rule, unexplained |
 | S7 | A freshly adopted instance has an empty Focus with no pointer — it names the Inbox count and links to it. **Done** | Onboarding |
-| S8 | Deployment settings silently switch features off | Onboarding |
+| S8 | Deployment settings silently switch features off — *Settings → Features*, and a banner when a pass is refused for its creations. **Done** | Onboarding |
 | S9 | A project mapped only by section leaves its root tasks in no area | Measurement gap |
 | S10 | Multi-area general projects are offered as Projects | Queue noise |
 | S11 | The task tool's own inbox has no home in prisme | Model gap |
@@ -533,6 +533,14 @@ anchor updates included. Settings shows the threshold, but nothing connects it t
 at the moment it happens. **Explore:** a *features* panel on Settings (reading pipeline, page
 links, creation) that says which are off and why; and a banner when a pass is refused for its
 creations.
+**Built, both:** *Settings → Features* lists reading and writing the tools, creating a task for new
+work, the reading pipeline, declared durations and opening pages, each **On** or **Off** with what
+it does and, when off, the variable that turns it on — never the variable's value
+(`GET /settings` gains `features`, booleans only). Creation reads **Off** at a threshold of 0 and
+says that any pending creation refuses the whole pass. And every apply pass now records *why* it was
+refused in `sync_run_state` (migration 0022: a kind and a count), `GET /sync` reports it as
+`lastRefusal`, and Focus and Settings show *the last sync wrote nothing* when the reason was the
+create threshold, until a pass is not refused. S8 is closed.
 
 **S9 · A project mapped only by section leaves its root tasks in no area.** Mapping sections of a
 general project is the intended way to split it across areas, but a task at the project's root —

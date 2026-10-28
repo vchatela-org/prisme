@@ -203,6 +203,33 @@ describe.runIf(describeWithDatabase === 'run')('/metrics, republished from Postg
     expect(sampleOf(body, 'prisme_sync_last_success_timestamp')).toBeUndefined();
   });
 
+  it('records why a pass was refused, and clears it on the next pass that is not (S8)', async () => {
+    const store = createReconcilerStore(database.client);
+    const refusal = () =>
+      database.client<
+        { last_refusal: string | null; last_refusal_creates: number | null }[]
+      >`select last_refusal, last_refusal_creates from sync_run_state`;
+
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:15:00.000Z'),
+      succeeded: false,
+      drift: 0,
+      full: false,
+      refusal: { kind: 'create_threshold', creates: 3 },
+    });
+    expect(await refusal()).toEqual([
+      { last_refusal: 'create_threshold', last_refusal_creates: 3 },
+    ]);
+
+    await store.recordPassOutcome({
+      at: new Date('2026-09-22T09:30:00.000Z'),
+      succeeded: true,
+      drift: 0,
+      full: false,
+    });
+    expect(await refusal()).toEqual([{ last_refusal: null, last_refusal_creates: null }]);
+  });
+
   it('remembers the last success across a later refused pass', async () => {
     const store = createReconcilerStore(database.client);
     const success = new Date('2026-09-22T09:15:00.000Z');

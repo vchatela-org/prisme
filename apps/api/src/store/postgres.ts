@@ -2338,6 +2338,19 @@ export function createPostgresStore(client: Sql): ApiStore {
         const conflicts = await client<{ count: string }[]>`
           select count(*) as count from sync_conflict where resolution = 'unresolved'`;
 
+        // Written by every apply pass; null columns mean it was not refused.
+        const runs = await client<
+          {
+            last_refusal: 'create_threshold' | 'write_freeze' | null;
+            last_refusal_creates: number | null;
+            last_drift_at: Date | string | null;
+          }[]
+        >`
+          select last_refusal, last_refusal_creates, last_drift_at
+          from sync_run_state where id = 'singleton'`;
+        const run = runs[0];
+        const refusedAt = instant(run?.last_drift_at);
+
         const row = cursor[0];
         return {
           hasTaskToolCursor: row?.task_tool_token != null,
@@ -2345,6 +2358,14 @@ export function createPostgresStore(client: Sql): ApiStore {
           lastFullPassAt: instant(row?.last_full_pass_at),
           updatedAt: instant(row?.updated_at),
           unresolvedConflicts: Number(conflicts[0]?.count ?? 0),
+          lastRefusal:
+            run?.last_refusal == null || refusedAt === null
+              ? null
+              : {
+                  kind: run.last_refusal,
+                  creates: run.last_refusal_creates ?? 0,
+                  at: refusedAt,
+                },
         };
       },
     },

@@ -576,6 +576,12 @@ export interface SyncStateRecord {
   readonly lastFullPassAt: Date | null;
   readonly updatedAt: Date | null;
   readonly unresolvedConflicts: number;
+  /** Why the last apply pass refused its plan, from `sync_run_state` (S8); null when it did not. */
+  readonly lastRefusal: {
+    readonly kind: 'create_threshold' | 'write_freeze';
+    readonly creates: number;
+    readonly at: Date;
+  } | null;
 }
 
 /**

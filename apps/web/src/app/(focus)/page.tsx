@@ -21,6 +21,7 @@ import {
   stalenessOf,
   STALE_AFTER_DAYS,
 } from '@/lib/focus-view';
+import { refusalBanner } from '@/lib/features-view';
 import { countsFrom } from '@/lib/guardrails';
 import { EntryCard } from './entry-card';
 
@@ -110,6 +111,9 @@ export default async function FocusPage() {
     inbox: inbox.ok ? inbox.data.initiatives.length + inbox.data.takeaways.length : null,
   });
 
+  // A pass refused for its creations wrote nothing at all (S8).
+  const refused = sync.ok ? refusalBanner(sync.data) : null;
+
   const countsFor = (key: string) =>
     countsFrom(data.slotsByArea, key, areaName(key), data.limits, data.now.length);
 
@@ -128,6 +132,16 @@ export default async function FocusPage() {
         }
         subtitle={`${String(data.now.length)} of ${String(data.limits.maxNow)} slots in flight${data.suggested.length === 0 ? '' : ` · ${String(data.suggested.length)} suggested`} · ranked by ${method}`}
       />
+
+      {refused === null ? null : (
+        <Card className="flex flex-col gap-2 border-status-warning p-4">
+          <p className="font-medium text-ink">{refused.title}</p>
+          <p className="max-w-prose text-sm text-ink-secondary">{refused.description}</p>
+          <Button asChild variant="ghost" size="sm" className="self-start">
+            <Link href="/settings#features">See what is switched off</Link>
+          </Button>
+        </Card>
+      )}
 
       {pointer === null ? null : (
         <Card className="flex flex-col gap-3 p-4">

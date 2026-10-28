@@ -438,6 +438,14 @@ export const syncStatusSchema = z.object({
   lastFullPassAt: instant.nullable(),
   unresolvedConflicts: z.number().int(),
   lastRunAt: instant.nullable(),
+  /** Why the last pass refused its whole plan, or null when it did not (S8). */
+  lastRefusal: z
+    .object({
+      kind: z.enum(['create_threshold', 'write_freeze']),
+      creates: z.number().int(),
+      at: instant,
+    })
+    .nullable(),
 });
 
 export type SyncStatus = z.infer<typeof syncStatusSchema>;
@@ -1219,6 +1227,11 @@ export const instanceSettingsSchema = z.object({
     createThreshold: z.number().int(),
     windowStart: z.number().int(),
     windowEnd: z.number().int(),
+  }),
+  /** Which optional reads the server is configured for (S8) — whether, never the names. */
+  features: z.object({
+    readingPipeline: z.boolean(),
+    declaredDurations: z.boolean(),
   }),
 });
 
