@@ -229,6 +229,50 @@ describeOrSkip('the adoption store against PostgreSQL', () => {
     });
   });
 
+  describe('the key results and objectives the cross-kind rule reads (S1)', () => {
+    async function objectiveWithKeyResult(): Promise<{ objective: string; keyResult: string }> {
+      const [objective] = await client<{ id: string }[]>`
+        insert into objective (title, type, period, area_key, status, external_page_id)
+        values ('Be fitter', 'annual', '2026', 'home', 'active', 'page-objective-1')
+        returning id::text`;
+      const objectiveId = (objective as { id: string }).id;
+      const [keyResult] = await client<{ id: string }[]>`
+        insert into key_result (objective_id, statement, target, unit)
+        values (${objectiveId}::uuid, 'Run 1000km', 1000, 'km')
+        returning id::text`;
+      return { objective: objectiveId, keyResult: (keyResult as { id: string }).id };
+    }
+
+    it('drops a key result from the targets once a link names it — it has its task', async () => {
+      const { keyResult } = await objectiveWithKeyResult();
+      expect((await store().loadTargets()).map((target) => target.prismeId)).toEqual([keyResult]);
+
+      await client`
+        insert into entity_link
+          (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+        values (${keyResult}, 'task', 'task-kr-1', 'exact_title', 'high', 'human', now())`;
+      expect(await store().loadTargets()).toEqual([]);
+    });
+
+    it('returns every objective, including one bound to its page', async () => {
+      const { objective } = await objectiveWithKeyResult();
+      await client`
+        insert into objective (title, type, period, area_key, status)
+        values ('Met already', 'annual', '2025', 'home', 'met')`;
+
+      const objectives = await store().loadObjectives();
+      expect(objectives).toHaveLength(2);
+      expect(objectives.find((target) => target.prismeId === objective)).toEqual({
+        prismeId: objective,
+        kind: 'objective',
+        title: 'Be fitter',
+        areaKey: 'home',
+        closed: false,
+      });
+      expect(objectives.find((target) => target.title === 'Met already')?.closed).toBe(true);
+    });
+  });
+
   describe('loadAuditable', () => {
     it('reports provenance and boundness for the entities that carry an origin', async () => {
       const [row] = await client<{ id: string }[]>`

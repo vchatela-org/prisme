@@ -224,7 +224,7 @@ export const opsRoutes: readonly ApiRoute[] = [
     scope: 'read:adoption',
     summary: 'The adoption queue: external objects with no prisme link, and what they could be',
     description:
-      "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4). Ordered by how confident the proposal is, so the fast rows come first. `ignoreEnded` counts and digests every ended candidate under the source, area and kind filters — what `POST /adoption/ignore-ended` would ignore now.",
+      "The last scan's candidates, minus everything already linked or ignored — which is what makes the queue shrink. Only kinds that would become a prisme entity appear: a loose task, a principle and a signal are counted by the scan and never queued, because nobody works a queue of four thousand (docs/13-migration.md §4) — except an unlabelled task titled as a key result or an objective in its area, which is queued as a key result (§3). Ordered by how confident the proposal is, so the fast rows come first. `ignoreEnded` counts and digests every ended candidate under the source, area and kind filters — what `POST /adoption/ignore-ended` would ignore now.",
     query: z.strictObject({
       ...pageQuery.shape,
       /** An area key, or `_none` for the candidates outside every mapped area. */

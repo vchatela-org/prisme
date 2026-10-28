@@ -158,6 +158,12 @@ Where *Adopt* would be refused, the row has no *Adopt* button and says why inste
   also makes that page the ritual's process page, so its link need not be pasted on Rituals; if the
   ritual already names a different page, *Link* is refused and says so — change the page on
   Rituals, or ignore the row.
+- **A Todoist task named like an objective** — it is offered as a **key result** rather than left
+  out or turned into an initiative, because an objective kept as a task is usually one of its
+  measurable parts. Add that key result under the objective on **Objectives** with the task's title,
+  then *Rescan*: the row is proposed against it, and *Link* joins them. A task named like a key
+  result you already wrote is proposed against it straight away. Labelled tasks are left to their
+  label.
 - **Outside every area** — give it an area (Settings → Areas, or the database's area column), then
   *Rescan*.
 - **An objective whose dates are not one calendar year or month** — a quarter, say, or no dates at

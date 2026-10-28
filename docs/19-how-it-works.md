@@ -203,7 +203,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result, linked to that task — by *Link*, after creating it (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
+| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
 | A loose task | Stays a task |
@@ -398,7 +398,7 @@ ADRs, some may be answered by copy alone.
 
 | # | Finding | Kind |
 |---|---|---|
-| S1 | Objectives kept as tasks take the *initiative* door | Model gap |
+| S1 | Objectives kept as tasks take the *initiative* door — matched across kinds; the label path is open | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen | Missing surface |
 | S3 | prisme's own review does not count as the review ritual | Model gap |
 | S4 | The review's "push the narrative" has no destination | Unfinished |
@@ -416,16 +416,19 @@ ADRs, some may be answered by copy alone.
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
 says an objective or key result stored as a task becomes a **key result** anchored to that task. In
-practice the only way to bring a task in is the `prisme` label, and the label means *make this an
-initiative* — applied by the next pass with no question asked. The key-result path is *create the
-key result by hand with a matching title, Rescan, Link*, and only for a task that is not already
-bound. Identity resolution never compares a task with an objective or a key result, even on an
-exact title. So the obvious move turns a year-long goal into a "one-to-six-week outcome" with a
-year-end deadline: failure 3 of [`00-vision.md`](00-vision.md) — *objectives written as tasks are
-never read as objectives* — recreated inside prisme, and duplicated beside the objective adopted
-from its page. **Explore:** match tasks against objectives and key results across kinds and propose
-*link as key result of …*; flag an initiative whose deadline is more than six weeks out or whose
-title equals an objective's; offer *convert to key result* on an initiative.
+practice the obvious way to bring a task in is the `prisme` label, and the label means *make this an
+initiative* — applied by the next pass with no question asked. So the obvious move turns a year-long
+goal into a "one-to-six-week outcome" with a year-end deadline: failure 3 of
+[`00-vision.md`](00-vision.md) — *objectives written as tasks are never read as objectives* —
+recreated inside prisme, and duplicated beside the objective adopted from its page.
+**Done:** identity resolution now compares an unlabelled task with key results and objectives
+across kinds, on an exact or normalised title in the same area
+([`13-migration.md`](13-migration.md) §3). A task titled as an unbound key result is proposed as
+*link as key result*; one titled as an objective — even one adopted from its page — is queued as a
+key result of it instead of being left in place or offered as an initiative, and the row says to
+write the key result first. **Explore, still:** flag an initiative whose deadline is more than six
+weeks out or whose title equals an objective's — the labelled path, which the queue never sees; offer
+*convert to key result* on an initiative.
 
 **S2 · A ritual cannot be tied to its recurring task from any screen.** Adherence is computed from
 the completions of the ritual's recurring task, and the declared duration of its process page only

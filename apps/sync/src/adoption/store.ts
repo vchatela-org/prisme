@@ -46,6 +46,16 @@ interface AuditRow {
   readonly bound: boolean;
 }
 
+function toTarget(row: TargetRow): MatchTarget {
+  return {
+    prismeId: row.prisme_id,
+    kind: row.kind as MatchTarget['kind'],
+    title: row.title,
+    ...(row.area_key === null ? {} : { areaKey: row.area_key }),
+    closed: row.closed,
+  };
+}
+
 export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
   return {
     /**
@@ -90,9 +100,14 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
                (o.status in ('met', 'missed', 'dropped'))
         from key_result k
         join objective o on o.id = k.objective_id
+        -- Nor is a key result bound by the reconciler yet (S15), so a link in
+        -- the ledger is what says it already has its task.
         where not exists (
           select 1 from entity_external_ref r where r.prisme_id = k.id::text
         )
+          and not exists (
+            select 1 from entity_link l where l.prisme_id = k.id::text
+          )
         union all
         select t.id::text, 'ritual', t.name, t.area_key, false
         from ritual t
@@ -101,13 +116,22 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
         )
         order by prisme_id`;
 
-      return rows.map((row) => ({
-        prismeId: row.prisme_id,
-        kind: row.kind as MatchTarget['kind'],
-        title: row.title,
-        ...(row.area_key === null ? {} : { areaKey: row.area_key }),
-        closed: row.closed,
-      }));
+      return rows.map(toTarget);
+    },
+
+    /**
+     * Every objective, bound or not — the cross-kind rule's other half. An
+     * objective adopted from its page is the one a task kept beside it repeats,
+     * so the page link and the ledger, which `loadTargets` filters on, are
+     * deliberately not consulted here.
+     */
+    async loadObjectives(): Promise<readonly MatchTarget[]> {
+      const rows = await client<TargetRow[]>`
+        select o.id::text as prisme_id, 'objective' as kind, o.title, o.area_key,
+               (o.status in ('met', 'missed', 'dropped')) as closed
+        from objective o
+        order by o.id`;
+      return rows.map(toTarget);
     },
 
     /**
