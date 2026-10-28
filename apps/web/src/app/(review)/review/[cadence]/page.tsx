@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ApiFailureState } from '@/components/api-failure';
 import { apiFetch } from '@/lib/api';
+import { pageUrl } from '@/lib/page-link';
+import { webRuntime } from '@/lib/runtime';
 import {
   areaListSchema,
   REVIEW_CADENCES,
@@ -21,6 +23,7 @@ import {
 import { DecisionRecorder } from '../decision-recorder';
 import { DiscardReviewButton } from '../discard-review-button';
 import { OpenReviewButton } from '../open-review-button';
+import { ReviewPageLink } from '../review-page-link';
 import { StepControl } from '../step-control';
 import { StepPanel } from '../step-panel';
 
@@ -227,6 +230,16 @@ export default async function ReviewCadencePage({
                 </ul>
               )}
             </div>
+
+            <ReviewPageLink
+              reviewId={open.id}
+              cadence={cadence}
+              externalPageId={open.externalPageId}
+              pageHref={
+                pageUrl(webRuntime().config.doctoolPageUrlTemplate, open.externalPageId) ?? null
+              }
+              artefact={artefactFor({ session: open, steps, areaNames })}
+            />
 
             <details className="flex flex-col gap-2">
               <summary className="cursor-pointer text-sm text-ink-secondary">

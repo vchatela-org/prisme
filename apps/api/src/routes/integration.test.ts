@@ -1665,6 +1665,25 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(left.items.map((session) => session.id)).toEqual([kept]);
     });
 
+    it('links the page a closed review was written in, and unlinks it, keeping the snapshot (S4)', async () => {
+      const app = api();
+      const id = await openWeekly(app);
+      const closed = await app.request('PATCH', url(`/reviews/${id}`), { complete: true });
+
+      const linked = await app.request('PATCH', url(`/reviews/${id}`), {
+        externalPageId: 'page-invented-review',
+      });
+      expect(linked.status).toBe(200);
+      expect(linked.body).toMatchObject({
+        externalPageId: 'page-invented-review',
+        completedAt: (closed.body as { completedAt: string }).completedAt,
+        capacitySnapshot: (closed.body as { capacitySnapshot: unknown }).capacitySnapshot,
+      });
+
+      const unlinked = await app.request('PATCH', url(`/reviews/${id}`), { externalPageId: null });
+      expect(unlinked.body).toMatchObject({ externalPageId: null });
+    });
+
     it('needs the write scope, not the read one', async () => {
       const id = await openWeekly(api());
       const reader = api(identityWith(['read:reviews']));

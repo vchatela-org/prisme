@@ -284,6 +284,10 @@ export const updateReviewBody = defineWrite(
   z.strictObject({
     checklist: z.record(z.string().min(1).max(100), z.boolean()).optional(),
     decisions: z.array(z.string().min(1).max(1000)).optional(),
+    /**
+     * The document-tool page the review is written in (S4) — a reference;
+     * nothing is written to it. Settable after the close, `null` unlinks it.
+     */
     externalPageId: z.string().min(1).max(200).nullable().optional(),
     /** Closing the session is what takes the capacity snapshot. */
     complete: z.boolean().optional(),

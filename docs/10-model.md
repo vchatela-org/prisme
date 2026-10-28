@@ -367,8 +367,13 @@ periods are rewritten from where they come from.
 
 ### Review session
 Cadence, date, checklist state, decisions taken, what moved, notes, and a KPI snapshot at that
-moment. The narrative summary is written back to the document tool's review databases so that
-history stays continuous with what came before prisme.
+moment. The narrative belongs to the document tool, so that history stays continuous with what came
+before prisme: a session **links the page it was written in** (`external_page_id`, a reference set
+before or after the close), and its summary — the generated artefact: decisions, what was and was
+not covered, the snapshot — is copied into that page from the session. prisme writes nothing to the
+page. Pushing the summary into the reviews store on close (`reviews_db`, write-only) is intended and
+not built: a page body prisme writes is outside what the creating path does today (ADR-0030), and
+needs its own decision first.
 
 ### Cadences, and where each step happens
 

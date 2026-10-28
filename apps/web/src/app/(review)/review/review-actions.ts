@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { apiFetch } from '@/lib/api';
 import { failureCopy, type ApiFailure } from '@/lib/api-result';
 import { REVIEW_CADENCES, reviewSessionSchema, type ReviewSession } from '@/lib/contracts';
+import { pageIdFrom } from '@/lib/page-id';
 
 /**
  * The review session's writes.
@@ -323,5 +324,69 @@ export async function discardReview(input: DiscardInput): Promise<ActionResult> 
     title: 'Review discarded',
     description: 'Nothing from it was kept. The next one starts from an empty checklist.',
     session: null,
+  };
+}
+
+const pageSchema = z.object({
+  reviewId: z.string().min(1).max(200),
+  cadence: z.literal(REVIEW_CADENCES),
+  /** A link copied from the document tool, or empty to unlink. */
+  page: z.string().max(2000),
+});
+
+export type LinkPageInput = z.infer<typeof pageSchema>;
+
+/**
+ * Link the page this review is written in (S4), or unlink it.
+ *
+ * The narrative of a review is the document tool's — reflections, notes, the
+ * prose around the decisions (docs/11-ownership.md §6, §9). prisme keeps the
+ * session and its decisions, and the link joins the two records into one.
+ * Nothing is written to the page: the link is prisme's reference, and the
+ * summary goes across by *Copy*, in the words it was recorded in.
+ *
+ * Allowed on a closed session as well as an open one — the page is often
+ * written after the review, and linking it changes nothing the review decided.
+ */
+export async function linkReviewPage(input: LinkPageInput): Promise<ActionResult> {
+  const parsed = pageSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'Not linked',
+      description: 'Linking names one review session and a page link.',
+      session: null,
+    };
+  }
+  const raw = parsed.data.page.trim();
+  const pageId = raw === '' ? null : pageIdFrom(raw);
+  if (pageId === undefined) {
+    return {
+      ok: false,
+      title: 'Not linked',
+      description: 'That is not a page link. In Notion: ⋯ → Copy link, then paste it here.',
+      session: null,
+    };
+  }
+
+  const result = await apiFetch({
+    path: `/reviews/${encodeURIComponent(parsed.data.reviewId)}`,
+    method: 'PATCH',
+    body: { externalPageId: pageId },
+    schema: reviewSessionSchema,
+  });
+
+  if (!result.ok) return failed(result, 'this review');
+
+  revalidateReview(parsed.data.cadence);
+
+  return {
+    ok: true,
+    title: pageId === null ? 'Page unlinked' : 'Page linked',
+    description:
+      pageId === null
+        ? 'The session no longer names a page. The page itself is untouched.'
+        : 'The session and the page it was written in now point at each other from prisme. Nothing was written to the page.',
+    session: result.data,
   };
 }
