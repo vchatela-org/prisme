@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S1, second step: an initiative that looks like a key result says so
 
-**Agent:** Claude · **Duration:** one run · **PR:** this entry's own · **Outcome:** open
+**Agent:** Claude · **Duration:** one run · **PR:** [#182](https://github.com/vchatela-org/prisme/pull/182) · **Outcome:** open
 initiatives with a deadline more than six weeks out, or an open objective's title in their area, are
 marked *Looks like a key result* on the Inbox and their page; S1's second *Explore* item is done
 
