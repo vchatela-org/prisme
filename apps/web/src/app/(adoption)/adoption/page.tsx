@@ -27,6 +27,7 @@ import {
   type Area,
   type QueueWhen,
 } from '@/lib/contracts';
+import { docsUrl, HOW_IT_WORKS } from '@/lib/docs-link';
 import { webRuntime } from '@/lib/runtime';
 import { CandidateDecisions, IgnoreEndedButton } from './adoption-actions';
 import { RescanButton } from './rescan-button';
@@ -459,6 +460,18 @@ function Header({ subtitle }: { subtitle?: string }) {
         <p className="text-xs text-ink-muted">
           The queue is re-read once a day. Rescan after labelling a task or changing an area’s
           locations.
+        </p>
+        <p className="text-xs text-ink-muted">
+          Not sure what a row should become?{' '}
+          <a
+            className="underline underline-offset-2"
+            href={docsUrl(HOW_IT_WORKS, webRuntime().config.version)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            How prisme works
+          </a>{' '}
+          maps each object, and which door each kind of thing comes in by.
         </p>
       </div>
       <RescanButton />

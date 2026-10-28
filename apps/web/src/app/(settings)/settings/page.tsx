@@ -17,6 +17,7 @@ import {
   type TaskLocations,
 } from '@/lib/contracts';
 import { featureRows, refusalBanner } from '@/lib/features-view';
+import { docsUrl, HOW_IT_WORKS } from '@/lib/docs-link';
 import { pageUrl } from '@/lib/page-link';
 import { webRuntime } from '@/lib/runtime';
 import {
@@ -93,6 +94,18 @@ export default async function SettingsPage() {
           What this instance is connected to and how it is set up. Areas and Notion links are edited
           here; year weights at the Year Review; the safety settings belong to the deployment and
           are shown for reference.
+        </p>
+        <p className="max-w-prose text-xs text-ink-muted">
+          New here, or unsure which object something should be?{' '}
+          <a
+            className="underline underline-offset-2"
+            href={docsUrl(HOW_IT_WORKS, config.version)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            How prisme works
+          </a>{' '}
+          — the objects, how things come in, the loop and the reviews, on one page.
         </p>
       </header>
 
