@@ -408,7 +408,7 @@ ADRs, some may be answered by copy alone.
 | S3 | prisme's own review does not count as the review ritual — a ritual can be fulfilled by closing its review. **Done** | Model gap |
 | S4 | The review's "push the narrative" has no destination — a session links its page and copies its summary there. **Done** | Unfinished |
 | S5 | Adopted initiatives all score the same, and nothing says so — *Unestimated* shows, and such work is held out of `now`. **Done** | Signal gap |
-| S6 | An objective without a key result can never be served | Model rule, unexplained |
+| S6 | An objective without a key result can never be served — the rule is stated where it bites, with *add a key result*. **Done** | Model rule, unexplained |
 | S7 | A freshly adopted instance has an empty Focus with no pointer | Onboarding |
 | S8 | Deployment settings silently switch features off | Onboarding |
 | S9 | A project mapped only by section leaves its root tasks in no area | Measurement gap |
@@ -510,6 +510,11 @@ objectives, so an objective adopted from a page — which arrives with none — 
 construction until key results are written. That may be the right rule (an objective you cannot
 measure is a wish), but the screen does not say it is the rule. **Explore:** say so on the
 objective, and offer *add a key result* from the orphans step.
+**Built:** the rule is kept and now stated. [`10-model.md`](10-model.md) §7 says it. An objective
+with no key result says *nothing can serve it* on its page and in the Objectives list, and the
+monthly *find orphans* step tells the two cases apart: *no key result yet — add one*, linking
+straight to the objective's *Add a key result*, or *nothing linked to its key results*
+(`orphanReason` on the web). S6 is closed.
 
 **S7 · A freshly adopted instance has an empty Focus with no pointer.** Everything adopted lands in
 `inbox`, and only `next` and `later` are candidates for `now` — so Focus and *Up next* stay empty
