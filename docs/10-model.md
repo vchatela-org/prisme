@@ -114,6 +114,11 @@ Many-to-one: several projects and sections may map to one area. This is how seve
 lists of "areas" across tools fold into one key **without restructuring anything**. Restructuring
 the external tools later is optional, and does not change the model.
 
+A completion is attributed section first, then project. A project mapped **only by section** leaves
+a task at its root — in no section — in no area, and the share leaves it out. Areas lists what was
+counted toward no area over its window (`GET /areas/unattributed`), and offers *map the rest of this
+project to…*: a mapping of the project itself, which the mapped sections still outrank (S9).
+
 `area_mapping` is the task tool's vocabulary only. A **document-tool** entry is placed in an area by
 its store's *area column* — a relation to the Life areas store, chosen per store on Settings →
 Notion — resolved against each area's `external_page_id`: exactly one related page that is exactly

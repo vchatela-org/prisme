@@ -1201,6 +1201,25 @@ export const taskLocationsSchema = z.object({
 
 export type TaskLocations = z.infer<typeof taskLocationsSchema>;
 
+/** `GET /areas/unattributed` — what the share chart counted toward no area (S9). */
+export const unattributedSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  windowWeeks: z.number().int(),
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  total: z.number().int(),
+  items: z.array(
+    z.object({
+      externalProjectId: z.string().nullable(),
+      externalSectionId: z.string().nullable(),
+      completions: z.number().int(),
+      partlyMapped: z.boolean(),
+    }),
+  ),
+});
+
+export type Unattributed = z.infer<typeof unattributedSchema>;
+
 /** `GET /settings` — the deployment configuration prisme is running under. */
 export const instanceSettingsSchema = z.object({
   timezone: z.string(),

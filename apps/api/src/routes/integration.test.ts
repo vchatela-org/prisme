@@ -1207,6 +1207,55 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(list.completions.every((entry) => entry.content === null)).toBe(true);
     });
 
+    it('lists what the balance counted toward no area, by location, over its window (S9)', async () => {
+      await itemisedHealth();
+      // Two root tasks of a project mapped only by section, one in an
+      // unmapped project, and one outside the window — none attributed.
+      await database.client`
+        insert into area_mapping (area_key, external_project_id, external_section_id)
+        values ('home', 'p-general', 's-house')`;
+      await database.client`
+        insert into completion_history (external_task_id, completed_at, external_project_id,
+                                        external_section_id)
+        values
+          ('t-root-1', '2026-09-14T07:00:00Z', 'p-general', null),
+          ('t-root-2', '2026-09-15T07:00:00Z', 'p-general', null),
+          ('t-loose', '2026-09-01T07:00:00Z', 'p-unmapped', null),
+          ('t-old', '2026-08-01T07:00:00Z', 'p-unmapped', null)`;
+
+      const app = api();
+      const balance = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+      };
+      const { status, body } = await app.request('GET', url('/areas/unattributed?year=2026'));
+
+      expect(status).toBe(200);
+      expect(body).toMatchObject({
+        from: balance.from,
+        observedSource: 'capacity_week',
+        total: 3,
+        items: [
+          {
+            externalProjectId: 'p-general',
+            externalSectionId: null,
+            completions: 2,
+            partlyMapped: true,
+          },
+          {
+            externalProjectId: 'p-unmapped',
+            externalSectionId: null,
+            completions: 1,
+            partlyMapped: false,
+          },
+        ],
+      });
+    });
+
+    it('has nothing unattributed to list before any backfill', async () => {
+      const { body } = await api().request('GET', url('/areas/unattributed'));
+      expect(body).toMatchObject({ observedSource: 'task_mirror', total: 0, items: [] });
+    });
+
     it('answers an unknown area with 404', async () => {
       const response = await api().request('GET', url('/areas/nowhere/completions'));
       expect(response.status).toBe(404);

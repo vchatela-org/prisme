@@ -22,6 +22,7 @@ import type {
   AreaWeightRecord,
   BackfillCoverageRecord,
   CapacityCompletionRecord,
+  UnattributedRecord,
   CapacityWeekRecord,
   CaptureRecord,
   CompletionRecord,
@@ -824,6 +825,40 @@ export function createPostgresStore(client: Sql): ApiStore {
           minutesRecorded: Number(row.minutes_recorded),
           minutesDeclared: Number(row.minutes_declared),
           minutesDefault: Number(row.minutes_default),
+        }));
+      },
+
+      async unattributed(from, to): Promise<readonly UnattributedRecord[]> {
+        // What the chart left out: a completion the last refresh gave no
+        // attributed row. The mapping test is the backfill's, so this is the
+        // same exclusion rather than a second guess at it.
+        const rows = await client<
+          {
+            external_project_id: string | null;
+            external_section_id: string | null;
+            completions: number | string;
+            partly_mapped: boolean;
+          }[]
+        >`
+          select h.external_project_id, h.external_section_id,
+                 count(*) as completions,
+                 exists (select 1 from area_mapping m
+                         where m.external_project_id = h.external_project_id
+                           and m.external_section_id is not null) as partly_mapped
+          from completion_history h
+          left join capacity_completion c
+            on c.external_task_id = h.external_task_id and c.completed_at = h.completed_at
+          where c.external_task_id is null
+            and h.completed_at >= ${stamp(from)}::timestamptz
+            and h.completed_at <  ${stamp(to)}::timestamptz
+          group by h.external_project_id, h.external_section_id
+          order by count(*) desc, h.external_project_id nulls last,
+                   h.external_section_id nulls first`;
+        return rows.map((row) => ({
+          externalProjectId: row.external_project_id,
+          externalSectionId: row.external_section_id,
+          completions: Number(row.completions),
+          partlyMapped: row.partly_mapped,
         }));
       },
 

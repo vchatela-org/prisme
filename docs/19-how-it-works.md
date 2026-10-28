@@ -411,7 +411,7 @@ ADRs, some may be answered by copy alone.
 | S6 | An objective without a key result can never be served — the rule is stated where it bites, with *add a key result*. **Done** | Model rule, unexplained |
 | S7 | A freshly adopted instance has an empty Focus with no pointer — it names the Inbox count and links to it. **Done** | Onboarding |
 | S8 | Deployment settings silently switch features off — *Settings → Features*, and a banner when a pass is refused for its creations. **Done** | Onboarding |
-| S9 | A project mapped only by section leaves its root tasks in no area | Measurement gap |
+| S9 | A project mapped only by section leaves its root tasks in no area — Areas counts them and offers *map the rest*. **Done** | Measurement gap |
 | S10 | Multi-area general projects are offered as Projects | Queue noise |
 | S11 | The task tool's own inbox has no home in prisme | Model gap |
 | S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
@@ -546,6 +546,13 @@ create threshold, until a pass is not refused. S8 is closed.
 general project is the intended way to split it across areas, but a task at the project's root —
 in no section — matches no mapping and counts toward no area. The share chart silently excludes it.
 **Explore:** count unattributed completions on Areas, and offer *map the rest of this project to…*.
+**Built, both:** `GET /areas/unattributed` lists, over the window `/balance` measured and from the
+record it read, the completions the last capacity refresh attributed to no area, grouped by
+location, with `partlyMapped` for a project some of whose sections are mapped. Areas shows *N
+completions … counted toward no area* above the shares, each location named from the task tool,
+with **Map the rest of this project to…** (or *Map this project to…*): a mapping of the project
+itself, which sections still outrank, through the same `PUT /areas/:key/mappings` Settings uses. It
+counts from the next daily refresh. S9 is closed.
 
 **S10 · Multi-area general projects are offered as Projects.** Every task-tool project with
 sections is proposed as a `Project`, which has exactly one area
