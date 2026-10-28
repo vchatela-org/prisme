@@ -78,6 +78,19 @@ function needsAnchor(status: InitiativeStatus): boolean {
 }
 
 /**
+ * Statuses at which an initiative is finished with — awaiting confirmation,
+ * done, or dropped. One that already has an anchor keeps it; one that reached
+ * any of these **without** one never gets one. Creating a task for work that
+ * is over — a capture dropped at triage, say — would put a stranger in the
+ * task tool the moment writing is on.
+ */
+const FINISHED_STATUSES: ReadonlySet<InitiativeStatus> = new Set<InitiativeStatus>([
+  'review',
+  'done',
+  'dropped',
+]);
+
+/**
  * Whether prisme may write a subtask's priority.
  *
  * The task tool owns this field; prisme propagates into it (docs/11-ownership.md
@@ -218,6 +231,11 @@ export function plan(
 
     if (!needsAnchor(anchor.status)) {
       actions.push(skip(anchor, `status ${anchor.status}: no anchor until \`next\``));
+      return;
+    }
+
+    if (FINISHED_STATUSES.has(anchor.status)) {
+      actions.push(skip(anchor, `status ${anchor.status}: finished before it had an anchor`));
       return;
     }
 

@@ -63,6 +63,30 @@ describe('an initiative with no anchor', () => {
     }
   });
 
+  it('creates nothing for work that finished before it ever had an anchor', () => {
+    // A capture dropped at triage never reached `next`, and it never will.
+    for (const status of ['review', 'done', 'dropped'] as const) {
+      const result = plan(
+        desiredOf([anchorOf({ status, origin: 'created_in_prisme' })]),
+        observedOf([]),
+        NOTHING_APPLIED,
+        CONFIG,
+      );
+      expect(result.counts.create).toBe(0);
+      expect(result.counts.skip).toBe(1);
+    }
+  });
+
+  it('still creates one for work that is waiting — it is in flight, not finished', () => {
+    const result = plan(
+      desiredOf([anchorOf({ status: 'waiting', origin: 'created_in_prisme' })]),
+      observedOf([]),
+      NOTHING_APPLIED,
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(1);
+  });
+
   it('asks for a human rather than guessing a location when no area is mapped', () => {
     const result = plan(
       desiredOf([anchorOf({ location: undefined })]),

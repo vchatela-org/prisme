@@ -193,7 +193,9 @@ Never store a score as a column on the initiative — see [`12-scoring.md`](12-s
 ### The anchor
 
 Each initiative with status `next` or beyond has exactly one **anchor task** in the task tool,
-labelled to mark it. prisme writes the anchor's title, priority, deadline and a backlink. Subtasks
+labelled to mark it. "Beyond" is the way forward through the lifecycle: an initiative that reaches
+`review`, `done` or `dropped` **without** an anchor — a capture dropped at triage — never gets one,
+and one that had an anchor keeps it. prisme writes the anchor's title, priority, deadline and a backlink. Subtasks
 hang beneath it at any depth and are entirely yours — prisme **counts** them and never copies them.
 
 Not mirroring subtasks is the central design decision on this side. Mirroring is what every
