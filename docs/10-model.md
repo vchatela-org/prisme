@@ -101,8 +101,9 @@ annual decision unavoidable at the moment it's due, using evidence rather than m
 | `balance_factor` | `clamp(target_share / actual_share, 0.5, 2)` — starved areas rise, over-served ones sink |
 
 Capacity is measured in **time where known** (task duration when set) and estimated otherwise; see
-[`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run and Signals are excluded from ranking but
-**included in capacity accounting** — the whole point is to make upkeep's real share visible.
+[`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run is excluded from ranking but **included in
+capacity accounting** — the whole point is to make upkeep's real share visible. Signals are excluded
+from both and counted only as volume ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), §9).
 
 ### Mapping to the task tool
 
