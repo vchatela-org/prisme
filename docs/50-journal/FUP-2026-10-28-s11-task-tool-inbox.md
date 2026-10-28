@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S11: the task tool's Inbox is listed, and a task in it can join an area
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** prisme's Inbox lists what
+**Agent:** Claude · **Duration:** one run · **PR:** [#196](https://github.com/vchatela-org/prisme/pull/196) · **Outcome:** prisme's Inbox lists what
 sits in the task tool's own Inbox as *Unsorted in Todoist*, and **Make it an initiative** adopts one
 into an area, which the next pass moves it into. S11 is closed.
 
