@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S1, third step: an initiative converts to a key result
 
-**Agent:** Claude · **Duration:** one run · **PR:** this entry's own · **Outcome:** any open
+**Agent:** Claude · **Duration:** one run · **PR:** [#184](https://github.com/vchatela-org/prisme/pull/184) · **Outcome:** any open
 initiative can be turned into a key result of an open objective, with its task moving to it. S1's
 last *Explore* item is done, and S1 is closed.
 
