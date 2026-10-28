@@ -267,6 +267,16 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "keyResultHints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "long_horizon",
+                    "objective_title"
+                  ]
+                }
+              },
               "reason": {
                 "type": "string",
                 "enum": [
@@ -308,6 +318,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "keyResultHints",
               "reason",
               "daysUntilDeadline",
               "deadlineAtRisk"
