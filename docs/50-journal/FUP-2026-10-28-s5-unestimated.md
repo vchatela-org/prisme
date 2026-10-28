@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S5: an initiative nobody estimated says so, and waits for it
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** `initiative.estimated` marks
+**Agent:** Claude · **Duration:** one run · **PR:** [#190](https://github.com/vchatela-org/prisme/pull/190) · **Outcome:** `initiative.estimated` marks
 the placeholder that adoption and a capture write; the estimates read *Unestimated* wherever they
 are shown, and selection holds such an initiative out of `now`. S5 is closed.
 
