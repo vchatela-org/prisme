@@ -181,7 +181,10 @@ export default async function InitiativePage({ params }: { params: Promise<{ id:
               <Badge variant="outline">
                 {data.origin === 'adopted' ? 'Adopted from existing work' : 'Created in prisme'}
               </Badge>
-              {data.sizedForNow ? null : <Badge variant="outline">Larger than a now slot</Badge>}
+              {data.estimated ? null : <Badge variant="outline">Unestimated</Badge>}
+              {data.sizedForNow || !data.estimated ? null : (
+                <Badge variant="outline">Larger than a now slot</Badge>
+              )}
             </div>
           </div>
 

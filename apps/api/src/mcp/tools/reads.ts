@@ -63,6 +63,12 @@ const initiativeBrief = z.object({
   /** Small enough to be started in one sitting, in the one respect a machine can check. */
   sizedForNow: z.boolean(),
   /**
+   * False while its estimates are adoption's or a capture's placeholder — the
+   * same middle value for everything, chosen by nobody. Its score ties with
+   * every other such one, and it is held out of `now` until estimated (S5).
+   */
+  estimated: z.boolean(),
+  /**
    * Why it looks like a key result rather than an initiative: a deadline more
    * than six weeks out, or an open objective's title in its area. A hint for a
    * review to raise, never a decision (docs/19-how-it-works.md S1).
@@ -82,6 +88,7 @@ interface BriefSource {
     deadline: string | null;
     blockedBy: readonly string[];
     sizedForNow: boolean;
+    estimated: boolean;
     keyResultHints: readonly KeyResultHint[];
   };
   readonly score: number | null;
@@ -101,6 +108,7 @@ function brief(source: BriefSource): InitiativeBrief {
     rank: source.rank,
     blockedBy: [...initiative.blockedBy],
     sizedForNow: initiative.sizedForNow,
+    estimated: initiative.estimated,
     keyResultHints: [...initiative.keyResultHints],
   };
 }

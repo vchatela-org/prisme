@@ -171,6 +171,7 @@ nothing — no score, no slot, no status.
 | `time_criticality` | 1·2·3·5·8·13 | prisme | How fast value decays |
 | `risk` | 1·2·3·5·8·13 | prisme | Risk reduction or opportunity enablement |
 | `size` | 1·2·3·5·8·13 | prisme | Size of the *next slice*. Above 8, slice it |
+| `estimated` | bool | prisme | `false` while the four estimates are the placeholder adoption or a capture wrote (the middle of the scale, 3); `true` once any is written, the same value included (S5) |
 | `deadline` | date? | prisme | Hard constraints only. Written to the anchor |
 | `earliest_start` | date? | prisme | Scheduling constraint. Before it, the initiative is not under way: neither selected nor ranked ([ADR-0035](20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md)) |
 | `planned_start` / `planned_end` | date? | prisme | Computed by the schedule engine |
@@ -203,8 +204,10 @@ off-the-shelf sync product does, and it leaves you maintaining two task lists.
 
 ### Ready for `now`
 
-An initiative may only enter `now` when: the outcome is one sentence, `size ≤ 8`, the first three
-next actions are known, nothing blocks it, and it has a target month.
+An initiative may only enter `now` when: the outcome is one sentence, it has been **estimated**,
+`size ≤ 8`, the first three next actions are known, nothing blocks it, and it has a target month.
+A placeholder size passes `size ≤ 8` by construction, so an unestimated initiative is held out of
+the selection (`unestimated`) until somebody estimates it — which is triage's job.
 
 ---
 

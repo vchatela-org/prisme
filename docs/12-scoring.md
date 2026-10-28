@@ -184,6 +184,11 @@ Scoring ranks; selection decides. They are separate steps on purpose.
    initiative whose `earliest_start` is after today, or whose project is paused, done or dropped,
    is neither selected nor queued, and it is not ranked, although it is still scored. The reasons
    are `not_started` and `project_inactive`. Work already `now` keeps its slot under rule 1.
+6. **Only estimated work is a candidate.** An adopted or captured initiative starts with the middle
+   of the scale for all four estimates, so it scores like every other one and its size passes the
+   readiness gate by construction. Until any estimate is written it is held where it is, with the
+   reason `unestimated`, and the next candidate takes the slot. It is still scored and ranked — the
+   score is shown as *Unestimated* rather than read as a judgement.
 
 The per-area cap is what keeps one busy area from occupying every slot — the same reasoning as the
 balance factor, applied to selection instead of ranking.

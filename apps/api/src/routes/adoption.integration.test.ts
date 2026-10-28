@@ -568,6 +568,28 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(refs).toHaveLength(0);
     });
 
+    it('says an adopted initiative is not estimated until an estimate is written (S5)', async () => {
+      const { body } = await api().request('POST', url('/adoption/adopt'), {
+        externalKind: 'task',
+        externalId: 'ext-initiative',
+      });
+      const id = (body as { prismeId: string }).prismeId;
+
+      const adopted = await api().request('GET', url(`/initiatives/${id}`));
+      expect(adopted.body).toMatchObject({ estimated: false, size: 3 });
+
+      // A title change is not an estimate.
+      await api().request('PATCH', url(`/initiatives/${id}`), { title: 'Rebuild the shed' });
+      expect((await api().request('GET', url(`/initiatives/${id}`))).body).toMatchObject({
+        estimated: false,
+      });
+
+      // Writing the placeholder back is a judgement that it is right.
+      const kept = await api().request('PATCH', url(`/initiatives/${id}`), { size: 3 });
+      expect(kept.status).toBe(200);
+      expect(kept.body).toMatchObject({ estimated: true, size: 3 });
+    });
+
     it('produces an entity the database refuses to turn into a created one', async () => {
       // Guard 2, at the database. `origin` is immutable after insert, so an
       // adopted entity cannot later become one that produces a `create`.

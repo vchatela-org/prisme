@@ -174,6 +174,17 @@ describe('what is not a candidate', () => {
     expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['unblocked']);
   });
 
+  it('holds back an initiative nobody has estimated, and takes the next one (S5)', () => {
+    const selection = select(
+      [candidate('placeholder', { estimated: false }), candidate('estimated', { status: 'later' })],
+      CANDIDATE_SELECTION_LIMITS,
+    );
+    expect(selection.next.find((slot) => slot.initiativeId === 'placeholder')?.reason).toBe(
+      'unestimated',
+    );
+    expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['estimated']);
+  });
+
   it('refuses a slice too large to be a slice', () => {
     const selection = select([candidate('huge', { size: 13 })], CANDIDATE_SELECTION_LIMITS);
     expect(selection.next[0]?.reason).toBe('too_large');

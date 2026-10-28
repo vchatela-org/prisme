@@ -136,6 +136,8 @@ export function reasonSentence(reason: SelectionReason): string {
       return 'Every slot is taken. This is the next one in, when one frees.';
     case 'blocked':
       return 'Waiting on something that is neither done nor dropped.';
+    case 'unestimated':
+      return 'Never estimated: its numbers are the placeholder it was adopted with, so whether it fits a slot is unknown. Estimate it first.';
     case 'too_large':
       return 'Too large to start as it stands — split it into something finishable.';
     case 'not_a_candidate':

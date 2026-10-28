@@ -82,6 +82,13 @@ export const initiativeDto = z.object({
   /** Ready for `now` in the one respect a machine can check (docs/10-model.md §5). */
   sizedForNow: z.boolean(),
   /**
+   * `false` while its four estimates are the placeholder adoption or a capture
+   * wrote — the middle of the scale, chosen by nobody (S5). Writing any
+   * estimate, the same value included, makes it `true`. An unestimated
+   * initiative is held out of `now` (`unestimated`).
+   */
+  estimated: z.boolean(),
+  /**
    * Why this initiative looks like a key result rather than a one-to-six-week
    * outcome: a deadline more than six weeks out, or an open objective's title in
    * its area (`keyResultHints`, docs/19-how-it-works.md S1). A hint, never a

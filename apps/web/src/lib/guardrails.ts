@@ -20,7 +20,13 @@ import type { Initiative, InitiativeStatus } from './contracts';
  */
 
 export type GuardrailCode =
-  'area_at_cap' | 'wip_full' | 'too_large' | 'blocked' | 'open_tasks' | 'drop_needs_reason';
+  | 'area_at_cap'
+  | 'wip_full'
+  | 'unestimated'
+  | 'too_large'
+  | 'blocked'
+  | 'open_tasks'
+  | 'drop_needs_reason';
 
 export interface Guardrail {
   readonly code: GuardrailCode;
@@ -76,7 +82,15 @@ export function guardrailsFor(
       });
     }
 
-    if (!initiative.sizedForNow) {
+    if (!initiative.estimated) {
+      warnings.push({
+        code: 'unestimated',
+        title: 'Never estimated',
+        detail:
+          'Its four estimates are still the placeholder it was adopted with — the same middle value as every other adopted initiative — so its score ties with theirs and its size says nothing.',
+        suggestion: 'Estimate it first, or keep the estimates as they are if they are right.',
+      });
+    } else if (!initiative.sizedForNow) {
       warnings.push({
         code: 'too_large',
         title: 'Larger than a now-sized initiative',

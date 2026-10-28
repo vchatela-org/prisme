@@ -67,6 +67,7 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | `area_key`, `project_id` | **P** | → | Determines the anchor's project/section |
 | `status` | **P** | → | Drives anchor priority and existence |
 | `value`, `time_criticality`, `risk`, `size` | **P** | — | Never leave prisme |
+| Whether the estimates are anyone's (`estimated`) | **P** | — | `false` for the placeholder adoption or a capture writes; any estimate written sets it (S5) |
 | `deadline` | **P** | → | Written to the anchor's deadline field |
 | `earliest_start`, `depends_on[]` | **P** | — | Scheduling only |
 | `planned_start`, `planned_end` | **∂** | — | From the schedule engine |

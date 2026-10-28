@@ -55,7 +55,9 @@ import { recordPassOutcome } from './run-state.js';
  * or how valuable it is, but the four numbers are not nullable — an initiative
  * without them cannot be scored at all. The middle of the scale is the least
  * wrong placeholder: it ranks the item in the middle of the inbox, where a
- * human triages it at the next review and replaces every one of these.
+ * human triages it at the next review and replaces every one of these. The row
+ * says so (`estimated = false`, S5), so the placeholder is never read as a
+ * judgement and the initiative is held out of `now` until it is estimated.
  */
 const CAPTURE_ESTIMATE = 3;
 
@@ -367,10 +369,11 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
     async captureInitiative(input: CaptureInput): Promise<InitiativeId> {
       const rows = await client<{ id: string }[]>`
         insert into initiative
-          (title, area_key, status, value, time_criticality, risk, size, origin, deadline)
+          (title, area_key, status, value, time_criticality, risk, size, origin, deadline,
+           estimated)
         values (${input.title}, ${input.areaKey}, 'inbox',
                 ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE},
-                'adopted', ${input.deadline ?? null}::date)
+                'adopted', ${input.deadline ?? null}::date, false)
         returning id::text`;
 
       const created = rows[0];
