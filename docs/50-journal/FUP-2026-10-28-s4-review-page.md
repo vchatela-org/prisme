@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S4: a review links its page, and copies its summary there
 
-**Agent:** Claude · **Duration:** one run · **PR:** _pending_ · **Outcome:** a review session links the
+**Agent:** Claude · **Duration:** one run · **PR:** [#189](https://github.com/vchatela-org/prisme/pull/189) · **Outcome:** a review session links the
 page in the document tool it was written in, and *Copy summary* puts its artefact on the clipboard to
 paste there. Nothing is written outward. S4 is closed.
 
