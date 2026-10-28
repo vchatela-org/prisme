@@ -25,6 +25,8 @@ import type {
 
 export interface RecordingStore extends ReconcilerStore {
   readonly binds: readonly BindRefInput[];
+  /** Key results bound to a task (S15), in order. */
+  readonly keyResultBinds: readonly { readonly keyResultId: string; readonly externalId: string }[];
   readonly captures: readonly CaptureInput[];
   readonly statuses: readonly { readonly initiativeId: InitiativeId; readonly to: string }[];
   readonly deadlines: readonly { readonly initiativeId: InitiativeId; readonly deadline: string }[];
@@ -42,6 +44,7 @@ export function createRecordingStore(
   cursor: SyncCursor = {},
 ): RecordingStore {
   const binds: BindRefInput[] = [];
+  const keyResultBinds: { keyResultId: string; externalId: string }[] = [];
   const captures: CaptureInput[] = [];
   const statuses: { initiativeId: InitiativeId; to: string }[] = [];
   const deadlines: { initiativeId: InitiativeId; deadline: string }[] = [];
@@ -54,6 +57,7 @@ export function createRecordingStore(
 
   return {
     binds,
+    keyResultBinds,
     captures,
     statuses,
     deadlines,
@@ -73,6 +77,10 @@ export function createRecordingStore(
     },
     bindExternalRef: (input) => {
       binds.push(input);
+      return Promise.resolve();
+    },
+    bindKeyResultRef: (input) => {
+      keyResultBinds.push({ keyResultId: input.keyResultId, externalId: input.externalId });
       return Promise.resolve();
     },
     captureInitiative: (input) => {

@@ -57,6 +57,7 @@ const services = createServices({
     baseUrl: config.baseUrl,
     runId: () => currentRunContext()?.runId ?? newRunId(),
     now: () => new Date(),
+    timezone: config.timezone,
     onAuditRecordError: (error: unknown) => {
       logger.error('an outward write could not be recorded in the audit', { error });
     },

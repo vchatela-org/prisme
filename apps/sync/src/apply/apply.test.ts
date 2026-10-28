@@ -245,3 +245,45 @@ describe('when a write fails', () => {
     expect(store.lastAppliedWrites).toHaveLength(0);
   });
 });
+
+describe('a key result’s anchor (S15)', () => {
+  const KR_PLAN: Plan = plan(
+    {
+      ...desiredOf([]),
+      keyResultAnchors: [
+        {
+          keyResultId: 'kr-0001',
+          objectiveId: 'obj-0001',
+          statement: 'Run a 10 km race',
+          areaKey: 'craft',
+          deadline: '2026-12-31' as never,
+          location: { projectId: 'project-0001' },
+        },
+      ],
+    },
+    observedOf([]),
+    new Map(),
+    CONFIG,
+  );
+
+  it('creates the task, binds it to the key result, and records it against that key result', async () => {
+    const writer = createRecordingWriter();
+    const store = createRecordingStore();
+
+    const result = await apply(KR_PLAN, optionsFor(writer.writer, store, { createThreshold: 1 }));
+
+    expect(result.applied).toBe(1);
+    expect(writer.writes).toHaveLength(1);
+    expect(store.keyResultBinds).toHaveLength(1);
+    expect(store.keyResultBinds[0]?.keyResultId).toBe('kr-0001');
+    expect(store.binds).toHaveLength(0);
+    expect(store.events[0]).toMatchObject({ entityKind: 'key_result', entityId: 'kr-0001' });
+  });
+
+  it('counts toward the create threshold like any other creation', async () => {
+    const writer = createRecordingWriter();
+    const result = await apply(KR_PLAN, optionsFor(writer.writer, createRecordingStore()));
+    expect(result.refusal).toEqual({ kind: 'create_threshold', creates: 1 });
+    expect(writer.writes).toHaveLength(0);
+  });
+});

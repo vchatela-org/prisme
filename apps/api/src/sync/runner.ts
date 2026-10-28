@@ -74,6 +74,8 @@ export interface SyncRunnerOptions {
   readonly baseUrl: string;
   readonly runId: () => string;
   readonly now: () => Date;
+  /** The instance's IANA timezone: whose day decides which objectives are under way (S15). */
+  readonly timezone?: string | undefined;
   /**
    * Told when an outward write could not be recorded in the audit (ADR-0031).
    * The write stands on its own result either way; this is the log line.
@@ -145,7 +147,10 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
         const reconciled = await reconcile({
           mode: request.mode,
           full: request.full,
-          store: createPostgresStore(options.client),
+          store: createPostgresStore(
+            options.client,
+            options.timezone === undefined ? {} : { timezone: options.timezone },
+          ),
           taskClient: createTaskToolClient({
             token: options.taskToolToken,
             baseUrl: options.taskToolBaseUrl,

@@ -87,4 +87,57 @@ describeOrSkip('tasks bound to something other than an initiative', () => {
       'task-invented-kr',
     ]);
   });
+  /** S15: which key results want an anchor, and what the store says about each. */
+  it('offers the key results of objectives under way, with their task, link and deadline', async () => {
+    await client`insert into area (key, name, kind) values ('craft', 'Invented craft', 'area')`;
+    await client`
+      insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+      values ('craft', 'project-invented', null, true)`;
+    const objectives = await client<{ id: string; status: string }[]>`
+      insert into objective (title, type, period, area_key, status) values
+        ('Invented active', 'annual', '2026', 'craft', 'active'),
+        ('Invented draft', 'annual', '2026', 'craft', 'draft'),
+        ('Invented next month', 'monthly', '2026-11', 'craft', 'active')
+      returning id::text, status`;
+    const active = objectives[0]?.id as string;
+    const keyResults = await client<{ id: string }[]>`
+      insert into key_result (objective_id, statement, target, unit) values
+        (${active}::uuid, 'Invented bound', 1, 'race'),
+        (${active}::uuid, 'Invented linked', 1, 'race'),
+        (${active}::uuid, 'Invented bare', 1, 'race'),
+        (${objectives[1]?.id as string}::uuid, 'Invented draft kr', 1, 'race'),
+        (${objectives[2]?.id as string}::uuid, 'Invented future kr', 1, 'race')
+      returning id::text`;
+    const [bound, linked, bare] = keyResults.map((row) => row.id);
+    await client`
+      insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+      values (${bound as string}, 'key_result', 'task', 'task-invented-bound')`;
+    await client`
+      insert into entity_link
+        (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+      values (${linked as string}, 'task', 'task-invented-linked', 'manual', 'manual', 'human', now())`;
+
+    const store = createPostgresStore(client, { today: () => '2026-10-28' });
+    const desired = await store.loadDesired();
+    const byId = new Map((desired.keyResultAnchors ?? []).map((kr) => [kr.keyResultId, kr]));
+
+    expect([...byId.keys()].sort()).toEqual([bound, linked, bare].sort());
+    expect(byId.get(bound as string)).toMatchObject({
+      externalAnchorId: 'task-invented-bound',
+      deadline: '2026-12-31',
+      location: { projectId: 'project-invented' },
+    });
+    expect(byId.get(linked as string)?.pendingExternalId).toBe('task-invented-linked');
+    expect(byId.get(bare as string)?.externalAnchorId).toBeUndefined();
+
+    await store.bindKeyResultRef({
+      keyResultId: bare as string,
+      externalId: 'task-invented-created',
+      at: new Date('2026-10-28T09:00:00Z'),
+    });
+    const [row] = await client<{ external_anchor_id: string | null }[]>`
+      select external_anchor_id from key_result where id = ${bare as string}::uuid`;
+    expect(row?.external_anchor_id).toBe('task-invented-created');
+    expect((await store.loadDesired()).boundElsewhere.has('task-invented-created')).toBe(true);
+  });
 });

@@ -126,7 +126,8 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
       await options.store.recordEvent({
         kind: 'sync_action',
         entityKind: action.subject,
-        entityId: action.initiativeId ?? action.externalId ?? createdId ?? 'unknown',
+        entityId:
+          action.initiativeId ?? action.keyResultId ?? action.externalId ?? createdId ?? 'unknown',
         ...(action.before === undefined ? {} : { before: action.before }),
         after: { tag: action.tag, detail: action.detail },
         occurredAt: at,
@@ -172,6 +173,30 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
           at,
         });
         return created.externalId;
+      }
+
+      case 'create_key_result_anchor': {
+        const created = await options.writer.createTask(
+          operation.draft,
+          key(operation.keyResultId, operation.draft),
+        );
+        await options.store.bindKeyResultRef({
+          keyResultId: operation.keyResultId,
+          externalId: created.externalId,
+          at,
+        });
+        return created.externalId;
+      }
+
+      case 'bind_key_result_ref': {
+        await options.store.bindKeyResultRef({
+          keyResultId: operation.keyResultId,
+          externalId: operation.externalId,
+          // *Link as key result*, decided in the adoption queue (S1).
+          link: { matchRule: 'manual', confidence: 'certain', decidedBy: 'human' },
+          at,
+        });
+        return undefined;
       }
 
       case 'update_task': {
@@ -279,6 +304,9 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
 }
 
 function subjectOf(action: Action): WriteSubject | undefined {
+  if (action.keyResultId !== undefined) {
+    return { entityKind: 'key_result', entityId: action.keyResultId };
+  }
   return action.initiativeId === undefined
     ? undefined
     : { entityKind: 'initiative', entityId: action.initiativeId };

@@ -121,6 +121,16 @@ export interface ReconcilerStore {
 
   /** Binds an existing external object to an entity. **Creates nothing outward.** */
   bindExternalRef(input: BindRefInput): Promise<void>;
+  /**
+   * Binds a task to a key result as its anchor (S15): `entity_external_ref`
+   * and `key_result.external_anchor_id`, and the link when one was decided.
+   */
+  bindKeyResultRef(input: {
+    readonly keyResultId: string;
+    readonly externalId: string;
+    readonly link?: BindRefInput['link'];
+    readonly at: Date;
+  }): Promise<void>;
   /** The intent channel's capture: a prisme row for a task that already exists. */
   captureInitiative(input: CaptureInput): Promise<InitiativeId>;
   /**

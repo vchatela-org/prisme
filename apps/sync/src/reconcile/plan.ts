@@ -6,7 +6,8 @@ import {
   type InitiativeStatus,
   type TaskPriority,
 } from '@prisme/domain';
-import { composeDescription, firstLine, managedLine } from './description.js';
+import { DEFAULT_KEY_RESULT_LABEL } from '../adoption/classify.js';
+import { composeDescription, firstLine, keyResultLine, managedLine } from './description.js';
 import {
   hasLabel,
   statusRequestIn,
@@ -23,6 +24,7 @@ import {
   type ActionTag,
   type ConflictRecord,
   type DesiredAnchor,
+  type DesiredKeyResultAnchor,
   type DesiredState,
   type LastAppliedIndex,
   type LastAppliedWrite,
@@ -71,6 +73,8 @@ const UNANCHORED_STATUSES: ReadonlySet<InitiativeStatus> = new Set<InitiativeSta
 const UNSET_PRIORITY: TaskPriority = 'lowest';
 
 const ANCHOR = 'anchor';
+/** `last_applied`'s entity kind for a key result's anchor task (S15). */
+const KEY_RESULT_ANCHOR = 'key_result_anchor';
 const SUBTASK = 'subtask';
 
 function needsAnchor(status: InitiativeStatus): boolean {
@@ -186,6 +190,15 @@ export function plan(
 
   for (const anchor of anchors) {
     planAnchor(anchor);
+  }
+
+  // Key results' anchors (ADR-0012, S15), in the same deterministic order.
+  const keyResultLabel = config.keyResultLabel ?? DEFAULT_KEY_RESULT_LABEL;
+  const keyResults = [...(desired.keyResultAnchors ?? [])].sort((left, right) =>
+    left.keyResultId < right.keyResultId ? -1 : left.keyResultId > right.keyResultId ? 1 : 0,
+  );
+  for (const keyResult of keyResults) {
+    planKeyResult(keyResult);
   }
 
   planIntentChannel();
@@ -395,6 +408,210 @@ export function plan(
           : []),
       ],
       lastApplied: [],
+    });
+  }
+
+  // ── one key result (S15) ──────────────────────────────────────────────────
+
+  /**
+   * A key result's anchor: bound, linked, or created — the initiative's three
+   * cases, narrower in what is converged.
+   *
+   * prisme owns the statement, the deadline (its objective's last day), the
+   * key-result label and the backlink. Not the priority — a key result is not
+   * ranked — and not the location once the task exists. A field someone edited
+   * in the task tool is a `review`, not a conflict: the ledger's resolution is
+   * an initiative's, and a key result is changed on Objectives.
+   */
+  function planKeyResult(keyResult: DesiredKeyResultAnchor): void {
+    const base = {
+      subject: 'key_result' as const,
+      keyResultId: keyResult.keyResultId,
+      title: keyResult.statement,
+      lastApplied: [] as LastAppliedWrite[],
+    };
+
+    if (keyResult.externalAnchorId !== undefined) {
+      const task = tasksById.get(keyResult.externalAnchorId);
+      if (task === undefined) {
+        actions.push({
+          ...base,
+          tag: 'review',
+          externalId: keyResult.externalAnchorId,
+          detail: 'its task was not returned by the tool; prisme will not recreate it',
+          operations: [],
+        });
+        return;
+      }
+      planKeyResultFields(keyResult, task);
+      return;
+    }
+
+    if (keyResult.pendingExternalId !== undefined) {
+      const externalId = keyResult.pendingExternalId;
+      const target = tasksById.get(externalId);
+      const detail =
+        target === undefined
+          ? 'the decided link points at a task the tool did not return'
+          : boundIds.has(externalId) || desired.boundElsewhere.has(externalId)
+            ? 'that task is already bound to something else in prisme'
+            : undefined;
+      if (detail !== undefined) {
+        actions.push({ ...base, tag: 'review', externalId, detail, operations: [] });
+        return;
+      }
+      actions.push({
+        ...base,
+        tag: 'adopt',
+        externalId,
+        detail: 'link to the existing task as its anchor — creates nothing',
+        operations: [
+          { type: 'bind_key_result_ref', keyResultId: keyResult.keyResultId, externalId },
+        ],
+      });
+      return;
+    }
+
+    // Every key result is created in prisme — adoption refuses to make one
+    // (`needs_objective`), and a task kept as one arrives as a pending link
+    // above — so a key result with neither a task nor a link is prisme's to
+    // give one (ADR-0012). Guard 2's provenance, for this entity.
+    if (keyResult.location === undefined) {
+      actions.push({
+        ...base,
+        tag: 'review',
+        detail: 'its objective’s area has no mapping, so there is nowhere to create its task',
+        operations: [],
+      });
+      return;
+    }
+
+    const description = keyResultLine(config.baseUrl, keyResult.objectiveId, keyResult.keyResultId);
+    actions.push({
+      ...base,
+      tag: 'create',
+      detail: `new key-result task, deadline ${keyResult.deadline}`,
+      operations: [
+        {
+          type: 'create_key_result_anchor',
+          keyResultId: keyResult.keyResultId,
+          draft: {
+            projectId: keyResult.location.projectId,
+            ...(keyResult.location.sectionId === undefined
+              ? {}
+              : { sectionId: keyResult.location.sectionId }),
+            content: keyResult.statement,
+            description,
+            labels: [keyResultLabel],
+            // The tool's own default: a key result is not ranked, and prisme
+            // claims no priority for it.
+            priority: UNSET_PRIORITY,
+            deadline: keyResult.deadline,
+          },
+        },
+      ],
+      lastApplied: [
+        { entityKind: KEY_RESULT_ANCHOR, entityId: '', field: 'title', value: keyResult.statement },
+        {
+          entityKind: KEY_RESULT_ANCHOR,
+          entityId: '',
+          field: 'deadline',
+          value: keyResult.deadline,
+        },
+        { entityKind: KEY_RESULT_ANCHOR, entityId: '', field: 'label', value: 'present' },
+        { entityKind: KEY_RESULT_ANCHOR, entityId: '', field: 'description', value: description },
+      ],
+    });
+  }
+
+  function planKeyResultFields(keyResult: DesiredKeyResultAnchor, task: ExternalTask): void {
+    const externalId = task.externalId;
+    const last = (field: string) => lastValueOf(KEY_RESULT_ANCHOR, externalId, field);
+    const desiredDescription = composeDescription(
+      task.description.text,
+      keyResultLine(config.baseUrl, keyResult.objectiveId, keyResult.keyResultId),
+    );
+    // The key-result label, and not the initiative's: a task converted from an
+    // initiative (S1) still wears the anchor label, which is prisme's and now
+    // false, so it is taken off.
+    const labelled =
+      hasLabel(task.labels, keyResultLabel) && !hasLabel(task.labels, config.anchorLabel);
+    const diffs = [
+      diff('title', keyResult.statement, task.content, last('title'), 'title → statement', {
+        content: keyResult.statement,
+      }),
+      diff(
+        'deadline',
+        keyResult.deadline,
+        value(task.deadline),
+        last('deadline'),
+        `deadline ${task.deadline ?? 'none'} → ${keyResult.deadline}`,
+        { deadline: keyResult.deadline },
+      ),
+      diff('label', 'present', labelled ? 'present' : 'absent', last('label'), 'key-result label', {
+        labels: withoutLabel(withLabel(task.labels, keyResultLabel), config.anchorLabel),
+      }),
+      diff(
+        'description',
+        firstLine(desiredDescription),
+        firstLine(task.description.text),
+        last('description'),
+        'backlink and managed-fields marker',
+        { description: desiredDescription },
+      ),
+    ];
+
+    const edited = diffs.filter((entry) => entry.verdict === 'conflict');
+    if (edited.length > 0) {
+      actions.push({
+        tag: 'review',
+        subject: 'key_result',
+        keyResultId: keyResult.keyResultId,
+        externalId,
+        title: keyResult.statement,
+        detail: `${edited.map((entry) => entry.field).join(', ')} edited in the task tool; change the key result on Objectives, or put the task back`,
+        operations: [],
+        lastApplied: [],
+      });
+    }
+
+    const updates = diffs.filter((entry) => entry.verdict === 'update');
+    if (updates.length === 0) {
+      if (edited.length === 0) {
+        actions.push({
+          tag: 'skip',
+          subject: 'key_result',
+          keyResultId: keyResult.keyResultId,
+          externalId,
+          title: keyResult.statement,
+          detail: 'key-result task matches',
+          operations: [],
+          lastApplied: [],
+        });
+      }
+      return;
+    }
+    actions.push({
+      tag: 'update',
+      subject: 'key_result',
+      keyResultId: keyResult.keyResultId,
+      externalId,
+      title: keyResult.statement,
+      detail: updates.map((entry) => entry.detail).join('; '),
+      operations: [
+        {
+          type: 'update_task',
+          externalId,
+          patch: updates.reduce<TaskPatch>((merged, entry) => ({ ...merged, ...entry.patch }), {}),
+        },
+      ],
+      lastApplied: updates.map((entry) => ({
+        entityKind: KEY_RESULT_ANCHOR,
+        entityId: externalId,
+        field: entry.field,
+        value: entry.desiredValue,
+      })),
+      before: Object.fromEntries(updates.map((entry) => [entry.field, entry.observedValue])),
     });
   }
 
