@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S1, first step: a task kept as a key result is read as one
 
-**Agent:** Claude · **Duration:** one run · **PR:** this entry's own · **Outcome:** the adoption scan
+**Agent:** Claude · **Duration:** one run · **PR:** [#180](https://github.com/vchatela-org/prisme/pull/180) · **Outcome:** the adoption scan
 compares an unlabelled task with key results and objectives across kinds; the first *Explore* item
 of S1 in `docs/19-how-it-works.md` is done, the other two stay open
 
