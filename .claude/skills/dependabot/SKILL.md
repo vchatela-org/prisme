@@ -96,7 +96,7 @@ remaining branches. A stale base is how a wave rots: yesterday's green says noth
 ### 5. Decide the release
 
 **This is what the run is for.** Integrating the bumps changes nothing in the cluster until a version
-is cut: `publish.yml` fires on a `v*` tag, pushes both images to Harbor, and the deployment side
+is cut: `publish.yml` fires on a `v*` tag, pushes both images to GHCR, and the deployment side
 picks that version up from there. So every run ends by asking whether `main` holds dependency work
 that no tag contains yet — including a run that found nothing to integrate, because that is exactly
 the run that follows a merge.
