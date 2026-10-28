@@ -1,6 +1,6 @@
 # FUP · 2026-10-28 · S2: a ritual is tied to its recurring task, or recorded by hand
 
-**Agent:** Claude · **Duration:** one run · **PR:** this PR · **Outcome:** a ritual's recurring task
+**Agent:** Claude · **Duration:** one run · **PR:** [#185](https://github.com/vchatela-org/prisme/pull/185) · **Outcome:** a ritual's recurring task
 is chosen on Rituals, a *Link* from the queue actually binds it, and a habit that is not a task is
 recorded by hand on its row. S2 is closed.
 
