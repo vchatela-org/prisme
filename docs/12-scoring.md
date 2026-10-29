@@ -151,6 +151,13 @@ ranks inside it.
 Rolling 4 weeks: long enough to survive one unusual week, short enough that the balance factor still
 responds within a month.
 
+**Every completion counts, a recurring task's occurrences included.** The task tool's completion
+history lists only tasks that became checked, and a recurring task never does. So completions are
+read from its activity log, one per occurrence, and merged with the history, which still supplies a
+one-off task's recorded duration
+([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)). An occurrence has no
+recorded duration: its minutes come from its ritual's process page, or from the default estimate.
+
 **Run counts toward capacity but never toward ranking; Signals count toward neither**
 ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md)). Excluding upkeep from the measurement would
 hide exactly the pattern the system exists to reveal — upkeep quietly consuming the majority of
@@ -165,8 +172,8 @@ out of that area's observed share.
 ### Known limitation, stated plainly
 
 Task counts and durations measure *attention routed through tasks*, not hours lived. Recurring work
-is under-represented in completion history, and much of what matters in the relationship and health
-areas never becomes a task at all. The balance factor is a lens, not a verdict, and areas whose work
+is counted occurrence by occurrence, but its minutes are mostly estimated. Much of what matters in
+the relationship and health areas never becomes a task at all. The balance factor is a lens, not a verdict, and areas whose work
 is mostly untracked will read as starved. That is a tolerable bias — it errs toward surfacing
 neglected areas — but it must not be mistaken for measurement.
 

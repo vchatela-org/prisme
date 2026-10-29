@@ -4,13 +4,21 @@ import { contentHash } from '../hash.js';
 import { collectUrls, sanitisePlainText, sanitiseRichText } from '../sanitise.js';
 import type {
   Completion,
+  CompletionEvent,
   ExternalDuration,
   ExternalLabel,
   ExternalProject,
   ExternalSection,
   ExternalTask,
 } from './types.js';
-import type { WireCompletedItem, WireItem, WireLabel, WireProject, WireSection } from './wire.js';
+import type {
+  WireActivityEvent,
+  WireCompletedItem,
+  WireItem,
+  WireLabel,
+  WireProject,
+  WireSection,
+} from './wire.js';
 
 /**
  * Wire record → typed record. Mapping, and nothing else.
@@ -208,5 +216,21 @@ export function mapCompletion(item: WireCompletedItem, operation: string): Compl
     recordedDuration: duration,
     // Sorted like a live task's, so a re-fetch that reorders them is no change.
     ...(item.labels === undefined ? {} : { labels: [...item.labels].sort() }),
+  };
+}
+
+export function mapCompletionEvent(event: WireActivityEvent, operation: string): CompletionEvent {
+  const content = event.extra_data?.content;
+  return {
+    kind: event.event_type,
+    // The log names the task as its object; for an item that is the task id
+    // every other read uses.
+    externalTaskId: event.object_id,
+    at: parseInstant(event.event_date, 'event_date', operation),
+    projectId: event.parent_project_id ?? undefined,
+    sectionId: event.extra_data?.section_id ?? undefined,
+    // The same sanitiser as every other title: `extra_data` is the tool's
+    // free-form bag and the least trusted part of the response.
+    content: content === undefined ? undefined : sanitisePlainText(content),
   };
 }

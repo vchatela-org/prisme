@@ -139,9 +139,53 @@ export const wireCompletedResponseSchema = z.object({
   next_cursor: z.string().min(1).nullable().optional(),
 });
 
+/**
+ * One entry of the activity log, as a completion read asks for it.
+ *
+ * The log is where a **recurring** task's completions are. The completion
+ * history above lists tasks that became *checked*, and a recurring task never
+ * does — completing it moves its date — so every occurrence of a daily routine
+ * is in this log and nowhere else
+ * ([ADR-0040](../../../../docs/20-decisions/0040-completions-are-read-from-the-activity-log.md)).
+ *
+ * Narrow on purpose. The read filters to `object_type=item` and one
+ * `event_type`, and the schema holds the response to that: an entry about a
+ * project, a comment or an edit is not a completion, and one arriving here
+ * means the filter was not applied — a run that counted it would be counting
+ * renames as work. `extra_data` is the tool's free-form bag; only the two keys
+ * read are named, and both are untrusted (the title is sanitised in `map.ts`).
+ */
+export const wireActivityEventSchema = z.object({
+  id: z.number().int().nullable().optional(),
+  object_type: z.literal('item'),
+  object_id: externalId,
+  event_type: z.enum(['completed', 'uncompleted']),
+  event_date: z.string().min(1),
+  parent_project_id: nullableId,
+  extra_data: z
+    .object({
+      content: z.string().optional(),
+      section_id: nullableId,
+    })
+    .nullable()
+    .optional(),
+});
+
+/**
+ * The activity-log envelope. `next_cursor` is required by the tool's own
+ * description — present while there is more, `null` on the last page — and the
+ * paging contract is the same as completion history's: the cursor ends it,
+ * never a short page.
+ */
+export const wireActivityResponseSchema = z.object({
+  results: z.array(wireActivityEventSchema),
+  next_cursor: z.string().min(1).nullable(),
+});
+
 export type WireItem = z.infer<typeof wireItemSchema>;
 export type WireProject = z.infer<typeof wireProjectSchema>;
 export type WireSection = z.infer<typeof wireSectionSchema>;
 export type WireLabel = z.infer<typeof wireLabelSchema>;
 export type WireSyncResponse = z.infer<typeof wireSyncResponseSchema>;
 export type WireCompletedItem = z.infer<typeof wireCompletedItemSchema>;
+export type WireActivityEvent = z.infer<typeof wireActivityEventSchema>;

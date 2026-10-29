@@ -383,7 +383,9 @@ Keeping these out of the ranked backlog is what stops the backlog from being noi
 
 Budgeted in **hours per week**, not a percentage. Actuals are derived by joining the two tools: a
 recurring task in the task tool maps to a **process page** in the document tool, which carries a
-declared duration and frequency. Completions × declared duration = weekly Run hours.
+declared duration and frequency. Completions × declared duration = weekly Run hours. Each
+occurrence of the recurring task is a completion, read from the activity log
+([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)).
 
 The document tool **owns process pages outright**; prisme reads duration and frequency and writes
 nothing there. Process pages serve a far wider purpose than prioritization — they are written
@@ -416,7 +418,9 @@ a daily habit has seven opportunities in its week, every other cadence one (`rit
 A ritual is measured from **exactly one source** (`ritualMeasure`):
 
 - **its recurring task** — at most one, bound in `entity_external_ref` and chosen on Rituals or by
-  *Link*; its completions are the series, rewritten by the capacity refresh;
+  *Link*; its completions are the series, rewritten by the capacity refresh. A recurring task is
+  never checked, so its completions are read from the task tool's activity log, one per occurrence
+  ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md));
 - **its review** — `ritual.fulfilled_by_review`: closing a review session of the ritual's own
   cadence is the period's completion. The series is rebuilt whole from the closed sessions of that
   cadence each time one closes (`reviewAdherence`): from the period of the first close, a period
