@@ -106,6 +106,7 @@ function taskClientOf(snapshot: TaskSnapshot = snapshotOf()): TaskToolClient {
       throw new Error('a scan never advances a cursor');
     },
     fetchCompletions: () => Promise.resolve([]),
+    fetchCompletionEvents: () => Promise.resolve([]),
     fetchLocations: () => Promise.resolve({ projects: [], sections: [] }),
   };
 }

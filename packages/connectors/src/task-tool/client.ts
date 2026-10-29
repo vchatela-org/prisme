@@ -3,16 +3,28 @@ import { executeJson, type RequestOptions } from '../http/request.js';
 import { createRefusingTransport, type Transport } from '../http/transport.js';
 import type { ConnectorMetrics } from '../metrics.js';
 import { parseOrThrow } from '../parse.js';
-import { mapCompletion, mapLabel, mapProject, mapSection, mapTask } from './map.js';
+import {
+  mapCompletion,
+  mapCompletionEvent,
+  mapLabel,
+  mapProject,
+  mapSection,
+  mapTask,
+} from './map.js';
 import type {
   Completion,
+  CompletionEvent,
   SyncResult,
   TaskChange,
   TaskLocations,
   TaskSnapshot,
   TaskToolClient,
 } from './types.js';
-import { wireCompletedResponseSchema, wireSyncResponseSchema } from './wire.js';
+import {
+  wireActivityResponseSchema,
+  wireCompletedResponseSchema,
+  wireSyncResponseSchema,
+} from './wire.js';
 import type { RetryPolicy } from '../http/backoff.js';
 import { trimTrailing } from '../util/trim.js';
 
@@ -42,7 +54,8 @@ const RESOURCE_TYPES = ['items', 'projects', 'sections', 'labels'] as const;
 const LOCATION_TYPES = ['projects', 'sections'] as const;
 
 /**
- * The two paths prisme reads, both under the tool's `v1` API.
+ * The paths prisme reads, all under the tool's `v1` API — these two, and the
+ * activity log below.
  *
  * v9's `POST /sync/v9/sync` and `POST /sync/v9/completed/get_all` were removed
  * and answer **410 Gone** — every read, every completion and every write. The
@@ -55,6 +68,16 @@ const LOCATION_TYPES = ['projects', 'sections'] as const;
  */
 const SYNC_PATH = '/api/v1/sync';
 const COMPLETIONS_PATH = '/api/v1/tasks/completed/by_completion_date';
+
+/**
+ * The activity log: the only record of a **recurring** task's completions,
+ * which never reach the path above because completing one moves its date
+ * instead of checking it (ADR-0040).
+ */
+const ACTIVITY_PATH = '/api/v1/activities';
+
+/** The two event types a completion read asks the log for, one filtered read each. */
+const COMPLETION_EVENT_TYPES = ['completed', 'uncompleted'] as const;
 
 /** One page of completion history. The tool's own maximum. */
 const COMPLETION_PAGE_SIZE = 200;
@@ -239,6 +262,74 @@ export function createTaskToolClient(options: TaskToolClientOptions): TaskToolCl
         'pagination',
         `completion history did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass — narrow the window by slicing it more finely`,
         { tool: 'task', operation },
+      );
+    },
+
+    async fetchCompletionEvents(since: Date, until: Date): Promise<CompletionEvent[]> {
+      const operation = 'fetch completion events';
+      const events: CompletionEvent[] = [];
+
+      // One filtered read per event type, with the parameters the tool
+      // documents for a single type (`object_type` + `event_type`) rather than
+      // its list form, whose query-string encoding the documentation does not
+      // pin down. An un-completion is rare, so its read is one short page.
+      for (const eventType of COMPLETION_EVENT_TYPES) {
+        let cursor: string | undefined;
+        let ended = false;
+
+        for (let page = 0; page < MAX_COMPLETION_PAGES; page += 1) {
+          const query = new URLSearchParams({
+            object_type: 'item',
+            event_type: eventType,
+            // `date_from` inclusive, `date_to` exclusive: the log's own bounds.
+            date_from: since.toISOString(),
+            date_to: until.toISOString(),
+            limit: String(COMPLETION_PAGE_SIZE),
+          });
+          if (cursor !== undefined) query.set('cursor', cursor);
+
+          const body = await get(ACTIVITY_PATH, query, operation);
+          const response = parseOrThrow(wireActivityResponseSchema, body, {
+            tool: 'task',
+            operation,
+            shape: 'activity log',
+          });
+
+          for (const event of response.results) {
+            // The filter asked for one type; an entry of the other is a filter
+            // that was not applied, and counting it would be a guess.
+            if (event.event_type !== eventType) {
+              throw new ConnectorError(
+                'invalid_shape',
+                `event_type is not the one the read filtered on`,
+                { tool: 'task', operation },
+              );
+            }
+            events.push(mapCompletionEvent(event, operation));
+          }
+
+          if (response.next_cursor === null) {
+            ended = true;
+            break;
+          }
+          cursor = response.next_cursor;
+        }
+
+        if (!ended) {
+          throw new ConnectorError(
+            'pagination',
+            `the activity log did not end after ${String(MAX_COMPLETION_PAGES)} pages; refusing to keep paging while holding the pass — narrow the window by slicing it more finely`,
+            { tool: 'task', operation },
+          );
+        }
+      }
+
+      // Oldest first, whatever order the log pages in: pairing an
+      // un-completion with the completion it takes back reads them in time.
+      return events.sort(
+        (a, b) =>
+          a.at.getTime() - b.at.getTime() ||
+          (a.kind === b.kind ? 0 : a.kind === 'completed' ? -1 : 1),
       );
     },
   };

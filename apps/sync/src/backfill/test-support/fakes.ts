@@ -1,6 +1,8 @@
 import type { AreaKey, AreaKind } from '@prisme/domain';
-import type { Completion, TaskToolClient } from '@prisme/connectors';
+import type { Completion, CompletionEvent, ExternalTask, TaskToolClient } from '@prisme/connectors';
 import { locationKey } from '../../reconcile/types.js';
+import type { SignalsLabel } from '../../signals-label.js';
+import { READ_MARGIN_MS } from '../completions.js';
 import type { BackfillStore } from '../ports.js';
 import type { Cursor } from '../slices.js';
 import type {
@@ -38,6 +40,8 @@ export interface FakeStoreState {
 export interface FakeStoreOptions {
   readonly areaByLocation?: ReadonlyMap<string, AreaKey> | undefined;
   readonly kindByArea?: ReadonlyMap<AreaKey, AreaKind> | undefined;
+  /** `signals_label_setting` (ADR-0041). Absent: no row, the feature off. */
+  readonly signalsLabel?: SignalsLabel | undefined;
   readonly rituals?: readonly RitualRecord[] | undefined;
   readonly cursor?: Cursor | undefined;
 }
@@ -112,6 +116,7 @@ export function createFakeStore(options: FakeStoreOptions = {}): {
       Promise.resolve({
         areaByLocation: options.areaByLocation ?? DEFAULT_LOCATIONS,
         kindByArea: options.kindByArea ?? DEFAULT_KINDS,
+        ...(options.signalsLabel === undefined ? {} : { signalsLabel: options.signalsLabel }),
       }),
 
     loadRituals: () => Promise.resolve(options.rituals ?? []),
@@ -172,8 +177,24 @@ export function createFakeStore(options: FakeStoreOptions = {}): {
 
 export interface FakeTaskClient {
   readonly client: TaskToolClient;
-  /** Every window asked for, in order — the resume assertions read this. */
+  /**
+   * Every **window** a completion read was for, in order — the resume
+   * assertions read this. The read itself is `READ_MARGIN_MS` wider either side
+   * (`completions.ts`); the margin is taken back off here, so a window reads as
+   * the slice it was, and `requests` holds what was actually asked.
+   */
   readonly windows: { since: Date; until: Date | undefined }[];
+  /** The completion-history requests as sent, margin included. */
+  readonly requests: { since: Date; until: Date | undefined }[];
+  /** The activity-log requests as sent: `[since, until)`. */
+  readonly eventRequests: { since: Date; until: Date }[];
+}
+
+export interface FakeTaskClientOptions {
+  /** Activity-log events, served windowed `[since, until)` as the log does. */
+  readonly events?: readonly CompletionEvent[];
+  /** What `fetchAll` reports as open. */
+  readonly openTasks?: readonly ExternalTask[];
 }
 
 /**
@@ -195,16 +216,35 @@ export interface FakeTaskClient {
 export function createFakeTaskClient(
   completions: readonly Completion[],
   onFetch?: () => void,
+  options: FakeTaskClientOptions = {},
 ): FakeTaskClient {
   const windows: { since: Date; until: Date | undefined }[] = [];
+  const requests: { since: Date; until: Date | undefined }[] = [];
+  const eventRequests: { since: Date; until: Date }[] = [];
 
   const client: TaskToolClient = {
     syncIncremental: () => Promise.resolve({ changes: [], token: 'fake' }),
     fetchAll: () =>
-      Promise.resolve({ token: 'fake', projects: [], sections: [], labels: [], tasks: [] }),
+      Promise.resolve({
+        token: 'fake',
+        projects: [],
+        sections: [],
+        labels: [],
+        tasks: [...(options.openTasks ?? [])],
+      }),
     fetchLocations: () => Promise.resolve({ projects: [], sections: [] }),
+    fetchCompletionEvents: (since, until) => {
+      eventRequests.push({ since, until });
+      return Promise.resolve(
+        (options.events ?? []).filter((event) => event.at >= since && event.at < until),
+      );
+    },
     fetchCompletions: (since, until) => {
-      windows.push({ since, until });
+      requests.push({ since, until });
+      windows.push({
+        since: new Date(since.getTime() + READ_MARGIN_MS),
+        until: until === undefined ? undefined : new Date(until.getTime() - READ_MARGIN_MS),
+      });
       onFetch?.();
       return Promise.resolve(
         completions.filter(
@@ -216,5 +256,5 @@ export function createFakeTaskClient(
     },
   };
 
-  return { client, windows };
+  return { client, windows, requests, eventRequests };
 }

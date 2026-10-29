@@ -112,6 +112,7 @@ export const objectiveRoutes: readonly ApiRoute[] = [
     handle: (context, services) =>
       services.objectives.createKeyResult(context.params.id, {
         statement: context.body.statement,
+        subObjective: context.body.subObjective,
         target: context.body.target,
         unit: context.body.unit,
         progressSelf: context.body.progressSelf,

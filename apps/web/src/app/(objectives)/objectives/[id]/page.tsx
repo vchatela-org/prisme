@@ -27,6 +27,7 @@ import {
   elapsedPctOf,
   isOpenObjective,
   objectiveProgress,
+  subObjectivesOf,
 } from '@/lib/objectives-view';
 import { newInitiativeHref } from '@/lib/nudge-view';
 import { AddKeyResultForm } from './add-key-result-form';
@@ -241,7 +242,10 @@ export default async function ObjectivePage({ params }: { params: Promise<{ id: 
           title="Add a key result"
           description="How you would know this objective happened. A measure in a rate is usually a habit — that belongs in the Ritual lane rather than here (ADR-0012)."
         >
-          <AddKeyResultForm objectiveId={data.id} />
+          <AddKeyResultForm
+            objectiveId={data.id}
+            subObjectives={subObjectivesOf(data.keyResults)}
+          />
         </Section>
       </div>
     </div>
@@ -283,7 +287,11 @@ function KeyResultPanel({
     <div id={`kr-${keyResult.id}`} className="scroll-mt-20">
       <Section
         title={keyResult.statement}
-        description={`Target ${String(keyResult.target)} ${keyResult.unit}.`}
+        description={`${
+          keyResult.subObjective === null || keyResult.subObjective === undefined
+            ? ''
+            : `Under ${keyResult.subObjective}. `
+        }Target ${String(keyResult.target)} ${keyResult.unit}.`}
       >
         <div className="flex flex-col gap-4">
           <ProgressPair

@@ -21,8 +21,16 @@ import { addKeyResult } from '../objective-actions';
  * put: a habit recorded as a key result is a target never reached and an
  * adherence measure nobody has.
  */
-export function AddKeyResultForm({ objectiveId }: { objectiveId: string }) {
+export function AddKeyResultForm({
+  objectiveId,
+  subObjectives = [],
+}: {
+  objectiveId: string;
+  /** The sub-objectives its key results already use, offered as suggestions (ADR-0039). */
+  subObjectives?: readonly string[];
+}) {
   const [statement, setStatement] = useState('');
+  const [subObjective, setSubObjective] = useState('');
   const [target, setTarget] = useState('');
   const [unit, setUnit] = useState('');
   const [pending, startTransition] = useTransition();
@@ -42,6 +50,7 @@ export function AddKeyResultForm({ objectiveId }: { objectiveId: string }) {
       const result = await addKeyResult({
         objectiveId,
         statement: statement.trim(),
+        ...(subObjective.trim() === '' ? {} : { subObjective: subObjective.trim() }),
         target: parsedTarget,
         unit: unit.trim(),
       });
@@ -54,6 +63,7 @@ export function AddKeyResultForm({ objectiveId }: { objectiveId: string }) {
 
       if (result.ok) {
         setStatement('');
+        setSubObjective('');
         setTarget('');
         setUnit('');
         router.refresh();
@@ -74,6 +84,29 @@ export function AddKeyResultForm({ objectiveId }: { objectiveId: string }) {
             setStatement(event.target.value);
           }}
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="kr-sub-objective">Sub-objective (optional)</Label>
+        <Input
+          id="kr-sub-objective"
+          value={subObjective}
+          disabled={pending}
+          list="kr-sub-objectives"
+          placeholder="The group it belongs to, as its task in Todoist reads"
+          onChange={(event) => {
+            setSubObjective(event.target.value);
+          }}
+        />
+        <datalist id="kr-sub-objectives">
+          {subObjectives.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        <FieldHint>
+          Its task is made beneath the objective task’s subtask that reads the same, so the
+          statement need not repeat it.
+        </FieldHint>
       </div>
 
       <div className="flex flex-wrap gap-4">

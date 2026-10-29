@@ -942,6 +942,8 @@ export const keyResultSchema = z.object({
   id,
   objectiveId: id,
   statement: z.string(),
+  /** The sub-objective it is grouped under (ADR-0039); `null` for none. */
+  subObjective: z.string().nullish(),
   target: z.number(),
   unit: z.string(),
   progressSelf: z.number(),
@@ -1412,3 +1414,17 @@ export const wipLimitsSchema = z.object({
 });
 
 export type WipLimits = z.infer<typeof wipLimitsSchema>;
+
+/**
+ * `GET /settings/signals-label` (ADR-0041): the label that puts a task in a
+ * Signals lane wherever it sits, the lane it names, and the lanes to choose
+ * from. `label: null` is the feature off.
+ */
+export const signalsLabelSchema = z.object({
+  label: z.string().nullable(),
+  areaKey: z.string().nullable(),
+  lanes: z.array(z.object({ key: z.string(), name: z.string(), active: z.boolean() })),
+  updatedAt: instant.nullable(),
+});
+
+export type SignalsLabel = z.infer<typeof signalsLabelSchema>;

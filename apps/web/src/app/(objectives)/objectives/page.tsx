@@ -14,6 +14,7 @@ import {
   currentPeriod,
   elapsedPctOf,
   groupByPeriod,
+  groupBySubObjective,
   isOpenObjective,
   nextMonthlyPeriod,
   objectiveProgress,
@@ -398,22 +399,31 @@ function ObjectiveCard({
           </p>
 
           <div className="flex flex-col gap-3">
-            {objective.keyResults.map((keyResult) => (
-              <ProgressPair
-                key={keyResult.id}
-                keyResult={keyResult}
-                objectiveId={objective.id}
-                elapsedPct={elapsedPct}
-                serveHref={
-                  isOpenObjective(objective.status)
-                    ? newInitiativeHref({
-                        areaKey: objective.areaKey,
-                        objectiveId: objective.id,
-                        keyResultId: keyResult.id,
-                      })
-                    : undefined
-                }
-              />
+            {groupBySubObjective(objective.keyResults).map((group) => (
+              <div key={group.name ?? ''} className="flex flex-col gap-3">
+                {group.name === null ? null : (
+                  <h4 className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+                    {group.name}
+                  </h4>
+                )}
+                {group.keyResults.map((keyResult) => (
+                  <ProgressPair
+                    key={keyResult.id}
+                    keyResult={keyResult}
+                    objectiveId={objective.id}
+                    elapsedPct={elapsedPct}
+                    serveHref={
+                      isOpenObjective(objective.status)
+                        ? newInitiativeHref({
+                            areaKey: objective.areaKey,
+                            objectiveId: objective.id,
+                            keyResultId: keyResult.id,
+                          })
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </>

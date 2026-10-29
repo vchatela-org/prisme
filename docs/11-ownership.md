@@ -93,6 +93,7 @@ prose, and prose belongs where prose is written. prisme has nothing to say in it
 | Content of an open task; description, subtasks at any depth | **T** | ← | Never mirrored, only counted |
 | `due` date, recurrence | **T** | ← | Yours. Read for planned-vs-done only |
 | Labels other than the anchor marker | **T** | ← | |
+| The **Signals lane label** on a task, open or completed | **T** | ← | Set by the automations that write the task, never by prisme. Read, and recorded on completions, so a task carrying the label chosen on Settings is attributed to the Signals lane wherever it sits ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)) |
 | Comments, attachments | **T** | — | Not read at all |
 | Priority on a **subtask** | **T** | ⇢ | Propagated from the anchor, but only while untouched — see the rule below |
 | Completion, `completed_at`, duration | **T** | ← | The raw material for capacity actuals |
@@ -122,13 +123,15 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | The objective page's area relation (the objectives store's area column) | **P** | ← seed | The outward form of `area_key`. Read into the adoption candidate to match and filter; taken into prisme only at adoption; after that a different value is a conflict (§10), never an update. **Nothing writes it yet** — an outward write of `area_key`, if built, writes here ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | Objective narrative, reflections, review notes | **D** | ← | Prose |
 | Key result `statement`, `target`, `unit` | **P** | → | |
+| Key result `sub_objective` | **P** | — | Free text grouping; never written outward as its own field — it only chooses where a new key result's task is made ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md)) |
+| The objective task's subtasks that stand for sub-objectives (`O1 : …`) | **T** | ← | The owner's. prisme reads their titles to place a key result's task and never writes them (ADR-0039) |
 | `progress_self` | **P** | → | Self-assessed; **this** is what syncs outward |
 | `progress_computed` | **∂** | — | Shown beside it, **never** written outward |
 | `measurements[]` | **P** | — | Append-only |
 | An objective's **own task** — the binding (`entity_external_ref`, `prisme_kind = 'objective'`) | **P** | — | One per objective. Taken from an initiative whose task carries exactly the objective's title in its area, automatically, the initiative dropped with a reason ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md)) |
 | An objective's own task: deadline, the `prisme:objective` label, the backlink line | **P** | → | While the objective is under way: the deadline is the period's last day, and the label replaces the anchor label it arrived with. A hand edit is a review, not a conflict. Never closed by prisme (ADR-0038) |
 | An objective's own task: title, priority, place, completion, other labels | **T** | ← | The owner's wording and the owner's tidying — in January for a year (ADR-0037) |
-| Key result **anchor task** | **P** | → | So subtasks can hang beneath it. Linked, bound or created by the reconciler while its objective is under way — **beneath its objective's own task**: an exact-title subtask there is adopted, a near match is a review, otherwise one is created; an objective that holds no task gets none (ADR-0038). prisme owns its title (the statement), deadline (the period's last day), the `prisme:kr` label and the backlink line; **not** its priority or its location once created. A hand edit of a managed field is a review, not a conflict (S15) |
+| Key result **anchor task** | **P** | → | So subtasks can hang beneath it. Linked, bound or created by the reconciler while its objective is under way — **beneath its objective's own task**: a task anywhere in that subtree reading exactly as the statement once inline markup is set aside is adopted, a near match is a review, a subtree already holding `KR`-shaped tasks none of which matches is a review, a key result at 100% gets none, otherwise one is created beneath its sub-objective's subtask or the objective's task; an objective that holds no task gets none (ADR-0038, ADR-0039). prisme owns its title (the statement), deadline (the period's last day), the `prisme:kr` label and the backlink line; **not** its priority or its location once created. A hand edit of a managed field is a review, not a conflict (S15) |
 | Subtasks under a key result anchor | **T** | ← | Yours |
 
 ## 7. Takeaway and media

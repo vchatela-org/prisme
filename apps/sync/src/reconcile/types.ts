@@ -93,6 +93,16 @@ export interface DesiredKeyResultAnchor {
   readonly keyResultId: string;
   readonly objectiveId: string;
   readonly statement: string;
+  /**
+   * The sub-objective it is grouped under (ADR-0039). A task made for it goes
+   * beneath the objective task's subtask that reads as this, when exactly one does.
+   */
+  readonly subObjective?: string | undefined;
+  /**
+   * Self-assessed progress, 0–100. A key result at 100 is finished work and
+   * gets no task made for it (ADR-0039); an existing one is still adopted.
+   */
+  readonly progressSelf?: number | undefined;
   readonly areaKey: string;
   readonly deadline: CalendarDate;
   /**

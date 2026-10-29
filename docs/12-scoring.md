@@ -151,18 +151,29 @@ ranks inside it.
 Rolling 4 weeks: long enough to survive one unusual week, short enough that the balance factor still
 responds within a month.
 
+**Every completion counts, a recurring task's occurrences included.** The task tool's completion
+history lists only tasks that became checked, and a recurring task never does. So completions are
+read from its activity log, one per occurrence, and merged with the history, which still supplies a
+one-off task's recorded duration
+([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)). An occurrence has no
+recorded duration: its minutes come from its ritual's process page, or from the default estimate.
+
 **Run counts toward capacity but never toward ranking; Signals count toward neither**
 ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md)). Excluding upkeep from the measurement would
 hide exactly the pattern the system exists to reveal — upkeep quietly consuming the majority of
 discretionary time. Signals are machine-generated: they carry volume and no time, so a Signals
 completion contributes zero minutes and is reported as a count (`laneOf` in
-`apps/sync/src/backfill/attribute.ts`).
+`apps/sync/src/backfill/attribute.ts`). A completion is a Signals completion when its location maps
+to a Signals lane, **or** when it carries the Signals lane label chosen on Settings, wherever it sat
+([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)). The label is checked
+first and decides only Signals. It keeps an automation's output, written into an area's section,
+out of that area's observed share.
 
 ### Known limitation, stated plainly
 
 Task counts and durations measure *attention routed through tasks*, not hours lived. Recurring work
-is under-represented in completion history, and much of what matters in the relationship and health
-areas never becomes a task at all. The balance factor is a lens, not a verdict, and areas whose work
+is counted occurrence by occurrence, but its minutes are mostly estimated. Much of what matters in
+the relationship and health areas never becomes a task at all. The balance factor is a lens, not a verdict, and areas whose work
 is mostly untracked will read as starved. That is a tolerable bias — it errs toward surfacing
 neglected areas — but it must not be mistaken for measurement.
 

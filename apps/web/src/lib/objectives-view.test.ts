@@ -7,6 +7,7 @@ import {
   divergenceOf,
   elapsedPctOf,
   groupByPeriod,
+  groupBySubObjective,
   isOpenObjective,
   isUpcoming,
   LATE_IN_PERIOD_PCT,
@@ -21,6 +22,7 @@ import {
   servedKeyResults,
   servesLine,
   splitUpcoming,
+  subObjectivesOf,
   windowLine,
 } from './objectives-view';
 
@@ -455,5 +457,39 @@ describe('an objective waiting to be judged (ADR-0037)', () => {
     );
     expect(windowLine(objective({ status: 'missed' }), '2027-03-01')).toBe('Period over');
     expect(windowLine(objective(), '2026-01-01')).toBe('0% of the period gone');
+  });
+});
+
+describe('sub-objective groups (ADR-0039)', () => {
+  it('renders an objective without sub-objectives as one unnamed group', () => {
+    const groups = groupBySubObjective([keyResult({ id: 'a' }), keyResult({ id: 'b' })]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.name).toBeNull();
+    expect(groups[0]?.keyResults.map((kr) => kr.id)).toEqual(['a', 'b']);
+  });
+
+  it('groups by sub-objective in first-seen order, loose ones first', () => {
+    const groups = groupBySubObjective([
+      keyResult({ id: 'a', subObjective: 'O2 : Rest well' }),
+      keyResult({ id: 'b', subObjective: 'O1 : Build endurance' }),
+      keyResult({ id: 'c', subObjective: 'O2 : Rest well' }),
+      keyResult({ id: 'd', subObjective: null }),
+    ]);
+    expect(groups.map((group) => [group.name, group.keyResults.map((kr) => kr.id)])).toEqual([
+      [null, ['d']],
+      ['O2 : Rest well', ['a', 'c']],
+      ['O1 : Build endurance', ['b']],
+    ]);
+  });
+
+  it('offers each sub-objective once', () => {
+    expect(
+      subObjectivesOf([
+        keyResult({ subObjective: 'O1 : Build' }),
+        keyResult({ subObjective: 'O1 : Build' }),
+        keyResult({ subObjective: null }),
+        keyResult({ subObjective: 'O2 : Rest' }),
+      ]),
+    ).toEqual(['O1 : Build', 'O2 : Rest']);
   });
 });
