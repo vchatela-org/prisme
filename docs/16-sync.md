@@ -79,6 +79,26 @@ Starting at the earlier bound means a refresh that missed days never advances th
 stretch nothing read. A failed fetch is logged as `taskToolUnread` and the refresh still
 materialises what is stored.
 
+**Completions come from two records, merged** ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)).
+The completion history (`/api/v1/tasks/completed/by_completion_date`) lists a task once it is
+checked. A recurring task never is, because completing it moves its date. So the **activity log**
+(`/api/v1/activities`, completed and uncompleted items) is the source of which completions happened,
+one per occurrence. The history stays for what the log does not carry: a one-off task's recorded
+duration, its section, and the instant its row was first stored under. `readCompletions`
+(`apps/sync/src/backfill/completions.ts`) is the one rule both the refresh and the backfill use:
+
+- an un-completion takes back the completion before it;
+- each history entry pairs with the log's latest completion of the same task, within a day, and the
+  pair is the history's entry, unchanged;
+- a log completion left over is stored on its own, located by the entry's project and section. With
+  no section on the entry, it takes the open task's current section, but only while that task is
+  still in the same project;
+- a history entry left over stands.
+
+Both records are read one day wider than each 28-day slice, so a pair is never split across two
+slices. A re-run over rows the history-only reader stored adds the recurring occurrences and nothing
+else. How far back the log reaches depends on the task tool's plan.
+
 **It rewrites whole weeks, and both derived tables together.** `capacity_week` and
 `capacity_completion` (one row per attributed completion, which is what the area screen lists) are
 replaced in one transaction over the same weeks, so the list and the sums cannot disagree. The weeks

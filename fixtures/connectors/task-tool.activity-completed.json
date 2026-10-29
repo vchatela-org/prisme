@@ -1,0 +1,46 @@
+{
+  "_comment": "Synthetic. The activity log filtered to completed items (ADR-0040) — PAGE ONE of two, shorter than the page size and still carrying a `next_cursor`, like the completion history. task-0021 is a RECURRING task: completing it moves its date instead of checking it, so its occurrences appear here and never in the completion history. Its first two entries carry no section; task-0003's carries one, which the tool documents on completion entries. The `client` key is one the read does not name and must ignore.",
+  "results": [
+    {
+      "id": 9001,
+      "object_type": "item",
+      "object_id": "task-0003",
+      "event_type": "completed",
+      "event_date": "2026-09-14T09:12:00.000000Z",
+      "parent_project_id": "project-0001",
+      "parent_item_id": null,
+      "initiator_id": null,
+      "extra_data_id": 9101,
+      "extra_data": {
+        "content": "Check the shoe mileage",
+        "section_id": "section-0001",
+        "client": "fixture"
+      }
+    },
+    {
+      "id": 9002,
+      "object_type": "item",
+      "object_id": "task-0021",
+      "event_type": "completed",
+      "event_date": "2026-09-14T07:05:00.000000Z",
+      "parent_project_id": "project-0002",
+      "parent_item_id": null,
+      "initiator_id": null,
+      "extra_data_id": 9102,
+      "extra_data": { "content": "Sweep the workshop floor" }
+    },
+    {
+      "id": 9003,
+      "object_type": "item",
+      "object_id": "task-0021",
+      "event_type": "completed",
+      "event_date": "2026-09-15T07:10:00.000000Z",
+      "parent_project_id": "project-0002",
+      "parent_item_id": null,
+      "initiator_id": null,
+      "extra_data_id": 9103,
+      "extra_data": { "content": "Sweep the workshop floor" }
+    }
+  ],
+  "next_cursor": "activity-cursor.0002"
+}
