@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · OQ-2: the work-in-progress caps are soft, and chosen on Settings
 
-**Agent:** Claude · **Duration:** one run · **PR:** — · **Outcome:** OQ-2 is closed by
+**Agent:** Claude · **Duration:** one run · **PR:** [#202](https://github.com/vchatela-org/prisme/pull/202) · **Outcome:** OQ-2 is closed by
 [ADR-0036](../20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md). The caps
 are an instance setting, two per area and seven overall by default, and every cap warning offers
 `waiting` as the way to free a slot.
