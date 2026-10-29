@@ -415,6 +415,7 @@ journal entry rather than a unit of planned work.
 | **The specs disagreed on whether Signals count toward capacity** (S14) — `12-scoring.md` §4 and `10-model.md` §3 said they do; ADR-0014 and the code say they do not | the owner, 2026-10-28 | 🟢 both specs corrected to ADR-0014 (Run counts, Signals do not) · docs only · S14 closed · [the entry](docs/50-journal/FUP-2026-10-28-s14-signals-capacity.md) | [#199](https://github.com/vchatela-org/prisme/pull/199) |
 | **Key results had no anchor task** (S15) — ADR-0012 says every key result gets one; the reconciler managed initiatives' anchors only, and a *Link as key result* was never bound | the owner, 2026-10-28 | 🟢 key results of objectives under way get anchors: bound ones converged (statement, period-end deadline, `prisme:kr` label, backlink — never priority), linked ones bound, the rest created at the area's home under the create threshold; a hand edit is a review · S15 closed · not done: no subtree mirror; **first writing pass wants one task per such key result** · [the entry](docs/50-journal/FUP-2026-10-28-s15-key-result-anchors.md) | [#200](https://github.com/vchatela-org/prisme/pull/200) |
 | **The work-in-progress caps were a hard-coded candidate (OQ-2)** — one `now` per area and five overall, changed only by a release, shown as deployment configuration; a blocked item filled its area, and the owner's objectives run all year | the owner, 2026-10-29 | 🟡 [ADR-0036](docs/20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) closes OQ-2: soft caps chosen on *Settings → Work in progress* (`selection_setting`, migration 0023; `GET`/`PUT /settings/wip-limits`), default two per area and seven overall; `waiting` frees a slot and every cap warning says so; `/settings` drops `selection` · not done: nothing new keeps objectives out of slots, because none was ever counted · [the entry](docs/50-journal/FUP-2026-10-29-wip-limits.md) | [#202](https://github.com/vchatela-org/prisme/pull/202) |
+| **Objectives never moved on their own** — a draft stayed a draft into its period, an objective switched on early stayed active, and nothing closed a period's objectives, while the year's are judged in January | the owner, 2026-10-29 | 🟡 [ADR-0037](docs/20-decisions/0037-an-objective-follows-its-window.md): every pass moves an open objective to its window's status — active from the first day, a review window after the period (to 31 January; seven days for a month), then `missed` if unjudged, with the reason in `event_log`; the DTO carries `window`; Objectives says *judge it by …* · not done: no review step lists *to judge* · [the entry](docs/50-journal/FUP-2026-10-29-objective-windows.md) | — |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -524,7 +525,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**35 accepted** · **1 superseded** · **0 proposed** · **4 open** — index:
+**36 accepted** · **1 superseded** · **0 proposed** · **4 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).

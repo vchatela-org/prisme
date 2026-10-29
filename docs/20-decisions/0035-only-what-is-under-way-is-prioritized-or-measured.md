@@ -1,6 +1,8 @@
 # ADR-0035 · Only what is under way is prioritized or measured
 
-**Status:** Accepted · 2026-09-28 · decided by the owner, 2026-09-28
+**Status:** Accepted · 2026-09-28 · decided by the owner, 2026-09-28 — for objectives only, the
+*change the status instead* alternative below is taken by
+[ADR-0037](0037-an-objective-follows-its-window.md) 2026-10-29: an objective's window moves its status
 
 ## Context
 

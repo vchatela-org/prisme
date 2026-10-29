@@ -113,7 +113,7 @@ optional **earliest start**, and dependencies on other initiatives.
 
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
-| **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
+| **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) that follows its window: active from the period's first day, judgeable until 31 January (annual) or seven days after (monthly), then `missed` if nobody judged it ([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
 | **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
@@ -376,6 +376,11 @@ the task tool, which owns `due`.
 ### Yearly
 
 The monthly set over the year, then **Allocate next year**: the only moment a weight can be written.
+
+The year's objectives are judged in January, not on 31 December. They stay `active` until 31 January
+and read *judge it met or missed by …*; whatever is still open on 1 February closes as `missed`
+([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)). A monthly objective has the first
+seven days of the next month.
 
 ---
 

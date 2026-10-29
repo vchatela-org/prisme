@@ -394,9 +394,14 @@ month's objectives · replan what slipped.
   kept in its history, and a linked Notion page's dates follow on the next pass. A met, missed or
   dropped objective keeps the period it was judged against. An objective whose period has not
   started is folded under **Upcoming** at the bottom of the screen and left out of the counts, the
-  orphans and the review, and it moves up on its own on the first day of its period. One adopted
-  from Notion for a period still to come arrives as a **draft**: mark it active when you commit to
-  it.
+  orphans and the review.
+  **An objective follows its window.** A draft becomes active on the first day of its period, and
+  one marked active ahead of time goes back to draft. When the period is over it stays active
+  while you review it: until **31 January** for an annual objective, **seven days** for a monthly
+  one. The card says *judge it met or missed by …*, and the screen counts these as *Period over, to
+  judge*. That is the time to close out the period's tasks in Todoist; prisme leaves them open and
+  never closes them. An objective nobody judges by then closes as **missed**, and its history says it
+  was the window that closed it. You can still change it to *met* afterwards.
 
 A task with no duration counts as 25 minutes of capacity; the charts say how much of a reading is
 estimated.

@@ -7,6 +7,9 @@ import {
   objectiveCountsIn,
   objectiveDatesOf,
   objectivePeriodOf,
+  objectivePhaseOf,
+  objectiveWindowOf,
+  objectiveWindowSteps,
   periodMatchesType,
 } from './objective.js';
 
@@ -156,5 +159,84 @@ describe('which key results get anchors, and their deadline (S15)', () => {
         '2026-10-28',
       ),
     ).toBeUndefined();
+  });
+});
+
+describe('an objective follows its window (ADR-0037)', () => {
+  it('gives an annual objective until the end of January to be judged', () => {
+    expect(objectiveWindowOf('annual', '2026')).toEqual({
+      startsOn: '2026-01-01',
+      endsOn: '2026-12-31',
+      judgeBy: '2027-01-31',
+    });
+  });
+
+  it('gives a monthly objective seven days, across a year end and a short month', () => {
+    expect(objectiveWindowOf('monthly', '2026-12')?.judgeBy).toBe('2027-01-07');
+    expect(objectiveWindowOf('monthly', '2027-02')).toEqual({
+      startsOn: '2027-02-01',
+      endsOn: '2027-02-28',
+      judgeBy: '2027-03-07',
+    });
+  });
+
+  it.each([
+    ['2025-12-31', 'upcoming'],
+    ['2026-01-01', 'running'],
+    ['2026-12-31', 'running'],
+    ['2027-01-01', 'closing'],
+    ['2027-01-31', 'closing'],
+    ['2027-02-01', 'ended'],
+  ] as const)('reads %s as %s for an annual 2026', (today, phase) => {
+    expect(objectivePhaseOf('annual', '2026', today)).toBe(phase);
+  });
+
+  it('has no phase for a period that does not match its type', () => {
+    expect(objectivePhaseOf('monthly', '2026', '2026-05-01')).toBeUndefined();
+    expect(
+      objectiveWindowSteps({ type: 'annual', period: '2026-05', status: 'active' }, '2026-05-01'),
+    ).toEqual([]);
+  });
+
+  it('starts a draft when its period starts, and not before', () => {
+    const draft = { type: 'monthly', period: '2026-12', status: 'draft' } as const;
+    expect(objectiveWindowSteps(draft, '2026-11-30')).toEqual([]);
+    expect(objectiveWindowSteps(draft, '2026-12-01')).toEqual([
+      { from: 'draft', to: 'active', reason: 'period_started' },
+    ]);
+    // Still a step during the review window: it was under way, and a person can judge it.
+    expect(objectiveWindowSteps(draft, '2027-01-05')).toEqual([
+      { from: 'draft', to: 'active', reason: 'period_started' },
+    ]);
+  });
+
+  it('puts an active objective whose period has not started back to draft', () => {
+    expect(
+      objectiveWindowSteps({ type: 'annual', period: '2028', status: 'active' }, '2026-10-29'),
+    ).toEqual([{ from: 'active', to: 'draft', reason: 'period_not_started' }]);
+  });
+
+  it('keeps an active objective open through its period and its review window', () => {
+    const active = { type: 'annual', period: '2026', status: 'active' } as const;
+    expect(objectiveWindowSteps(active, '2026-10-29')).toEqual([]);
+    expect(objectiveWindowSteps(active, '2027-01-15')).toEqual([]);
+  });
+
+  it('closes an unjudged objective as missed once the review window is over', () => {
+    expect(
+      objectiveWindowSteps({ type: 'annual', period: '2026', status: 'active' }, '2027-02-01'),
+    ).toEqual([{ from: 'active', to: 'missed', reason: 'review_window_ended' }]);
+    expect(
+      objectiveWindowSteps({ type: 'monthly', period: '2026-10', status: 'draft' }, '2026-11-08'),
+    ).toEqual([
+      { from: 'draft', to: 'active', reason: 'period_started' },
+      { from: 'active', to: 'missed', reason: 'review_window_ended' },
+    ]);
+  });
+
+  it.each(['met', 'missed', 'dropped'] as const)('never moves a %s objective', (status) => {
+    for (const today of ['2025-06-01', '2026-06-01', '2027-01-15', '2027-06-01']) {
+      expect(objectiveWindowSteps({ type: 'annual', period: '2026', status }, today)).toEqual([]);
+    }
   });
 });

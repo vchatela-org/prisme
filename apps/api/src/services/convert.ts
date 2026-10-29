@@ -7,6 +7,7 @@ import {
   computeProgress,
   isRankable,
   isSizedForNow,
+  objectiveWindowOf,
   parseCalendarDate,
   parseFibonacci,
   type Area,
@@ -276,6 +277,7 @@ export function toObjectiveDto(
     period: record.period,
     areaKey: record.areaKey,
     status: record.status as ObjectiveDtoShape['status'],
+    window: objectiveWindowOf(record.type, record.period) ?? null,
     externalPageId: record.externalPageId,
     keyResults: keyResults
       .filter((keyResult) => keyResult.objectiveId === record.id)

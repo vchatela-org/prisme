@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { KeyResult, Objective } from './contracts';
 import {
   addKeyResultHref,
+  awaitsJudgement,
   currentPeriod,
   divergenceOf,
   elapsedPctOf,
@@ -20,6 +21,7 @@ import {
   servedKeyResults,
   servesLine,
   splitUpcoming,
+  windowLine,
 } from './objectives-view';
 
 /**
@@ -54,6 +56,7 @@ function objective(over: Partial<Objective> = {}): Objective {
     period: '2026',
     areaKey: 'alpha',
     status: 'active',
+    window: { startsOn: '2026-01-01', endsOn: '2026-12-31', judgeBy: '2027-01-31' },
     externalPageId: null,
     keyResults: [],
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -433,5 +436,24 @@ describe('which key results each initiative serves (S12)', () => {
         { keyResultId: 'b', statement: 'Sleep', objectiveId: 'o', objectiveTitle: 'Fitter' },
       ]),
     ).toBe('Serves “Run 10 km” — Fitter (+1 more)');
+  });
+});
+
+describe('an objective waiting to be judged (ADR-0037)', () => {
+  it('is an active objective between the end of its period and its judge-by day', () => {
+    expect(awaitsJudgement(objective(), '2026-12-31')).toBe(false);
+    expect(awaitsJudgement(objective(), '2027-01-01')).toBe(true);
+    expect(awaitsJudgement(objective(), '2027-01-31')).toBe(true);
+    expect(awaitsJudgement(objective(), '2027-02-01')).toBe(false);
+    expect(awaitsJudgement(objective({ status: 'met' }), '2027-01-10')).toBe(false);
+    expect(awaitsJudgement(objective({ window: null }), '2027-01-10')).toBe(false);
+  });
+
+  it('says until when it can be judged, and how much of a running period is gone', () => {
+    expect(windowLine(objective(), '2027-01-10')).toBe(
+      'Period over — judge it met or missed by 2027-01-31, or it closes as missed',
+    );
+    expect(windowLine(objective({ status: 'missed' }), '2027-03-01')).toBe('Period over');
+    expect(windowLine(objective(), '2026-01-01')).toBe('0% of the period gone');
   });
 });

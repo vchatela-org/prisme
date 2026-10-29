@@ -91,7 +91,7 @@ export const objectiveRoutes: readonly ApiRoute[] = [
     scope: 'write:objective',
     summary: 'Change an objective’s title, status, page link or period',
     description:
-      'An **open** objective (draft or active) may move to another period: `type` and `period` together or either alone, as long as the pair agrees (422 otherwise). A met, missed or dropped objective keeps the period it was judged against (409), and the area is fixed at authoring. Each move is written to the event log as `period_changed`, and the linked page’s date column follows on the next sync pass (ADR-0034).',
+      'An **open** objective (draft or active) may move to another period: `type` and `period` together or either alone, as long as the pair agrees (422 otherwise). A met, missed or dropped objective keeps the period it was judged against (409), and the area is fixed at authoring. Each move is written to the event log as `period_changed`, and the linked page’s date column follows on the next sync pass (ADR-0034). The status follows the objective’s window on every sync pass (ADR-0037): a draft whose period has started becomes active, an active one whose period has not becomes a draft, and an open one still unjudged after `window.judgeBy` becomes missed. Judge it `met` or `missed` here before then; a judged status is never moved.',
     params: idParam,
     body: updateObjectiveBody,
     response: ObjectiveDto,

@@ -41,6 +41,19 @@ export type {
   ObjectivePageStore,
 } from './objective-pages/run.js';
 export { createObjectivePageStore } from './objective-pages/store.js';
+
+/**
+ * Objectives follow their window (ADR-0037): the step every pass runs first,
+ * from the CronJob and from `POST /sync` alike.
+ */
+export { advanceObjectiveWindows, calendarDayIn } from './objective-windows/run.js';
+export type {
+  ObjectiveWindowsOptions,
+  ObjectiveWindowsResult,
+  ObjectiveWindowStore,
+  OpenObjective,
+} from './objective-windows/run.js';
+export { createObjectiveWindowStore } from './objective-windows/store.js';
 export {
   datesValue,
   formatObjectivePagePlan,

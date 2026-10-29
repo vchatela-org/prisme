@@ -967,6 +967,8 @@ export const objectiveSchema = z.object({
   period: z.string().regex(/^\d{4}(-\d{2})?$/),
   areaKey,
   status: objectiveStatus,
+  /** The period's days and the last day it can be judged (ADR-0037). */
+  window: z.object({ startsOn: z.string(), endsOn: z.string(), judgeBy: z.string() }).nullable(),
   externalPageId: z.string().nullable(),
   keyResults: z.array(keyResultSchema),
   createdAt: instant,

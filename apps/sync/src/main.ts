@@ -78,6 +78,8 @@ import { readPageStores } from './create/page-stores.js';
 import { converge } from './create/run.js';
 import { createCreationStore } from './create/store.js';
 import { reconcileObjectivePages, type ObjectivePagesResult } from './objective-pages/run.js';
+import { advanceObjectiveWindows, calendarDayIn } from './objective-windows/run.js';
+import { createObjectiveWindowStore } from './objective-windows/store.js';
 import { createObjectivePageStore } from './objective-pages/store.js';
 import { createPostgresStore } from './state/postgres.js';
 import { reconcile } from './run.js';
@@ -521,6 +523,31 @@ async function main(): Promise<number> {
     const startedAt = Date.now();
     const outcome = await withAdvisoryLock(database.client, RECONCILER_LOCK_ID, async () => {
       logger.info('pass started', { mode, writeEnabled: config.sync.writeEnabled });
+
+      /*
+       * Objectives follow their window (ADR-0037), before anything reads them:
+       * a draft whose period started is active, an active one whose period
+       * has not is a draft, and one nobody judged by the end of its review
+       * window is missed. It runs first so the key results the reconciler
+       * plans below belong to objectives in the status their window gives
+       * them. prisme's own table only — it runs under the freeze — and `plan`
+       * counts without writing. A failure does not fail the pass: the next
+       * one converges.
+       */
+      try {
+        const windows = await advanceObjectiveWindows({
+          store: createObjectiveWindowStore(database.client),
+          today: calendarDayIn(config.timezone, new Date()),
+          now: new Date(),
+          mode,
+        });
+        const moved = Object.values(windows.counts).reduce((sum, count) => sum + count, 0);
+        if (moved > 0 || windows.raced > 0) {
+          logger.info('objective windows advanced', { ...windows.counts, raced: windows.raced });
+        }
+      } catch (error: unknown) {
+        logger.error('objective windows could not be advanced', { error });
+      }
 
       /*
        * Drain the creation ledger first, in this same lock.

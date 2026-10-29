@@ -69,6 +69,7 @@ export function anObjective(overrides: Partial<Objective> = {}): Objective {
     period: '2026',
     areaKey: 'health',
     status: 'active',
+    window: { startsOn: '2026-01-01', endsOn: '2026-12-31', judgeBy: '2027-01-31' },
     externalPageId: null,
     keyResults: [],
     createdAt: '2026-01-02T09:00:00.000Z',
