@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · An objective follows its window
 
-**Agent:** Claude · **Duration:** one run · **PR:** — · **Outcome:**
+**Agent:** Claude · **Duration:** one run · **PR:** [#203](https://github.com/vchatela-org/prisme/pull/203) · **Outcome:**
 [ADR-0037](../20-decisions/0037-an-objective-follows-its-window.md). Every pass moves an open
 objective to the status its window gives it: active from the period's first day, still open through a
 review window, missed if nobody judged it by the end of that window. The Objectives screen says until
