@@ -6,6 +6,7 @@ import {
   apiTokenListSchema,
   areaWeightsSchema,
   auditRetentionSchema,
+  wipLimitsSchema,
   bindingListSchema,
   instanceSettingsSchema,
   settingsAreaListSchema,
@@ -28,6 +29,7 @@ import {
   templateSummary,
 } from '@/lib/settings-view';
 import { AuditRetentionForm } from './audit-retention-form';
+import { WipLimitsForm } from './wip-limits-form';
 import { CheckBindingsButton } from './check-bindings-button';
 
 export const metadata = {
@@ -51,28 +53,41 @@ export const metadata = {
  * - **year weights** are editable only at the Year Review (ADR-0007);
  * - **how long the audit of outward writes is kept** is prisme's own too, and
  *   is edited here (ADR-0031);
+ * - **the work-in-progress limits** are prisme's own and edited here
+ *   (ADR-0036);
  * - **API tokens** are minted and revoked on their own screen (ADR-0015);
  * - **the write freeze, create threshold, sync window and scoring method** are
  *   deployment configuration, validated at boot, and shown read-only.
  */
 export default async function SettingsPage() {
   const year = new Date().getUTCFullYear();
-  const [settings, writeSwitch, sync, areas, weights, bindings, locations, retention, tokens] =
-    await Promise.all([
-      apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
-      apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
-      apiFetch({ path: '/sync', schema: syncStatusSchema }),
-      apiFetch({ path: '/areas', schema: settingsAreaListSchema }),
-      apiFetch({
-        path: '/areas/weights',
-        query: { year: String(year) },
-        schema: areaWeightsSchema,
-      }),
-      apiFetch({ path: '/bindings', schema: bindingListSchema }),
-      apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
-      apiFetch({ path: '/audit/retention', schema: auditRetentionSchema }),
-      apiFetch({ path: '/tokens', schema: apiTokenListSchema }),
-    ]);
+  const [
+    settings,
+    writeSwitch,
+    sync,
+    areas,
+    weights,
+    bindings,
+    locations,
+    retention,
+    tokens,
+    wipLimits,
+  ] = await Promise.all([
+    apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
+    apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
+    apiFetch({ path: '/sync', schema: syncStatusSchema }),
+    apiFetch({ path: '/areas', schema: settingsAreaListSchema }),
+    apiFetch({
+      path: '/areas/weights',
+      query: { year: String(year) },
+      schema: areaWeightsSchema,
+    }),
+    apiFetch({ path: '/bindings', schema: bindingListSchema }),
+    apiFetch({ path: '/task-tool/locations', schema: taskLocationsSchema }),
+    apiFetch({ path: '/audit/retention', schema: auditRetentionSchema }),
+    apiFetch({ path: '/tokens', schema: apiTokenListSchema }),
+    apiFetch({ path: '/settings/wip-limits', schema: wipLimitsSchema }),
+  ]);
   const liveTokens = tokens.ok ? tokens.data.items.filter((token) => token.active).length : 0;
 
   const config = webRuntime().config;
@@ -191,6 +206,33 @@ export default async function SettingsPage() {
             </Card>
           ) : (
             <ApiFailureState failure={settings} surface="the instance settings" />
+          )}
+        </Section>
+      </div>
+
+      <div id="wip">
+        <Section
+          title="Work in progress"
+          description="How much may be in flight at once, overall and in each area. Soft limits: Focus stops suggesting new work once one is reached and warns before you go past it, but nothing is refused, and nothing already in flight moves when you lower one."
+        >
+          {wipLimits.ok ? (
+            <Card className="flex flex-col gap-4">
+              <StatRow>
+                <StatTile label="In flight at once" value={String(wipLimits.data.maxNow)} />
+                <StatTile label="Per area" value={String(wipLimits.data.maxNowPerArea)} />
+              </StatRow>
+              <p className="max-w-prose text-sm text-ink-secondary">
+                Something blocked by someone else? Move it to <em>Waiting</em>: it keeps its place
+                and its history, and gives its slot back, so new work can start without breaking a
+                limit.
+                {wipLimits.data.chosen
+                  ? ''
+                  : ` These are the defaults, ${String(wipLimits.data.defaults.maxNow)} overall and ${String(wipLimits.data.defaults.maxNowPerArea)} per area, until you choose.`}
+              </p>
+              <WipLimitsForm limits={wipLimits.data} />
+            </Card>
+          ) : (
+            <ApiFailureState failure={wipLimits} surface="the work-in-progress limits" />
           )}
         </Section>
       </div>
@@ -384,10 +426,6 @@ export default async function SettingsPage() {
             <Fact
               label="A task with no duration counts as"
               value={`${String(settings.data.capacity.defaultTaskMinutes)} minutes`}
-            />
-            <Fact
-              label="In flight at once"
-              value={`${String(settings.data.selection.maxNow)} overall, ${String(settings.data.selection.maxNowPerArea)} per area`}
             />
             <Fact label="Time zone" value={settings.data.timezone} />
           </Card>

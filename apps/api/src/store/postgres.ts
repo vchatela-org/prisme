@@ -16,6 +16,7 @@ import type {
   AppendEventInput,
   ApiStore,
   AuditRetentionRecord,
+  SelectionSettingRecord,
   AreaMappingRecord,
   RoleBindingRecord,
   AreaRecord,
@@ -2527,6 +2528,32 @@ export function createPostgresStore(client: Sql): ApiStore {
           values ('singleton', ${days}, ${stamp(at)}::timestamptz)
           on conflict (id) do update set
             retention_days = excluded.retention_days,
+            updated_at = excluded.updated_at`;
+      },
+    },
+
+    selection: {
+      async limits(): Promise<SelectionSettingRecord> {
+        const rows = await client<
+          { max_now: number; max_now_per_area: number; updated_at: Date | string }[]
+        >`select max_now, max_now_per_area, updated_at from selection_setting where id = 'singleton'`;
+        const chosen = rows[0];
+        return {
+          limits:
+            chosen === undefined
+              ? null
+              : { maxNow: chosen.max_now, maxNowPerArea: chosen.max_now_per_area },
+          updatedAt: instant(chosen?.updated_at),
+        };
+      },
+
+      async setLimits(limits, at): Promise<void> {
+        await client`
+          insert into selection_setting (id, max_now, max_now_per_area, updated_at)
+          values ('singleton', ${limits.maxNow}, ${limits.maxNowPerArea}, ${stamp(at)}::timestamptz)
+          on conflict (id) do update set
+            max_now = excluded.max_now,
+            max_now_per_area = excluded.max_now_per_area,
             updated_at = excluded.updated_at`;
       },
     },

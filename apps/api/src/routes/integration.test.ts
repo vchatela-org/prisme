@@ -643,6 +643,8 @@ describeOrSkip('the API against PostgreSQL', () => {
     it('suggests free slots without calling them in flight or counting them as used', async () => {
       // Nothing in flight: every `now` goes back to `next`, so every slot is free.
       await database.client`update initiative set status = 'next' where status = 'now'`;
+      // One per area, as the fixture's expectations were written against.
+      await api().request('PUT', url('/settings/wip-limits'), { maxNow: 5, maxNowPerArea: 1 });
 
       interface FocusBody {
         now: { initiative: { id: string } }[];
@@ -688,6 +690,8 @@ describeOrSkip('the API against PostgreSQL', () => {
         items: { initiative: { id: string }; rank: number | null; notUnderWay: string | null }[];
       }
 
+      // One per area, so the fixture queues at least two behind the slots.
+      await api().request('PUT', url('/settings/wip-limits'), { maxNow: 5, maxNowPerArea: 1 });
       const before = (await api().request('GET', url('/focus'))).body as FocusBody;
       const [later, stopped] = before.upNext.map((entry) => entry.initiative.id);
       expect(later).toBeDefined();

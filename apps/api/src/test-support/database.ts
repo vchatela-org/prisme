@@ -146,6 +146,9 @@ const TABLES = [
   // singleton upserted like `sync_run_state`, so an empty table is the default.
   'external_write',
   'audit_setting',
+  // The work-in-progress limits (migration 0023, ADR-0036): a singleton, so an
+  // empty table is the defaults.
+  'selection_setting',
 ] as const;
 
 export async function openTestDatabase(): Promise<TestDatabase> {

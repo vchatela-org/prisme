@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_SELECTION_LIMITS, SELECTION_LIMIT_BOUNDS } from '@prisme/domain';
 import {
   describeWithDatabase,
   openTestDatabase,
@@ -558,6 +559,72 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
           { id: 'p-2', name: 'Second', parentId: null, archived: false, sections: [] },
         ],
       });
+    });
+  });
+
+  describe('the work-in-progress limits (ADR-0036)', () => {
+    it('reports the defaults until a pair is chosen, with the bounds', async () => {
+      const response = await api().request('GET', url('/settings/wip-limits'));
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        maxNow: DEFAULT_SELECTION_LIMITS.maxNow,
+        maxNowPerArea: DEFAULT_SELECTION_LIMITS.maxNowPerArea,
+        chosen: false,
+        defaults: { ...DEFAULT_SELECTION_LIMITS },
+        bounds: {
+          maxNow: { ...SELECTION_LIMIT_BOUNDS.maxNow },
+          maxNowPerArea: { ...SELECTION_LIMIT_BOUNDS.maxNowPerArea },
+        },
+        updatedAt: null,
+      });
+    });
+
+    it('keeps a chosen pair, and Focus selects with it on the next request', async () => {
+      const app = api();
+      const put = await app.request('PUT', url('/settings/wip-limits'), {
+        maxNow: 3,
+        maxNowPerArea: 1,
+      });
+      expect(put.status).toBe(200);
+      expect(put.body).toMatchObject({ maxNow: 3, maxNowPerArea: 1, chosen: true });
+
+      const read = await app.request('GET', url('/settings/wip-limits'));
+      expect(read.body).toMatchObject({ maxNow: 3, maxNowPerArea: 1, chosen: true });
+
+      const focus = await app.request('GET', url('/focus'));
+      expect(focus.status).toBe(200);
+      const body = focus.body as {
+        limits: { maxNow: number; maxNowPerArea: number };
+        slotsByArea: { limit: number }[];
+      };
+      expect(body.limits).toEqual({ maxNow: 3, maxNowPerArea: 1 });
+      expect(body.slotsByArea.every((slot) => slot.limit === 1)).toBe(true);
+    });
+
+    it('refuses a per-area cap larger than the overall one', async () => {
+      const response = await api().request('PUT', url('/settings/wip-limits'), {
+        maxNow: 2,
+        maxNowPerArea: 3,
+      });
+      expect(response.status).toBe(422);
+    });
+
+    it.each([
+      { maxNow: 0, maxNowPerArea: 1 },
+      { maxNow: 31, maxNowPerArea: 1 },
+      { maxNow: 5, maxNowPerArea: 0 },
+      { maxNow: 5.5, maxNowPerArea: 1 },
+    ])('refuses %o at the boundary', async (body) => {
+      const response = await api().request('PUT', url('/settings/wip-limits'), body);
+      expect(response.status).toBe(400);
+    });
+
+    it('is refused without admin:settings', async () => {
+      const response = await api(['read:focus']).request('PUT', url('/settings/wip-limits'), {
+        maxNow: 4,
+        maxNowPerArea: 2,
+      });
+      expect(response.status).toBe(403);
     });
   });
 });

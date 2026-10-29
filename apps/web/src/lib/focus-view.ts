@@ -131,9 +131,9 @@ export function reasonSentence(reason: SelectionReason): string {
     case 'selected':
       return 'Selected: it was top of the ranking and its area had a slot free.';
     case 'area_at_cap':
-      return 'Its area is already at its cap. Finishing something there frees the slot.';
+      return 'Its area is already at its cap. Finishing something there, or moving work blocked elsewhere to waiting, frees the slot.';
     case 'wip_full':
-      return 'Every slot is taken. This is the next one in, when one frees.';
+      return 'Every slot is taken. This is the next one in, when one frees — finishing something, or moving work blocked elsewhere to waiting, frees one.';
     case 'blocked':
       return 'Waiting on something that is neither done nor dropped.';
     case 'unestimated':

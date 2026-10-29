@@ -9,6 +9,7 @@ import {
   bindingListSchema,
   bindingSchema,
   settingsAreaSchema,
+  wipLimitsSchema,
 } from '@/lib/contracts';
 import { AREA_KEY_PATTERN } from '@/lib/settings-view';
 
@@ -435,5 +436,40 @@ export async function setAuditRetention(
     ok: true,
     title: 'Saved',
     description: `Records are kept ${String(result.data.retentionDays)} days. Older ones go at the next daily pass.`,
+  };
+}
+
+/**
+ * The work-in-progress limits (ADR-0036). The API holds the bounds and the
+ * pair rule and refuses what breaks them; this schema only keeps a non-number
+ * from making the trip. Nothing in flight moves when a cap is lowered, and the
+ * copy says so.
+ */
+const wipLimitsInput = z.object({
+  maxNow: z.number().int(),
+  maxNowPerArea: z.number().int(),
+});
+
+export async function setWipLimits(input: z.input<typeof wipLimitsInput>): Promise<SettingsResult> {
+  const parsed = wipLimitsInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, title: 'Not saved', description: 'Both limits are whole numbers.' };
+  }
+
+  const result = await apiFetch({
+    path: '/settings/wip-limits',
+    method: 'PUT',
+    body: { maxNow: parsed.data.maxNow, maxNowPerArea: parsed.data.maxNowPerArea },
+    schema: wipLimitsSchema,
+  });
+  if (!result.ok) {
+    return refused(result, 'the work-in-progress limits', 'The limits were not saved.');
+  }
+
+  revalidatePath('/', 'layout');
+  return {
+    ok: true,
+    title: 'Saved',
+    description: `Up to ${String(result.data.maxNow)} in flight, ${String(result.data.maxNowPerArea)} per area. Nothing already in flight moves.`,
   };
 }

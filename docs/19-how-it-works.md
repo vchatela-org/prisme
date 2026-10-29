@@ -257,8 +257,10 @@ button beside *Force sync*), which is when the score history begins.
 **Select** — the `now` set, a separate decision from ranking:
 
 1. what is already `now` keeps its slot;
-2. free slots fill from the top of the ranking, **one per area**, **five overall** (a starting
-   value — OQ-2);
+2. free slots fill from the top of the ranking, up to the **work-in-progress limits** chosen on
+   Settings (two per area and seven overall by default). They are soft: a person can go past one
+   and is warned, and work blocked by someone else moves to `waiting`, which holds no slot
+   ([ADR-0036](20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md));
 3. only `next` and `later` initiatives are candidates — **an initiative still at `inbox` is never
    selected**, so triage comes first;
 4. the rest is *Up next*.

@@ -497,5 +497,4 @@ list and holds the numbering — cite it, do not renumber from here.
 
 | # | Question | Blocks |
 |---|---|---|
-| OQ-2 | WIP limits: one `now` per area, five overall? | `now`-set selection (P2) |
 | OQ-7 | Should prisme write observed duration back to process pages? | Nothing — deferred enhancement |

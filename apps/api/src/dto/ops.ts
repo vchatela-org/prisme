@@ -191,12 +191,6 @@ export const settingsDto = z.object({
     defaultTaskMinutes: z.int(),
     balanceClamp: z.tuple([z.number(), z.number()]),
   }),
-  selection: z.object({
-    maxNow: z.int(),
-    maxNowPerArea: z.int(),
-    /** Both numbers are the candidates named in OQ-2, which is still open. */
-    openQuestion: z.string(),
-  }),
   schedule: z.object({
     concurrentInitiatives: z.int(),
     workingWeekdays: z.array(z.int()),

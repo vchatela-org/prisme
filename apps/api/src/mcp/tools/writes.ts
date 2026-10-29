@@ -378,7 +378,7 @@ const proposeNowSet = defineWriteTool({
   title: 'Propose what the now set should contain',
   scope: 'write:initiative',
   description:
-    'Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for "here is what the week should be" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. Every id must exist: one bad id refuses the whole proposal rather than applying part of it, and `list_initiatives` with `search` is how you turn a title into one. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits: those limits are still a candidate rather than a decision (OQ-2 is open), and refusing on an undecided number would be inventing the decision.',
+    'Replaces the now set with exactly the initiatives listed: anything named that is not `now` moves to `now`, and anything currently `now` that is not named moves to `next`. This is the tool for "here is what the week should be" — it shows the whole change as one diff, which is what makes it reviewable. It does not demote anything to the backlog and it does not drop anything. Every id must exist: one bad id refuses the whole proposal rather than applying part of it, and `list_initiatives` with `search` is how you turn a title into one. It will warn, and not refuse, when the proposal exceeds the work-in-progress limits chosen on Settings: they are soft by decision (ADR-0036), because work blocked elsewhere can push a person past them knowingly. Blocked work belongs in `waiting`, which holds no slot.',
   input: z.strictObject({
     initiativeIds: z.array(entityId).max(20),
   }),
@@ -433,13 +433,13 @@ const proposeNowSet = defineWriteTool({
     const warnings: string[] = [];
     if (desired.length > focus.limits.maxNow) {
       warnings.push(
-        `the proposal holds ${String(desired.length)} initiatives and the candidate limit is ${String(focus.limits.maxNow)} (OQ-2 is open on this number)`,
+        `the proposal holds ${String(desired.length)} initiatives and the limit chosen on Settings is ${String(focus.limits.maxNow)} (a soft limit, ADR-0036: blocked work belongs in waiting, which holds no slot)`,
       );
     }
     for (const [key, count] of [...perArea].sort()) {
       if (count > focus.limits.maxNowPerArea) {
         warnings.push(
-          `${key} would hold ${String(count)} concurrent initiatives and the candidate per-area limit is ${String(focus.limits.maxNowPerArea)}`,
+          `${key} would hold ${String(count)} concurrent initiatives and the per-area limit chosen on Settings is ${String(focus.limits.maxNowPerArea)}`,
         );
       }
     }

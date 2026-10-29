@@ -8,7 +8,8 @@ import { computeScores } from '../scoring/compute.js';
 import { wsjfBalanced, WSJF_BALANCED_DEFAULTS } from '../scoring/wsjf-balanced.js';
 import { anArea, anAreaContext, anInitiative, TEST_NOW } from '../test-support/builders.js';
 import {
-  CANDIDATE_SELECTION_LIMITS,
+  DEFAULT_SELECTION_LIMITS,
+  selectionLimitsProblem,
   notUnderWay,
   rank,
   selectNowSet,
@@ -140,7 +141,7 @@ describe('the per-area cap', () => {
 
 describe('what is not a candidate', () => {
   it.each(['inbox', 'waiting', 'review'] as const)('leaves %s alone', (status) => {
-    const selection = select([candidate('x', { status, value: 13 })], CANDIDATE_SELECTION_LIMITS);
+    const selection = select([candidate('x', { status, value: 13 })], DEFAULT_SELECTION_LIMITS);
     expect(selection.untouched.map((slot) => slot.initiativeId)).toEqual(['x']);
     expect(selection.untouched[0]?.proposedStatus).toBe('unchanged');
     expect(selection.untouched[0]?.reason).toBe('not_a_candidate');
@@ -149,7 +150,7 @@ describe('what is not a candidate', () => {
   it('never promotes a lane, whatever it scores', () => {
     const selection = select(
       [candidate('upkeep-1', { areaKey: 'upkeep', value: 13, timeCriticality: 13, risk: 13 })],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
     expect(selection.now).toEqual([]);
     expect(selection.untouched[0]?.reason).toBe('not_a_candidate');
@@ -158,7 +159,7 @@ describe('what is not a candidate', () => {
   it('holds back anything still blocked', () => {
     const selection = select(
       [candidate('blocked', { dependsOn: ['open'] }), candidate('open', { status: 'later' })],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
     const held = selection.next.find((slot) => slot.initiativeId === 'blocked');
     expect(held?.reason).toBe('blocked');
@@ -170,14 +171,14 @@ describe('what is not a candidate', () => {
       candidate('unblocked', { dependsOn: ['finished'] }),
       candidate('finished', { status: 'done' }),
     ];
-    const selection = select(initiatives, CANDIDATE_SELECTION_LIMITS);
+    const selection = select(initiatives, DEFAULT_SELECTION_LIMITS);
     expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['unblocked']);
   });
 
   it('holds back an initiative nobody has estimated, and takes the next one (S5)', () => {
     const selection = select(
       [candidate('placeholder', { estimated: false }), candidate('estimated', { status: 'later' })],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
     expect(selection.next.find((slot) => slot.initiativeId === 'placeholder')?.reason).toBe(
       'unestimated',
@@ -186,7 +187,7 @@ describe('what is not a candidate', () => {
   });
 
   it('refuses a slice too large to be a slice', () => {
-    const selection = select([candidate('huge', { size: 13 })], CANDIDATE_SELECTION_LIMITS);
+    const selection = select([candidate('huge', { size: 13 })], DEFAULT_SELECTION_LIMITS);
     expect(selection.next[0]?.reason).toBe('too_large');
   });
 
@@ -200,8 +201,18 @@ describe('what is not a candidate', () => {
 });
 
 describe('limits are configuration, and validated', () => {
-  it('names the open question rather than deciding it', () => {
-    expect(CANDIDATE_SELECTION_LIMITS).toEqual({ maxNow: 5, maxNowPerArea: 1 });
+  it('starts at two per area and seven overall (ADR-0036)', () => {
+    expect(DEFAULT_SELECTION_LIMITS).toEqual({ maxNow: 7, maxNowPerArea: 2 });
+  });
+
+  it('accepts the defaults and refuses what cannot bind or means a freeze', () => {
+    expect(selectionLimitsProblem(DEFAULT_SELECTION_LIMITS)).toBeUndefined();
+    expect(selectionLimitsProblem({ maxNow: 3, maxNowPerArea: 3 })).toBeUndefined();
+    expect(selectionLimitsProblem({ maxNow: 0, maxNowPerArea: 1 })).toMatch(/overall cap/);
+    expect(selectionLimitsProblem({ maxNow: 5, maxNowPerArea: 0 })).toMatch(/per-area cap/);
+    expect(selectionLimitsProblem({ maxNow: 5, maxNowPerArea: 2.5 })).toMatch(/per-area cap/);
+    expect(selectionLimitsProblem({ maxNow: 31, maxNowPerArea: 1 })).toMatch(/overall cap/);
+    expect(selectionLimitsProblem({ maxNow: 2, maxNowPerArea: 3 })).toMatch(/larger than/);
   });
 
   it('selects nothing at all when the cap is zero', () => {
@@ -231,7 +242,7 @@ describe('only work under way is selected (ADR-0035)', () => {
         candidate('later-on', { value: 13, earliestStart: parseCalendarDate('2027-01-04') }),
         candidate('today', { areaKey: 'beta', value: 1 }),
       ],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
 
     expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['today']);
@@ -245,7 +256,7 @@ describe('only work under way is selected (ADR-0035)', () => {
   it('is a candidate again from its earliest start on', () => {
     const selection = select(
       [candidate('from-today', { earliestStart: parseCalendarDate('2026-09-15') })],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
     expect(selection.now.map((slot) => slot.initiativeId)).toEqual(['from-today']);
   });
@@ -257,7 +268,7 @@ describe('only work under way is selected (ADR-0035)', () => {
         candidate('done', { areaKey: 'beta', value: 13, projectId: 'p-done', status: 'later' }),
         candidate('running', { areaKey: 'gamma', projectId: 'p-active' }),
       ],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
       projects([
         ['p-paused', 'paused'],
         ['p-done', 'done'],
@@ -275,7 +286,7 @@ describe('only work under way is selected (ADR-0035)', () => {
   it('keeps work in flight in its slot: a person put it there', () => {
     const selection = select(
       [candidate('flight', { status: 'now', earliestStart: parseCalendarDate('2027-01-04') })],
-      CANDIDATE_SELECTION_LIMITS,
+      DEFAULT_SELECTION_LIMITS,
     );
     expect(selection.now).toMatchObject([{ initiativeId: 'flight', reason: 'in_flight' }]);
   });
@@ -305,7 +316,7 @@ describe('selection is deterministic and complete', () => {
   ];
 
   it('accounts for every initiative exactly once', () => {
-    const selection = select(initiatives, CANDIDATE_SELECTION_LIMITS);
+    const selection = select(initiatives, DEFAULT_SELECTION_LIMITS);
     const placed = [
       ...selection.now,
       ...selection.next,
@@ -319,8 +330,8 @@ describe('selection is deterministic and complete', () => {
   });
 
   it('produces the same selection twice', () => {
-    expect(select(initiatives, CANDIDATE_SELECTION_LIMITS)).toEqual(
-      select(initiatives, CANDIDATE_SELECTION_LIMITS),
+    expect(select(initiatives, DEFAULT_SELECTION_LIMITS)).toEqual(
+      select(initiatives, DEFAULT_SELECTION_LIMITS),
     );
   });
 

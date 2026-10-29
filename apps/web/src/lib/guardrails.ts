@@ -11,8 +11,9 @@ import type { Initiative, InitiativeStatus } from './contracts';
  * (`docs/40-workstreams/W08-ui-focus.md`).
  *
  * The API agrees: `POST /initiatives/{id}/status` does not enforce a WIP limit.
- * That is deliberate on both sides, and a UI that refused here would be
- * inventing a rule the system does not have.
+ * That is deliberate on both sides (ADR-0036: the limits are soft, chosen on
+ * Settings), and a UI that refused here would be inventing a rule the system
+ * does not have.
  *
  * Every function is pure and takes its counts as arguments. Nothing reads the
  * focus response directly, because the same warnings are shown from the
@@ -69,7 +70,7 @@ export function guardrailsFor(
         code: 'area_at_cap',
         title: `${counts.areaName} is already at its cap`,
         detail: `${String(counts.areaNowCount)} of ${String(counts.maxNowPerArea)} slots in ${counts.areaName} are taken. Capacity is allocated per area before anything is ranked, so this one is not competing with the others (ADR-0005).`,
-        suggestion: `Finish or park something in ${counts.areaName} first, or leave this in next and let it take the slot when one frees.`,
+        suggestion: `If something in ${counts.areaName} is blocked by someone else, move it to waiting: it gives its slot back. Otherwise finish or park something first, or start this anyway — the limit is a warning, not a rule.`,
       });
     }
 
@@ -78,7 +79,8 @@ export function guardrailsFor(
         code: 'wip_full',
         title: 'Every now slot is taken',
         detail: `${String(counts.nowCount)} of ${String(counts.maxNow)} initiatives are already in now.`,
-        suggestion: 'Move one to next before starting this, or accept that both will move slowly.',
+        suggestion:
+          'If something in flight is blocked by someone else, move it to waiting: it gives its slot back. Otherwise move one to next, or start this anyway and accept that everything moves a little slower.',
       });
     }
 
