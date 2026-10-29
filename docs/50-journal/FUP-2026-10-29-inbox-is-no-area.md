@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · D7: the task tool's Inbox is no area's
 
-**Agent:** Claude · **Duration:** one run · **PR:** see the STATUS row · **Outcome:** S11's premise,
+**Agent:** Claude · **Duration:** one run · **PR:** [#211](https://github.com/vchatela-org/prisme/pull/211) · **Outcome:** S11's premise,
 that the task tool's own Inbox belongs to no area, is now enforced. A mapping that names the Inbox
 is refused, as home or otherwise. One that already does is flagged on Settings and on prisme's
 Inbox, so the owner can move the home. No ADR: this enforces a rule S11 already wrote down.
