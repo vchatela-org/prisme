@@ -95,18 +95,40 @@ export interface DesiredKeyResultAnchor {
   readonly statement: string;
   readonly areaKey: string;
   readonly deadline: CalendarDate;
-  /** The objective's area's home — where an anchor is created. */
-  readonly location?: TaskLocation | undefined;
+  /**
+   * The task its objective holds (ADR-0038). A key result's task is made as
+   * a subtask of it, after looking for one already there; an objective that
+   * holds no task gets none made for its key results.
+   */
+  readonly objectiveTaskId?: string | undefined;
   /** The task bound to it in `entity_external_ref`. */
   readonly externalAnchorId?: string | undefined;
   /** A link decided and not yet bound — *Link as key result* (S1). */
   readonly pendingExternalId?: string | undefined;
 }
 
+/**
+ * An objective's own task, as prisme wants it (ADR-0038).
+ *
+ * Only for an objective under way — `active`, its period started — and only
+ * one that holds a task. prisme owns the deadline (the period's last day), the
+ * objective label in place of the anchor label, and the backlink; never the
+ * title, which is the owner's, nor the priority or the location.
+ */
+export interface DesiredObjectiveTask {
+  readonly objectiveId: string;
+  /** For the plan line. **Instance data.** */
+  readonly title: string;
+  readonly deadline: CalendarDate;
+  readonly externalTaskId: string;
+}
+
 export interface DesiredState {
   readonly anchors: readonly DesiredAnchor[];
   /** Key results that want an anchor (S15). Absent is none. */
   readonly keyResultAnchors?: readonly DesiredKeyResultAnchor[] | undefined;
+  /** Objectives under way that hold a task (ADR-0038). Absent is none. */
+  readonly objectiveTasks?: readonly DesiredObjectiveTask[] | undefined;
   /**
    * `area_mapping`, keyed by {@link locationKey}. Many external locations fold
    * into one area; one location belongs to exactly one area.
@@ -142,7 +164,7 @@ export type ActionTag = 'create' | 'adopt' | 'update' | 'skip' | 'review' | 'con
 export const ACTION_TAGS = ['create', 'adopt', 'update', 'skip', 'review', 'conflict'] as const;
 
 /** What a plan line is about, for the plan's second column. */
-export type Subject = 'anchor' | 'subtree' | 'initiative' | 'key_result' | 'prisme';
+export type Subject = 'anchor' | 'subtree' | 'initiative' | 'key_result' | 'objective' | 'prisme';
 
 /**
  * One executable step.
@@ -171,7 +193,7 @@ export type Operation =
     }
   /** prisme-side only: bind an existing external object to an entity. Creates nothing. */
   | { readonly type: 'bind_ref'; readonly initiativeId: InitiativeId; readonly externalId: string }
-  /** A key result's anchor task, created at its area's home (S15). */
+  /** A key result's anchor task, made beneath its objective's task (S15, ADR-0038). */
   | {
       readonly type: 'create_key_result_anchor';
       readonly keyResultId: string;
@@ -182,6 +204,12 @@ export type Operation =
       readonly type: 'bind_key_result_ref';
       readonly keyResultId: string;
       readonly externalId: string;
+      /**
+       * How the task was found. `exact_title` is the reconciler's own match
+       * among the objective's subtasks (ADR-0038); absent is a link a person
+       * decided in the adoption queue.
+       */
+      readonly match?: 'exact_title' | undefined;
     }
   /** prisme-side only: the intent channel's "this labelled task is an initiative". */
   | {
@@ -245,6 +273,8 @@ export interface Action {
   readonly initiativeId?: InitiativeId | undefined;
   /** Set on a key result's anchor actions (S15), for the audit and the event log. */
   readonly keyResultId?: string | undefined;
+  /** Set on an objective's task actions (ADR-0038), for the same reason. */
+  readonly objectiveId?: string | undefined;
   readonly externalId?: string | undefined;
   /**
    * The human label for the line — a title, at runtime. **Instance data.**
@@ -287,6 +317,11 @@ export interface PlannerConfig {
    * adoption classifier's key-result label, `prisme:kr`.
    */
   readonly keyResultLabel?: string | undefined;
+  /**
+   * The label an objective's own task wears (ADR-0038), in place of the anchor
+   * label it arrived with. Defaults to `prisme:objective`.
+   */
+  readonly objectiveLabel?: string | undefined;
 }
 
 /** Actions that change something. A plan of pure skips is a converged plan. */

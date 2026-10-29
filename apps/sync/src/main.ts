@@ -78,6 +78,8 @@ import { readPageStores } from './create/page-stores.js';
 import { converge } from './create/run.js';
 import { createCreationStore } from './create/store.js';
 import { reconcileObjectivePages, type ObjectivePagesResult } from './objective-pages/run.js';
+import { giveObjectivesTheirTasks } from './objective-tasks/run.js';
+import { createObjectiveTaskStore } from './objective-tasks/store.js';
 import { advanceObjectiveWindows, calendarDayIn } from './objective-windows/run.js';
 import { createObjectiveWindowStore } from './objective-windows/store.js';
 import { createObjectivePageStore } from './objective-pages/store.js';
@@ -547,6 +549,26 @@ async function main(): Promise<number> {
         }
       } catch (error: unknown) {
         logger.error('objective windows could not be advanced', { error });
+      }
+
+      /*
+       * An objective holds its task (ADR-0038): an initiative whose task carries
+       * exactly an open objective's title, in its area, gives that task to the
+       * objective and is dropped. After the windows, so an objective a window
+       * just opened can be matched, and before the reconciler, which then
+       * converges the task as the objective's. prisme's own tables only.
+       */
+      try {
+        const given = await giveObjectivesTheirTasks({
+          store: createObjectiveTaskStore(database.client),
+          now: new Date(),
+          mode,
+        });
+        if (given.moved > 0 || given.raced > 0) {
+          logger.info('objectives given their tasks', { ...given });
+        }
+      } catch (error: unknown) {
+        logger.error('objective tasks could not be given', { error });
       }
 
       /*

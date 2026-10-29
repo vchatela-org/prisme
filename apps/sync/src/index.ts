@@ -54,6 +54,15 @@ export type {
   OpenObjective,
 } from './objective-windows/run.js';
 export { createObjectiveWindowStore } from './objective-windows/store.js';
+
+/** An objective holds its task (ADR-0038): the step after the windows. */
+export { giveObjectivesTheirTasks } from './objective-tasks/run.js';
+export type {
+  ObjectiveTasksOptions,
+  ObjectiveTasksResult,
+  ObjectiveTaskStore,
+} from './objective-tasks/run.js';
+export { createObjectiveTaskStore, OBJECTIVE_TASK_REASON } from './objective-tasks/store.js';
 export {
   datesValue,
   formatObjectivePagePlan,

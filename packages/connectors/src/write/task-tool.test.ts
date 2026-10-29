@@ -73,6 +73,24 @@ describe('the task-tool writer', () => {
     });
   });
 
+  it('creates a subtask beneath its parent, without a section (ADR-0038)', async () => {
+    const { fixture, writer } = writerOver((request) => {
+      const uuid = commandsOf(request.body)[0]?.uuid ?? '';
+      return {
+        body: JSON.stringify({
+          sync_status: { [uuid]: 'ok' },
+          temp_id_mapping: { [uuid]: 'task-9002' },
+        }),
+      };
+    });
+
+    await writer.createTask({ ...DRAFT, parentId: 'task-0042' }, KEY);
+
+    const args = commandsOf(fixture.requests[0]?.body)[0]?.args;
+    expect(args).toMatchObject({ project_id: 'project-0001', parent_id: 'task-0042' });
+    expect(args).not.toHaveProperty('section_id');
+  });
+
   it('sends only the fields an update actually changes', async () => {
     const { fixture, writer } = writerOver(respondOk());
 

@@ -14,6 +14,7 @@ import {
   locationKey,
   type DesiredAnchor,
   type DesiredKeyResultAnchor,
+  type DesiredObjectiveTask,
   type DesiredState,
   type LastAppliedIndex,
   type LastAppliedWrite,
@@ -322,18 +323,53 @@ export function createPostgresStore(
         join objective o on o.id = k.objective_id
         order by k.id`;
       const day = today();
+
+      // Objectives that hold a task (ADR-0038). Under way, the reconciler
+      // converges the fields prisme owns on it; its key results' tasks are
+      // made beneath it.
+      const objectiveTaskRows = await client<
+        {
+          id: string;
+          title: string;
+          type: 'annual' | 'monthly';
+          period: string;
+          status: 'draft' | 'active' | 'met' | 'missed' | 'dropped';
+          external_id: string;
+        }[]
+      >`
+        select o.id::text, o.title, o.type, o.period, o.status, r.external_id
+        from objective o
+        join entity_external_ref r
+          on r.prisme_id = o.id::text and r.prisme_kind = 'objective' and r.kind = 'task'
+        order by o.id, r.external_id`;
+      const objectiveTaskById = new Map<string, string>();
+      const objectiveTasks: DesiredObjectiveTask[] = [];
+      for (const row of objectiveTaskRows) {
+        if (objectiveTaskById.has(row.id)) continue;
+        objectiveTaskById.set(row.id, row.external_id);
+        // The same rule as a key result's task: only while it is under way.
+        const deadline = keyResultAnchorDeadline(row, day);
+        if (deadline === undefined) continue;
+        objectiveTasks.push({
+          objectiveId: row.id,
+          title: row.title,
+          deadline,
+          externalTaskId: row.external_id,
+        });
+      }
+
       const keyResultAnchors: DesiredKeyResultAnchor[] = [];
       for (const row of keyResultRows) {
         const deadline = keyResultAnchorDeadline(row, day);
         if (deadline === undefined) continue;
-        const location = locationByArea.get(row.area_key);
+        const objectiveTaskId = objectiveTaskById.get(row.objective_id);
         keyResultAnchors.push({
           keyResultId: row.id,
           objectiveId: row.objective_id,
           statement: row.statement,
           areaKey: row.area_key,
           deadline,
-          ...(location === undefined ? {} : { location }),
+          ...(objectiveTaskId === undefined ? {} : { objectiveTaskId }),
           ...(row.external_anchor_id === null ? {} : { externalAnchorId: row.external_anchor_id }),
           ...(row.external_anchor_id === null && pendingByInitiative.has(row.id)
             ? { pendingExternalId: pendingByInitiative.get(row.id) }
@@ -344,6 +380,7 @@ export function createPostgresStore(
       return {
         anchors,
         keyResultAnchors,
+        objectiveTasks,
         areaByLocation,
         boundElsewhere: new Set(elsewhere.map((row) => row.external_id)),
       };

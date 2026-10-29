@@ -125,7 +125,10 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | `progress_self` | **P** | → | Self-assessed; **this** is what syncs outward |
 | `progress_computed` | **∂** | — | Shown beside it, **never** written outward |
 | `measurements[]` | **P** | — | Append-only |
-| Key result **anchor task** | **P** | → | So subtasks can hang beneath it. Created, linked or bound by the reconciler while its objective is under way. prisme owns its title (the statement), deadline (the period's last day), the `prisme:kr` label and the backlink line; **not** its priority or its location once created. A hand edit of a managed field is a review, not a conflict (S15) |
+| An objective's **own task** — the binding (`entity_external_ref`, `prisme_kind = 'objective'`) | **P** | — | One per objective. Taken from an initiative whose task carries exactly the objective's title in its area, automatically, the initiative dropped with a reason ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md)) |
+| An objective's own task: deadline, the `prisme:objective` label, the backlink line | **P** | → | While the objective is under way: the deadline is the period's last day, and the label replaces the anchor label it arrived with. A hand edit is a review, not a conflict. Never closed by prisme (ADR-0038) |
+| An objective's own task: title, priority, place, completion, other labels | **T** | ← | The owner's wording and the owner's tidying — in January for a year (ADR-0037) |
+| Key result **anchor task** | **P** | → | So subtasks can hang beneath it. Linked, bound or created by the reconciler while its objective is under way — **beneath its objective's own task**: an exact-title subtask there is adopted, a near match is a review, otherwise one is created; an objective that holds no task gets none (ADR-0038). prisme owns its title (the statement), deadline (the period's last day), the `prisme:kr` label and the backlink line; **not** its priority or its location once created. A hand edit of a managed field is a review, not a conflict (S15) |
 | Subtasks under a key result anchor | **T** | ← | Yours |
 
 ## 7. Takeaway and media

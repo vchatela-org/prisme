@@ -125,8 +125,9 @@ describeOrSkip('tasks bound to something other than an initiative', () => {
     expect(byId.get(bound as string)).toMatchObject({
       externalAnchorId: 'task-invented-bound',
       deadline: '2026-12-31',
-      location: { projectId: 'project-invented' },
     });
+    // Its objective holds no task, so it has nowhere to be made (ADR-0038).
+    expect(byId.get(bound as string)?.objectiveTaskId).toBeUndefined();
     expect(byId.get(linked as string)?.pendingExternalId).toBe('task-invented-linked');
     expect(byId.get(bare as string)?.externalAnchorId).toBeUndefined();
 
@@ -139,5 +140,41 @@ describeOrSkip('tasks bound to something other than an initiative', () => {
       select external_anchor_id from key_result where id = ${bare as string}::uuid`;
     expect(row?.external_anchor_id).toBe('task-invented-created');
     expect((await store.loadDesired()).boundElsewhere.has('task-invented-created')).toBe(true);
+  });
+
+  /** ADR-0038: an objective's own task is taken, offered while under way, and parents its key results. */
+  it('offers an objective’s own task while it is under way, and names it on its key results', async () => {
+    await client`insert into area (key, name, kind) values ('craft', 'Invented craft', 'area')`;
+    const objectives = await client<{ id: string }[]>`
+      insert into objective (title, type, period, area_key, status) values
+        ('Invented under way', 'annual', '2026', 'craft', 'active'),
+        ('Invented later', 'annual', '2027', 'craft', 'draft')
+      returning id::text`;
+    const [underWay, later] = objectives.map((row) => row.id) as [string, string];
+    const [keyResult] = await client<{ id: string }[]>`
+      insert into key_result (objective_id, statement, target, unit)
+      values (${underWay}::uuid, 'Invented statement', 1, 'race')
+      returning id::text`;
+    await client`
+      insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id) values
+        (${underWay}, 'objective', 'task', 'task-invented-objective'),
+        (${later}, 'objective', 'task', 'task-invented-later')`;
+
+    const desired = await createPostgresStore(client, { today: () => '2026-10-29' }).loadDesired();
+
+    expect(desired.objectiveTasks).toEqual([
+      {
+        objectiveId: underWay,
+        title: 'Invented under way',
+        deadline: '2026-12-31',
+        externalTaskId: 'task-invented-objective',
+      },
+    ]);
+    expect(desired.keyResultAnchors?.[0]).toMatchObject({
+      keyResultId: keyResult?.id,
+      objectiveTaskId: 'task-invented-objective',
+    });
+    expect(desired.boundElsewhere.has('task-invented-objective')).toBe(true);
+    expect(desired.boundElsewhere.has('task-invented-later')).toBe(true);
   });
 });

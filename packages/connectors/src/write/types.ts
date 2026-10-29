@@ -24,6 +24,12 @@ import type { CalendarDate, TaskPriority } from '@prisme/domain';
 export interface AnchorDraft {
   readonly projectId: string;
   readonly sectionId?: string | undefined;
+  /**
+   * Made as a subtask of this task — a key result's task beneath its
+   * objective's (ADR-0038). The tool places a subtask in its parent's section,
+   * so a section is not sent with one.
+   */
+  readonly parentId?: string | undefined;
   /** The initiative's title. prisme owns it (docs/11-ownership.md §4). */
   readonly content: string;
   /** First line is the backlink; the last line is the managed-fields marker. */

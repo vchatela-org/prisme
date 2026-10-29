@@ -1,14 +1,23 @@
 import type { ExternalTask } from '@prisme/connectors';
 import type { TaskPatch } from '@prisme/connectors/write';
 import {
+  isSameTitle,
   mayCreateExternally,
   mayOverwrite,
+  normaliseTitle,
   type InitiativeStatus,
   type TaskPriority,
 } from '@prisme/domain';
 import { DEFAULT_KEY_RESULT_LABEL } from '../adoption/classify.js';
-import { composeDescription, firstLine, keyResultLine, managedLine } from './description.js';
 import {
+  composeDescription,
+  firstLine,
+  keyResultLine,
+  managedLine,
+  objectiveLine,
+} from './description.js';
+import {
+  DEFAULT_OBJECTIVE_LABEL,
   hasLabel,
   statusRequestIn,
   statusRequestLabel,
@@ -25,6 +34,7 @@ import {
   type ConflictRecord,
   type DesiredAnchor,
   type DesiredKeyResultAnchor,
+  type DesiredObjectiveTask,
   type DesiredState,
   type LastAppliedIndex,
   type LastAppliedWrite,
@@ -75,6 +85,8 @@ const UNSET_PRIORITY: TaskPriority = 'lowest';
 const ANCHOR = 'anchor';
 /** `last_applied`'s entity kind for a key result's anchor task (S15). */
 const KEY_RESULT_ANCHOR = 'key_result_anchor';
+/** `last_applied`'s entity kind for an objective's own task (ADR-0038). */
+const OBJECTIVE_TASK = 'objective_task';
 const SUBTASK = 'subtask';
 
 function needsAnchor(status: InitiativeStatus): boolean {
@@ -192,8 +204,21 @@ export function plan(
     planAnchor(anchor);
   }
 
+  // Objectives' own tasks (ADR-0038), before their key results, which are
+  // made beneath them.
+  const objectiveLabel = config.objectiveLabel ?? DEFAULT_OBJECTIVE_LABEL;
+  const objectiveTasks = [...(desired.objectiveTasks ?? [])].sort((left, right) =>
+    left.objectiveId < right.objectiveId ? -1 : left.objectiveId > right.objectiveId ? 1 : 0,
+  );
+  for (const objectiveTask of objectiveTasks) {
+    planObjectiveTask(objectiveTask);
+  }
+
   // Key results' anchors (ADR-0012, S15), in the same deterministic order.
   const keyResultLabel = config.keyResultLabel ?? DEFAULT_KEY_RESULT_LABEL;
+  // Subtasks of an objective's task already matched to a key result this pass,
+  // so two key results with one statement cannot both take one task.
+  const claimed = new Set<string>();
   const keyResults = [...(desired.keyResultAnchors ?? [])].sort((left, right) =>
     left.keyResultId < right.keyResultId ? -1 : left.keyResultId > right.keyResultId ? 1 : 0,
   );
@@ -475,12 +500,77 @@ export function plan(
     // Every key result is created in prisme — adoption refuses to make one
     // (`needs_objective`), and a task kept as one arrives as a pending link
     // above — so a key result with neither a task nor a link is prisme's to
-    // give one (ADR-0012). Guard 2's provenance, for this entity.
-    if (keyResult.location === undefined) {
+    // give one (ADR-0012). Guard 2's provenance, for this entity. Where it
+    // goes is its objective's own task (ADR-0038): beneath it, after looking
+    // for a subtask already there, and nowhere when the objective holds none.
+    if (keyResult.objectiveTaskId === undefined) {
+      actions.push({
+        ...base,
+        tag: 'skip',
+        detail: 'its objective holds no task in the task tool, so its key results get none',
+        operations: [],
+      });
+      return;
+    }
+    const parent = tasksById.get(keyResult.objectiveTaskId);
+    if (parent === undefined) {
       actions.push({
         ...base,
         tag: 'review',
-        detail: 'its objective’s area has no mapping, so there is nowhere to create its task',
+        externalId: keyResult.objectiveTaskId,
+        detail: 'its objective’s task was not returned by the tool, so there is nowhere to put it',
+        operations: [],
+      });
+      return;
+    }
+
+    const free = (children.get(parent.externalId) ?? []).filter(
+      (task) =>
+        !claimed.has(task.externalId) &&
+        !boundIds.has(task.externalId) &&
+        !desired.boundElsewhere.has(task.externalId),
+    );
+    const exact = free.filter((task) => isSameTitle(task.content, keyResult.statement));
+    const [only] = exact;
+    if (exact.length === 1 && only !== undefined) {
+      claimed.add(only.externalId);
+      actions.push({
+        ...base,
+        tag: 'adopt',
+        externalId: only.externalId,
+        detail: 'its objective’s subtask with the same title becomes its task — creates nothing',
+        operations: [
+          {
+            type: 'bind_key_result_ref',
+            keyResultId: keyResult.keyResultId,
+            externalId: only.externalId,
+            match: 'exact_title',
+          },
+        ],
+      });
+      return;
+    }
+    if (exact.length > 1) {
+      actions.push({
+        ...base,
+        tag: 'review',
+        externalId: parent.externalId,
+        detail: `${String(exact.length)} subtasks of its objective’s task carry its statement; rename all but one`,
+        operations: [],
+      });
+      return;
+    }
+    const statement = normaliseTitle(keyResult.statement);
+    if (free.some((task) => normaliseTitle(task.content) === statement)) {
+      // Close, and not the same: a guess here would rename somebody's subtask
+      // or put a near-copy beside it. Making the two titles identical is the
+      // owner's one-line answer, and the next pass binds it.
+      actions.push({
+        ...base,
+        tag: 'review',
+        externalId: parent.externalId,
+        detail:
+          'a subtask of its objective’s task looks like it but its title differs; make them identical and the next pass links them',
         operations: [],
       });
       return;
@@ -490,16 +580,14 @@ export function plan(
     actions.push({
       ...base,
       tag: 'create',
-      detail: `new key-result task, deadline ${keyResult.deadline}`,
+      detail: `new subtask of its objective’s task, deadline ${keyResult.deadline}`,
       operations: [
         {
           type: 'create_key_result_anchor',
           keyResultId: keyResult.keyResultId,
           draft: {
-            projectId: keyResult.location.projectId,
-            ...(keyResult.location.sectionId === undefined
-              ? {}
-              : { sectionId: keyResult.location.sectionId }),
+            projectId: parent.projectId,
+            parentId: parent.externalId,
             content: keyResult.statement,
             description,
             labels: [keyResultLabel],
@@ -521,6 +609,102 @@ export function plan(
         { entityKind: KEY_RESULT_ANCHOR, entityId: '', field: 'label', value: 'present' },
         { entityKind: KEY_RESULT_ANCHOR, entityId: '', field: 'description', value: description },
       ],
+    });
+  }
+
+  // ── one objective's own task (ADR-0038) ───────────────────────────────────
+
+  /**
+   * The task an objective holds: its deadline (the period's last day), the
+   * objective label in place of the anchor label it arrived with, and the
+   * backlink line. Never its title, which is the owner's, nor its priority or
+   * where it lives. A field edited in the task tool is a `review`, as for a
+   * key result's task: the objective is changed on Objectives.
+   */
+  function planObjectiveTask(objectiveTask: DesiredObjectiveTask): void {
+    const externalId = objectiveTask.externalTaskId;
+    const base = {
+      subject: 'objective' as const,
+      objectiveId: objectiveTask.objectiveId,
+      externalId,
+      title: objectiveTask.title,
+      lastApplied: [] as LastAppliedWrite[],
+    };
+    const task = tasksById.get(externalId);
+    if (task === undefined) {
+      actions.push({
+        ...base,
+        tag: 'review',
+        detail: 'its task was not returned by the tool; prisme will not recreate it',
+        operations: [],
+      });
+      return;
+    }
+
+    const last = (field: string) => lastValueOf(OBJECTIVE_TASK, externalId, field);
+    const desiredDescription = composeDescription(
+      task.description.text,
+      objectiveLine(config.baseUrl, objectiveTask.objectiveId),
+    );
+    const labelled =
+      hasLabel(task.labels, objectiveLabel) && !hasLabel(task.labels, config.anchorLabel);
+    const diffs = [
+      diff(
+        'deadline',
+        objectiveTask.deadline,
+        value(task.deadline),
+        last('deadline'),
+        `deadline ${task.deadline ?? 'none'} → ${objectiveTask.deadline}`,
+        { deadline: objectiveTask.deadline },
+      ),
+      diff('label', 'present', labelled ? 'present' : 'absent', last('label'), 'objective label', {
+        labels: withoutLabel(withLabel(task.labels, objectiveLabel), config.anchorLabel),
+      }),
+      diff(
+        'description',
+        firstLine(desiredDescription),
+        firstLine(task.description.text),
+        last('description'),
+        'backlink and managed-fields marker',
+        { description: desiredDescription },
+      ),
+    ];
+
+    const edited = diffs.filter((entry) => entry.verdict === 'conflict');
+    if (edited.length > 0) {
+      actions.push({
+        ...base,
+        tag: 'review',
+        detail: `${edited.map((entry) => entry.field).join(', ')} edited in the task tool; change the objective on Objectives, or put the task back`,
+        operations: [],
+      });
+    }
+
+    const updates = diffs.filter((entry) => entry.verdict === 'update');
+    if (updates.length === 0) {
+      if (edited.length === 0) {
+        actions.push({ ...base, tag: 'skip', detail: 'objective task matches', operations: [] });
+      }
+      return;
+    }
+    actions.push({
+      ...base,
+      tag: 'update',
+      detail: updates.map((entry) => entry.detail).join('; '),
+      operations: [
+        {
+          type: 'update_task',
+          externalId,
+          patch: updates.reduce<TaskPatch>((merged, entry) => ({ ...merged, ...entry.patch }), {}),
+        },
+      ],
+      lastApplied: updates.map((entry) => ({
+        entityKind: OBJECTIVE_TASK,
+        entityId: externalId,
+        field: entry.field,
+        value: entry.desiredValue,
+      })),
+      before: Object.fromEntries(updates.map((entry) => [entry.field, entry.observedValue])),
     });
   }
 

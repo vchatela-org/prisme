@@ -8,6 +8,7 @@ export * from './initiative.js';
 export * from './key-result-hint.js';
 export * from './lanes.js';
 export * from './objective.js';
+export * from './objective-task.js';
 export * from './project.js';
 export * from './provenance.js';
 export * from './review.js';
