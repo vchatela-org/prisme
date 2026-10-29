@@ -1195,6 +1195,8 @@ export const taskLocationsSchema = z.object({
       name: z.string(),
       parentId: z.string().nullable(),
       archived: z.boolean(),
+      /** The task tool's own Inbox, which belongs to no area (S11). */
+      inbox: z.boolean().default(false),
       sections: z.array(z.object({ id: z.string(), name: z.string(), archived: z.boolean() })),
     }),
   ),
@@ -1231,6 +1233,8 @@ export const taskToolInboxSchema = z.object({
       heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
     }),
   ),
+  /** Areas whose mappings name the Inbox anyway — a mistake to undo on Settings. */
+  mappedTo: z.array(z.string()).default([]),
   failure: z.string().nullable(),
 });
 

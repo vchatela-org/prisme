@@ -184,6 +184,12 @@ export const taskProjectDto = z.object({
   name: z.string(),
   parentId: z.string().nullable(),
   archived: z.boolean(),
+  /**
+   * The project the task tool marks as its own Inbox. It belongs to no area
+   * (S11): a mapping naming it is refused, and one that already does is shown
+   * as a mistake to undo.
+   */
+  inbox: z.boolean(),
   sections: z.array(taskSectionDto),
 });
 

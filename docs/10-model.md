@@ -131,6 +131,13 @@ to the area's **home** mapping; with none marked, to the most specific mapping (
 whole project), then the first by identifier. One rule, `homeLocation` in `packages/domain`, for
 both paths. Mappings, the home and an area's colour are edited on the **Settings** screen.
 
+**The task tool's own Inbox is never mapped**, as home or otherwise. It is where unsorted work waits,
+and it belongs to no area (S11). Mapped, it would count everything completed there as one area's
+work and send that area's new work back into the unsorted pile. The API refuses a mapping that names
+it (`422`). The Inbox is recognised the way the tool marks it (`inbox_project`), read live, and a
+save made while the tool cannot be read is not checked. Settings and prisme's Inbox both flag a
+mapping that already names it, so it can be removed.
+
 ---
 
 ## 4. Project

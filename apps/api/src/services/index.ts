@@ -127,7 +127,7 @@ export function createServices(options: CreateServicesOptions): Services {
   const pageTemplates = createPageTemplateService(store, options.directory);
 
   return {
-    catalogue: createCatalogueService(store),
+    catalogue: createCatalogueService(store, options.directory),
     create: createCreateService(store, pageTemplates, {
       baseUrl: config.baseUrl,
       captureLabel: CAPTURE_LABEL,

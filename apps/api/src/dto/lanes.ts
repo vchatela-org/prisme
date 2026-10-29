@@ -113,6 +113,14 @@ export const TaskToolInboxDto = named(
         heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
       }),
     ),
+    /**
+     * The areas whose mappings name the Inbox — a configuration mistake the
+     * Inbox's premise rests on not existing: its completions count toward those
+     * areas, and a task made an initiative of one stays where it is. Empty when
+     * none does, which is the only correct state. Saved before mappings naming
+     * it were refused, or while the tool could not be read.
+     */
+    mappedTo: z.array(z.string()),
     /** Why the task tool could not be read — a connector failure kind — or `null`. */
     failure: z.string().nullable(),
   }),

@@ -23,6 +23,7 @@ import { pageUrl } from '@/lib/page-link';
 import { webRuntime } from '@/lib/runtime';
 import {
   ACCESS_LABEL,
+  INBOX_MAPPING_WARNING,
   checkAdvice,
   nameLocation,
   roleCopy,
@@ -526,6 +527,9 @@ function AreaRow({
                     <Badge className="ml-2" variant="outline">
                       archived
                     </Badge>
+                  ) : null}
+                  {named.inbox ? (
+                    <p className="text-xs text-status-warning">{INBOX_MAPPING_WARNING}</p>
                   ) : null}
                 </li>
               );

@@ -58,6 +58,9 @@ export default async function InboxPage() {
       ? unsorted.data.items.filter((task) => task.heldBy === null)
       : [];
   const total = initiatives.length + takeaways.length;
+  // S11 rests on Todoist's Inbox being in no area. A mapping that names it
+  // anyway (saved before such mappings were refused) breaks that, so say where.
+  const inboxMappedTo = unsorted.ok && unsorted.data.failure === null ? unsorted.data.mappedTo : [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -115,6 +118,21 @@ export default async function InboxPage() {
             ))}
           </ul>
         </Section>
+      ) : null}
+
+      {inboxMappedTo.length > 0 ? (
+        <Card className="border-status-warning p-4 text-sm">
+          <p className="font-medium text-ink">Todoist’s Inbox is mapped to an area</p>
+          <p className="mt-1 max-w-prose text-ink-secondary">
+            Settings maps it to {inboxMappedTo.map(nameOf).join(', ')}. The Inbox belongs to no
+            area: while it is mapped, everything completed there counts toward that area, a task
+            made an initiative of it stays in the Inbox, and new work for it may be created there.{' '}
+            <Link href="/settings" className="underline underline-offset-2">
+              Remove the mapping on Settings → Areas
+            </Link>{' '}
+            and choose a home in the area’s own project.
+          </p>
+        </Card>
       ) : null}
 
       {unsortedTasks.length > 0 ? (

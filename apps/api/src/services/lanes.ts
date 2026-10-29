@@ -351,11 +351,33 @@ export function createLaneService(
 
     async taskToolInbox(): Promise<TaskToolInboxShape> {
       let tasks;
+      let inbox;
       try {
-        tasks = await directory.inboxTasks();
+        [tasks, inbox] = await Promise.all([
+          directory.inboxTasks(),
+          directory
+            .taskLocations()
+            .then((locations) => locations.projects.find((project) => project.inbox === true)),
+        ]);
       } catch (error) {
-        return { items: [], failure: isConnectorError(error) ? error.failure : 'unavailable' };
+        return {
+          items: [],
+          mappedTo: [],
+          failure: isConnectorError(error) ? error.failure : 'unavailable',
+        };
       }
+      // Which areas a mapping folds the Inbox into, if any (S11): the one state
+      // in which "unsorted, in no area" is not true, and the screen says so.
+      const mappedTo =
+        inbox === undefined
+          ? []
+          : [
+              ...new Set(
+                (await store.areas.mappings())
+                  .filter((mapping) => mapping.externalProjectId === inbox.externalId)
+                  .map((mapping) => mapping.areaKey),
+              ),
+            ].sort();
       const holders = new Map(
         (await store.lanes.taskHolders(tasks.map((task) => task.externalId))).map((holder) => [
           holder.externalId,
@@ -364,6 +386,7 @@ export function createLaneService(
       );
       return {
         failure: null,
+        mappedTo,
         items: tasks.map((task) => {
           const holder = holders.get(task.externalId);
           return {

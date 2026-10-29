@@ -65,6 +65,10 @@ Open the area (**Edit** in the Areas table), then **Where its work lives in Todo
 - A location already used by another area is shown as *belongs to …*; untick it there first.
 - Mark one location **new work goes here**. That is where prisme will create an initiative's task,
   or a quick capture, for this area. Without one, prisme uses the most specific location.
+- **Todoist's Inbox is not offered.** It belongs to no area: what waits there is sorted from
+  prisme's Inbox (*Unsorted in Todoist*) or in Todoist. If an area already lists it, Settings and the
+  Inbox say so in orange. Untick it, mark a home in the area's own project, and save. While it stays
+  mapped, everything completed in the Inbox counts toward that area.
 
 **Nothing moves in Todoist when you do this.** It only tells prisme how to read what is already
 there: completed tasks in these locations count toward the area, and a task labelled for prisme
