@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './primitives/select.js';
+import { Notice } from './primitives/states.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './primitives/tabs.js';
 import { ToastProvider } from './primitives/toast.js';
 
@@ -109,6 +110,16 @@ const RENDERED: ReadonlyArray<readonly [string, () => React.ReactElement]> = [
       >
         {null}
       </ChartFrame>
+    ),
+  ],
+  [
+    'Notice',
+    () => (
+      <Notice
+        title="Health is starved and has nothing queued."
+        description="An invented nudge."
+        action={<a href="/create/initiative?area=health">Create an initiative here</a>}
+      />
     ),
   ],
   [

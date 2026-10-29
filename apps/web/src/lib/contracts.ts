@@ -187,6 +187,17 @@ export const focusSchema = z.object({
   suggested: z.array(focusEntrySchema),
   upNext: z.array(focusEntrySchema),
   slotsByArea: z.array(areaSlotSchema),
+  /**
+   * Starved areas with nothing queued and under way, as the API decided them
+   * (`starvedWithNothingQueued`, packages/domain). Defaulted so an older API
+   * shows no notice rather than failing the whole screen.
+   */
+  starvedAreas: z.array(z.object({ areaKey, balanceFactor: z.number() })).default([]),
+  /**
+   * When a review was last closed; `null` when none ever was. Absent from an
+   * older API, which is *unknown*, not *never* — and says nothing.
+   */
+  lastReviewClosedAt: instant.nullable().optional(),
 });
 
 export type Focus = z.infer<typeof focusSchema>;

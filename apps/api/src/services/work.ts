@@ -9,6 +9,7 @@ import {
   parseCalendarDate,
   replan,
   SCHEDULE_DEFAULTS,
+  starvedWithNothingQueued,
   statusIndex,
   toScoreRows,
   type CalendarDate,
@@ -414,7 +415,10 @@ export function createWorkService(
 
   return {
     async focus(now: Date): Promise<FocusShape> {
-      const snapshot = await ranking(now);
+      const [snapshot, lastReviewClosedAt] = await Promise.all([
+        ranking(now),
+        store.ops.lastClosedReviewAt(),
+      ]);
       const schedule = scheduleOf(snapshot, config);
 
       // Selection's `now` holds two kinds of entry: work a person put in `now`,
@@ -450,6 +454,13 @@ export function createWorkService(
             used: used.get(area.key) ?? 0,
             limit: snapshot.limits.maxNowPerArea,
           })),
+        starvedAreas: starvedWithNothingQueued({
+          areas: snapshot.areas,
+          capacity: snapshot.capacity,
+          initiatives: snapshot.initiatives,
+          underWay: snapshot.underWay,
+        }).map((entry) => ({ areaKey: entry.areaKey, balanceFactor: entry.balanceFactor })),
+        lastReviewClosedAt: lastReviewClosedAt?.toISOString() ?? null,
       };
     },
 

@@ -32,6 +32,7 @@ import {
   Label,
   LineChart,
   LoadingState,
+  Notice,
   PageHeader,
   PermissionDeniedState,
   Popover,
@@ -742,6 +743,15 @@ function States() {
         <Card>
           <LoadingState rows={4} label="Loading the backlog" />
         </Card>
+        <Notice
+          title="Health is starved and has nothing queued. Create an initiative for one of its key results."
+          description="A nudge: what the screen cannot do without, and the one action that fixes it. It goes away when the condition does."
+          action={
+            <Button size="sm" variant="secondary">
+              Create an initiative here
+            </Button>
+          }
+        />
       </div>
     </Section>
   );

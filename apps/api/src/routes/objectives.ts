@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { areaKey, objectiveStatus } from '../dto/common.js';
 import {
+  addServedByBody,
   createKeyResultBody,
   createMeasurementBody,
   createObjectiveBody,
@@ -131,6 +132,21 @@ export const objectiveRoutes: readonly ApiRoute[] = [
     response: KeyResultDto,
     handle: (context, services) =>
       services.objectives.updateKeyResult(context.params.id, context.body),
+  }),
+
+  defineRoute({
+    operationId: 'addKeyResultServedBy',
+    method: 'post',
+    path: '/key-results/:id/served-by',
+    scope: 'write:objective',
+    summary: 'Add one initiative to what serves a key result',
+    description:
+      'Adds to `servedBy` without replacing it — what *Create an initiative that serves this* sends once the initiative exists. Adding one already there changes nothing. Refused with 409 when the initiative is in another area than the objective: work serves the objectives of its own area.',
+    params: idParam,
+    body: addServedByBody,
+    response: KeyResultDto,
+    handle: (context, services) =>
+      services.objectives.addServedBy(context.params.id, context.body.initiativeId),
   }),
 
   defineRoute({

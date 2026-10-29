@@ -742,6 +742,52 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(then.items.find((entry) => entry.initiative.id === later)?.rank).not.toBeNull();
     });
 
+    it('names a starved area only while nothing is queued in it', async () => {
+      interface FocusBody {
+        starvedAreas: { areaKey: string; balanceFactor: number }[];
+      }
+
+      // Nothing queued anywhere: every area the window finds starved is named.
+      await database.client`update initiative set status = 'dropped', dropped_reason = 'test'`;
+      const empty = (await api().request('GET', url('/focus'))).body as FocusBody;
+      expect(empty.starvedAreas.length).toBeGreaterThan(0);
+      for (const entry of empty.starvedAreas)
+        expect(entry.balanceFactor).toBeGreaterThanOrEqual(1.5);
+      const keys = empty.starvedAreas.map((entry) => entry.areaKey);
+      expect(keys).toEqual([...keys].sort());
+
+      // One initiative queued in the first of them takes that area off the list.
+      const [first] = empty.starvedAreas;
+      if (first === undefined) throw new Error('no starved area');
+      await database.client`
+        update initiative set status = 'next', dropped_reason = null
+        where id = (select id from initiative where area_key = ${first.areaKey} limit 1)`;
+      const queued = (await api().request('GET', url('/focus'))).body as FocusBody;
+      expect(queued.starvedAreas.map((entry) => entry.areaKey)).not.toContain(first.areaKey);
+    });
+
+    it('says when a review was last closed, and null before any was', async () => {
+      const before = (await api().request('GET', url('/focus'))).body as {
+        lastReviewClosedAt: string | null;
+      };
+      expect(before.lastReviewClosedAt).toBeNull();
+
+      const opened = (await api().request('POST', url('/reviews'), { cadence: 'weekly' })).body as {
+        id: string;
+      };
+      // Open is not closed.
+      const stillOpen = (await api().request('GET', url('/focus'))).body as {
+        lastReviewClosedAt: string | null;
+      };
+      expect(stillOpen.lastReviewClosedAt).toBeNull();
+
+      await api().request('PATCH', url(`/reviews/${opened.id}`), { complete: true });
+      const after = (await api().request('GET', url('/focus'))).body as {
+        lastReviewClosedAt: string | null;
+      };
+      expect(after.lastReviewClosedAt).not.toBeNull();
+    });
+
     it('flags a deadline the schedule cannot meet, and never moves it', async () => {
       const { body } = await api().request('GET', url('/focus'));
       const focus = body as {
@@ -1473,6 +1519,69 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect((response.body as { fields: { reason: string }[] }).fields[0]?.reason).toContain(
         'never written',
       );
+    });
+
+    it('adds one initiative to what serves a key result, and refuses another area', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Served from its own area',
+          type: 'annual',
+          period: '2026',
+          areaKey: 'health',
+        })
+      ).body as { id: string };
+      const create = async (title: string, areaKey: string) =>
+        (
+          (
+            await app.request('POST', url('/initiatives'), {
+              title,
+              areaKey,
+              value: 3,
+              timeCriticality: 3,
+              risk: 3,
+              size: 3,
+            })
+          ).body as { id: string }
+        ).id;
+      const existing = await create('Already serving', 'health');
+      const fresh = await create('Created to serve it', 'health');
+      const elsewhere = await create('Another area entirely', 'craft');
+
+      const keyResult = (
+        await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
+          statement: 'Sessions completed',
+          target: 10,
+          unit: 'sessions',
+          servedBy: [existing],
+        })
+      ).body as { id: string };
+
+      const added = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: fresh,
+      });
+      expect(added.status).toBe(201);
+      expect([...(added.body as { servedBy: string[] }).servedBy].sort()).toEqual(
+        [existing, fresh].sort(),
+      );
+
+      // Adding it again changes nothing.
+      const again = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: fresh,
+      });
+      expect((again.body as { servedBy: string[] }).servedBy).toHaveLength(2);
+
+      const refused = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: elsewhere,
+      });
+      expect(refused.status).toBe(409);
+
+      const missing = await app.request(
+        'POST',
+        url(`/key-results/${fixtureId('never-created')}/served-by`),
+        { initiativeId: fresh },
+      );
+      expect(missing.status).toBe(404);
     });
 
     it('appends measurements and never edits one', async () => {

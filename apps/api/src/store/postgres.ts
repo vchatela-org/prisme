@@ -1690,6 +1690,17 @@ export function createPostgresStore(client: Sql): ApiStore {
         return toKeyResult(row);
       },
 
+      async addServedBy(keyResultId: string, initiativeId: string): Promise<boolean> {
+        const rows = await client<{ id: string }[]>`
+          select id::text from key_result where id = ${keyResultId}::uuid`;
+        if (rows[0] === undefined) return false;
+        await client`
+          insert into key_result_served_by (key_result_id, initiative_id)
+          values (${keyResultId}::uuid, ${initiativeId}::uuid)
+          on conflict do nothing`;
+        return true;
+      },
+
       async updateKeyResult(id, input): Promise<KeyResultRecord | undefined> {
         const updated = await client.begin(async (tx: Tx) => {
           const rows = await tx<{ id: string }[]>`
@@ -1919,6 +1930,12 @@ export function createPostgresStore(client: Sql): ApiStore {
           from review_session where id = ${id}::uuid`;
         const row = rows[0];
         return row === undefined ? undefined : toReview(row);
+      },
+
+      async lastClosedReviewAt(): Promise<Date | undefined> {
+        const rows = await client<{ at: Date | string | null }[]>`
+          select max(completed_at) as at from review_session`;
+        return instant(rows[0]?.at ?? null) ?? undefined;
       },
 
       async openReview(cadence: string, startedAt: Date): Promise<ReviewRecord> {

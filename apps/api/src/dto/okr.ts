@@ -143,6 +143,12 @@ export const updateKeyResultBody = defineWrite(
   KEY_RESULT_READ_ONLY,
 );
 
+/** One initiative added to what serves a key result; the others stay. */
+export const addServedByBody = defineWrite(
+  'AddKeyResultServedBy',
+  z.strictObject({ initiativeId: entityId }),
+);
+
 export const createMeasurementBody = defineWrite(
   'CreateMeasurement',
   z.strictObject({

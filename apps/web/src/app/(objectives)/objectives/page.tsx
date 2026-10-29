@@ -14,6 +14,7 @@ import {
   currentPeriod,
   elapsedPctOf,
   groupByPeriod,
+  isOpenObjective,
   nextMonthlyPeriod,
   objectiveProgress,
   orphanInitiatives,
@@ -25,6 +26,7 @@ import {
   type OrphanInitiative,
   type PeriodGroup,
 } from '@/lib/objectives-view';
+import { newInitiativeHref } from '@/lib/nudge-view';
 import { AuthorObjectiveForm } from './author-form';
 import { ProgressPair } from './progress-pair';
 
@@ -402,6 +404,15 @@ function ObjectiveCard({
                 keyResult={keyResult}
                 objectiveId={objective.id}
                 elapsedPct={elapsedPct}
+                serveHref={
+                  isOpenObjective(objective.status)
+                    ? newInitiativeHref({
+                        areaKey: objective.areaKey,
+                        objectiveId: objective.id,
+                        keyResultId: keyResult.id,
+                      })
+                    : undefined
+                }
               />
             ))}
           </div>

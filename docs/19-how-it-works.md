@@ -240,6 +240,13 @@ balance_factor  =  clamp(target_share / actual_share, 0.5, 2)
 
 A starved area's factor rises toward 2; an over-served one sinks toward 0.5.
 
+The factor lifts only what is queued. An area at **1.5 or more** that holds nothing queued and
+under way — no initiative in `inbox`, `later`, `next`, `now` or `waiting` that may start today in an
+active project — has nothing for the lift to act on, so the loop stalls there while every number on
+the screen stays correct. `GET /focus` names those areas (`starvedAreas`, from
+`starvedWithNothingQueued` in `packages/domain`) and Focus and Areas say so, linking the
+new-initiative flow pre-filled with the area. It is a nudge: nothing is created for it.
+
 **Rank** — within an area only. The active method is `wsjf-balanced`
 ([`12-scoring.md`](12-scoring.md)):
 
@@ -426,6 +433,7 @@ ADRs, some may be answered by copy alone.
 | S13 | There is no map of the objects — this document, linked from Settings and Adoption. **Done** | Documentation |
 | S14 | The specs disagree on whether Signals count toward capacity — corrected to ADR-0014: they do not. **Done** | Spec drift |
 | S15 | Key results have no anchor task yet — the reconciler creates, links or binds one while the objective is under way. **Done** | Spec ahead of code |
+| S16 | The core loop is not fed — starved areas hold nothing to lift, key results nothing serves, no review has closed. Each screen now names the gap and links the action. **Done** | Onboarding |
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
 says an objective or key result stored as a task becomes a **key result** anchored to that task. In
@@ -640,6 +648,18 @@ initiatives that serve it. S15 is closed.
 already titled exactly as the key result is taken, and one that is only close is a `review`. An
 objective that holds no task gets none made, because a top-level task per key result beside objective
 tasks that already held them was the noise the owner's instance showed.
+
+**S16 · The core loop is not fed.** Found on 2026-10-29 by reading an instance's own screens: the
+areas whose balance factor sat high had empty backlogs, so the factor lifted nothing; no initiative
+served any key result; and no review had ever been closed. Every screen was correct and none said
+what to do. **Built:** `GET /focus` carries `starvedAreas` — rankable areas at a factor of **1.5**
+or more with no initiative queued and under way (`starvedWithNothingQueued`, `STARVED_BALANCE_FACTOR`
+in `packages/domain`) — and `lastReviewClosedAt`. Focus and this year's Areas show a notice per such
+area linking *New initiative* pre-filled with it; a key result of an open objective offers *Create an
+initiative that serves this*, pre-filling the area and the key result, and the form's **Serves**
+adds the new initiative to that key result through `POST /key-results/{id}/served-by`, which adds
+one without replacing the rest and refuses an initiative of another area. Focus points at the
+weekly review until one is closed. Nothing is created for any of them. S16 is closed.
 
 ---
 
