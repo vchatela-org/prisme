@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · Completions are read from the activity log
 
-**Agent:** Claude · **Duration:** one run · **PR:** PR_PENDING · **Outcome:**
+**Agent:** Claude · **Duration:** one run · **PR:** [#207](https://github.com/vchatela-org/prisme/pull/207) · **Outcome:**
 [ADR-0040](../20-decisions/0040-completions-are-read-from-the-activity-log.md). The backfill and the
 capacity refresh now read the activity log and merge it with the completion history. A recurring
 task's occurrences are counted from now on. No schema change.
