@@ -156,7 +156,10 @@ export const wireCompletedResponseSchema = z.object({
  * read are named, and both are untrusted (the title is sanitised in `map.ts`).
  */
 export const wireActivityEventSchema = z.object({
-  id: z.number().int().nullable().optional(),
+  // Opaque, and never read. The tool issues ids beyond the safe-integer range
+  // (a live entry reads 2.1679e36), so an integer check refused every page and
+  // stopped every completion read. Accept any identifier and read none of it.
+  id: z.union([z.number(), z.string()]).nullable().optional(),
   object_type: z.literal('item'),
   object_id: externalId,
   event_type: z.enum(['completed', 'uncompleted']),
