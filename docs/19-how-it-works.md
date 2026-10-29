@@ -594,6 +594,13 @@ counts them. A plain task's location is the task tool's ([`11-ownership.md`](11-
 unestimated initiative linked to the task exactly as the queue's *Adopt* does — the next pass binds
 it and, the Inbox being in no area, moves the task into the area. One that should stay a task is
 sorted in the task tool. S11 is closed.
+**Kept true since (2026-10-29):** the Inbox being in no area is now enforced as well as assumed. A
+mapping that names it is refused (`422`), as home or otherwise. `GET /task-tool/locations` marks it
+`inbox`, and Settings neither offers it nor lets it be marked as home. A mapping saved before the
+refusal is flagged on Settings and on prisme's Inbox (`mappedTo` on `GET /task-tool/inbox`): while
+it stands, the Inbox's completions count toward that area, and a task made an initiative of that
+area is not moved out of it. The Inbox's completions, once unmapped, are listed as counted toward no
+area with no *Map…* action.
 
 **S12 · The link from work to key results is examined monthly, but chosen weekly.** The weekly
 *refill* step picks the next `now` without showing which key result each candidate serves; that link

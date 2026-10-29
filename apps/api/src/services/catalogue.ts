@@ -5,6 +5,7 @@ import type { areaListDto, areaWeightsDto } from '../dto/area.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { ApiStore, AreaMappingInput, PageRequest } from '../store/types.js';
 import type { Identity } from '../http/authorize.js';
+import type { ExternalDirectory } from '../sync/directory.js';
 import { toAreaDto, toProjectDto, type AreaDtoShape, type ProjectDtoShape } from './convert.js';
 
 /**
@@ -82,7 +83,48 @@ export interface UpdateProjectRequest {
   readonly sections?: readonly string[] | undefined;
 }
 
-export function createCatalogueService(store: ApiStore): CatalogueService {
+/**
+ * The task tool's own Inbox belongs to no area (S11).
+ *
+ * It is where unsorted work waits, and prisme's whole answer to it — *Unsorted
+ * in Todoist*, and *Make it an initiative* moving the task into an area — rests
+ * on the Inbox being in none. Mapped to an area, its completions are counted as
+ * that area's work whatever they were, and as the area's home it is where new
+ * work for the area would be created: back into the unsorted pile.
+ *
+ * So a mapping that names it is refused, as home or not. The Inbox is
+ * recognised the way the tool marks it (`inbox_project`), read live. When the
+ * tool cannot be read the save goes through: the check is a guard on a
+ * configuration screen, and refusing every mapping during an outage would block
+ * the rest of it. Settings marks a mapping that names the Inbox as soon as the
+ * locations can be read again, so one saved then does not stay unseen.
+ */
+const INBOX_REFUSAL =
+  'that is the task tool’s Inbox, which belongs to no area — sort its tasks into an area’s ' +
+  'project in the task tool, or make one an initiative from prisme’s Inbox (Unsorted in Todoist)';
+
+async function inboxProjectId(directory: ExternalDirectory): Promise<string | undefined> {
+  try {
+    const locations = await directory.taskLocations();
+    return locations.projects.find((project) => project.inbox === true)?.externalId;
+  } catch {
+    return undefined;
+  }
+}
+
+export function createCatalogueService(
+  store: ApiStore,
+  directory: ExternalDirectory,
+): CatalogueService {
+  async function assertNoInbox(mappings: readonly AreaMappingInput[] | undefined): Promise<void> {
+    if (mappings === undefined || mappings.length === 0) return;
+    const inbox = await inboxProjectId(directory);
+    if (inbox === undefined) return;
+    if (mappings.some((mapping) => mapping.externalProjectId === inbox)) {
+      throw new ApiError('unprocessable', INBOX_REFUSAL);
+    }
+  }
+
   async function areaOrThrow(key: string): Promise<AreaDtoShape> {
     const [record, mappings] = await Promise.all([store.areas.get(key), store.areas.mappings()]);
     if (record === undefined) throw notFound('area', key);
@@ -164,6 +206,7 @@ export function createCatalogueService(store: ApiStore): CatalogueService {
         throw new ApiError('conflict', `an area with the key ${input.key} already exists`);
       }
       await assertPageIsFree(input.key, input.externalPageId);
+      await assertNoInbox(input.mappings);
       await store.areas.create(input);
       return areaOrThrow(input.key);
     },
@@ -178,6 +221,7 @@ export function createCatalogueService(store: ApiStore): CatalogueService {
     async replaceMappings(key, mappings): Promise<AreaDtoShape> {
       const existing = await store.areas.get(key);
       if (existing === undefined) throw notFound('area', key);
+      await assertNoInbox(mappings);
       await store.areas.replaceMappings(key, mappings);
       return areaOrThrow(key);
     },

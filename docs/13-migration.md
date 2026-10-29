@@ -191,7 +191,7 @@ filters by source store and by area, with a count beside each value
 | Page in the processes store | Ritual — only by *Merge*: *Adopt* refuses it, since a cadence and a target are in no candidate. Create the ritual on Rituals, and linking the row makes the page its process page; a ritual that already names another page is refused, and nothing is written |
 | Recurring task | Run lane, or a Ritual's recurring task if it serves a habit goal — chosen on Rituals, or by *Merge* when it carries the ritual label; either binds it at once, and a ritual that already has another task is refused |
 | Machine-generated notification | Signals lane |
-| Task in the task tool's own Inbox | In no area, so not in the queue. Listed on prisme's Inbox as *Unsorted in Todoist*: **Make it an initiative** of an area adopts it there — linked like *Adopt*, bound and moved into the area by the next pass. Otherwise it is sorted in the task tool, which owns where a plain task lives (S11) |
+| Task in the task tool's own Inbox | In no area, so not in the queue; no mapping may name the Inbox (refused, and flagged where one already does). Listed on prisme's Inbox as *Unsorted in Todoist*: **Make it an initiative** of an area adopts it there — linked like *Adopt*, bound and moved into the area by the next pass. Otherwise it is sorted in the task tool, which owns where a plain task lives (S11) |
 | Loose task, no structure | Stays a task. Not everything is an initiative |
 
 That last row matters. The temptation during adoption is to promote everything; the result is a

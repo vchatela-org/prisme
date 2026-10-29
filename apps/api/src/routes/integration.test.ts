@@ -2171,6 +2171,7 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(status).toBe(200);
       expect(body).toEqual({
         failure: null,
+        mappedTo: [],
         items: [
           { id: 'task-invented-unsorted', title: 'Call the plumber', heldBy: null },
           {
@@ -2180,6 +2181,40 @@ describeOrSkip('the API against PostgreSQL', () => {
           },
         ],
       });
+    });
+
+    it('names an area whose mapping folds the Inbox into it, which S11 says none may', async () => {
+      // A mapping saved before such mappings were refused: written directly.
+      await database.client`
+        insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+        values ('home', 'project-invented-inbox', null, false)`;
+      const app = createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        directory: stubDirectory(
+          {},
+          {
+            projects: [
+              {
+                externalId: 'project-invented-inbox',
+                name: 'Inbox',
+                archived: false,
+                order: 0,
+                inbox: true,
+              },
+            ],
+            sections: [],
+          },
+          {},
+          {},
+          [],
+          [{ externalId: 'task-invented-unsorted', title: 'Call the plumber' }],
+        ),
+      });
+
+      const { status, body } = await app.request('GET', url('/task-tool/inbox'));
+      expect(status).toBe(200);
+      expect(body).toMatchObject({ failure: null, mappedTo: ['home'] });
     });
 
     it('makes one an unestimated initiative of an area, linked and not bound, and only once', async () => {
