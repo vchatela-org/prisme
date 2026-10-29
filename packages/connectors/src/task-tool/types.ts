@@ -155,6 +155,14 @@ export interface Completion {
    * estimates as if nothing had been known at all.
    */
   readonly recordedDuration?: ExternalDuration | undefined;
+  /**
+   * The task's labels as it was completed, sorted. The task tool's field, read
+   * and never written. Read so a configured label can place a completion in
+   * the Signals lane wherever it sat
+   * ([ADR-0041](../../../../docs/20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)).
+   * Absent when the tool sent none — which is *not known*, not *no labels*.
+   */
+  readonly labels?: readonly string[] | undefined;
 }
 
 /**

@@ -256,6 +256,14 @@ describe('completion history', () => {
     expect(untitled?.content).toBeUndefined();
   });
 
+  it("carries a completion's labels, sorted, and leaves absent ones absent (ADR-0041)", async () => {
+    const result = await client().client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
+    expect(result[0]?.labels).toEqual([]);
+    // Absent is *not known*, which is not the same as *no labels*.
+    expect(result[1]?.labels).toBeUndefined();
+    expect(result[2]?.labels).toEqual(['batch', 'signal']);
+  });
+
   it('leaves recordedMinutes absent when the tool recorded nothing', async () => {
     const result = await client().client.fetchCompletions(new Date('2026-09-14T00:00:00.000Z'));
     expect(result[2]?.recordedMinutes).toBeUndefined();

@@ -26,7 +26,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0011](0011-optional-narrative-page.md) | Narrative page is optional, created on demand | Accepted |
 | [0012](0012-key-results-first-class.md) | Key results are first-class and anchored | Accepted — *every key result gets an anchor task* narrowed by [0038](0038-an-objective-holds-its-task.md) 2026-10-29: made beneath its objective's task |
 | [0013](0013-self-assessed-progress.md) | Objective progress is self-assessed | Accepted |
-| [0014](0014-lanes-outside-the-backlog.md) | Run, Signals and Rituals are lanes | Accepted |
+| [0014](0014-lanes-outside-the-backlog.md) | Run, Signals and Rituals are lanes | Accepted — *Signals in their own project* widened by [0041](0041-a-label-can-put-a-task-in-the-signals-lane.md) 2026-10-29: a chosen label puts a task there too |
 | [0015](0015-auth-split-by-caller.md) | Identity provider for humans, scoped tokens for agents | Accepted |
 | [0016](0016-document-tool-owns-processes.md) | The document tool owns process pages outright | Accepted |
 | [0017](0017-public-repository.md) | Public repository, impersonal content rule | Accepted |
@@ -53,8 +53,10 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0038](0038-an-objective-holds-its-task.md) | Let an objective hold its own task, and put its key results' tasks beneath it | **Accepted** 2026-10-29 — decided by the owner; narrows 0012; adds rows to [`11-ownership.md`](../11-ownership.md) §6; its decision 4 search in part superseded by [0039](0039-a-key-result-may-sit-under-a-sub-objective.md) |
 | [0039](0039-a-key-result-may-sit-under-a-sub-objective.md) | A key result may sit under a sub-objective, and its task is found in its objective's whole subtree | **Accepted** 2026-10-29 — decided by the owner; in part supersedes 0038 decision 4; amends 0012 (no task for a finished key result); adds rows to [`11-ownership.md`](../11-ownership.md) §6 |
 | [0040](0040-completions-are-read-from-the-activity-log.md) | Read completions from the activity log, and keep the completion history beside it | **Accepted** 2026-10-29 — decided by the owner; a recurring task's occurrences are counted; no schema change |
+| [0041](0041-a-label-can-put-a-task-in-the-signals-lane.md) | A label can put a task in the Signals lane, wherever it sits | **Accepted** 2026-10-29 — decided by the owner; widens how 0014 places Signals; adds a row to [`11-ownership.md`](../11-ownership.md) §5 |
 
-**40 records: 39 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
+**41 records: 40 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
+
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

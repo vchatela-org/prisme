@@ -230,3 +230,86 @@ describe('placing a completion', () => {
     expect(result.gaps).toEqual([]);
   });
 });
+
+describe('the Signals label (ADR-0041)', () => {
+  const LABEL = { label: 'signal', areaKey: 'noise' } as const;
+  const SECTIONED = new Map<string, AreaKey>([
+    ...LOCATIONS,
+    [locationKey('p-alpha', 's-digest'), 'alpha'],
+  ]);
+
+  it('puts a labelled completion in an area section into the Signals lane, as volume', () => {
+    const result = attribute(
+      [
+        completion({
+          externalSectionId: 's-digest',
+          labels: ['signal'],
+          recordedMinutes: 40,
+          durationScale: 'minute',
+        }),
+      ],
+      context({ areaByLocation: SECTIONED, signalsLabel: LABEL }),
+    );
+
+    expect(result.attributed[0]).toMatchObject({
+      areaKey: 'noise',
+      areaKind: 'signals',
+      lane: 'signals',
+      minutes: 0,
+    });
+  });
+
+  it('leaves an unlabelled completion where its location puts it', () => {
+    const result = attribute(
+      [
+        completion({ externalTaskId: 't-1', externalSectionId: 's-digest', labels: [] }),
+        completion({ externalTaskId: 't-2', labels: ['errand'] }),
+        completion({ externalTaskId: 't-3' }),
+      ],
+      context({ areaByLocation: SECTIONED, signalsLabel: LABEL }),
+    );
+
+    expect(result.attributed.map((row) => [row.areaKey, row.lane])).toEqual([
+      ['alpha', 'change'],
+      ['alpha', 'change'],
+      ['alpha', 'change'],
+    ]);
+  });
+
+  it('changes nothing when no label is chosen', () => {
+    const labelled = [completion({ labels: ['signal'] })];
+    const withSetting = attribute(labelled, context());
+    const without = attribute([completion()], context());
+
+    expect(withSetting.attributed).toEqual(without.attributed);
+    expect(withSetting.attributed[0]?.lane).toBe('change');
+  });
+
+  it('places a labelled completion even where no mapping exists, so it is not a gap', () => {
+    const result = attribute(
+      [completion({ externalProjectId: 'p-unmapped', labels: ['signal'] })],
+      context({ signalsLabel: LABEL }),
+    );
+
+    expect(result.gaps).toEqual([]);
+    expect(result.attributed[0]?.areaKey).toBe('noise');
+  });
+
+  it('beats a ritual binding, because the lane is the area kind first', () => {
+    const result = attribute(
+      [completion({ labels: ['signal'] })],
+      context({ signalsLabel: LABEL, ritualByTask: new Map([['t-1', 'r-1']]) }),
+    );
+
+    expect(result.attributed[0]?.lane).toBe('signals');
+  });
+
+  it('ignores a label pointing at an area that is not a Signals lane, rather than moving work into it', () => {
+    const result = attribute(
+      [completion({ externalProjectId: 'p-beta', labels: ['signal'] })],
+      context({ signalsLabel: { label: 'signal', areaKey: 'upkeep' } }),
+    );
+
+    expect(result.attributed[0]).toMatchObject({ areaKey: 'beta', lane: 'change' });
+  });
+});

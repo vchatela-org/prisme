@@ -78,6 +78,7 @@ export async function adopt(options: AdoptOptions): Promise<AdoptResult> {
     areaByLocation: areaMap.areaByLocation,
     laneByArea: areaMap.laneByArea,
     areaByPage: areaMap.areaByPage,
+    ...(areaMap.signalsLabel === undefined ? {} : { signalsLabel: areaMap.signalsLabel }),
     datePropertyByRole,
     areaPropertyByRole,
     ...(options.mappingProperty === undefined ? {} : { mappingProperty: options.mappingProperty }),

@@ -65,6 +65,8 @@ const TABLES = [
   'initiative',
   'project',
   'area_mapping',
+  // ADR-0041's setting (migration 0026) references `area`.
+  'signals_label_setting',
   'area_weight',
   'area',
   // W16's one table. It references nothing and nothing references it, so
@@ -241,6 +243,38 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
       expect(stored[0]?.content).toBe('Fix the side gate latch');
     });
 
+    it('keeps the labels a completion carried, and a re-fetch without them does not erase them (ADR-0041)', async () => {
+      const covers = {
+        coveredFrom: AT('2026-09-01T00:00:00Z'),
+        coveredThrough: AT('2026-09-30T00:00:00Z'),
+      };
+      await store().recordSlice(
+        [
+          completion({ labels: ['batch', 'signal'] }),
+          completion({ externalTaskId: 't-2', labels: [] }),
+          completion({ externalTaskId: 't-3' }),
+        ],
+        covers,
+      );
+
+      let stored = await store().loadCompletions(covers.coveredFrom, covers.coveredThrough);
+      expect(stored.map((row) => [row.externalTaskId, row.labels])).toEqual([
+        ['t-1', ['batch', 'signal']],
+        ['t-2', []],
+        ['t-3', undefined],
+      ]);
+
+      // Absent is not known, and keeps what is held; an empty list is an answer.
+      await store().recordSlice([completion(), completion({ externalTaskId: 't-2' })], covers);
+      await store().recordSlice([completion({ externalTaskId: 't-1', labels: [] })], covers);
+      stored = await store().loadCompletions(covers.coveredFrom, covers.coveredThrough);
+      expect(stored.map((row) => [row.externalTaskId, row.labels])).toEqual([
+        ['t-1', []],
+        ['t-2', []],
+        ['t-3', undefined],
+      ]);
+    });
+
     /**
      * **The double-count test, at the level where it is actually guaranteed.**
      * The pure pass cannot double-count because the table's primary key is the
@@ -336,6 +370,22 @@ describeOrSkip('the backfill store against PostgreSQL', () => {
       expect(map.areaByLocation.get('p-home/s-noise')).toBe('noise');
       expect(map.kindByArea.get('home')).toBe('area');
       expect(map.kindByArea.get('noise')).toBe('signals');
+      // No row in `signals_label_setting`: the feature is off.
+      expect(map.signalsLabel).toBeUndefined();
+    });
+
+    it('reads the Signals label when one is chosen, and loses it with its area (ADR-0041)', async () => {
+      await client`
+        insert into signals_label_setting (id, label, area_key, updated_at)
+        values ('singleton', 'signal', 'noise', now())`;
+      expect((await store().loadAreaMap()).signalsLabel).toEqual({
+        label: 'signal',
+        areaKey: 'noise',
+      });
+
+      await client`delete from area_mapping where area_key = 'noise'`;
+      await client`delete from area where key = 'noise'`;
+      expect((await store().loadAreaMap()).signalsLabel).toBeUndefined();
     });
   });
 

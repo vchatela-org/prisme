@@ -119,6 +119,11 @@ export const wireCompletedItemSchema = z.object({
   completed_at: z.string().min(1),
   content: z.string().optional(),
   duration: wireDurationSchema.nullable().optional(),
+  /**
+   * The task's labels, by name, as it was completed. Optional: a response
+   * without them is *not known*, never *none* (ADR-0041).
+   */
+  labels: z.array(z.string()).optional(),
 });
 
 /**

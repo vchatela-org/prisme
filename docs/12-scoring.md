@@ -163,7 +163,11 @@ recorded duration: its minutes come from its ritual's process page, or from the 
 hide exactly the pattern the system exists to reveal — upkeep quietly consuming the majority of
 discretionary time. Signals are machine-generated: they carry volume and no time, so a Signals
 completion contributes zero minutes and is reported as a count (`laneOf` in
-`apps/sync/src/backfill/attribute.ts`).
+`apps/sync/src/backfill/attribute.ts`). A completion is a Signals completion when its location maps
+to a Signals lane, **or** when it carries the Signals lane label chosen on Settings, wherever it sat
+([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)). The label is checked
+first and decides only Signals. It keeps an automation's output, written into an area's section,
+out of that area's observed share.
 
 ### Known limitation, stated plainly
 

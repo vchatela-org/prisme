@@ -130,7 +130,7 @@ were the wrong tasks*, or *progress came from outside the tracked work*).
 | Lane | For | Measured as |
 |---|---|---|
 | **Run** | Recurring upkeep: chores, admin, maintenance | Hours per week against a budget. Counts in capacity, never ranked |
-| **Signals** | Machine-generated notifications and digests | Volume only. Excluded from ranking **and** from capacity |
+| **Signals** | Machine-generated notifications and digests — by where they sit, or by the Signals lane label wherever they sit (ADR-0041) | Volume only. Excluded from ranking **and** from capacity |
 | **Ritual** | A habit: a cadence (daily … yearly) and a target adherence % | Adherence: how often it happened against how often it could have |
 
 Keeping these out of the backlog is what keeps the backlog meaningful. They still consume the same
@@ -160,7 +160,7 @@ Most of what exists in the two tools should **not** become a prisme object. Ask 
 | A multi-month effort with its own task-tool project | a **Project** (holding initiatives) | Adoption, or *New project* |
 | Something to do regularly because it builds a goal | a **Ritual** | Rituals |
 | Something to do regularly to keep things running | **Run** — map its project or section to the Run lane | Settings → Areas |
-| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane | Settings → Areas |
+| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane, or have the automation set the Signals lane label ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)) | Settings → Areas, or Settings → Signals lane label |
 | An idea from reading, actionable | an action **Takeaway** | Arrives in the Inbox by itself |
 | A task | **a task** — nothing to do | Counted through its area's mapping |
 

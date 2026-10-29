@@ -17,6 +17,7 @@ import type {
   ApiStore,
   AuditRetentionRecord,
   SelectionSettingRecord,
+  SignalsLabelRecord,
   AreaMappingRecord,
   RoleBindingRecord,
   AreaRecord,
@@ -2559,6 +2560,33 @@ export function createPostgresStore(client: Sql): ApiStore {
             max_now = excluded.max_now,
             max_now_per_area = excluded.max_now_per_area,
             updated_at = excluded.updated_at`;
+      },
+    },
+
+    signalsLabel: {
+      async get(): Promise<SignalsLabelRecord> {
+        const rows = await client<
+          { label: string; area_key: string; updated_at: Date | string }[]
+        >`select label, area_key, updated_at from signals_label_setting where id = 'singleton'`;
+        const chosen = rows[0];
+        return {
+          chosen: chosen === undefined ? null : { label: chosen.label, areaKey: chosen.area_key },
+          updatedAt: instant(chosen?.updated_at),
+        };
+      },
+
+      async set(chosen, at): Promise<void> {
+        await client`
+          insert into signals_label_setting (id, label, area_key, updated_at)
+          values ('singleton', ${chosen.label}, ${chosen.areaKey}, ${stamp(at)}::timestamptz)
+          on conflict (id) do update set
+            label = excluded.label,
+            area_key = excluded.area_key,
+            updated_at = excluded.updated_at`;
+      },
+
+      async clear(): Promise<void> {
+        await client`delete from signals_label_setting where id = 'singleton'`;
       },
     },
   };
