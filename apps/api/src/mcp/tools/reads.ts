@@ -290,6 +290,8 @@ const objectives = defineReadTool({
           z.object({
             id: entityId,
             statement: z.string(),
+            /** The sub-objective it is grouped under (ADR-0039), or null. */
+            subObjective: z.string().nullable(),
             target: z.number(),
             unit: z.string(),
             progressSelfPct: z.number(),
@@ -320,6 +322,7 @@ const objectives = defineReadTool({
         keyResults: objective.keyResults.map((keyResult) => ({
           id: keyResult.id,
           statement: keyResult.statement,
+          subObjective: keyResult.subObjective,
           target: keyResult.target,
           unit: keyResult.unit,
           progressSelfPct: keyResult.progressSelf,

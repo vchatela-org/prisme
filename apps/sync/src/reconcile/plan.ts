@@ -1,7 +1,8 @@
 import type { ExternalTask } from '@prisme/connectors';
 import type { TaskPatch } from '@prisme/connectors/write';
 import {
-  isSameTitle,
+  isSameRenderedTitle,
+  looksLikeKeyResult,
   mayCreateExternally,
   mayOverwrite,
   normaliseTitle,
@@ -502,7 +503,8 @@ export function plan(
     // above — so a key result with neither a task nor a link is prisme's to
     // give one (ADR-0012). Guard 2's provenance, for this entity. Where it
     // goes is its objective's own task (ADR-0038): beneath it, after looking
-    // for a subtask already there, and nowhere when the objective holds none.
+    // through its whole subtree for one already there, and nowhere when the
+    // objective holds none (ADR-0039).
     if (keyResult.objectiveTaskId === undefined) {
       actions.push({
         ...base,
@@ -524,13 +526,17 @@ export function plan(
       return;
     }
 
-    const free = (children.get(parent.externalId) ?? []).filter(
+    // The whole subtree, not the direct subtasks: a key result kept by hand
+    // often sits one level down, under a sub-objective (ADR-0039).
+    const free = descendantsOf(children, parent.externalId).filter(
       (task) =>
         !claimed.has(task.externalId) &&
         !boundIds.has(task.externalId) &&
         !desired.boundElsewhere.has(task.externalId),
     );
-    const exact = free.filter((task) => isSameTitle(task.content, keyResult.statement));
+    // Exact as it reads: a person's bold or link around the same words is
+    // still the same title (ADR-0039). Case, accents and punctuation count.
+    const exact = free.filter((task) => isSameRenderedTitle(task.content, keyResult.statement));
     const [only] = exact;
     if (exact.length === 1 && only !== undefined) {
       claimed.add(only.externalId);
@@ -538,7 +544,8 @@ export function plan(
         ...base,
         tag: 'adopt',
         externalId: only.externalId,
-        detail: 'its objective’s subtask with the same title becomes its task — creates nothing',
+        detail:
+          'the subtask of its objective’s task that reads as its statement becomes its task — creates nothing',
         operations: [
           {
             type: 'bind_key_result_ref',
@@ -555,11 +562,24 @@ export function plan(
         ...base,
         tag: 'review',
         externalId: parent.externalId,
-        detail: `${String(exact.length)} subtasks of its objective’s task carry its statement; rename all but one`,
+        detail: `${String(exact.length)} subtasks of its objective’s task read as its statement; rename all but one`,
         operations: [],
       });
       return;
     }
+
+    // Finished work gets no new task (ADR-0039): its task, if it ever had one,
+    // was closed long ago, and a fresh open one would say there is work left.
+    if (keyResult.progressSelf !== undefined && keyResult.progressSelf >= 100) {
+      actions.push({
+        ...base,
+        tag: 'skip',
+        detail: 'achieved — a key result at 100% gets no task made for it',
+        operations: [],
+      });
+      return;
+    }
+
     const statement = normaliseTitle(keyResult.statement);
     if (free.some((task) => normaliseTitle(task.content) === statement)) {
       // Close, and not the same: a guess here would rename somebody's subtask
@@ -575,19 +595,64 @@ export function plan(
       });
       return;
     }
+    const shaped = free.filter((task) => looksLikeKeyResult(task.content));
+    if (shaped.length > 0) {
+      // Somebody already keeps key results under this objective, and none
+      // reads as this one. Creating would put a copy beside the one they meant;
+      // refusing costs a rename (ADR-0039).
+      actions.push({
+        ...base,
+        tag: 'review',
+        externalId: parent.externalId,
+        detail: `its objective’s task already holds ${String(shaped.length)} key-result-shaped subtask${shaped.length === 1 ? '' : 's'} and none reads as its statement; make one read the same, and the next pass links it`,
+        operations: [],
+      });
+      return;
+    }
+
+    // Beneath its sub-objective's subtask when exactly one reads as it;
+    // beneath the objective's task otherwise (ADR-0039).
+    let placeUnder = parent;
+    let placement = 'its objective’s task';
+    if (keyResult.subObjective !== undefined) {
+      const subObjective = keyResult.subObjective;
+      const groups = (children.get(parent.externalId) ?? []).filter(
+        (task) =>
+          !boundIds.has(task.externalId) &&
+          !desired.boundElsewhere.has(task.externalId) &&
+          isSameRenderedTitle(task.content, subObjective),
+      );
+      const [group] = groups;
+      if (groups.length > 1) {
+        actions.push({
+          ...base,
+          tag: 'review',
+          externalId: parent.externalId,
+          detail: `${String(groups.length)} subtasks of its objective’s task read as its sub-objective; rename all but one`,
+          operations: [],
+        });
+        return;
+      }
+      if (group !== undefined) {
+        placeUnder = group;
+        placement = 'its sub-objective’s subtask';
+      } else {
+        placement = 'its objective’s task (no subtask reads as its sub-objective)';
+      }
+    }
 
     const description = keyResultLine(config.baseUrl, keyResult.objectiveId, keyResult.keyResultId);
     actions.push({
       ...base,
       tag: 'create',
-      detail: `new subtask of its objective’s task, deadline ${keyResult.deadline}`,
+      detail: `new subtask of ${placement}, deadline ${keyResult.deadline}`,
       operations: [
         {
           type: 'create_key_result_anchor',
           keyResultId: keyResult.keyResultId,
           draft: {
-            projectId: parent.projectId,
-            parentId: parent.externalId,
+            projectId: placeUnder.projectId,
+            parentId: placeUnder.externalId,
             content: keyResult.statement,
             description,
             labels: [keyResultLabel],

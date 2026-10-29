@@ -61,6 +61,7 @@ export interface ObjectiveService {
     objectiveId: string,
     input: {
       statement: string;
+      subObjective?: string | undefined;
       target: number;
       unit: string;
       progressSelf: number;
@@ -71,6 +72,7 @@ export interface ObjectiveService {
     id: string,
     input: {
       statement?: string | undefined;
+      subObjective?: string | null | undefined;
       target?: number | undefined;
       unit?: string | undefined;
       progressSelf?: number | undefined;

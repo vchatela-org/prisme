@@ -95,3 +95,48 @@ export function normaliseTitle(title: string): string {
 export function exactTitleForm(title: string): string {
   return title.normalize('NFC').replace(WHITESPACE, ' ').trim();
 }
+
+/**
+ * Inline markup the task tool renders and does not show: emphasis and
+ * strike-through markers, and a link drawn as its text. Removed pairwise, so a
+ * lone `*` that is content (`5 * 3`) survives.
+ */
+const EMPHASIS = /(\*\*|__|~~)(.+?)\1/gu;
+const LINK = /\[([^\]]*)\]\([^)\s]*\)/gu;
+
+/**
+ * Rule 2's form of the title as it **reads**: {@link exactTitleForm} after the
+ * inline markup is gone. `**KR1** : Ship it` and `KR1 : Ship it` render as the
+ * same words in the task tool, so they are the same title; case, accents and
+ * punctuation still count, which is what keeps this exact and not rule 3.
+ *
+ * Used where a person's markup is the only difference between their task and
+ * prisme's wording (ADR-0039) — never as a substitute for {@link normaliseTitle}.
+ */
+export function renderedTitleForm(title: string): string {
+  const unlinked = title.replace(LINK, '$1');
+  let previous: string;
+  let current = unlinked;
+  // Nested emphasis (`**__a__**`) comes off one layer per round.
+  do {
+    previous = current;
+    current = current.replace(EMPHASIS, '$2');
+  } while (current !== previous);
+  return exactTitleForm(current);
+}
+
+/** Whether two titles read the same once inline markup is gone. */
+export function isSameRenderedTitle(left: string, right: string): boolean {
+  return renderedTitleForm(left) === renderedTitleForm(right);
+}
+
+/**
+ * A title written the way key results are numbered by hand — `KR1 : …`,
+ * `**KR 2** - …` — whatever follows. A subtask shaped like this under an
+ * objective's task is somebody's key result, matched or not (ADR-0039).
+ */
+const KEY_RESULT_SHAPE = /^\W*KR\s*\d+\b/iu;
+
+export function looksLikeKeyResult(title: string): boolean {
+  return KEY_RESULT_SHAPE.test(renderedTitleForm(title));
+}

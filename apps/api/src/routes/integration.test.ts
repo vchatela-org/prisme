@@ -1475,6 +1475,40 @@ describeOrSkip('the API against PostgreSQL', () => {
       );
     });
 
+    it('keeps a key result’s sub-objective, and clears it on null (ADR-0039)', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Three levels deep',
+          type: 'annual',
+          period: '2026',
+          areaKey: 'craft',
+        })
+      ).body as { id: string };
+
+      const created = await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
+        statement: 'KR1 : Ship the first piece',
+        subObjective: 'O1 : Start small',
+        target: 1,
+        unit: 'piece',
+      });
+      expect(created.status).toBe(201);
+      const keyResult = created.body as { id: string; subObjective: string | null };
+      expect(keyResult.subObjective).toBe('O1 : Start small');
+
+      const untouched = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
+        progressSelf: 40,
+      });
+      expect((untouched.body as { subObjective: string | null }).subObjective).toBe(
+        'O1 : Start small',
+      );
+
+      const cleared = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
+        subObjective: null,
+      });
+      expect((cleared.body as { subObjective: string | null }).subObjective).toBeNull();
+    });
+
     it('appends measurements and never edits one', async () => {
       const app = api();
       const objective = (
