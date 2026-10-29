@@ -53,6 +53,7 @@ const TABLES = [
   'initiative',
   'project',
   'area_mapping',
+  'signals_label_setting',
   'area_weight',
   'area',
   // W16's one table. It references nothing and nothing references it, so
