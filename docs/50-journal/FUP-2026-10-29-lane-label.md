@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · D6: a label can put a task in the Signals lane
 
-**Agent:** Claude · **Duration:** one run · **PR:** see the STATUS row · **Outcome:**
+**Agent:** Claude · **Duration:** one run · **PR:** [#209](https://github.com/vchatela-org/prisme/pull/209) · **Outcome:**
 [ADR-0041](../20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md), Accepted (the owner
 chose a lane label on 2026-10-29). Settings now names one label and the Signals lane it puts work
 in. A task carrying the label is a signal wherever it sits. With no label chosen, nothing changes.
