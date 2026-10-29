@@ -2,7 +2,7 @@ import { ROLE_KEYS } from '@prisme/connectors';
 import { SELECTION_LIMIT_BOUNDS } from '@prisme/domain';
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
-import { instant } from './common.js';
+import { areaKey, instant } from './common.js';
 
 /**
  * What the Settings screens read and write that is not an area.
@@ -249,5 +249,47 @@ export const putWipLimitsBody = defineWrite(
       .int()
       .min(SELECTION_LIMIT_BOUNDS.maxNowPerArea.min)
       .max(SELECTION_LIMIT_BOUNDS.maxNowPerArea.max),
+  }),
+);
+
+/**
+ * The Signals lane label (ADR-0041): a task carrying it is attributed to the
+ * named Signals lane wherever it sits. `label: null` — none chosen — is the
+ * feature off, and attribution is by location alone.
+ */
+export const signalsLabelDto = z.object({
+  /** The label's name as the task tool spells it — instance data. `null`: none chosen. */
+  label: z.string().nullable(),
+  /** The Signals lane a labelled task is attributed to. `null` with `label`. */
+  areaKey: z.string().nullable(),
+  /** The areas of kind `signals` a label may name — what the screen chooses from. */
+  lanes: z.array(z.object({ key: z.string(), name: z.string(), active: z.boolean() })),
+  updatedAt: instant.nullable(),
+});
+
+export const SignalsLabelDto = named('SignalsLabel', signalsLabelDto);
+
+/** The anchor marker and the status-request prefix are prisme's own labels, never a lane's. */
+const PRISME_LABEL = /^prisme(?::|$)/i;
+
+export const putSignalsLabelBody = defineWrite(
+  'PutSignalsLabel',
+  z.strictObject({
+    /**
+     * The label's name, or `null` to turn the feature off. Trimmed; prisme's own
+     * labels (`prisme`, `prisme:…`) are refused, because the anchor marker is
+     * what makes a task an initiative and cannot also make it noise.
+     */
+    label: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .refine((value) => !PRISME_LABEL.test(value), {
+        message: 'prisme’s own labels cannot be a lane label',
+      })
+      .nullable(),
+    /** The Signals lane a labelled task is attributed to. Required with a label. */
+    areaKey: areaKey.nullable().optional(),
   }),
 );

@@ -1,6 +1,7 @@
 import type { AreaPageIndex } from './area-relation.js';
 import type { AuditableEntity } from './coverage.js';
 import type { Candidate, DecidedSet, MatchTarget } from './types.js';
+import type { SignalsLabel } from '../signals-label.js';
 
 /**
  * Everything the adoption scan needs from prisme's own database, as interfaces.
@@ -49,6 +50,8 @@ export interface AdoptionStore {
     readonly areaByLocation: ReadonlyMap<string, string>;
     readonly laneByArea: ReadonlyMap<string, 'area' | 'run' | 'signals'>;
     readonly areaByPage: AreaPageIndex;
+    /** The Signals label chosen on Settings, if one is (ADR-0041). */
+    readonly signalsLabel?: SignalsLabel | undefined;
   }>;
 
   /**

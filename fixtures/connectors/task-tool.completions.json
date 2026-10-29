@@ -1,5 +1,5 @@
 {
-  "_comment": "Synthetic. Completion history — the raw material for per-area capacity actuals. This is PAGE ONE of two, and it is deliberately SHORTER THAN THE PAGE SIZE while still carrying a `next_cursor`: a reader that stopped at 'fewer items than I asked for' would silently truncate the history here, and completion history is what capacity actuals are built from. Note the third entry, which has no recorded duration at all — the common case, and the reason CAPACITY_DEFAULT_TASK_MINUTES exists. The item shape is the v1 endpoint's, which returns the task itself: the id arrives as `id`, not v9's `task_id`.",
+  "_comment": "Synthetic. Completion history — the raw material for per-area capacity actuals. This is PAGE ONE of two, and it is deliberately SHORTER THAN THE PAGE SIZE while still carrying a `next_cursor`: a reader that stopped at 'fewer items than I asked for' would silently truncate the history here, and completion history is what capacity actuals are built from. Labels are absent from the second entry (not known), empty on the first (none), and on the third out of the tool's order, which the mapping sorts (ADR-0041). Note the third entry, which has no recorded duration at all — the common case, and the reason CAPACITY_DEFAULT_TASK_MINUTES exists. The item shape is the v1 endpoint's, which returns the task itself: the id arrives as `id`, not v9's `task_id`.",
   "items": [
     {
       "id": "task-0003",
@@ -7,7 +7,8 @@
       "section_id": "section-0001",
       "completed_at": "2026-09-14T09:12:00.000000Z",
       "content": "Check the shoe mileage",
-      "duration": { "amount": 10, "unit": "minute" }
+      "duration": { "amount": 10, "unit": "minute" },
+      "labels": []
     },
     {
       "id": "task-0011",
@@ -23,7 +24,8 @@
       "section_id": null,
       "completed_at": "2026-09-15T18:05:00.000000Z",
       "content": "Tidy the clamps",
-      "duration": null
+      "duration": null,
+      "labels": ["signal", "batch"]
     }
   ],
   "next_cursor": "completion-cursor-0002"

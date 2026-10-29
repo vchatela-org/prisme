@@ -93,6 +93,7 @@ prose, and prose belongs where prose is written. prisme has nothing to say in it
 | Content of an open task; description, subtasks at any depth | **T** | ← | Never mirrored, only counted |
 | `due` date, recurrence | **T** | ← | Yours. Read for planned-vs-done only |
 | Labels other than the anchor marker | **T** | ← | |
+| The **Signals lane label** on a task, open or completed | **T** | ← | Set by the automations that write the task, never by prisme. Read, and recorded on completions, so a task carrying the label chosen on Settings is attributed to the Signals lane wherever it sits ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)) |
 | Comments, attachments | **T** | — | Not read at all |
 | Priority on a **subtask** | **T** | ⇢ | Propagated from the anchor, but only while untouched — see the rule below |
 | Completion, `completed_at`, duration | **T** | ← | The raw material for capacity actuals |

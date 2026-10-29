@@ -8,8 +8,10 @@ import {
   putSuccessPropertyBody,
   putBindingBody,
   putDatePropertyBody,
+  putSignalsLabelBody,
   putWipLimitsBody,
   roleKey,
+  SignalsLabelDto,
   TaskLocationsDto,
   WipLimitsDto,
 } from '../dto/settings.js';
@@ -168,5 +170,32 @@ export const settingsRoutes: readonly ApiRoute[] = [
     status: 200,
     response: WipLimitsDto,
     handle: (context, services) => services.settings.setWipLimits(context.body, context.now),
+  }),
+
+  defineRoute({
+    operationId: 'getSignalsLabel',
+    method: 'get',
+    path: '/settings/signals-label',
+    scope: 'admin:settings',
+    summary: 'The label that puts a task in the Signals lane wherever it sits',
+    description:
+      'ADR-0041. A task — open or completed — carrying `label` is attributed to the Signals lane `areaKey` names, whatever project or section it sits in: counted as volume, never as time, and never ranked. The label beats the location for Signals only. `label: null` is the feature off, and attribution is by location alone. `lanes` lists the areas of kind `signals` a label may name.',
+    query: noQuery,
+    response: SignalsLabelDto,
+    handle: (_context, services) => services.settings.signalsLabel(),
+  }),
+
+  defineRoute({
+    operationId: 'putSignalsLabel',
+    method: 'put',
+    path: '/settings/signals-label',
+    scope: 'admin:settings',
+    summary: 'Choose the Signals lane label, or turn it off',
+    description:
+      'A label and the Signals lane it puts work in (`422` when the area is not of kind `signals`, `404` when there is none of that key); prisme’s own labels are refused. `label: null` turns the feature off. Applies from the next capacity refresh and adoption scan, which re-attribute stored history whose labels are known without fetching it again.',
+    body: putSignalsLabelBody,
+    status: 200,
+    response: SignalsLabelDto,
+    handle: (context, services) => services.settings.setSignalsLabel(context.body, context.now),
   }),
 ];

@@ -1,0 +1,30 @@
+{
+  "_comment": "Synthetic. Page two of the completed-items activity log, reached by handing page one's `next_cursor` back; its `next_cursor` is null, which is the only thing that ends paging. The third occurrence of the recurring task-0021 carries an explicit null section and a null `extra_data` would be legal too. task-0012 is a one-off task, the same completion the completion history reports.",
+  "results": [
+    {
+      "id": 9004,
+      "object_type": "item",
+      "object_id": "task-0021",
+      "event_type": "completed",
+      "event_date": "2026-09-16T07:02:00.000000Z",
+      "parent_project_id": "project-0002",
+      "parent_item_id": null,
+      "initiator_id": null,
+      "extra_data_id": 9104,
+      "extra_data": { "content": "Sweep the workshop floor", "section_id": null }
+    },
+    {
+      "id": 9005,
+      "object_type": "item",
+      "object_id": "task-0012",
+      "event_type": "completed",
+      "event_date": "2026-09-15T18:05:00.000000Z",
+      "parent_project_id": "project-0002",
+      "parent_item_id": null,
+      "initiator_id": null,
+      "extra_data_id": null,
+      "extra_data": null
+    }
+  ],
+  "next_cursor": null
+}

@@ -449,6 +449,7 @@ async function main(): Promise<number> {
 
       logger.info('backfill complete', {
         fetched: outcome.result.fetched,
+        fromActivityLogOnly: outcome.result.fromLogOnly,
         attributed: outcome.result.attribution.attributed.length,
         unattributableLocations: outcome.result.attribution.gaps.length,
         weeks: outcome.result.weeks.length,
@@ -758,6 +759,9 @@ async function main(): Promise<number> {
           });
           logger.info('capacity refreshed', {
             ...(refreshed.fetched === undefined ? {} : { fetched: refreshed.fetched }),
+            ...(refreshed.fromLogOnly === undefined
+              ? {}
+              : { fromActivityLogOnly: refreshed.fromLogOnly }),
             ...(refreshed.taskToolUnread === undefined
               ? {}
               : { taskToolUnread: refreshed.taskToolUnread }),

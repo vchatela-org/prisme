@@ -186,13 +186,15 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
     },
 
     async loadAreaMap() {
-      const [mappings, areas] = await Promise.all([
+      const [mappings, areas, signals] = await Promise.all([
         client<
           { area_key: string; external_project_id: string; external_section_id: string | null }[]
         >`
           select area_key, external_project_id, external_section_id from area_mapping`,
         client<{ key: string; kind: string; external_page_id: string | null }[]>`
           select key, kind, external_page_id from area`,
+        client<{ label: string; area_key: string }[]>`
+          select label, area_key from signals_label_setting where id = 'singleton'`,
       ]);
 
       const areaByLocation = new Map<string, string>();
@@ -212,7 +214,16 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
         areas.map((row) => ({ key: row.key, externalPageId: row.external_page_id })),
       );
 
-      return { areaByLocation, laneByArea, areaByPage };
+      // No row: the label places nothing, and the location decides (ADR-0041).
+      const chosen = signals[0];
+      return {
+        areaByLocation,
+        laneByArea,
+        areaByPage,
+        ...(chosen === undefined
+          ? {}
+          : { signalsLabel: { label: chosen.label, areaKey: chosen.area_key } }),
+      };
     },
 
     async loadDateProperties() {

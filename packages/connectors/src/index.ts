@@ -119,6 +119,7 @@ export { collectSubtree, indexByParent, rootsOf } from './task-tool/tree.js';
 
 export type {
   Completion,
+  CompletionEvent,
   ExternalDue,
   ExternalDuration,
   ExternalLabel,

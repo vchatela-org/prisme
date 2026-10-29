@@ -1,4 +1,5 @@
 import type { AreaKey, AreaKind } from '@prisme/domain';
+import type { SignalsLabel } from '../signals-label.js';
 import type { Cursor } from './slices.js';
 import type {
   AdherencePeriod,
@@ -41,10 +42,11 @@ export interface BackfillStore {
   /** Every completion in `[from, to)`, for attribution and materialisation. */
   loadCompletions(from: Date, to: Date): Promise<readonly StoredCompletion[]>;
 
-  /** `area_mapping` and each area's kind. */
+  /** `area_mapping`, each area's kind, and the Signals label if one is chosen (ADR-0041). */
   loadAreaMap(): Promise<{
     readonly areaByLocation: ReadonlyMap<string, AreaKey>;
     readonly kindByArea: ReadonlyMap<AreaKey, AreaKind>;
+    readonly signalsLabel?: SignalsLabel | undefined;
   }>;
 
   /** Every ritual, with the external task bound to it if there is one. */
