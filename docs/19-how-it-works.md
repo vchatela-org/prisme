@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) that follows its window: active from the period's first day, judgeable until 31 January (annual) or seven days after (monthly), then `missed` if nobody judged it ([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15), made beneath its objective's own task when the objective holds one (ADR-0038) |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective, optionally grouped under a **sub-objective** (ADR-0039) | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15), found or made beneath its objective's own task when the objective holds one (ADR-0038, ADR-0039) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -130,7 +130,7 @@ were the wrong tasks*, or *progress came from outside the tracked work*).
 | Lane | For | Measured as |
 |---|---|---|
 | **Run** | Recurring upkeep: chores, admin, maintenance | Hours per week against a budget. Counts in capacity, never ranked |
-| **Signals** | Machine-generated notifications and digests | Volume only. Excluded from ranking **and** from capacity |
+| **Signals** | Machine-generated notifications and digests — by where they sit, or by the Signals lane label wherever they sit (ADR-0041) | Volume only. Excluded from ranking **and** from capacity |
 | **Ritual** | A habit: a cadence (daily … yearly) and a target adherence % | Adherence: how often it happened against how often it could have |
 
 Keeping these out of the backlog is what keeps the backlog meaningful. They still consume the same
@@ -160,7 +160,7 @@ Most of what exists in the two tools should **not** become a prisme object. Ask 
 | A multi-month effort with its own task-tool project | a **Project** (holding initiatives) | Adoption, or *New project* |
 | Something to do regularly because it builds a goal | a **Ritual** | Rituals |
 | Something to do regularly to keep things running | **Run** — map its project or section to the Run lane | Settings → Areas |
-| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane | Settings → Areas |
+| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane, or have the automation set the Signals lane label ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)) | Settings → Areas, or Settings → Signals lane label |
 | An idea from reading, actionable | an action **Takeaway** | Arrives in the Inbox by itself |
 | A task | **a task** — nothing to do | Counted through its area's mapping |
 
@@ -228,7 +228,9 @@ The queue is rescanned by the first full pass of each day, or on demand with *Re
 **Allocate.** A weight per area per year. A year without weights does not inherit silently: the
 balance factor goes *stale*, a banner appears, and the Year Review unlocks.
 
-**Measure.** Every completion in the task tool is attributed to an area through the mappings. Its
+**Measure.** Every completion in the task tool is attributed to an area through the mappings —
+each occurrence of a recurring task included, which the task tool's activity log records and its
+completion history does not ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)). Its
 minutes are, in order of preference: the duration recorded on the task, the declared duration of
 the matching process page (recurring work tied to a ritual), or a default of **25 minutes**. Over
 the last **four weeks**:
@@ -391,6 +393,10 @@ seven days of the next month.
   25 minutes, so a day of fifteen small chores outweighs one afternoon on something that matters.
   The charts say how much of a reading is estimated. Recording durations on the tasks that matter is
   what turns the estimate into a measurement.
+- **Recurring work is counted, but its time is mostly estimated.** Each occurrence of a recurring
+  task is a completion, read from the task tool's activity log. The log carries no duration, so an
+  occurrence counts its ritual's declared duration or the default. How far back the log reaches
+  depends on the task tool's plan, so older recurring work may be missing from a backfill.
 - **Areas whose work never becomes a task read as starved.** Relationships and health often live
   outside any task list. The balance factor errs toward surfacing them, which is tolerable — but it
   is a lens, not a verdict.
@@ -640,6 +646,12 @@ initiatives that serve it. S15 is closed.
 already titled exactly as the key result is taken, and one that is only close is a `review`. An
 objective that holds no task gets none made, because a top-level task per key result beside objective
 tasks that already held them was the noise the owner's instance showed.
+**Then searched through the whole subtree** ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md),
+2026-10-29). Key results kept by hand one level down, under sub-objective subtasks and in the tool's
+markup, were missed by the direct, exact search, and the first pass created a copy of each. The search
+now covers the subtree and reads titles with their markup set aside; free `KR`-shaped tasks that do not
+match make it a `review`, never a create; a key result at 100% gets none; and a key result may name a
+sub-objective, beneath whose subtask a new task is made.
 
 ---
 

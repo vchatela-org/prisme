@@ -267,3 +267,196 @@ describe('a key result’s anchor', () => {
     expect(result.actions.some((action) => action.subject === 'initiative')).toBe(false);
   });
 });
+
+/**
+ * ADR-0039: key results kept by hand one level down, under a sub-objective,
+ * with the owner's own markup. The failure this guards against made one new
+ * task per key result beside the one already there.
+ */
+describe('a key result kept under a sub-objective (ADR-0039)', () => {
+  const GROUP = 'task-group-1';
+
+  function group(externalId: string, content: string) {
+    return subtask(externalId, content);
+  }
+
+  function grandchild(externalId: string, parentId: string, content: string) {
+    return taskOf({ externalId, projectId: PROJECT, parentId, content, labels: [] });
+  }
+
+  it('finds a grandchild that reads as its statement, through the markup, and creates nothing', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'KR1 : Run a 10 km race' })]),
+      observedOf([
+        objectiveTask(),
+        group(GROUP, 'O1 : **Build endurance**'),
+        grandchild('task-kr1', GROUP, '**KR1** : Run a **10 km** race'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]).toMatchObject({
+      tag: 'adopt',
+      externalId: 'task-kr1',
+      operations: [{ type: 'bind_key_result_ref', externalId: 'task-kr1', match: 'exact_title' }],
+    });
+  });
+
+  it('a whole three-level tree of hand-kept key results produces no create', () => {
+    const keyResults = [
+      keyResultOf({ keyResultId: 'kr-a', statement: 'KR1 : Run a 10 km race' }),
+      keyResultOf({ keyResultId: 'kr-b', statement: 'KR2 : Swim twice a week' }),
+      keyResultOf({ keyResultId: 'kr-c', statement: 'KR1 : Sleep eight hours' }),
+    ];
+    const result = plan(
+      withKeyResults(keyResults),
+      observedOf([
+        objectiveTask(),
+        group('task-g1', 'O1 : **Build endurance**'),
+        grandchild('task-1', 'task-g1', '**KR1** : Run a 10 km race'),
+        grandchild('task-2', 'task-g1', '**KR2** : Swim twice a week'),
+        group('task-g2', 'O2 : Rest well'),
+        grandchild('task-3', 'task-g2', '**KR1** : Sleep eight hours'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions.map((action) => [action.tag, action.externalId])).toEqual([
+      ['adopt', 'task-1'],
+      ['adopt', 'task-2'],
+      ['adopt', 'task-3'],
+    ]);
+  });
+
+  it('refuses to create beside key-result-shaped subtasks none of which reads as it', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'O1 Build endurance · KR1 : Run a 10 km race' })]),
+      observedOf([
+        objectiveTask(),
+        group(GROUP, 'O1 : **Build endurance**'),
+        grandchild('task-kr1', GROUP, '**KR1** : Run a 10 km race, twice'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]).toMatchObject({ tag: 'review', operations: [] });
+    expect(result.actions[0]?.detail).toContain('key-result-shaped');
+  });
+
+  it('a unique near match only is a review, never a bind', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'Run a 10 km race' })]),
+      observedOf([
+        objectiveTask(),
+        group(GROUP, 'O1 : Build endurance'),
+        grandchild('task-near', GROUP, 'run a 10-km race'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]).toMatchObject({ tag: 'review', operations: [] });
+  });
+
+  it('two subtasks reading as its statement are a review', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'KR1 : Run' })]),
+      observedOf([
+        objectiveTask(),
+        grandchild('task-x', OBJECTIVE_TASK, 'KR1 : Run'),
+        group(GROUP, 'O1 : Build'),
+        grandchild('task-y', GROUP, '**KR1** : Run'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]?.tag).toBe('review');
+  });
+
+  it('gets no task when it is already at 100%', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ progressSelf: 100 })]),
+      observedOf([objectiveTask()]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]).toMatchObject({ tag: 'skip', operations: [] });
+  });
+
+  it('still adopts its open task when it is at 100%', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ progressSelf: 100, statement: 'KR1 : Run' })]),
+      observedOf([
+        objectiveTask(),
+        group(GROUP, 'O1 : Build'),
+        grandchild('t', GROUP, 'KR1 : Run'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.actions[0]).toMatchObject({ tag: 'adopt', externalId: 't' });
+  });
+
+  it('a finished key result does not trip the refusal for its siblings', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ progressSelf: 100, statement: 'KR2 : Done long ago' })]),
+      observedOf([
+        objectiveTask(),
+        group(GROUP, 'O1 : Build'),
+        grandchild('t', GROUP, 'KR1 : Run'),
+      ]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.actions[0]?.tag).toBe('skip');
+  });
+
+  it('is created beneath the subtask that reads as its sub-objective', () => {
+    const result = plan(
+      withKeyResults([
+        keyResultOf({ statement: 'KR1 : Run', subObjective: 'O1 : Build endurance' }),
+      ]),
+      observedOf([objectiveTask(), group(GROUP, 'O1 : **Build endurance**')]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.actions[0]).toMatchObject({
+      tag: 'create',
+      operations: [
+        {
+          type: 'create_key_result_anchor',
+          draft: { parentId: GROUP, projectId: PROJECT, content: 'KR1 : Run' },
+        },
+      ],
+    });
+  });
+
+  it('is created beneath the objective’s task when no subtask reads as its sub-objective', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'KR1 : Run', subObjective: 'O3 : Elsewhere' })]),
+      observedOf([objectiveTask(), group(GROUP, 'O1 : Build endurance')]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.actions[0]).toMatchObject({
+      tag: 'create',
+      operations: [{ draft: { parentId: OBJECTIVE_TASK } }],
+    });
+  });
+
+  it('asks when two subtasks read as its sub-objective', () => {
+    const result = plan(
+      withKeyResults([keyResultOf({ statement: 'KR1 : Run', subObjective: 'O1 : Build' })]),
+      observedOf([objectiveTask(), group('g1', 'O1 : Build'), group('g2', 'O1 : **Build**')]),
+      new Map(),
+      CONFIG,
+    );
+    expect(result.counts.create).toBe(0);
+    expect(result.actions[0]?.tag).toBe('review');
+  });
+});

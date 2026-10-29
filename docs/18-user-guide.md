@@ -48,7 +48,10 @@ Settings*), and the first screen there is an overview of how everything is conne
   prisme measures is stored against it. Choose it once, calmly.
 - **Kind** — almost always **Area**. Two special lanes exist, one of each at most:
   - **Run** — upkeep (chores, admin). Budgeted in hours per week, never ranked.
-  - **Signals** — notifications and other machine-generated noise. Counted, never ranked.
+  - **Signals** — notifications and other machine-generated noise. Counted, never ranked. Map a
+    project to it, or — when your automations write into your areas' sections — give their tasks a
+    label and choose it in **Settings → Signals lane label**: a task carrying it counts as Signals
+    wherever it sits.
 - **Colour** — one of eight. Each swatch shows which areas already use it. *Automatic* picks one
   from the key, and two automatic areas can land on the same colour — pick one then.
 
@@ -405,10 +408,15 @@ month's objectives · replan what slipped.
   the objective's title. A task labelled `prisme` with that title is recognised on the next sync: it
   becomes the objective's own task instead of an initiative, so it never takes a slot. prisme then
   sets its deadline to the end of the period, swaps the `prisme` label for `prisme:objective` and adds
-  a link back. The title, priority and subtasks stay yours. Each key result gets its task as a
-  subtask of it. A subtask already titled exactly as the key result is used, and the others are
-  created. A subtask with nearly the same title is flagged in the sync plan instead: make the two
-  titles identical and the next pass links them. An objective with no task of its own gets no
+  a link back. The title, priority and subtasks stay yours. Each key result gets its task beneath
+  it. A task anywhere beneath the objective's task that reads exactly as the key result — bold and
+  links aside — is used, so key results kept one level down under `O1 : …` subtasks are found. A
+  key result can name its **sub-objective** (`O1 : Ship early`), and then its statement need not
+  repeat it: write `KR1 : Ship one quick win`, which is what its task will read. A new one is made
+  beneath the subtask that reads as its sub-objective. A task with nearly the same title, or
+  `KR`-numbered tasks none of which matches, are flagged in the sync plan instead of a new task
+  being made: make the two titles identical and the next pass links them. A key result already at
+  100% gets no task. An objective with no task of its own gets no
   key-result tasks. An objective nobody judges by then closes as **missed**, and its history says it
   was the window that closed it. You can still change it to *met* afterwards.
 

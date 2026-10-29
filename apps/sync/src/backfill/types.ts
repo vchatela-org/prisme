@@ -1,4 +1,5 @@
 import type { AreaKey, AreaKind, DurationSource, RitualCadence } from '@prisme/domain';
+import type { SignalsLabel } from '../signals-label.js';
 
 /**
  * What the backfill works with.
@@ -29,6 +30,12 @@ export interface StoredCompletion {
   readonly recordedMinutes?: number | undefined;
   /** The unit the tool used. `day` means a block-out, which is not an effort. */
   readonly durationScale?: 'minute' | 'day' | undefined;
+  /**
+   * The labels the task carried, sorted. Absent: not known — fetched before
+   * they were recorded, or the tool sent none — and the location decides
+   * (ADR-0041).
+   */
+  readonly labels?: readonly string[] | undefined;
 }
 
 /** One completion, once prisme has decided what it was and how long it took. */
@@ -77,6 +84,12 @@ export interface AttributionContext {
    */
   readonly declaredMinutesByTask: ReadonlyMap<string, number>;
   readonly defaultMinutes: number;
+  /**
+   * The label chosen on Settings that puts a completion in a Signals lane
+   * wherever it sat (ADR-0041). Absent: the feature is off, and the location
+   * alone decides.
+   */
+  readonly signalsLabel?: SignalsLabel | undefined;
 }
 
 /** One materialised week for one area. Derived, disposable, recomputable. */

@@ -1,4 +1,5 @@
 import type { DocToolClient, TaskToolClient } from '@prisme/connectors';
+import { readCompletions, readOpenTaskLocations } from './backfill/completions.js';
 import { materialise, toStoredCompletion, type MaterialiseResult } from './backfill/run.js';
 import type { BackfillStore } from './backfill/ports.js';
 import { sliceRange } from './backfill/slices.js';
@@ -44,7 +45,9 @@ import { unreadReason, type UnreadReason } from './unread.js';
  * the command, and the balance read a frozen month while calling it current.
  * With `taskClient` given, the window is read from the task tool first and
  * recorded through the same `recordSlice` the backfill uses: the same upsert,
- * the same cursor, the same title (ADR-0032).
+ * the same cursor, the same title (ADR-0032). The read is the backfill's too —
+ * the completion history and the activity log, merged by `readCompletions`, so
+ * a recurring task's occurrences are counted here as they are there (ADR-0040).
  *
  * The fetch starts at the **earlier** of the window's start and where the
  * cursor ends. A refresh that did not run for longer than the window would
@@ -84,6 +87,11 @@ export interface CapacityRefreshResult {
    * `undefined` when no client was given or the read failed.
    */
   readonly fetched: number | undefined;
+  /**
+   * Of `fetched`, the completions only the activity log reported (ADR-0040).
+   * Absent when nothing was read.
+   */
+  readonly fromLogOnly?: number | undefined;
   /**
    * The failure kind, when the read was attempted and did not complete — never
    * the error, whose message can name a workspace. The run materialises anyway.
@@ -155,22 +163,31 @@ async function fetchTrailing(
   taskClient: TaskToolClient,
   from: Date,
   to: Date,
-): Promise<{ readonly fetched: number | undefined; readonly taskToolUnread?: UnreadReason }> {
+): Promise<{
+  readonly fetched: number | undefined;
+  readonly fromLogOnly?: number;
+  readonly taskToolUnread?: UnreadReason;
+}> {
   try {
     const cursor = await store.loadCursor();
     const start =
       cursor === undefined || cursor.coveredThrough >= from ? from : cursor.coveredThrough;
 
     let fetched = 0;
+    let fromLogOnly = 0;
+    // Both records, merged by the backfill's own rule (ADR-0040): the activity
+    // log is what sees a recurring task's occurrences.
+    const openTasks = await readOpenTaskLocations(taskClient);
     for (const slice of sliceRange(start, to)) {
-      const completions = await taskClient.fetchCompletions(slice.since, slice.until);
-      await store.recordSlice(completions.map(toStoredCompletion), {
+      const read = await readCompletions(taskClient, slice, openTasks);
+      await store.recordSlice(read.completions.map(toStoredCompletion), {
         coveredFrom: start,
         coveredThrough: slice.until,
       });
-      fetched += completions.length;
+      fetched += read.completions.length;
+      fromLogOnly += read.fromLogOnly;
     }
-    return { fetched };
+    return { fetched, fromLogOnly };
   } catch (error: unknown) {
     return { fetched: undefined, taskToolUnread: unreadReason(error) };
   }

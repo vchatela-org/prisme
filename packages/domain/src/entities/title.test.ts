@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   exactTitleForm as exactForm,
   foldAccents,
+  isSameRenderedTitle,
+  looksLikeKeyResult,
   normaliseTitle as normalise,
+  renderedTitleForm,
   stripLeadingNumbering,
 } from './title.js';
 
@@ -115,5 +118,57 @@ describe('the exact form', () => {
     expect(exactForm('Rebuild the shed')).not.toBe(exactForm('rebuild the shed'));
     expect(exactForm('Réparer')).not.toBe(exactForm('Reparer'));
     expect(exactForm('Rebuild the shed')).not.toBe(exactForm('Rebuild the shed!'));
+  });
+});
+
+describe('the rendered form (ADR-0039)', () => {
+  it('drops emphasis and draws a link as its text', () => {
+    expect(renderedTitleForm('**KR1** : Repaint the fence')).toBe('KR1 : Repaint the fence');
+    expect(renderedTitleForm('KR2 : Plan **one** __evening__ ~~out~~')).toBe(
+      'KR2 : Plan one evening out',
+    );
+    expect(renderedTitleForm('Read the [reading list](https://example.org/list) twice')).toBe(
+      'Read the reading list twice',
+    );
+    expect(renderedTitleForm('**[__Nested__](https://example.org)** title')).toBe('Nested title');
+  });
+
+  it('stays fast on a hostile run of brackets', () => {
+    const hostile = '['.repeat(5000) + ']('.repeat(5000);
+    const started = performance.now();
+    renderedTitleForm(hostile);
+    renderedTitleForm('[' + '\\['.repeat(1000));
+    renderedTitleForm('**'.repeat(1000));
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it('keeps a lone marker that is content', () => {
+    expect(renderedTitleForm('Lift 5 * 3 sets')).toBe('Lift 5 * 3 sets');
+    expect(renderedTitleForm('Score > 85% on **most** nights')).toBe('Score > 85% on most nights');
+  });
+
+  it('is still exact: case, accents and punctuation count', () => {
+    expect(isSameRenderedTitle('**KR1** : Repaint the fence', 'KR1 : Repaint the fence')).toBe(
+      true,
+    );
+    expect(isSameRenderedTitle('**KR1** : Repaint the fence', 'KR1 : repaint the fence')).toBe(
+      false,
+    );
+    expect(isSameRenderedTitle('KR1 : Réparer', 'KR1 : Reparer')).toBe(false);
+    expect(isSameRenderedTitle('KR1 : Repaint the fence', 'KR1 : Repaint the fence.')).toBe(false);
+  });
+});
+
+describe('a key-result shape', () => {
+  it('recognises a hand-numbered key result, with or without markup', () => {
+    expect(looksLikeKeyResult('KR1 : Repaint the fence')).toBe(true);
+    expect(looksLikeKeyResult('**KR12** - Repaint')).toBe(true);
+    expect(looksLikeKeyResult('kr 3: lower case')).toBe(true);
+  });
+
+  it('does not take a word that merely starts the same way', () => {
+    expect(looksLikeKeyResult('KRAKEN cleanup')).toBe(false);
+    expect(looksLikeKeyResult('O1 : Deliver early')).toBe(false);
+    expect(looksLikeKeyResult('Read KR1 notes')).toBe(false);
   });
 });

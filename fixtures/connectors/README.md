@@ -15,6 +15,8 @@ instance data into git ([`../../docs/17-privacy.md`](../../docs/17-privacy.md)).
 | `task-tool.sync-incremental.json` | An incremental sync, including a deletion and a completion |
 | `task-tool.completions.json` | Completion history page 1 of 2 — short, with a `next_cursor`, and with and without recorded durations |
 | `task-tool.completions-page2.json` | Page 2, reached by `next_cursor`, with no cursor of its own: the only thing that ends paging |
+| `task-tool.activity-completed.json` | The activity log filtered to completed items, page 1 of 2: a recurring task's occurrences, which the completion history never lists (ADR-0040), and an entry with a section |
+| `task-tool.activity-completed-page2.json` | Page 2, reached by `next_cursor`, ending on a `null` cursor; one entry with a `null` `extra_data` |
 | `doc-tool.query-objectives.json` | A paged query response, page 1 of 2 |
 | `doc-tool.query-objectives-page2.json` | Page 2, reached by `next_cursor` |
 | `doc-tool.page.json` | A single page, as `fetchPage` reads it |

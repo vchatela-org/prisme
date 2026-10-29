@@ -1403,6 +1403,12 @@
                     "statement": {
                       "type": "string"
                     },
+                    "subObjective": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "target": {
                       "type": "number"
                     },
@@ -1429,6 +1435,7 @@
                   "required": [
                     "id",
                     "statement",
+                    "subObjective",
                     "target",
                     "unit",
                     "progressSelfPct",

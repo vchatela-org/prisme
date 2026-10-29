@@ -14,6 +14,7 @@ import {
   currentPeriod,
   elapsedPctOf,
   groupByPeriod,
+  groupBySubObjective,
   nextMonthlyPeriod,
   objectiveProgress,
   orphanInitiatives,
@@ -396,13 +397,22 @@ function ObjectiveCard({
           </p>
 
           <div className="flex flex-col gap-3">
-            {objective.keyResults.map((keyResult) => (
-              <ProgressPair
-                key={keyResult.id}
-                keyResult={keyResult}
-                objectiveId={objective.id}
-                elapsedPct={elapsedPct}
-              />
+            {groupBySubObjective(objective.keyResults).map((group) => (
+              <div key={group.name ?? ''} className="flex flex-col gap-3">
+                {group.name === null ? null : (
+                  <h4 className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+                    {group.name}
+                  </h4>
+                )}
+                {group.keyResults.map((keyResult) => (
+                  <ProgressPair
+                    key={keyResult.id}
+                    keyResult={keyResult}
+                    objectiveId={objective.id}
+                    elapsedPct={elapsedPct}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </>

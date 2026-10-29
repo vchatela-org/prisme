@@ -155,6 +155,43 @@ export interface Completion {
    * estimates as if nothing had been known at all.
    */
   readonly recordedDuration?: ExternalDuration | undefined;
+  /**
+   * The task's labels as it was completed, sorted. The task tool's field, read
+   * and never written. Read so a configured label can place a completion in
+   * the Signals lane wherever it sat
+   * ([ADR-0041](../../../../docs/20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)).
+   * Absent when the tool sent none — which is *not known*, not *no labels*.
+   */
+  readonly labels?: readonly string[] | undefined;
+}
+
+/**
+ * One completion — or its retraction — from the task tool's activity log.
+ *
+ * The record a **recurring** task's completions live in: completing one moves
+ * its date rather than checking it, so it never reaches the completion history
+ * {@link Completion} is read from, and each occurrence is an event here and
+ * nowhere else ([ADR-0040](../../../../docs/20-decisions/0040-completions-are-read-from-the-activity-log.md)).
+ *
+ * An `uncompleted` event is carried rather than dropped because it is the only
+ * thing that says a completion in the same log was taken back. Pairing the two
+ * is a decision, so the caller makes it, not this package.
+ */
+export interface CompletionEvent {
+  readonly kind: 'completed' | 'uncompleted';
+  readonly externalTaskId: ExternalTaskId;
+  /** When the tool logged it. */
+  readonly at: Date;
+  /** The project the task was in, as the log records it. */
+  readonly projectId?: ExternalTaskId | undefined;
+  /**
+   * The section, when the log's entry carries one. The tool documents it on
+   * completion entries; an entry without one is located by project only,
+   * unless the caller can say more.
+   */
+  readonly sectionId?: ExternalTaskId | undefined;
+  /** The title as logged, sanitised to plain text (ADR-0032). Absent when none was sent. */
+  readonly content?: string | undefined;
 }
 
 /**
@@ -190,6 +227,18 @@ export interface TaskToolClient {
    * handing one out — never when a page comes back shorter than the page size.
    */
   fetchCompletions(since: Date, until?: Date): Promise<Completion[]>;
+  /**
+   * Completion and un-completion events from the activity log over
+   * `[since, until)` — **half-open**, which is the log's own `date_from` /
+   * `date_to` semantics and differs from {@link fetchCompletions}.
+   *
+   * The read that sees a recurring task's occurrences (ADR-0040). It is two
+   * filtered reads, `completed` and `uncompleted` items, each paged by the
+   * tool's cursor and bounded like completion history; the events come back
+   * oldest first. How far back the log reaches depends on the account's plan:
+   * a window older than that returns nothing rather than an error.
+   */
+  fetchCompletionEvents(since: Date, until: Date): Promise<CompletionEvent[]>;
   /** Projects and sections, archived ones included and marked. Reads no task. */
   fetchLocations(): Promise<TaskLocations>;
 }
