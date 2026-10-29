@@ -168,8 +168,9 @@ export function objectiveDatesOf(
  *
  * An objective authored on the Objectives screen starts as `draft` too. A page
  * written ahead of its period is a plan, not work under way, and counting it
- * as active put it in every count and list of the current one. Nothing makes
- * it `active` later: that is a person's decision, made on its page.
+ * as active put it in every count and list of the current one. Its window
+ * makes it `active` when the period starts ({@link objectiveWindowSteps},
+ * ADR-0037), so nobody has to remember to.
  *
  * `today` is the instance's calendar day, `YYYY-MM-DD`.
  */
@@ -201,6 +202,124 @@ export function keyResultAnchorDeadline(
   const dates = objectiveDatesOf(objective.type, objective.period);
   if (dates === undefined || dates.startsOn > today) return undefined;
   return dates.endsOn;
+}
+
+/**
+ * How long after its period an objective stays open for its review
+ * (ADR-0037): an annual objective until the last day of January of the next
+ * year, a monthly one for seven days after its month.
+ *
+ * A period ends on a fixed day, and judging it does not: the year's review
+ * happens somewhere in January, and the task tool is tidied then — what was
+ * done ticked off, what was not carried or closed. Closing the objective on
+ * its last day would take it out of every list before the person reviewing
+ * it has sat down.
+ */
+export const OBJECTIVE_REVIEW_GRACE = {
+  /** The last day an annual objective of year `Y` can be judged: `Y+1` + this. */
+  annualJudgeByMonthDay: '01-31',
+  /** Days after a monthly objective's last day that it can still be judged. */
+  monthlyDays: 7,
+} as const;
+
+/**
+ * Where an objective's window stands on `today` (ADR-0037):
+ *
+ * - `upcoming` — its period has not started;
+ * - `running` — today is inside its period;
+ * - `closing` — its period is over, and it can still be judged;
+ * - `ended` — the review window is over too.
+ *
+ * Read from the period alone, never from the status: the status is what the
+ * window *makes* of an objective, so reading it here would be circular.
+ * `undefined` when the period is not written the way its type says.
+ */
+export type ObjectivePhase = 'upcoming' | 'running' | 'closing' | 'ended';
+
+export interface ObjectiveWindow {
+  readonly startsOn: CalendarDate;
+  readonly endsOn: CalendarDate;
+  /** The last day the objective can be judged before it closes itself. */
+  readonly judgeBy: CalendarDate;
+}
+
+export function objectiveWindowOf(
+  type: ObjectiveType,
+  period: string,
+): ObjectiveWindow | undefined {
+  const dates = objectiveDatesOf(type, period);
+  if (dates === undefined) return undefined;
+  if (type === 'annual') {
+    return {
+      ...dates,
+      judgeBy:
+        `${String(Number(period) + 1)}-${OBJECTIVE_REVIEW_GRACE.annualJudgeByMonthDay}` as CalendarDate,
+    };
+  }
+  const end = new Date(`${dates.endsOn}T00:00:00.000Z`);
+  end.setUTCDate(end.getUTCDate() + OBJECTIVE_REVIEW_GRACE.monthlyDays);
+  return { ...dates, judgeBy: end.toISOString().slice(0, 10) as CalendarDate };
+}
+
+export function objectivePhaseOf(
+  type: ObjectiveType,
+  period: string,
+  today: string,
+): ObjectivePhase | undefined {
+  const window = objectiveWindowOf(type, period);
+  if (window === undefined) return undefined;
+  if (today < window.startsOn) return 'upcoming';
+  if (today <= window.endsOn) return 'running';
+  if (today <= window.judgeBy) return 'closing';
+  return 'ended';
+}
+
+/** Why the window moved an objective's status, recorded with the change. */
+export type ObjectiveWindowReason = 'period_started' | 'period_not_started' | 'review_window_ended';
+
+export interface ObjectiveWindowStep {
+  readonly from: ObjectiveStatus;
+  readonly to: ObjectiveStatus;
+  readonly reason: ObjectiveWindowReason;
+}
+
+/**
+ * The status changes an objective's window asks for on `today` (ADR-0037), in
+ * the order they happen. Empty when there are none.
+ *
+ * - **A draft becomes active when its period starts.** Nobody has to remember
+ *   to switch a year on in January.
+ * - **An active objective whose period has not started is a draft.** It is a
+ *   plan, and counting it as active put next year in this year's lists.
+ * - **An open objective whose review window is over is missed**, because
+ *   nobody judged it. A person judges *met* or *missed* during the window; the
+ *   window closing on its own is the default, not a verdict, and the reason
+ *   is recorded so the two can be told apart.
+ * - **A judged objective — met, missed or dropped — never moves.** A person
+ *   may judge early, before the period ends; the window does not undo it.
+ *
+ * Pure: `today` is the instance's calendar day, `YYYY-MM-DD`.
+ */
+export function objectiveWindowSteps(
+  objective: Pick<Objective, 'type' | 'period' | 'status'>,
+  today: string,
+): readonly ObjectiveWindowStep[] {
+  if (!isObjectiveOpen(objective.status)) return [];
+  const phase = objectivePhaseOf(objective.type, objective.period, today);
+  if (phase === undefined) return [];
+
+  if (objective.status === 'active') {
+    if (phase === 'upcoming')
+      return [{ from: 'active', to: 'draft', reason: 'period_not_started' }];
+    if (phase === 'ended') return [{ from: 'active', to: 'missed', reason: 'review_window_ended' }];
+    return [];
+  }
+
+  // A draft.
+  if (phase === 'upcoming') return [];
+  const started: ObjectiveWindowStep = { from: 'draft', to: 'active', reason: 'period_started' };
+  if (phase !== 'ended') return [started];
+  return [started, { from: 'active', to: 'missed', reason: 'review_window_ended' }];
 }
 
 /**

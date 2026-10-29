@@ -261,9 +261,17 @@ measure is a wish. The objective's page and the monthly *find orphans* step say 
 
 | Field | Owner | Notes |
 |---|---|---|
-| `title`, `type` (`annual` \| `monthly`), `period`, `area_key`, `status` | prisme | |
+| `title`, `type` (`annual` \| `monthly`), `period`, `area_key`, `status` | prisme | The status follows the window: see below |
 | `narrative` | document tool | The prose: why, reflections, review notes |
 | `external_page_id` | prisme | Link to that page |
+
+**An objective follows its window** ([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)).
+A `draft` becomes `active` on the first day of its period, and an `active` objective whose period
+has not started goes back to `draft`. After the period there is a **review window**, until 31
+January for an annual objective and seven days for a monthly one, in which it stays `active` and is
+judged `met` or `missed` by hand. An objective still open when that window ends becomes `missed`,
+with the reason recorded in the event log. A judged objective never moves. Each pass applies this
+first, and it writes only prisme's own table.
 
 ### Key Result
 

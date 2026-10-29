@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
 import {
   areaKey,
+  calendarDate,
   entityId,
   instant,
   objectiveStatus,
@@ -52,6 +53,18 @@ export const objectiveDto = z.object({
   period: z.string(),
   areaKey,
   status: objectiveStatus,
+  /**
+   * The days the period covers, and the last day it can be judged before its
+   * window closes it as missed (ADR-0037). `null` when the period is not
+   * written the way its type says.
+   */
+  window: z
+    .object({
+      startsOn: calendarDate,
+      endsOn: calendarDate,
+      judgeBy: calendarDate,
+    })
+    .nullable(),
   externalPageId: z.string().nullable(),
   keyResults: z.array(keyResultDto),
   createdAt: instant,

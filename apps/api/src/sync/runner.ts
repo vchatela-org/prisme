@@ -15,8 +15,11 @@ import {
 import { RECONCILER_LOCK_ID, withAdvisoryLock } from '@prisme/db';
 import {
   adopt,
+  advanceObjectiveWindows,
+  calendarDayIn,
   createAdoptionStore,
   createObjectivePageStore,
+  createObjectiveWindowStore,
   createPostgresStore,
   readBindings,
   reconcile,
@@ -144,6 +147,20 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
       });
 
       const outcome = await withAdvisoryLock(options.client, RECONCILER_LOCK_ID, async () => {
+        // Objectives follow their window first (ADR-0037), as the CronJob's
+        // pass does, so a forced pass plans key results for objectives in the
+        // status their window gives them. A failure here does not stop the pass.
+        try {
+          await advanceObjectiveWindows({
+            store: createObjectiveWindowStore(options.client),
+            today: calendarDayIn(options.timezone ?? 'UTC', options.now()),
+            now: options.now(),
+            mode: request.mode,
+          });
+        } catch {
+          // The next pass converges; the reconciler's work does not depend on it.
+        }
+
         const reconciled = await reconcile({
           mode: request.mode,
           full: request.full,

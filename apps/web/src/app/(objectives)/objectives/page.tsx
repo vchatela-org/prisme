@@ -10,6 +10,7 @@ import {
 } from '@/lib/contracts';
 import {
   addKeyResultHref,
+  awaitsJudgement,
   currentPeriod,
   elapsedPctOf,
   groupByPeriod,
@@ -20,6 +21,7 @@ import {
   orphanReason,
   servedInitiativeIds,
   splitUpcoming,
+  windowLine,
   type OrphanInitiative,
   type PeriodGroup,
 } from '@/lib/objectives-view';
@@ -115,6 +117,7 @@ export default async function ObjectivesPage() {
   );
 
   const active = started.filter((objective) => objective.status === 'active');
+  const toJudge = active.filter((objective) => awaitsJudgement(objective, today));
   const orphanedObjectives = orphanObjectives(active);
 
   const served = servedInitiativeIds(items);
@@ -140,6 +143,9 @@ export default async function ObjectivesPage() {
 
       <StatRow>
         <StatTile label="Active objectives" value={String(active.length)} />
+        {toJudge.length === 0 ? null : (
+          <StatTile label="Period over, to judge" value={String(toJudge.length)} />
+        )}
         <StatTile label="Key results" value={String(keyResultCount)} />
         <StatTile
           label="Active objectives with no work"
@@ -347,8 +353,14 @@ function ObjectiveCard({
             <Badge variant={objective.status === 'active' ? 'accent' : 'neutral'}>
               {objective.status}
             </Badge>
-            <span className="text-xs text-ink-muted">
-              {elapsedPct >= 100 ? 'Period over' : `${elapsedPct.toFixed(0)}% of the period gone`}
+            <span
+              className={
+                awaitsJudgement(objective, today)
+                  ? 'text-xs text-status-warning'
+                  : 'text-xs text-ink-muted'
+              }
+            >
+              {windowLine(objective, today)}
             </span>
           </div>
         </div>

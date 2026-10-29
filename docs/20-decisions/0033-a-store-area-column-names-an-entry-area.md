@@ -1,6 +1,8 @@
 # ADR-0033 · Read a document-tool entry's area from its store's area column, by the area's own page
 
-**Status:** Accepted · 2026-09-27 · decided by the owner, 2026-09-27 — settles the *mapping
+**Status:** Accepted · 2026-09-27 · decided by the owner, 2026-09-27 — point 5's *nothing makes it
+`active` later* and *objectives already adopted are not changed* superseded by
+[ADR-0037](0037-an-objective-follows-its-window.md) 2026-10-29 — settles the *mapping
 vocabulary* question recorded on 2026-09-26 and 2026-09-27 · amended 2026-09-28: point 5 decides that
 a takeaway is promoted, never adopted · amended 2026-09-28 by the owner: point 5 decides that an
 objectives page is adopted as an objective · amended 2026-09-28 by the owner: point 5 decides that

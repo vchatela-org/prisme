@@ -148,9 +148,9 @@ export function elapsedPctOf(period: string, today: string): number {
  *
  * An objective for a period that has not started is a plan, not what the
  * current period is for. The screens show it apart and leave it out of their
- * counts and orphan lists whatever its status, since one can be `active`
- * ahead of time, and it rejoins them on the first day of its period without
- * anyone changing anything. A period that cannot be read is not upcoming, so
+ * counts and orphan lists whatever its status — its window keeps it a draft
+ * (ADR-0037), and a pass may not have run yet — and it rejoins them on the
+ * first day of its period, when its window makes it active. A period that cannot be read is not upcoming, so
  * it stays in sight.
  */
 export function isUpcoming(period: string, today: string): boolean {
@@ -158,6 +158,30 @@ export function isUpcoming(period: string, today: string): boolean {
   const now = dayNumber(today);
   if (bounds === null || now === null) return false;
   return now < bounds.startDay;
+}
+
+/**
+ * Whether an objective is waiting to be judged on `today`: still active, its
+ * period over, and its review window not (ADR-0037). The API supplies the
+ * window, so the rule's dates are the domain's and this only compares them.
+ */
+export function awaitsJudgement(objective: Objective, today: string): boolean {
+  const window = objective.window;
+  if (window === null || objective.status !== 'active') return false;
+  return today > window.endsOn && today <= window.judgeBy;
+}
+
+/**
+ * The one line under an objective that says where its window stands: how much
+ * of the period is gone, or — once it is over — until when it can be judged
+ * before it closes itself as missed.
+ */
+export function windowLine(objective: Objective, today: string): string {
+  if (awaitsJudgement(objective, today) && objective.window !== null) {
+    return `Period over — judge it met or missed by ${objective.window.judgeBy}, or it closes as missed`;
+  }
+  const elapsedPct = elapsedPctOf(objective.period, today);
+  return elapsedPct >= 100 ? 'Period over' : `${elapsedPct.toFixed(0)}% of the period gone`;
 }
 
 /** Objectives split into those whose period has started and those still to come. */

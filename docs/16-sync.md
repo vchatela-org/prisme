@@ -134,6 +134,17 @@ An object the full view finds changed that the incremental stream never reported
 incremental path would have missed, and the count of those is `prisme_sync_drift_objects`. It runs
 only during `apply` — advancing a cursor is a side effect, and `plan` has none.
 
+#### Objectives follow their window (ADR-0037)
+
+Before anything else in the pass, and under the same lock, every open objective's status is
+compared with its window (`apps/sync/src/objective-windows/`, the rule `objectiveWindowSteps` in
+`@prisme/domain`): a draft whose period has started becomes `active`, an `active` one whose period
+has not started becomes a `draft`, and one still open after its review window becomes `missed`. Each
+change is a compare-and-set on the status read, written with a `status_changed` event that carries
+the reason. It touches prisme's own table only, so it runs under the write freeze, and `plan` counts
+without writing. It runs first so that the key results planned below belong to objectives in the
+status their window gives them. A failure is logged and does not fail the pass.
+
 #### The objectives' pages (ADR-0034)
 
 The same pass, after the task tool and under the same lock, reconciles one field into the document
