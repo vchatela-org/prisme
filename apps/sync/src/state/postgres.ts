@@ -305,6 +305,8 @@ export function createPostgresStore(
           id: string;
           objective_id: string;
           statement: string;
+          sub_objective: string | null;
+          progress_self: number;
           external_anchor_id: string | null;
           type: 'annual' | 'monthly';
           period: string;
@@ -312,7 +314,7 @@ export function createPostgresStore(
           area_key: string;
         }[]
       >`
-        select k.id::text, k.objective_id::text, k.statement,
+        select k.id::text, k.objective_id::text, k.statement, k.sub_objective, k.progress_self,
                coalesce(k.external_anchor_id,
                         (select r.external_id from entity_external_ref r
                           where r.prisme_id = k.id::text and r.prisme_kind = 'key_result'
@@ -367,6 +369,8 @@ export function createPostgresStore(
           keyResultId: row.id,
           objectiveId: row.objective_id,
           statement: row.statement,
+          ...(row.sub_objective === null ? {} : { subObjective: row.sub_objective }),
+          progressSelf: row.progress_self,
           areaKey: row.area_key,
           deadline,
           ...(objectiveTaskId === undefined ? {} : { objectiveTaskId }),

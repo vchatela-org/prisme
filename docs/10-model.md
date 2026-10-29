@@ -280,6 +280,7 @@ First-class, not a bullet inside a document.
 | Field | Owner | Notes |
 |---|---|---|
 | `statement`, `target`, `unit` | prisme | |
+| `sub_objective` | prisme | Optional free text: the sub-objective it is grouped under (`O1 : …`). Groups key results; places a new one's task ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md)) |
 | `progress_self` | prisme | **0–100, set by hand, by judgement.** The primary measure |
 | `measurements[]` | prisme | Append-only time series, so trends exist |
 | `external_anchor_id` | prisme | Anchor task, so subtasks can hang beneath it |
@@ -294,10 +295,19 @@ that gets worked on. The reconciler gives one to every key result of an objectiv
 - **linked** — a task was linked to it from the adoption queue (*Link as key result*, S1): the pass
   binds it and creates nothing;
 - **found** — its objective holds a task of its own ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md))
-  and a subtask of it carries exactly the key result's statement: the pass binds it and creates
-  nothing. A subtask that is only close is a `review`, never a guess;
-- **created** — none of those: the pass creates the task **beneath its objective's task**, and the
-  create threshold counts it. An objective that holds no task gets none made for its key results.
+  and one task **anywhere in its subtree** reads as the key result's statement once inline markup
+  (bold, links) is set aside: the pass binds it and creates nothing
+  ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md)). A task that is only
+  close is a `review`, never a guess;
+- **created** — none of those: the pass creates the task beneath the objective task's subtask that
+  reads as the key result's **sub-objective**, or beneath the objective's task, and the create
+  threshold counts it. An objective that holds no task gets none made for its key results.
+
+Two cases are never created ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md)):
+**finished work** — a key result at `progress_self` 100 gets no task, as a finished initiative gets
+no anchor — and **a subtree that already holds key results by hand**: when it holds a free task
+shaped like one (`KR1 : …`) and none reads as this statement, the line is a `review` asking for a
+rename, because a create would put a copy beside the one meant.
 
 **An objective can hold its own task.** One task per objective, worked on all period with its key
 results beneath it, is a common way to keep objectives in the task tool. An initiative whose task

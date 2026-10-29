@@ -171,8 +171,12 @@ Next, still before the reconciler: an initiative whose task carries exactly an o
 title, in the same area, gives the task to that objective and is dropped with a reason
 (`apps/sync/src/objective-tasks/`, the rule `objectiveTaskMatches`). It is one transaction per match,
 and `plan` counts without writing. The reconciler then converges the objective's task (its deadline,
-the `prisme:objective` label, the backlink) and places its key results' tasks beneath it, adopting a
-subtask whose title is exactly the statement before it creates anything.
+the `prisme:objective` label, the backlink) and places its key results' tasks beneath it. Before it
+creates anything it searches the objective task's **whole subtree** for a task that reads exactly as
+the statement once inline markup is set aside, refuses to create beside free `KR`-shaped tasks none of
+which matches, and makes nothing for a key result at 100%. A created one goes beneath the subtask that
+reads as the key result's sub-objective, when exactly one does
+([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md)).
 
 #### The objectives' pages (ADR-0034)
 

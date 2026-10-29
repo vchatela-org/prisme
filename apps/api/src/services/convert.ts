@@ -253,6 +253,7 @@ export function toKeyResultDto(record: KeyResultRecord): KeyResultDtoShape {
     id: record.id,
     objectiveId: record.objectiveId,
     statement: record.statement,
+    subObjective: record.subObjective,
     target: record.target,
     unit: record.unit,
     progressSelf: record.progressSelf,

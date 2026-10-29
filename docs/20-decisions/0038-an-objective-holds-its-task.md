@@ -2,7 +2,9 @@
 
 **Status:** Accepted · 2026-10-29 · decided by the owner, 2026-10-29. In part supersedes
 [ADR-0012](0012-key-results-first-class.md): a key result's task is made only beneath its
-objective's task. It also amends how S15 placed one, which was at its area's home.
+objective's task. It also amends how S15 placed one, which was at its area's home. Decision 4's search (direct
+subtasks, exact title) is in part superseded by
+[ADR-0039](0039-a-key-result-may-sit-under-a-sub-objective.md): the whole subtree, markup aside.
 
 ## Context
 
