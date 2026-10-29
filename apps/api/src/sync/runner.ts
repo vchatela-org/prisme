@@ -19,11 +19,13 @@ import {
   calendarDayIn,
   createAdoptionStore,
   createObjectivePageStore,
+  createObjectiveSuccessStore,
   createObjectiveTaskStore,
   createObjectiveWindowStore,
   createPostgresStore,
   giveObjectivesTheirTasks,
   readBindings,
+  readObjectiveSuccess,
   reconcile,
   reconcileObjectivePages,
   writeAuditOptions,
@@ -152,6 +154,23 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
         // Objectives follow their window first (ADR-0037), as the CronJob's
         // pass does, so a forced pass plans key results for objectives in the
         // status their window gives them. A failure here does not stop the pass.
+        // The document's success figure, stored for the Objectives screen
+        // (ADR-0042). It decides nothing, so a failure is not a reason to stop.
+        try {
+          await readObjectiveSuccess({
+            mode: request.mode,
+            store: createObjectiveSuccessStore(options.client),
+            docClient: createDocToolClient({
+              token: options.docToolToken,
+              baseUrl: options.docToolBaseUrl,
+              bindings: await readBindings(options.client),
+              transport,
+            }),
+            now: options.now,
+          });
+        } catch {
+          // The figure shown is the last one stored.
+        }
         try {
           await advanceObjectiveWindows({
             store: createObjectiveWindowStore(options.client),

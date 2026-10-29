@@ -76,6 +76,11 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
             // Invented column names.
             dateProperties: ['Due', 'Period'],
             relationProperties: ['Linked notes', 'Sphere'],
+            numberProperties: [
+              { name: 'Budget', format: 'euro' },
+              { name: 'Score', format: 'number' },
+              { name: 'Success', format: 'percent' },
+            ],
           },
           [UNDATED_SOURCE]: {
             externalId: UNDATED_SOURCE,
@@ -83,6 +88,7 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
             linkId: UNDATED_SOURCE,
             dateProperties: [],
             relationProperties: [],
+            numberProperties: [],
           },
           [PAGES_DATABASE]: {
             externalId: PAGES_SOURCE,
@@ -463,6 +469,85 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
       const response = await api(['read:adoption']).request(
         'PUT',
         url('/bindings/takeaways_db/area-property'),
+        { property: null },
+      );
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('the objectives store’s success column (ADR-0042)', () => {
+    const put = (app: ReturnType<typeof api>, role: string, property: string | null) =>
+      app.request('PUT', url(`/bindings/${role}/success-property`), { property });
+
+    it('lists the number properties with their format, and whether each is accepted', async () => {
+      const app = api();
+      const bound = await app.request('PUT', url('/bindings/objectives_db'), {
+        externalId: DATABASE,
+      });
+      expect(bound.body).toMatchObject({
+        successProperty: null,
+        numberProperties: [
+          { name: 'Budget', format: 'euro', accepted: false },
+          { name: 'Score', format: 'number', accepted: true },
+          { name: 'Success', format: 'percent', accepted: true },
+        ],
+      });
+      // Another store reads no success figure, so lists none.
+      const other = await app.request('PUT', url('/bindings/takeaways_db'), {
+        externalId: DATABASE,
+      });
+      expect(other.body).toMatchObject({ successProperty: null, numberProperties: null });
+    });
+
+    it('is chosen from an accepted format, read back, kept on a re-check and cleared', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      const chosen = await put(app, 'objectives_db', 'Success');
+      expect(chosen.status).toBe(200);
+      expect(chosen.body).toMatchObject({ successProperty: 'Success' });
+
+      const checked = (await app.request('POST', url('/bindings/check'), {})).body as {
+        items: { role: string; successProperty: string | null }[];
+      };
+      expect(checked.items.find((item) => item.role === 'objectives_db')?.successProperty).toBe(
+        'Success',
+      );
+
+      expect((await put(app, 'objectives_db', null)).body).toMatchObject({
+        successProperty: null,
+      });
+    });
+
+    it('refuses a format that is neither a percentage nor a plain number', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      const refused = await put(app, 'objectives_db', 'Budget');
+      expect(refused.status).toBe(422);
+      expect(JSON.stringify(refused.body)).toContain('neither a percentage nor a plain number');
+      expect((await put(app, 'objectives_db', 'Nowhere')).status).toBe(422);
+    });
+
+    it('refuses any store but the objectives store, and an unbound one', async () => {
+      const app = api();
+      expect((await put(app, 'objectives_db', 'Success')).status).toBe(409);
+      await app.request('PUT', url('/bindings/takeaways_db'), { externalId: DATABASE });
+      expect((await put(app, 'takeaways_db', 'Success')).status).toBe(422);
+    });
+
+    it('is dropped when the role is pointed at a store without it', async () => {
+      const app = api();
+      await app.request('PUT', url('/bindings/objectives_db'), { externalId: DATABASE });
+      await put(app, 'objectives_db', 'Success');
+      const moved = await app.request('PUT', url('/bindings/objectives_db'), {
+        externalId: UNDATED_SOURCE,
+      });
+      expect(moved.body).toMatchObject({ successProperty: null });
+    });
+
+    it('needs the settings scope', async () => {
+      const response = await api(['read:adoption']).request(
+        'PUT',
+        url('/bindings/objectives_db/success-property'),
         { property: null },
       );
       expect(response.status).toBe(403);

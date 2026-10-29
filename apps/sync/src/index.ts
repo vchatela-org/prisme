@@ -55,6 +55,19 @@ export type {
 } from './objective-windows/run.js';
 export { createObjectiveWindowStore } from './objective-windows/store.js';
 
+/**
+ * The document tool's own success figure (ADR-0042): read before the windows,
+ * which do not close an objective `missed` whose page says it was met.
+ */
+export { readObjectiveSuccess } from './objective-success/run.js';
+export type {
+  DocumentSuccessReading,
+  ObjectiveSuccessOptions,
+  ObjectiveSuccessResult,
+  ObjectiveSuccessStore,
+} from './objective-success/run.js';
+export { createObjectiveSuccessStore } from './objective-success/store.js';
+
 /** An objective holds its task (ADR-0038): the step after the windows. */
 export { giveObjectivesTheirTasks } from './objective-tasks/run.js';
 export type {

@@ -974,6 +974,14 @@ export const objectiveSchema = z.object({
   externalPageId: z.string().nullable(),
   keyResults: z.array(keyResultSchema),
   createdAt: instant,
+  /**
+   * The document tool's own success figure, as a percentage, read from the
+   * linked page (ADR-0042). Read-only: shown, never written, never a score.
+   */
+  documentSuccess: z.number().nullable().default(null),
+  documentSuccessReadAt: instant.nullable().default(null),
+  /** The figure reads 100% or more — decided by the API (`documentSaysMet`). */
+  documentSaysMet: z.boolean().default(false),
 });
 
 export type Objective = z.infer<typeof objectiveSchema>;
@@ -1159,6 +1167,13 @@ export const bindingSchema = z.object({
   areaProperty: z.string().nullable().default(null),
   /** The store's relation properties as the last check read them; `null` if not read. */
   relationProperties: z.array(z.string()).nullable().default(null),
+  /** The objectives store's success column (ADR-0042). Instance data. */
+  successProperty: z.string().nullable().default(null),
+  /** Its number properties, each with its declared format and whether it can be chosen. */
+  numberProperties: z
+    .array(z.object({ name: z.string(), format: z.string(), accepted: z.boolean() }))
+    .nullable()
+    .default(null),
 });
 
 export type Binding = z.infer<typeof bindingSchema>;

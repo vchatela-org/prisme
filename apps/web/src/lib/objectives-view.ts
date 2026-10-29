@@ -178,10 +178,35 @@ export function awaitsJudgement(objective: Objective, today: string): boolean {
  */
 export function windowLine(objective: Objective, today: string): string {
   if (awaitsJudgement(objective, today) && objective.window !== null) {
-    return `Period over — judge it met or missed by ${objective.window.judgeBy}, or it closes as missed`;
+    return objective.documentSaysMet
+      ? `Period over — the document says it was met; judge it by ${objective.window.judgeBy}, or it closes as missed`
+      : `Period over — judge it met or missed by ${objective.window.judgeBy}, or it closes as missed`;
   }
   const elapsedPct = elapsedPctOf(objective.period, today);
   return elapsedPct >= 100 ? 'Period over' : `${elapsedPct.toFixed(0)}% of the period gone`;
+}
+
+/**
+ * The document tool's own success figure, as a line beside the status, or
+ * `null` when none was read (ADR-0042). Whole percentages print whole.
+ */
+export function documentSuccessLine(objective: Objective): string | null {
+  if (objective.documentSuccess === null) return null;
+  const pct = objective.documentSuccess;
+  return `The document says ${Number.isInteger(pct) ? String(pct) : pct.toFixed(1)}%`;
+}
+
+/**
+ * Whether to ask *mark met?* (ADR-0042): the document says met, and the
+ * objective is open with its period over — the time it is judged, before the
+ * window closes it as missed (ADR-0037). The figure is shown during the period
+ * and nothing is asked: judging early is a person's own move, from the status
+ * buttons.
+ */
+export function asksMarkMet(objective: Objective, today: string): boolean {
+  const window = objective.window;
+  if (window === null || !objective.documentSaysMet) return false;
+  return isOpenObjective(objective.status) && today > window.endsOn;
 }
 
 /** Objectives split into those whose period has started and those still to come. */

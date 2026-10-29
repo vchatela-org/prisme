@@ -73,6 +73,22 @@ export const objectiveDto = z.object({
   externalPageId: z.string().nullable(),
   keyResults: z.array(keyResultDto),
   createdAt: instant,
+  /**
+   * The document tool's own success figure for this objective, as a
+   * percentage (100 = met), as the last pass read it from the linked page
+   * (ADR-0042). **Read-only, and the document tool's**: shown beside the
+   * status when the objective is judged, never written, never a score. `null`
+   * when no success column is chosen on Settings → Notion, the objective has
+   * no page, or the page holds no number.
+   */
+  documentSuccess: z.number().nullable(),
+  documentSuccessReadAt: instant.nullable(),
+  /**
+   * The figure reads 100% or more (`documentSaysMet`, packages/domain). An
+   * open objective that says so is not closed `missed` by its window; it waits
+   * for a person to judge it, and the screen asks *mark met?*.
+   */
+  documentSaysMet: z.boolean(),
 });
 
 export const ObjectiveDto = named('Objective', objectiveDto);

@@ -1600,6 +1600,46 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(events).toHaveLength(0);
     });
 
+    it('shows the document’s success figure read-only, and a relink clears it (ADR-0042)', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Said to be met',
+          type: 'annual',
+          period: '2026',
+          areaKey: 'health',
+          externalPageId: 'page-0001',
+        })
+      ).body as { id: string; documentSuccess: number | null; documentSaysMet: boolean };
+      expect(objective).toMatchObject({ documentSuccess: null, documentSaysMet: false });
+
+      await database.client`
+        update objective set document_success = 100, document_success_read_at = now()
+        where id = ${objective.id}::uuid`;
+      const read = (await app.request('GET', url(`/objectives/${objective.id}`))).body as {
+        documentSuccess: number | null;
+        documentSuccessReadAt: string | null;
+        documentSaysMet: boolean;
+      };
+      expect(read).toMatchObject({ documentSuccess: 100, documentSaysMet: true });
+      expect(read.documentSuccessReadAt).not.toBeNull();
+
+      // Never written by prisme: a write is refused, naming the field.
+      const refused = await app.request('PATCH', url(`/objectives/${objective.id}`), {
+        documentSuccess: 50,
+      });
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'read_only_field' });
+
+      // Another page's figure is not this one's.
+      const relinked = (
+        await app.request('PATCH', url(`/objectives/${objective.id}`), {
+          externalPageId: 'page-0002',
+        })
+      ).body as { documentSuccess: number | null; documentSaysMet: boolean };
+      expect(relinked).toMatchObject({ documentSuccess: null, documentSaysMet: false });
+    });
+
     it('keeps a judged objective in the period it was judged against', async () => {
       const app = api();
       for (const status of ['met', 'missed', 'dropped'] as const) {

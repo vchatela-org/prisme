@@ -7,6 +7,7 @@ import {
   computeProgress,
   isRankable,
   isSizedForNow,
+  documentSaysMet,
   objectiveWindowOf,
   parseCalendarDate,
   parseFibonacci,
@@ -284,6 +285,10 @@ export function toObjectiveDto(
       .filter((keyResult) => keyResult.objectiveId === record.id)
       .map(toKeyResultDto),
     createdAt: iso(record.createdAt),
+    documentSuccess: record.documentSuccess,
+    documentSuccessReadAt:
+      record.documentSuccessReadAt === null ? null : iso(record.documentSuccessReadAt),
+    documentSaysMet: documentSaysMet(record.documentSuccess),
   };
 }
 

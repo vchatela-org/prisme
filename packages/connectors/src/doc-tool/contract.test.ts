@@ -337,6 +337,11 @@ describe('describing a store before it is bound', () => {
     Sphere: { id: 'p5', type: 'relation' },
     'Linked notes': { id: 'p6', type: 'relation' },
     'Sphere name': { id: 'p7', type: 'rollup' },
+    Score: { id: 'p8', type: 'number', number: { format: 'percent' } },
+    Budget: { id: 'p9', type: 'number', number: { format: 'euro' } },
+    Count: { id: 'p10', type: 'number', number: { format: 'number' } },
+    Odd: { id: 'p11', type: 'number', number: { format: 'Not A Word!' } },
+    Bare: { id: 'p12', type: 'number' },
   };
   const database = (sources: readonly string[]) => ({
     object: 'database',
@@ -386,6 +391,13 @@ describe('describing a store before it is bound', () => {
       linkId: 'db-0001',
       dateProperties: ['Period', 'Reviewed on'],
       relationProperties: ['Linked notes', 'Sphere'],
+      numberProperties: [
+        { name: 'Bare', format: 'unknown' },
+        { name: 'Budget', format: 'euro' },
+        { name: 'Count', format: 'number' },
+        { name: 'Odd', format: 'unknown' },
+        { name: 'Score', format: 'percent' },
+      ],
     });
     // The database carries no schema, so its one data source is read for the
     // date and relation properties — once, and without the fallback chain a
@@ -411,6 +423,21 @@ describe('describing a store before it is bound', () => {
     });
     const described = await client.describe('ds-0001', 'data_source');
     expect(described.relationProperties).toEqual(['Linked notes', 'Sphere']);
+  });
+
+  it('lists a store’s number properties with the format each declares (ADR-0042)', async () => {
+    const { client } = describing({
+      '/v1/data_sources/ds-0001': { ...dataSource, properties: schema },
+    });
+    const described = await client.describe('ds-0001', 'data_source');
+    // Only the declared format is kept; a missing or odd one is `unknown`, never guessed.
+    expect(described.numberProperties).toEqual([
+      { name: 'Bare', format: 'unknown' },
+      { name: 'Budget', format: 'euro' },
+      { name: 'Count', format: 'number' },
+      { name: 'Odd', format: 'unknown' },
+      { name: 'Score', format: 'percent' },
+    ]);
   });
 
   it('still describes a pasted database when its data source cannot be read', async () => {

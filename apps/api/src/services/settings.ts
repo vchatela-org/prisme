@@ -9,6 +9,7 @@ import {
   type RoleKey,
 } from '@prisme/connectors';
 import {
+  documentSuccessScale,
   SELECTION_LIMIT_BOUNDS,
   selectionLimitsProblem,
   type SelectionLimits,
@@ -70,6 +71,17 @@ import type { ExternalDirectory } from '../sync/directory.js';
  * same rule as the date. The page each area is recognised by is picked from the
  * Life areas store's entries, which {@link SettingsService.areaPages} lists.
  *
+ * ## …and the objectives store's number properties, for its success figure
+ *
+ * ADR-0042: the objectives store's own success percentage is the document
+ * tool's, read-only for prisme. One number property may be chosen as that
+ * figure (`success_property`). The check lists the store's number properties
+ * **with the format the tool declares for each**, because the format is what
+ * says whether 1 is 1% or 100%; only a percentage, or a plain number read on a
+ * 0–100 scale, can be chosen — a currency or an unstated format is refused
+ * rather than guessed at. A re-check keeps the choice while a property of
+ * that name still has an accepted format, and drops it otherwise.
+ *
  * ## Nothing upstream reaches the caller
  *
  * A connector error's message can carry the identifier it was about. What is
@@ -92,6 +104,8 @@ export interface SettingsService {
   setDateProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
   /** Choose, or clear, the relation property the adoption scan reads areas from (ADR-0033). */
   setAreaProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
+  /** Choose, or clear, the objectives store's success column (ADR-0042). */
+  setSuccessProperty(role: RoleKey, property: string | null): Promise<BindingShape>;
   taskLocations(): Promise<TaskLocationsShape>;
   /** The Life areas store's entries, to pick an area's own page from (ADR-0033). */
   areaPages(): Promise<AreaPagesShape>;
@@ -121,7 +135,34 @@ function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): Bin
     dateProperties: record?.dateProperties ? [...record.dateProperties] : null,
     areaProperty: record?.areaProperty ?? null,
     relationProperties: record?.relationProperties ? [...record.relationProperties] : null,
+    successProperty: record?.successProperty ?? null,
+    numberProperties:
+      record?.numberProperties?.map((property) => ({
+        name: property.name,
+        format: property.format,
+        accepted: documentSuccessScale(property.format) !== undefined,
+      })) ?? null,
   };
+}
+
+/** The one store a success column is read from (ADR-0042). */
+const SUCCESS_ROLE: RoleKey = 'objectives_db';
+
+/**
+ * The success column a binding keeps after a check found `found`: kept while
+ * the store still has a number property of that name **whose format is
+ * accepted**, dropped otherwise. `null` found means the schema was not read,
+ * so the choice stands.
+ */
+export function carriedSuccessProperty(
+  previous: string | null,
+  found: readonly { readonly name: string; readonly format: string }[] | null,
+): string | null {
+  if (previous === null || found === null) return previous;
+  const property = found.find((candidate) => candidate.name === previous);
+  return property !== undefined && documentSuccessScale(property.format) !== undefined
+    ? previous
+    : null;
 }
 
 /**
@@ -188,12 +229,22 @@ export function createSettingsService(
         dateProperties: null,
         areaProperty: previous?.areaProperty ?? null,
         relationProperties: null,
+        successProperty: previous?.successProperty ?? null,
+        numberProperties: null,
       };
     }
 
     // Only a store prisme reads has entries to date, or to place in an area.
     const dateProperties = isReadable(role) ? (described.dateProperties ?? null) : null;
     const relationProperties = isReadable(role) ? (described.relationProperties ?? null) : null;
+    // Only the objectives store has a success figure to read (ADR-0042).
+    const numberProperties =
+      role === SUCCESS_ROLE
+        ? (described.numberProperties?.map((property) => ({
+            name: property.name,
+            format: property.format,
+          })) ?? null)
+        : null;
     const found = {
       role,
       externalId: described.externalId,
@@ -204,6 +255,8 @@ export function createSettingsService(
       dateProperties,
       areaProperty: carriedDateProperty(previous?.areaProperty ?? null, relationProperties),
       relationProperties,
+      successProperty: carriedSuccessProperty(previous?.successProperty ?? null, numberProperties),
+      numberProperties,
     };
     if (!canCreate(role)) return { ...found, checkError: null, templates: null };
 
@@ -341,6 +394,45 @@ export function createSettingsService(
 
       await store.bindings.setAreaProperty(role, property);
       return toBindingDto(role, { ...record, areaProperty: property });
+    },
+
+    async setSuccessProperty(role, property): Promise<BindingShape> {
+      if (role !== SUCCESS_ROLE) {
+        throw new ApiError(
+          'unprocessable',
+          `${role} has no success figure prisme reads — only ${SUCCESS_ROLE} does (ADR-0042)`,
+        );
+      }
+      const record = (await store.bindings.list()).find((binding) => binding.role === role);
+      if (record === undefined) {
+        throw new ApiError(
+          'conflict',
+          `${role} is not bound — bind the store before choosing its success column`,
+        );
+      }
+      if (property !== null) {
+        // Chosen from what the last check found, never typed, and only with a
+        // format that says how its numbers read: a percentage, or a plain
+        // number on a 0–100 scale. Anything else is refused, not guessed.
+        const found = (record.numberProperties ?? []).find(
+          (candidate) => candidate.name === property,
+        );
+        if (found === undefined) {
+          throw new ApiError(
+            'unprocessable',
+            'that is not one of this store’s number properties — check the binding to refresh the list',
+          );
+        }
+        if (documentSuccessScale(found.format) === undefined) {
+          throw new ApiError(
+            'unprocessable',
+            'that column is neither a percentage nor a plain number, so its values cannot be read as a success figure',
+          );
+        }
+      }
+
+      await store.bindings.setSuccessProperty(role, property);
+      return toBindingDto(role, { ...record, successProperty: property });
     },
 
     async areaPages(): Promise<AreaPagesShape> {

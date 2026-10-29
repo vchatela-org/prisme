@@ -159,6 +159,20 @@ export interface DocStoreDescription {
    * the date names; absent when the schema was not read.
    */
   readonly relationProperties?: readonly string[] | undefined;
+  /**
+   * The store's `number`-typed properties, sorted by name, each with the
+   * **format** the tool declares for it (`percent`, `number`, a currency…) —
+   * the format is what says whether 1 means 1% or 100%, so a success column
+   * can be chosen and read without guessing (ADR-0042). A format the tool
+   * did not state, or that is not a plain word, reads as `unknown`. Names are
+   * instance data; absent when the schema was not read.
+   */
+  readonly numberProperties?: readonly DocNumberProperty[] | undefined;
+}
+
+export interface DocNumberProperty {
+  readonly name: string;
+  readonly format: string;
 }
 
 /**

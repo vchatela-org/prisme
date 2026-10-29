@@ -68,6 +68,21 @@ export const bindingDto = z.object({
    * read the schema.
    */
   relationProperties: z.array(z.string()).nullable(),
+  /**
+   * The objectives store's number property holding the document tool's own
+   * success figure (ADR-0042), by name — instance data. `null`: none chosen,
+   * and nothing is read. Read-only for prisme: never written, never a score.
+   */
+  successProperty: z.string().nullable(),
+  /**
+   * The objectives store's number properties as the last check read them, each
+   * with the format the tool declares and whether that format can be read as a
+   * success figure (`percent`, or a plain number on a 0–100 scale). `null` for
+   * any other store, or when the check did not read the schema.
+   */
+  numberProperties: z
+    .array(z.object({ name: z.string(), format: z.string(), accepted: z.boolean() }))
+    .nullable(),
 });
 
 export const bindingListDto = z.object({ items: z.array(bindingDto) });
@@ -146,6 +161,17 @@ export const putAreaPropertyBody = defineWrite(
   'PutAreaProperty',
   z.strictObject({
     /** One of the binding's `relationProperties`, or `null` to stop reading its entries' areas. */
+    property: z.string().min(1).max(200).nullable(),
+  }),
+);
+
+export const putSuccessPropertyBody = defineWrite(
+  'PutSuccessProperty',
+  z.strictObject({
+    /**
+     * One of the objectives binding's `numberProperties` whose format is
+     * accepted, or `null` to stop reading the document's success figure.
+     */
     property: z.string().min(1).max(200).nullable(),
   }),
 );

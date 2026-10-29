@@ -90,6 +90,10 @@ export const OBJECTIVE_READ_ONLY = {
   reflections: 'the document tool owns reflections and review notes (docs/11-ownership.md §6)',
   progressComputed:
     'tasks done ÷ total, shown beside `progressSelf` and never written anywhere (ADR-0013)',
+  documentSuccess:
+    'the document tool owns its success figure; prisme reads it from the page and never writes it (ADR-0042)',
+  documentSuccessReadAt: 'set by the pass that reads the document’s success figure (ADR-0042)',
+  documentSaysMet: 'derived from the document’s success figure (ADR-0042)',
 } as const;
 
 export const KEY_RESULT_READ_ONLY = {

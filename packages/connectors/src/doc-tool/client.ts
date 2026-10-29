@@ -17,9 +17,11 @@ import type { StoreShape } from '../role-key.js';
 import { sanitisePlainText } from '../sanitise.js';
 import { docIdKey } from './ids.js';
 import { mapBlock, mapPage, mapPageContent } from './map.js';
+import { z } from 'zod';
 import type {
   CreatePageInput,
   DocBlock,
+  DocNumberProperty,
   DocPage,
   DocRecord,
   DocStoreDescription,
@@ -110,7 +112,31 @@ function choosableProperties(properties: Readonly<Record<string, { readonly type
   return {
     dateProperties: propertyNamesOfType(properties, 'date'),
     relationProperties: propertyNamesOfType(properties, 'relation'),
+    numberProperties: numberPropertiesOf(properties),
   };
+}
+
+/** A number property's declared format: a short lower-case word, or nothing. */
+const numberFormatSchema = z.object({
+  number: z.object({ format: z.string().regex(/^[a-z_]{1,40}$/) }).loose(),
+});
+
+/**
+ * The store's number properties with their declared format (ADR-0042), sorted
+ * by name. The format is read and nothing else of the property's
+ * configuration; one that is missing or not a plain word is `unknown`, which
+ * nothing accepts as a success column — a format is not guessed from values.
+ */
+function numberPropertiesOf(
+  properties: Readonly<Record<string, { readonly type: string }>>,
+): readonly DocNumberProperty[] {
+  return Object.entries(properties)
+    .filter(([, property]) => property.type === 'number')
+    .map(([name, property]) => {
+      const parsed = numberFormatSchema.safeParse(property);
+      return { name, format: parsed.success ? parsed.data.number.format : 'unknown' };
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export interface DocToolClientOptions {
