@@ -396,6 +396,22 @@ describe('the activity log (ADR-0040)', () => {
     expect(second?.searchParams.get('cursor')).toBe('activity-cursor.0002');
   });
 
+  it('reads an entry whose id is beyond the safe-integer range, which the tool issues', async () => {
+    // The tool's activity ids are large: the live log returns ids such as
+    // 2.1679e36, which are not safe integers. Nothing reads an event's id, so
+    // the schema must not refuse a page for it (a refusal here stops every
+    // completion read, and the pass with it).
+    const [first] = (activityPage1 as { results: Array<Record<string, unknown>> }).results;
+    const bigId = { results: [{ ...first, id: 2.1679213209358362e36 }], next_cursor: null };
+    const { client } = createRecordedTaskToolClient({
+      fullSync,
+      activity: { completed: [bigId] },
+    });
+    const events = await client.fetchCompletionEvents(SINCE, UNTIL);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.externalTaskId).toBe('task-0003');
+  });
+
   it('carries an un-completion as one, so the caller can pair it', async () => {
     const recorded = withActivity([
       {
