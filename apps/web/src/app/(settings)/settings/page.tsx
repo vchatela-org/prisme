@@ -7,6 +7,7 @@ import {
   areaWeightsSchema,
   auditRetentionSchema,
   wipLimitsSchema,
+  signalsLabelSchema,
   bindingListSchema,
   instanceSettingsSchema,
   settingsAreaListSchema,
@@ -31,6 +32,7 @@ import {
 } from '@/lib/settings-view';
 import { AuditRetentionForm } from './audit-retention-form';
 import { WipLimitsForm } from './wip-limits-form';
+import { SignalsLabelForm } from './signals-label-form';
 import { CheckBindingsButton } from './check-bindings-button';
 
 export const metadata = {
@@ -56,6 +58,7 @@ export const metadata = {
  *   is edited here (ADR-0031);
  * - **the work-in-progress limits** are prisme's own and edited here
  *   (ADR-0036);
+ * - **the Signals lane label** is prisme's own and edited here (ADR-0041);
  * - **API tokens** are minted and revoked on their own screen (ADR-0015);
  * - **the write freeze, create threshold, sync window and scoring method** are
  *   deployment configuration, validated at boot, and shown read-only.
@@ -73,6 +76,7 @@ export default async function SettingsPage() {
     retention,
     tokens,
     wipLimits,
+    signalsLabel,
   ] = await Promise.all([
     apiFetch({ path: '/settings', schema: instanceSettingsSchema }),
     apiFetch({ path: '/write-switch', schema: writeSwitchSchema }),
@@ -88,6 +92,7 @@ export default async function SettingsPage() {
     apiFetch({ path: '/audit/retention', schema: auditRetentionSchema }),
     apiFetch({ path: '/tokens', schema: apiTokenListSchema }),
     apiFetch({ path: '/settings/wip-limits', schema: wipLimitsSchema }),
+    apiFetch({ path: '/settings/signals-label', schema: signalsLabelSchema }),
   ]);
   const liveTokens = tokens.ok ? tokens.data.items.filter((token) => token.active).length : 0;
 
@@ -234,6 +239,32 @@ export default async function SettingsPage() {
             </Card>
           ) : (
             <ApiFailureState failure={wipLimits} surface="the work-in-progress limits" />
+          )}
+        </Section>
+      </div>
+
+      <div id="signals-label">
+        <Section
+          title="Signals lane label"
+          description="Automations — digests, change alerts, reminders a device sends — often write their tasks into an ordinary area's project. A task carrying this label is counted in the Signals lane wherever it sits: as volume, never as time, and never ranked. Other lanes are still decided by where work sits."
+        >
+          {signalsLabel.ok ? (
+            <Card className="flex flex-col gap-4">
+              <p className="max-w-prose text-sm text-ink-secondary">
+                {signalsLabel.data.label === null
+                  ? 'No label chosen: every task is counted where it sits.'
+                  : `Tasks labelled “${signalsLabel.data.label}” are counted in ${
+                      signalsLabel.data.lanes.find((lane) => lane.key === signalsLabel.data.areaKey)
+                        ?.name ?? 'the Signals lane'
+                    }.`}{' '}
+                A change applies at the next daily refresh, to every completion whose labels prisme
+                has read — the trailing weeks first; older history keeps its place until it is
+                fetched again.
+              </p>
+              <SignalsLabelForm setting={signalsLabel.data} />
+            </Card>
+          ) : (
+            <ApiFailureState failure={signalsLabel} surface="the Signals lane label" />
           )}
         </Section>
       </div>

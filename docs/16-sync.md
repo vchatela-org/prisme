@@ -79,6 +79,26 @@ Starting at the earlier bound means a refresh that missed days never advances th
 stretch nothing read. A failed fetch is logged as `taskToolUnread` and the refresh still
 materialises what is stored.
 
+**Completions come from two records, merged** ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)).
+The completion history (`/api/v1/tasks/completed/by_completion_date`) lists a task once it is
+checked. A recurring task never is, because completing it moves its date. So the **activity log**
+(`/api/v1/activities`, completed and uncompleted items) is the source of which completions happened,
+one per occurrence. The history stays for what the log does not carry: a one-off task's recorded
+duration, its section, and the instant its row was first stored under. `readCompletions`
+(`apps/sync/src/backfill/completions.ts`) is the one rule both the refresh and the backfill use:
+
+- an un-completion takes back the completion before it;
+- each history entry pairs with the log's latest completion of the same task, within a day, and the
+  pair is the history's entry, unchanged;
+- a log completion left over is stored on its own, located by the entry's project and section. With
+  no section on the entry, it takes the open task's current section, but only while that task is
+  still in the same project;
+- a history entry left over stands.
+
+Both records are read one day wider than each 28-day slice, so a pair is never split across two
+slices. A re-run over rows the history-only reader stored adds the recurring occurrences and nothing
+else. How far back the log reaches depends on the task tool's plan.
+
 **It rewrites whole weeks, and both derived tables together.** `capacity_week` and
 `capacity_completion` (one row per attributed completion, which is what the area screen lists) are
 replaced in one transaction over the same weeks, so the list and the sums cannot disagree. The weeks
@@ -104,6 +124,16 @@ by a person, still with no default date. It is also the only thing that gives ti
 fetched before they were recorded, outside the trailing window — and only with a `--from` **earlier
 than the cursor's start**, because a `--from` inside the covered range resumes at the cursor's end and
 re-reads nothing. Any run re-materialises the whole covered range, so any run itemises the older weeks.
+
+**Attribution reads one label.** A completion carrying the Signals lane label chosen on Settings is
+attributed to the Signals lane it names, wherever it sat. Its location is consulted only when it
+does not carry the label ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)).
+The fetch records each completion's labels in `completion_history.labels`, and attribution is re-made
+from them on every refresh, so choosing or changing the label needs no fetch. A completion fetched
+before labels were recorded has none on record, and its location decides until a fetch covers it
+again: the trailing window on the next refresh, and older history by the same `--from` rule as titles.
+The adoption scan applies the same rule to open tasks, through the same function
+(`signalsAreaByLabel`), so a labelled task is classified as a signal rather than proposed.
 
 #### The write audit is pruned by the full pass
 

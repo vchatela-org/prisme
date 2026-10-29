@@ -70,6 +70,20 @@ describe('tasks', () => {
     expect(objects.find((object) => object.externalId === 'kid-1')?.parentId).toBe('parent');
   });
 
+  it('puts a task wearing the Signals label into that lane wherever it sits (ADR-0041)', () => {
+    const signalsLabel = { label: 'signal', areaKey: 'signals' };
+    const [labelled, plain] = adaptTasks(
+      [taskOf({ externalId: 'a', labels: ['signal'] }), taskOf({ externalId: 'b' })],
+      { ...OPTIONS, signalsLabel },
+    );
+    expect(labelled).toMatchObject({ areaKey: 'signals', areaLane: 'signals' });
+    expect(plain).toMatchObject({ areaKey: 'home', areaLane: 'area' });
+
+    // No label chosen: where it sits decides, as before.
+    const [unset] = adaptTasks([taskOf({ externalId: 'a', labels: ['signal'] })], OPTIONS);
+    expect(unset).toMatchObject({ areaKey: 'home', areaLane: 'area' });
+  });
+
   it('prefers a section mapping over its project, so one project can feed two areas', () => {
     const [inProject, inSection] = adaptTasks(
       [taskOf({ externalId: 'a' }), taskOf({ externalId: 'b', sectionId: 's-signals' })],

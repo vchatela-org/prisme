@@ -1,5 +1,6 @@
 import type { AreaKey, AreaKind, DurationSource } from '@prisme/domain';
 import { locationKey } from '../reconcile/types.js';
+import { signalsAreaByLabel } from '../signals-label.js';
 import type {
   AttributedCompletion,
   AttributionContext,
@@ -47,6 +48,12 @@ import type {
  * the series `ritual_adherence` is reconstructed from. Nothing here excludes a
  * ritual from capacity — the exclusion that exists is Signals, and it is the
  * area's kind that says so.
+ *
+ * The *area* is decided before this is asked, and the Signals label is the one
+ * thing that decides it ahead of the location (ADR-0041): a completion wearing
+ * the label chosen on Settings is attributed to the Signals lane that setting
+ * names, so its kind is `signals` here and it is volume, whatever section the
+ * automation wrote it into.
  */
 export function laneOf(kind: AreaKind, isRitual: boolean): Lane {
   if (kind === 'signals') return 'signals';
@@ -100,7 +107,11 @@ export function attribute(
   for (const completion of completions) {
     if (completion.durationScale === 'day') dayScaleDurations += 1;
 
-    const areaKey = resolveArea(completion, context.areaByLocation);
+    // The label first, for Signals only (ADR-0041); the location otherwise.
+    const areaKey =
+      signalsAreaByLabel(completion.labels, context.signalsLabel, (key) =>
+        context.kindByArea.get(key),
+      ) ?? resolveArea(completion, context.areaByLocation);
     if (areaKey === undefined) {
       countGap(gapCounts, completion);
       continue;

@@ -36,6 +36,7 @@ interface CompletionRow {
   readonly content: string | null;
   readonly recorded_minutes: number | null;
   readonly duration_scale: string | null;
+  readonly labels: string[] | null;
 }
 
 export function createBackfillStore(client: postgres.Sql): BackfillStore {
@@ -79,25 +80,40 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
           //
           // Found by running the integration suite against the client the
           // application actually builds — see `test-support/database.ts`.
+          //
+          // **Labels cross as one JSON text per row** (ADR-0041). `unnest`
+          // flattens a two-dimensional array into its elements, so a `text[][]`
+          // cannot carry one list per row; a JSON array per row can, and is
+          // turned back into a `text[]` beside the other columns. `NULL` stays
+          // `NULL`: not known, never *no labels*.
           await tx`
             insert into completion_history
               (external_task_id, completed_at, external_project_id, external_section_id,
-               content, recorded_minutes, duration_scale)
-            select * from unnest(
+               content, recorded_minutes, duration_scale, labels)
+            select u.task_id, u.completed_at, u.project_id, u.section_id,
+                   u.content, u.recorded_minutes, u.duration_scale,
+                   case when u.labels is null then null
+                        else array(select jsonb_array_elements_text(u.labels::jsonb)) end
+            from unnest(
               ${completions.map((c) => c.externalTaskId)}::text[],
               cast(${completions.map((c) => stamp(c.completedAt))}::text[] as timestamptz[]),
               ${completions.map((c) => c.externalProjectId ?? null)}::text[],
               ${completions.map((c) => c.externalSectionId ?? null)}::text[],
               ${completions.map((c) => c.content ?? null)}::text[],
               ${completions.map((c) => c.recordedMinutes ?? null)}::integer[],
-              ${completions.map((c) => c.durationScale ?? null)}::text[]
-            )
+              ${completions.map((c) => c.durationScale ?? null)}::text[],
+              ${completions.map((c) => (c.labels === undefined ? null : JSON.stringify(c.labels)))}::text[]
+            ) as u(task_id, completed_at, project_id, section_id, content,
+                     recorded_minutes, duration_scale, labels)
             on conflict (external_task_id, completed_at) do update set
               external_project_id = excluded.external_project_id,
               external_section_id = excluded.external_section_id,
               -- A re-fetch refreshes a renamed title; a response without one
               -- never erases the title already held (ADR-0032).
               content             = coalesce(excluded.content, completion_history.content),
+              -- The same rule for labels (ADR-0041): an empty list is an answer
+              -- and replaces what is held; an absent one is not, and keeps it.
+              labels              = coalesce(excluded.labels, completion_history.labels),
               recorded_minutes    = excluded.recorded_minutes,
               duration_scale      = excluded.duration_scale,
               fetched_at          = now()`;
@@ -117,7 +133,7 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
     async loadCompletions(from: Date, to: Date): Promise<readonly StoredCompletion[]> {
       const rows = await client<CompletionRow[]>`
         select external_task_id, completed_at, external_project_id, external_section_id,
-               content, recorded_minutes, duration_scale
+               content, recorded_minutes, duration_scale, labels
         from completion_history
         where completed_at >= ${stamp(from)}::timestamptz
           and completed_at <  ${stamp(to)}::timestamptz
@@ -133,16 +149,19 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
         ...(row.duration_scale === null
           ? {}
           : { durationScale: row.duration_scale as 'minute' | 'day' }),
+        ...(row.labels === null ? {} : { labels: row.labels }),
       }));
     },
 
     async loadAreaMap() {
-      const [mappings, areas] = await Promise.all([
+      const [mappings, areas, signals] = await Promise.all([
         client<
           { area_key: string; external_project_id: string; external_section_id: string | null }[]
         >`
           select area_key, external_project_id, external_section_id from area_mapping`,
         client<{ key: string; kind: string }[]>`select key, kind from area`,
+        client<{ label: string; area_key: string }[]>`
+          select label, area_key from signals_label_setting where id = 'singleton'`,
       ]);
 
       const areaByLocation = new Map<string, AreaKey>();
@@ -156,7 +175,15 @@ export function createBackfillStore(client: postgres.Sql): BackfillStore {
       const kindByArea = new Map<AreaKey, AreaKind>();
       for (const row of areas) kindByArea.set(row.key, row.kind as AreaKind);
 
-      return { areaByLocation, kindByArea };
+      // No row: the feature is off, and the location alone decides (ADR-0041).
+      const chosen = signals[0];
+      return {
+        areaByLocation,
+        kindByArea,
+        ...(chosen === undefined
+          ? {}
+          : { signalsLabel: { label: chosen.label, areaKey: chosen.area_key } }),
+      };
     },
 
     /**

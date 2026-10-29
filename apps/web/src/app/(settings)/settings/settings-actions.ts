@@ -9,6 +9,7 @@ import {
   bindingListSchema,
   bindingSchema,
   settingsAreaSchema,
+  signalsLabelSchema,
   wipLimitsSchema,
 } from '@/lib/contracts';
 import { AREA_KEY_PATTERN } from '@/lib/settings-view';
@@ -480,5 +481,63 @@ export async function setWipLimits(input: z.input<typeof wipLimitsInput>): Promi
     ok: true,
     title: 'Saved',
     description: `Up to ${String(result.data.maxNow)} in flight, ${String(result.data.maxNowPerArea)} per area. Nothing already in flight moves.`,
+  };
+}
+
+/**
+ * The Signals lane label (ADR-0041). The API refuses prisme's own labels and a
+ * lane that is not a Signals lane; this schema only keeps an empty string from
+ * making the trip. `label: null` turns the feature off.
+ */
+const signalsLabelInput = z.union([
+  z.object({
+    label: z.string().trim().min(1).max(100),
+    areaKey: z.string().regex(AREA_KEY_PATTERN),
+  }),
+  z.object({ label: z.null() }),
+]);
+
+export async function setSignalsLabel(
+  input: z.input<typeof signalsLabelInput>,
+): Promise<SettingsResult> {
+  const parsed = signalsLabelInput.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      title: 'Not saved',
+      description: 'A lane label needs a name and the Signals lane it puts work in.',
+    };
+  }
+
+  const body =
+    parsed.data.label === null
+      ? { label: null }
+      : { label: parsed.data.label, areaKey: parsed.data.areaKey };
+  const result = await apiFetch({
+    path: '/settings/signals-label',
+    method: 'PUT',
+    body,
+    schema: signalsLabelSchema,
+  });
+  if (!result.ok) {
+    if (result.status === 422 || result.status === 404) {
+      return {
+        ok: false,
+        title: 'Not saved',
+        description: 'A lane label can only put work in a Signals lane. Choose one from the list.',
+      };
+    }
+    return refused(result, 'the lane label', 'The lane label was not saved.');
+  }
+
+  // Capacity, the KPI and the areas all read what attribution decides.
+  revalidatePath('/', 'layout');
+  return {
+    ok: true,
+    title: 'Saved',
+    description:
+      result.data.label === null
+        ? 'No lane label: work is counted where it sits. The next daily refresh re-attributes.'
+        : `Tasks labelled “${result.data.label}” are Signals from the next daily refresh, wherever they sit.`,
   };
 }

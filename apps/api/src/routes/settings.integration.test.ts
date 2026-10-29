@@ -698,4 +698,77 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
       expect(response.status).toBe(403);
     });
   });
+
+  describe('the Signals lane label (ADR-0041)', () => {
+    it('is off until one is chosen, and lists the Signals lanes to choose from', async () => {
+      const response = await api().request('GET', url('/settings/signals-label'));
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        label: null,
+        areaKey: null,
+        lanes: [{ key: 'signals', name: 'Signals', active: true }],
+        updatedAt: null,
+      });
+    });
+
+    it('keeps a label and its lane, trimmed, and turns off with a null label', async () => {
+      const app = api();
+      const put = await app.request('PUT', url('/settings/signals-label'), {
+        label: '  signal ',
+        areaKey: 'signals',
+      });
+      expect(put.status).toBe(200);
+      expect(put.body).toMatchObject({ label: 'signal', areaKey: 'signals' });
+
+      const read = await app.request('GET', url('/settings/signals-label'));
+      expect(read.body).toMatchObject({ label: 'signal', areaKey: 'signals' });
+      expect((read.body as { updatedAt: string | null }).updatedAt).not.toBeNull();
+
+      const off = await app.request('PUT', url('/settings/signals-label'), { label: null });
+      expect(off.status).toBe(200);
+      expect(off.body).toMatchObject({ label: null, areaKey: null, updatedAt: null });
+    });
+
+    it('refuses a lane that is not a Signals lane — the label never moves work into an area or Run', async () => {
+      for (const areaKey of ['run', 'health']) {
+        const response = await api().request('PUT', url('/settings/signals-label'), {
+          label: 'signal',
+          areaKey,
+        });
+        expect(response.status).toBe(422);
+      }
+    });
+
+    it('refuses a label with no lane, and a lane that does not exist', async () => {
+      const without = await api().request('PUT', url('/settings/signals-label'), {
+        label: 'signal',
+      });
+      expect(without.status).toBe(422);
+
+      const unknown = await api().request('PUT', url('/settings/signals-label'), {
+        label: 'signal',
+        areaKey: 'nowhere',
+      });
+      expect(unknown.status).toBe(404);
+    });
+
+    it.each(['prisme', 'prisme:status:now', 'PRISME:kr', '   '])(
+      'refuses %j, which is prisme’s own vocabulary or empty',
+      async (label) => {
+        const response = await api().request('PUT', url('/settings/signals-label'), {
+          label,
+          areaKey: 'signals',
+        });
+        expect(response.status).toBe(400);
+      },
+    );
+
+    it('is refused without admin:settings', async () => {
+      const response = await api(['read:focus']).request('PUT', url('/settings/signals-label'), {
+        label: 'signal',
+        areaKey: 'signals',
+      });
+      expect(response.status).toBe(403);
+    });
+  });
 });

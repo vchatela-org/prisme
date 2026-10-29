@@ -18,6 +18,7 @@ import type {
   areaPagesDto,
   bindingDto,
   bindingListDto,
+  signalsLabelDto,
   taskLocationsDto,
   wipLimitsDto,
 } from '../dto/settings.js';
@@ -83,6 +84,7 @@ export type TaskLocationsShape = z.infer<typeof taskLocationsDto>;
 export type AreaPagesShape = z.infer<typeof areaPagesDto>;
 
 export type WipLimitsShape = z.infer<typeof wipLimitsDto>;
+export type SignalsLabelShape = z.infer<typeof signalsLabelDto>;
 
 export interface SettingsService {
   listBindings(): Promise<BindingListShape>;
@@ -99,6 +101,13 @@ export interface SettingsService {
   wipLimits(): Promise<WipLimitsShape>;
   /** Choose them. Soft limits: nothing already in flight moves. */
   setWipLimits(limits: SelectionLimits, now: Date): Promise<WipLimitsShape>;
+  /** The Signals lane label, and the lanes it may name (ADR-0041). */
+  signalsLabel(): Promise<SignalsLabelShape>;
+  /** Choose it, or with `label: null` turn the feature off. */
+  setSignalsLabel(
+    input: { label: string | null; areaKey?: string | null | undefined },
+    now: Date,
+  ): Promise<SignalsLabelShape>;
 }
 
 function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): BindingShape {
@@ -162,6 +171,18 @@ export function createSettingsService(
         maxNow: { ...SELECTION_LIMIT_BOUNDS.maxNow },
         maxNowPerArea: { ...SELECTION_LIMIT_BOUNDS.maxNowPerArea },
       },
+      updatedAt: record.updatedAt?.toISOString() ?? null,
+    };
+  }
+
+  async function signalsLabel(): Promise<SignalsLabelShape> {
+    const [record, areas] = await Promise.all([store.signalsLabel.get(), store.areas.list()]);
+    return {
+      label: record.chosen?.label ?? null,
+      areaKey: record.chosen?.areaKey ?? null,
+      lanes: areas
+        .filter((area) => area.kind === 'signals')
+        .map((area) => ({ key: area.key, name: area.name, active: area.active })),
       updatedAt: record.updatedAt?.toISOString() ?? null,
     };
   }
@@ -244,6 +265,34 @@ export function createSettingsService(
       if (problem !== undefined) throw new ApiError('unprocessable', problem);
       await store.selection.setLimits(limits, now);
       return wipLimits();
+    },
+
+    signalsLabel,
+
+    async setSignalsLabel(input, now): Promise<SignalsLabelShape> {
+      if (input.label === null) {
+        await store.signalsLabel.clear();
+        return signalsLabel();
+      }
+      // Named, never inferred: an instance may hold more than one Signals lane,
+      // and choosing one for the caller would be a guess (ADR-0041).
+      if (input.areaKey === undefined || input.areaKey === null) {
+        throw new ApiError('unprocessable', 'a lane label needs the Signals lane it puts work in');
+      }
+      const area = await store.areas.get(input.areaKey);
+      if (area === undefined) {
+        throw new ApiError('not_found', `no area has the key ${input.areaKey}`);
+      }
+      // The label beats the location for Signals only: it can never move work
+      // into an area or into Run, where it would be counted as chosen time.
+      if (area.kind !== 'signals') {
+        throw new ApiError(
+          'unprocessable',
+          `${input.areaKey} is not a Signals lane — a label can only put work in the Signals lane`,
+        );
+      }
+      await store.signalsLabel.set({ label: input.label, areaKey: area.key }, now);
+      return signalsLabel();
     },
 
     async putBinding(role, externalId, now): Promise<BindingShape> {

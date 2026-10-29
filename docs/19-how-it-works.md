@@ -130,7 +130,7 @@ were the wrong tasks*, or *progress came from outside the tracked work*).
 | Lane | For | Measured as |
 |---|---|---|
 | **Run** | Recurring upkeep: chores, admin, maintenance | Hours per week against a budget. Counts in capacity, never ranked |
-| **Signals** | Machine-generated notifications and digests | Volume only. Excluded from ranking **and** from capacity |
+| **Signals** | Machine-generated notifications and digests — by where they sit, or by the Signals lane label wherever they sit (ADR-0041) | Volume only. Excluded from ranking **and** from capacity |
 | **Ritual** | A habit: a cadence (daily … yearly) and a target adherence % | Adherence: how often it happened against how often it could have |
 
 Keeping these out of the backlog is what keeps the backlog meaningful. They still consume the same
@@ -160,7 +160,7 @@ Most of what exists in the two tools should **not** become a prisme object. Ask 
 | A multi-month effort with its own task-tool project | a **Project** (holding initiatives) | Adoption, or *New project* |
 | Something to do regularly because it builds a goal | a **Ritual** | Rituals |
 | Something to do regularly to keep things running | **Run** — map its project or section to the Run lane | Settings → Areas |
-| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane | Settings → Areas |
+| An alert, a digest, an automation's output | **Signals** — map its project to the Signals lane, or have the automation set the Signals lane label ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)) | Settings → Areas, or Settings → Signals lane label |
 | An idea from reading, actionable | an action **Takeaway** | Arrives in the Inbox by itself |
 | A task | **a task** — nothing to do | Counted through its area's mapping |
 
@@ -228,7 +228,9 @@ The queue is rescanned by the first full pass of each day, or on demand with *Re
 **Allocate.** A weight per area per year. A year without weights does not inherit silently: the
 balance factor goes *stale*, a banner appears, and the Year Review unlocks.
 
-**Measure.** Every completion in the task tool is attributed to an area through the mappings. Its
+**Measure.** Every completion in the task tool is attributed to an area through the mappings —
+each occurrence of a recurring task included, which the task tool's activity log records and its
+completion history does not ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)). Its
 minutes are, in order of preference: the duration recorded on the task, the declared duration of
 the matching process page (recurring work tied to a ritual), or a default of **25 minutes**. Over
 the last **four weeks**:
@@ -391,6 +393,10 @@ seven days of the next month.
   25 minutes, so a day of fifteen small chores outweighs one afternoon on something that matters.
   The charts say how much of a reading is estimated. Recording durations on the tasks that matter is
   what turns the estimate into a measurement.
+- **Recurring work is counted, but its time is mostly estimated.** Each occurrence of a recurring
+  task is a completion, read from the task tool's activity log. The log carries no duration, so an
+  occurrence counts its ritual's declared duration or the default. How far back the log reaches
+  depends on the task tool's plan, so older recurring work may be missing from a backfill.
 - **Areas whose work never becomes a task read as starved.** Relationships and health often live
   outside any task list. The balance factor errs toward surfacing them, which is tolerable — but it
   is a lens, not a verdict.
