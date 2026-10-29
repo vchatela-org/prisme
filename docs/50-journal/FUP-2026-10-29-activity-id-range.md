@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · The activity log's ids are beyond the safe-integer range, and the schema refused every page
 
-**Agent:** Claude · **Duration:** one run, after the v0.21.0 pin · **PR:** this branch's pull request ·
+**Agent:** Claude · **Duration:** one run, after the v0.21.0 pin · **PR:** [#214](https://github.com/vchatela-org/prisme/pull/214) ·
 **Outcome:** a patch, v0.21.1. The activity-log schema no longer validates an event's id as an integer.
 
 ## What was found
