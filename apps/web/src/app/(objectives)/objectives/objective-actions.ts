@@ -326,6 +326,7 @@ export async function authorObjective(input: AuthorInput): Promise<ActionResult>
 const keyResultInputSchema = z.object({
   objectiveId: z.string().min(1).max(200),
   statement: z.string().min(1).max(500),
+  subObjective: z.string().trim().min(1).max(200).optional(),
   target: z.number(),
   unit: z.string().min(1).max(50),
 });
@@ -355,6 +356,7 @@ export async function addKeyResult(input: KeyResultInput): Promise<ActionResult>
     method: 'POST',
     body: {
       statement: parsed.data.statement,
+      ...(parsed.data.subObjective === undefined ? {} : { subObjective: parsed.data.subObjective }),
       target: parsed.data.target,
       unit: parsed.data.unit,
     },

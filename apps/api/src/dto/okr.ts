@@ -33,6 +33,11 @@ export const keyResultDto = z.object({
   id: entityId,
   objectiveId: entityId,
   statement: z.string(),
+  /**
+   * The sub-objective it is grouped under (ADR-0039), or `null` for none. Free
+   * text; it groups key results and places a new key result's task.
+   */
+  subObjective: z.string().nullable(),
   target: z.number(),
   unit: z.string(),
   /** 0–100, set by hand, by judgement. The primary measure, and the one that syncs outward. */
@@ -123,6 +128,7 @@ export const createKeyResultBody = defineWrite(
   'CreateKeyResult',
   z.strictObject({
     statement: z.string().min(1).max(500),
+    subObjective: z.string().trim().min(1).max(200).optional(),
     target: z.number(),
     unit: z.string().min(1).max(50),
     progressSelf: percentage.default(0),
@@ -135,6 +141,8 @@ export const updateKeyResultBody = defineWrite(
   'UpdateKeyResult',
   z.strictObject({
     statement: z.string().min(1).max(500).optional(),
+    /** `null` takes the key result out of its sub-objective. */
+    subObjective: z.string().trim().min(1).max(200).nullable().optional(),
     target: z.number().optional(),
     unit: z.string().min(1).max(50).optional(),
     progressSelf: percentage.optional(),
