@@ -81,6 +81,8 @@ import { reconcileObjectivePages, type ObjectivePagesResult } from './objective-
 import { giveObjectivesTheirTasks } from './objective-tasks/run.js';
 import { createObjectiveTaskStore } from './objective-tasks/store.js';
 import { advanceObjectiveWindows, calendarDayIn } from './objective-windows/run.js';
+import { readObjectiveSuccess } from './objective-success/run.js';
+import { createObjectiveSuccessStore } from './objective-success/store.js';
 import { createObjectiveWindowStore } from './objective-windows/store.js';
 import { createObjectivePageStore } from './objective-pages/store.js';
 import { createPostgresStore } from './state/postgres.js';
@@ -537,6 +539,32 @@ async function main(): Promise<number> {
        * counts without writing. A failure does not fail the pass: the next
        * one converges.
        */
+      /*
+       * The document's own success figure (ADR-0042): read from the objectives
+       * store's chosen column and stored under `apply`, for the Objectives
+       * screen to show beside the status. It decides nothing: the windows
+       * (ADR-0037) run as before, and a failure leaves the last stored figure.
+       */
+      try {
+        const success = await readObjectiveSuccess({
+          mode,
+          store: createObjectiveSuccessStore(database.client),
+          docClient: createDocToolClient({
+            token: config.doctoolApiToken as string,
+            baseUrl: config.doctoolBaseUrl,
+            bindings: await readBindings(database.client),
+            transport,
+            metrics: connectorMetrics,
+          }),
+          now: () => new Date(),
+        });
+        if (success.read > 0 || success.written > 0) {
+          logger.info('objective success read', { read: success.read, written: success.written });
+        }
+      } catch (error: unknown) {
+        logger.error('objective success could not be read', { error });
+      }
+
       try {
         const windows = await advanceObjectiveWindows({
           store: createObjectiveWindowStore(database.client),

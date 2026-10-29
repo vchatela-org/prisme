@@ -5,6 +5,7 @@ import {
   BindingListDto,
   checkBindingsBody,
   putAreaPropertyBody,
+  putSuccessPropertyBody,
   putBindingBody,
   putDatePropertyBody,
   putSignalsLabelBody,
@@ -86,6 +87,22 @@ export const settingsRoutes: readonly ApiRoute[] = [
     response: BindingDto,
     handle: (context, services) =>
       services.settings.setAreaProperty(context.params.role, context.body.property),
+  }),
+
+  defineRoute({
+    operationId: 'putBindingSuccessProperty',
+    method: 'put',
+    path: '/bindings/:role/success-property',
+    scope: 'admin:settings',
+    summary: 'Choose which number property holds the document’s own success figure',
+    description:
+      "Optional, and for `objectives_db` only (ADR-0042). Each pass reads it into the objective's `documentSuccess`, shown beside the status when the objective is judged and never written or scored; an objective whose page says 100% or more is not closed `missed` by its window. The name must be one of the binding's `numberProperties` from its last check, and its format must be accepted — a percentage, or a plain number read on a 0–100 scale; anything else is refused with 422. `null` clears it.",
+    params: z.strictObject({ role: roleKey }),
+    body: putSuccessPropertyBody,
+    status: 200,
+    response: BindingDto,
+    handle: (context, services) =>
+      services.settings.setSuccessProperty(context.params.role, context.body.property),
   }),
 
   defineRoute({

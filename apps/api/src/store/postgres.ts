@@ -615,10 +615,13 @@ export function createPostgresStore(client: Sql): ApiStore {
             date_properties: string | null;
             area_property: string | null;
             relation_properties: string | null;
+            success_property: string | null;
+            number_properties: string | null;
           }[]
         >`
           select role, external_id, title, link_id, checked_at, check_error, templates::text,
-                 date_property, date_properties::text, area_property, relation_properties::text
+                 date_property, date_properties::text, area_property, relation_properties::text,
+                 success_property, number_properties::text
           from role_binding order by role`;
         return rows.map((row) => ({
           role: row.role,
@@ -635,6 +638,11 @@ export function createPostgresStore(client: Sql): ApiStore {
             row.relation_properties,
             null,
           ),
+          successProperty: row.success_property,
+          numberProperties: json<RoleBindingRecord['numberProperties']>(
+            row.number_properties,
+            null,
+          ),
         }));
       },
 
@@ -646,14 +654,18 @@ export function createPostgresStore(client: Sql): ApiStore {
           record.dateProperties === null ? null : JSON.stringify(record.dateProperties);
         const relationProperties =
           record.relationProperties === null ? null : JSON.stringify(record.relationProperties);
+        const numberProperties =
+          record.numberProperties === null ? null : JSON.stringify(record.numberProperties);
         await client`
           insert into role_binding (role, external_id, tool, title, link_id, checked_at, check_error,
                                     templates, date_property, date_properties, area_property,
-                                    relation_properties, updated_at)
+                                    relation_properties, success_property, number_properties,
+                                    updated_at)
           values (${record.role}, ${record.externalId}, 'doc', ${record.title}, ${record.linkId},
                   ${record.checkedAt?.toISOString() ?? null}::timestamptz, ${record.checkError},
                   ${templates}::jsonb, ${record.dateProperty}, ${dateProperties}::jsonb,
-                  ${record.areaProperty}, ${relationProperties}::jsonb, now())
+                  ${record.areaProperty}, ${relationProperties}::jsonb,
+                  ${record.successProperty}, ${numberProperties}::jsonb, now())
           on conflict (role) do update set
             external_id = excluded.external_id,
             title = excluded.title,
@@ -665,6 +677,8 @@ export function createPostgresStore(client: Sql): ApiStore {
             date_properties = excluded.date_properties,
             area_property = excluded.area_property,
             relation_properties = excluded.relation_properties,
+            success_property = excluded.success_property,
+            number_properties = excluded.number_properties,
             updated_at = now()`;
       },
 
@@ -678,6 +692,13 @@ export function createPostgresStore(client: Sql): ApiStore {
       async setAreaProperty(role: string, property: string | null): Promise<boolean> {
         const rows = await client`
           update role_binding set area_property = ${property}, updated_at = now()
+          where role = ${role} returning role`;
+        return rows.length > 0;
+      },
+
+      async setSuccessProperty(role: string, property: string | null): Promise<boolean> {
+        const rows = await client`
+          update role_binding set success_property = ${property}, updated_at = now()
           where role = ${role} returning role`;
         return rows.length > 0;
       },
@@ -1603,6 +1624,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       async listObjectives(filter, page: PageRequest): Promise<Paged<ObjectiveRecord>> {
         const rows = await client<(ObjectiveRow & { total: string })[]>`
           select id::text, title, type, period, area_key, status, external_page_id, created_at,
+                 document_success::text, document_success_read_at,
                  count(*) over () as total
           from objective
           where true
@@ -1619,7 +1641,8 @@ export function createPostgresStore(client: Sql): ApiStore {
 
       async getObjective(id: string): Promise<ObjectiveRecord | undefined> {
         const rows = await client<ObjectiveRow[]>`
-          select id::text, title, type, period, area_key, status, external_page_id, created_at
+          select id::text, title, type, period, area_key, status, external_page_id, created_at,
+                 document_success::text, document_success_read_at
           from objective where id = ${id}::uuid`;
         const row = rows[0];
         return row === undefined ? undefined : toObjective(row);
@@ -1630,7 +1653,8 @@ export function createPostgresStore(client: Sql): ApiStore {
           insert into objective (title, type, period, area_key, status, external_page_id)
           values (${input.title}, ${input.type}, ${input.period}, ${input.areaKey},
                   ${input.status}, ${input.externalPageId ?? null})
-          returning id::text, title, type, period, area_key, status, external_page_id, created_at`;
+          returning id::text, title, type, period, area_key, status, external_page_id, created_at,
+                 document_success::text, document_success_read_at`;
         const row = rows[0];
         if (row === undefined) throw new Error('the objective insert returned no row');
         return toObjective(row);
@@ -1644,9 +1668,16 @@ export function createPostgresStore(client: Sql): ApiStore {
             type = coalesce(${input.type ?? null}, type),
             period = coalesce(${input.period ?? null}, period),
             external_page_id = case when ${input.externalPageId === undefined}
-                                then external_page_id else ${input.externalPageId ?? null} end
+                                then external_page_id else ${input.externalPageId ?? null} end,
+            -- A figure read from another page is not this one's (ADR-0042): a
+            -- relink clears it, and the next pass reads the new page's.
+            document_success = case when ${input.externalPageId === undefined}
+                                then document_success else null end,
+            document_success_read_at = case when ${input.externalPageId === undefined}
+                                then document_success_read_at else null end
           where id = ${id}::uuid
-          returning id::text, title, type, period, area_key, status, external_page_id, created_at`;
+          returning id::text, title, type, period, area_key, status, external_page_id, created_at,
+                 document_success::text, document_success_read_at`;
         const row = rows[0];
         return row === undefined ? undefined : toObjective(row);
       },
@@ -2693,6 +2724,8 @@ export function createPostgresStore(client: Sql): ApiStore {
     status: string;
     external_page_id: string | null;
     created_at: Date | string;
+    document_success: string | null;
+    document_success_read_at: Date | string | null;
   }
 
   function toObjective(row: ObjectiveRow): ObjectiveRecord {
@@ -2705,6 +2738,8 @@ export function createPostgresStore(client: Sql): ApiStore {
       status: row.status,
       externalPageId: row.external_page_id,
       createdAt: required(row.created_at, 'objective.created_at'),
+      documentSuccess: row.document_success === null ? null : Number(row.document_success),
+      documentSuccessReadAt: instant(row.document_success_read_at),
     };
   }
 

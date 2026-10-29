@@ -59,6 +59,9 @@ function objective(over: Partial<Objective> = {}): Objective {
     areaKey: 'alpha',
     status: 'active',
     window: { startsOn: '2026-01-01', endsOn: '2026-12-31', judgeBy: '2027-01-31' },
+    documentSuccess: null,
+    documentSuccessReadAt: null,
+    documentSaysMet: false,
     externalPageId: null,
     keyResults: [],
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -456,6 +459,16 @@ describe('an objective waiting to be judged (ADR-0037)', () => {
       'Period over — judge it met or missed by 2027-01-31, or it closes as missed',
     );
     expect(windowLine(objective({ status: 'missed' }), '2027-03-01')).toBe('Period over');
+  });
+
+  it('says the figure, and that the window still closes it, when the document says met (ADR-0042, ADR-0037)', () => {
+    const met = objective({ documentSuccess: 100, documentSaysMet: true });
+    expect(windowLine(met, '2027-01-10')).toBe(
+      'Period over — the document says it was met; judge it by 2027-01-31, or it closes as missed',
+    );
+    expect(windowLine(objective({ documentSuccess: 40 }), '2027-01-10')).toBe(
+      'Period over — judge it met or missed by 2027-01-31, or it closes as missed',
+    );
     expect(windowLine(objective(), '2026-01-01')).toBe('0% of the period gone');
   });
 });

@@ -150,6 +150,7 @@ export type {
   DocPage,
   DocPropertyValue,
   DocRecord,
+  DocNumberProperty,
   DocStoreDescription,
   DocTemplate,
   DocToolClient,

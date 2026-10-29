@@ -86,6 +86,13 @@ export interface RoleBindingRecord {
   readonly areaProperty: string | null;
   /** The store's relation properties as the last check read them; `null` if unchecked. */
   readonly relationProperties: readonly string[] | null;
+  /**
+   * The number property holding the document's own success figure, chosen on
+   * Settings → Notion for the objectives store (ADR-0042). A name, instance data.
+   */
+  readonly successProperty: string | null;
+  /** The store's number properties and their declared formats; `null` if unchecked. */
+  readonly numberProperties: readonly { readonly name: string; readonly format: string }[] | null;
 }
 
 export interface AreaWeightRecord {
@@ -304,6 +311,12 @@ export interface ObjectiveRecord {
   readonly status: string;
   readonly externalPageId: string | null;
   readonly createdAt: Date;
+  /**
+   * The document tool's own success figure, as a percentage, as the objectives
+   * pass last read it from the linked page (ADR-0042). Shown, never written.
+   */
+  readonly documentSuccess: number | null;
+  readonly documentSuccessReadAt: Date | null;
 }
 
 export interface KeyResultRecord {
@@ -692,6 +705,7 @@ export interface ApiStore {
     setDateProperty(role: string, property: string | null): Promise<boolean>;
     /** Set or clear one binding's area column (ADR-0033); `false` when the role is not bound. */
     setAreaProperty(role: string, property: string | null): Promise<boolean>;
+    setSuccessProperty(role: string, property: string | null): Promise<boolean>;
   };
 
   /**
