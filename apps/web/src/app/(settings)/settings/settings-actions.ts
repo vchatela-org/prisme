@@ -177,6 +177,15 @@ export async function saveMappings(input: z.input<typeof mappingsSchema>): Promi
     schema: settingsAreaSchema,
   });
   if (!result.ok) {
+    // The one refusal a list of locations gets once it parses (S11).
+    if (result.status === 422) {
+      return {
+        ok: false,
+        title: 'Not saved',
+        description:
+          'Todoist’s Inbox belongs to no area, so it cannot be one of its locations. Untick it, choose a home in this area’s own project, and save again.',
+      };
+    }
     return refused(
       result,
       'these locations',

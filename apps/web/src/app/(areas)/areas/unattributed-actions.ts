@@ -79,6 +79,16 @@ export async function mapRestOfProject(raw: z.input<typeof input>): Promise<MapR
           'The project itself already belongs to another area. Change it on Settings → Areas.',
       };
     }
+    if (result.status === 422) {
+      // S11: the Inbox is never mapped — either it is the project asked for,
+      // or the area already names it and must lose it first.
+      return {
+        ok: false,
+        title: 'Not mapped',
+        description:
+          'Todoist’s Inbox belongs to no area and cannot be mapped. If this area already lists it, remove it on Settings → Areas first.',
+      };
+    }
     const copy = failureCopy(result, 'this mapping');
     return { ok: false, title: copy.title, description: copy.description };
   }

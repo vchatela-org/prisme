@@ -4,7 +4,7 @@ import { Badge, Button, Card, Field, FieldHint, Input, Label, Section, useToast 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import type { SettingsArea, TaskLocations } from '@/lib/contracts';
-import { locationKey, nameLocation } from '@/lib/settings-view';
+import { INBOX_MAPPING_WARNING, locationKey, nameLocation } from '@/lib/settings-view';
 import { saveMappings } from '../../settings-actions';
 
 interface Picked {
@@ -26,6 +26,10 @@ interface Picked {
  *   marked, the most specific location is used.
  * - nothing else: mapping moves nothing in Todoist. It is how prisme reads the
  *   structure you already have.
+ *
+ * Todoist's own Inbox is never offered: it belongs to no area (S11), and the
+ * API refuses a mapping naming it. One that already names it stays ticked, with
+ * the reason beside it, so the person can untick it and save.
  */
 export function LocationsForm({
   area,
@@ -116,6 +120,7 @@ export function LocationsForm({
     label: string,
     archived: boolean,
     indent: boolean,
+    inbox: boolean,
   ) => {
     const key = locationKey(projectId, sectionId);
     return (
@@ -125,6 +130,7 @@ export function LocationsForm({
         label={label}
         archived={archived}
         indent={indent}
+        inbox={inbox}
         holder={heldBy[key]}
         checked={pickedKeys.has(key)}
         isHome={home === key}
@@ -163,9 +169,17 @@ export function LocationsForm({
                     project.parentId === null ? project.name : `↳ ${project.name}`,
                     project.archived,
                     false,
+                    project.inbox,
                   )}
                   {project.sections.map((section) =>
-                    row(project.id, section.id, section.name, section.archived, true),
+                    row(
+                      project.id,
+                      section.id,
+                      section.name,
+                      section.archived,
+                      true,
+                      project.inbox,
+                    ),
                   )}
                 </ul>
               </li>
@@ -295,6 +309,7 @@ function LocationRow({
   label,
   archived,
   indent,
+  inbox,
   holder,
   checked,
   isHome,
@@ -305,6 +320,8 @@ function LocationRow({
   label: string;
   archived: boolean;
   indent: boolean;
+  /** In Todoist's own Inbox: never offered, and a mistake when already ticked (S11). */
+  inbox: boolean;
   holder: string | undefined;
   checked: boolean;
   isHome: boolean;
@@ -317,17 +334,26 @@ function LocationRow({
         id={id}
         type="checkbox"
         checked={checked}
-        disabled={holder !== undefined}
+        disabled={holder !== undefined || (inbox && !checked)}
         onChange={onToggle}
       />
-      <label htmlFor={id} className={holder === undefined ? 'text-ink' : 'text-ink-muted'}>
+      <label
+        htmlFor={id}
+        className={holder === undefined && !inbox ? 'text-ink' : 'text-ink-muted'}
+      >
         {label}
       </label>
       {archived ? <Badge variant="outline">archived</Badge> : null}
+      {inbox && !checked ? (
+        <span className="text-xs text-ink-muted">Todoist’s Inbox — belongs to no area</span>
+      ) : null}
+      {inbox && checked ? (
+        <span className="basis-full text-xs text-status-warning">{INBOX_MAPPING_WARNING}</span>
+      ) : null}
       {holder === undefined ? null : (
         <span className="text-xs text-ink-muted">belongs to {holder}</span>
       )}
-      {checked ? (
+      {checked && !inbox ? (
         <label className="flex items-center gap-1 text-xs text-ink-secondary">
           <input type="radio" name="home" checked={isHome} onChange={onHome} />
           new work goes here

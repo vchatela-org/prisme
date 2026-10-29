@@ -11,6 +11,11 @@ import { nameLocation } from './settings-view';
  * catch them: the **rest** of a project whose sections are mapped (a mapping of
  * the project itself, which sections still outrank), or the whole of a project
  * nothing maps.
+ *
+ * The task tool's own Inbox is the exception: it belongs to no area (S11), so
+ * its completions are listed and no mapping is offered — the API would refuse
+ * one. Its tasks reach an area by being sorted, or made an initiative from
+ * prisme's Inbox.
  */
 export interface UnattributedRow {
   readonly key: string;
@@ -37,6 +42,15 @@ export function unattributedRows(
       };
     }
     const name = nameLocation(locations, projectId, item.externalSectionId);
+    if (name.inbox) {
+      return {
+        key: `${projectId}/${item.externalSectionId ?? ''}`,
+        projectId,
+        where: `${name.project} — Todoist’s Inbox, which belongs to no area`,
+        completions: item.completions,
+        action: null,
+      };
+    }
     const where =
       item.externalSectionId === null
         ? item.partlyMapped

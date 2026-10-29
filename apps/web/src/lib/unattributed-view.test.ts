@@ -10,8 +10,10 @@ const locations: TaskLocations = {
       name: 'General',
       parentId: null,
       archived: false,
+      inbox: false,
       sections: [{ id: 's-house', name: 'House', archived: false }],
     },
+    { id: 'p-inbox', name: 'Inbox', parentId: null, archived: false, inbox: true, sections: [] },
   ],
 };
 
@@ -41,5 +43,34 @@ describe('completions the chart counted toward no area (S9)', () => {
   it('says how many were left out, and nothing when none were', () => {
     expect(unattributedSummary(data)).toContain('4 completions in the last 4 weeks');
     expect(unattributedSummary({ ...data, total: 0, items: [] })).toBeNull();
+  });
+});
+
+describe('the task tool’s Inbox (S11)', () => {
+  it('lists its completions and offers no mapping, because it belongs to no area', () => {
+    const rows = unattributedRows(
+      {
+        ...data,
+        total: 3,
+        items: [
+          {
+            externalProjectId: 'p-inbox',
+            externalSectionId: null,
+            completions: 3,
+            partlyMapped: false,
+          },
+        ],
+      },
+      locations,
+    );
+    expect(rows).toEqual([
+      {
+        key: 'p-inbox/',
+        projectId: 'p-inbox',
+        where: 'Inbox — Todoist’s Inbox, which belongs to no area',
+        completions: 3,
+        action: null,
+      },
+    ]);
   });
 });
