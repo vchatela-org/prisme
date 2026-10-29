@@ -535,8 +535,7 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**41 accepted** · **1 superseded** · **0 proposed** · **4 open** — index:
-**40 accepted** · **1 superseded** · **0 proposed** · **6 open** — index:
+**41 accepted** · **1 superseded** · **0 proposed** · **6 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).

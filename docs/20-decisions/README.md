@@ -56,8 +56,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0041](0041-a-label-can-put-a-task-in-the-signals-lane.md) | A label can put a task in the Signals lane, wherever it sits | **Accepted** 2026-10-29 — decided by the owner; widens how 0014 places Signals; adds a row to [`11-ownership.md`](../11-ownership.md) §5 |
 | [0042](0042-the-document-tools-success-figure-is-shown-not-owned.md) | The document tool's success figure is read and shown, never owned | **Accepted** 2026-10-29 — the review's suggested fixes, display option; **open question for the owner** on whether an objective the document marks 100% is held past its window (ADR-0037 unchanged) · rows added to [`11-ownership.md`](../11-ownership.md) §6 |
 
-**42 records: 41 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
-**41 records: 40 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
+**42 records: 41 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
 
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
