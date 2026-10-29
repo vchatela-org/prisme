@@ -204,6 +204,36 @@ describe('the fetch', () => {
     ]);
   });
 
+  it("records a recurring task's occurrences, which only the activity log has (ADR-0040)", async () => {
+    const { store, state } = createFakeStore();
+    const occurrence = (at: string) =>
+      ({
+        kind: 'completed',
+        externalTaskId: 'r-stretch',
+        at: new Date(at),
+        projectId: 'p-alpha',
+      }) as const;
+    const task = createFakeTaskClient(
+      [reported('t-1', '2026-09-10T09:00:00Z', 'Oil the chain')],
+      undefined,
+      {
+        events: [
+          { kind: 'completed', externalTaskId: 't-1', at: new Date('2026-09-10T09:00:00Z') },
+          occurrence('2026-09-14T07:00:00Z'),
+          occurrence('2026-09-21T07:00:00Z'),
+          occurrence('2026-09-28T07:00:00Z'),
+        ],
+      },
+    );
+
+    const refreshed = await refreshCapacity({ ...options(), store, taskClient: task.client });
+
+    expect(refreshed.fetched).toBe(4);
+    expect(refreshed.fromLogOnly).toBe(3);
+    expect(state.completions.size).toBe(4);
+    expect(refreshed.attributed).toBe(4);
+  });
+
   it('advances the cursor through exactly what it read', async () => {
     const { store, state } = createFakeStore({
       cursor: {

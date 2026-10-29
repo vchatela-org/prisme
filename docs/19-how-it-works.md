@@ -228,7 +228,9 @@ The queue is rescanned by the first full pass of each day, or on demand with *Re
 **Allocate.** A weight per area per year. A year without weights does not inherit silently: the
 balance factor goes *stale*, a banner appears, and the Year Review unlocks.
 
-**Measure.** Every completion in the task tool is attributed to an area through the mappings. Its
+**Measure.** Every completion in the task tool is attributed to an area through the mappings —
+each occurrence of a recurring task included, which the task tool's activity log records and its
+completion history does not ([ADR-0040](20-decisions/0040-completions-are-read-from-the-activity-log.md)). Its
 minutes are, in order of preference: the duration recorded on the task, the declared duration of
 the matching process page (recurring work tied to a ritual), or a default of **25 minutes**. Over
 the last **four weeks**:
@@ -391,6 +393,10 @@ seven days of the next month.
   25 minutes, so a day of fifteen small chores outweighs one afternoon on something that matters.
   The charts say how much of a reading is estimated. Recording durations on the tasks that matter is
   what turns the estimate into a measurement.
+- **Recurring work is counted, but its time is mostly estimated.** Each occurrence of a recurring
+  task is a completion, read from the task tool's activity log. The log carries no duration, so an
+  occurrence counts its ritual's declared duration or the default. How far back the log reaches
+  depends on the task tool's plan, so older recurring work may be missing from a backfill.
 - **Areas whose work never becomes a task read as starved.** Relationships and health often live
   outside any task list. The balance factor errs toward surfacing them, which is tolerable — but it
   is a lens, not a verdict.

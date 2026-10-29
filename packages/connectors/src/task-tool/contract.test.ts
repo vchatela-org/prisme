@@ -317,6 +317,173 @@ describe('completion history', () => {
   });
 });
 
+describe('the activity log (ADR-0040)', () => {
+  const activityPage1 = loadFixture('task-tool.activity-completed.json');
+  const activityPage2 = loadFixture('task-tool.activity-completed-page2.json');
+  const SINCE = new Date('2026-09-14T00:00:00.000Z');
+  const UNTIL = new Date('2026-09-21T00:00:00.000Z');
+
+  const withActivity = (uncompleted?: readonly unknown[]) =>
+    createRecordedTaskToolClient({
+      fullSync,
+      activity: {
+        completed: [activityPage1, activityPage2],
+        ...(uncompleted === undefined ? {} : { uncompleted }),
+      },
+    });
+
+  it('reads every occurrence of a recurring task, one event each', async () => {
+    const events = await withActivity().client.fetchCompletionEvents(SINCE, UNTIL);
+    const recurring = events.filter((event) => event.externalTaskId === 'task-0021');
+    expect(recurring.map((event) => event.at.toISOString())).toEqual([
+      '2026-09-14T07:05:00.000Z',
+      '2026-09-15T07:10:00.000Z',
+      '2026-09-16T07:02:00.000Z',
+    ]);
+    expect(recurring.every((event) => event.kind === 'completed')).toBe(true);
+    expect(recurring[0]?.projectId).toBe('project-0002');
+    expect(recurring[0]?.content).toBe('Sweep the workshop floor');
+  });
+
+  it('returns the events oldest first, across pages and types', async () => {
+    const events = await withActivity().client.fetchCompletionEvents(SINCE, UNTIL);
+    expect(events).toHaveLength(5);
+    const times = events.map((event) => event.at.getTime());
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+  });
+
+  it('takes the section from the entry when it carries one, and leaves it absent otherwise', async () => {
+    const events = await withActivity().client.fetchCompletionEvents(SINCE, UNTIL);
+    expect(events.find((event) => event.externalTaskId === 'task-0003')?.sectionId).toBe(
+      'section-0001',
+    );
+    expect(events.find((event) => event.externalTaskId === 'task-0021')?.sectionId).toBeUndefined();
+    // A null `extra_data` is a completion with nothing more to say, not a failure.
+    const bare = events.find((event) => event.externalTaskId === 'task-0012');
+    expect(bare?.content).toBeUndefined();
+    expect(bare?.sectionId).toBeUndefined();
+  });
+
+  it('asks for items of one event type each, inside the window, by GET', async () => {
+    const recorded = withActivity();
+    await recorded.client.fetchCompletionEvents(SINCE, UNTIL);
+    const urls = recorded.transport.requests.map((request) => new URL(request.url));
+    expect(recorded.transport.requests.every((request) => request.method === 'GET')).toBe(true);
+    expect(urls.every((url) => url.pathname === '/api/v1/activities')).toBe(true);
+    expect(urls.every((url) => url.searchParams.get('object_type') === 'item')).toBe(true);
+    expect(urls.map((url) => url.searchParams.get('event_type'))).toEqual([
+      'completed',
+      'completed',
+      'uncompleted',
+    ]);
+    expect(urls[0]?.searchParams.get('date_from')).toBe('2026-09-14T00:00:00.000Z');
+    expect(urls[0]?.searchParams.get('date_to')).toBe('2026-09-21T00:00:00.000Z');
+  });
+
+  it('follows the cursor past a short page, and asks for the next page by it', async () => {
+    const recorded = withActivity();
+    await recorded.client.fetchCompletionEvents(SINCE, UNTIL);
+    const [first, second] = recorded.transport.requests.map((request) => new URL(request.url));
+    expect(first?.searchParams.get('cursor')).toBeNull();
+    expect(second?.searchParams.get('cursor')).toBe('activity-cursor.0002');
+  });
+
+  it('carries an un-completion as one, so the caller can pair it', async () => {
+    const recorded = withActivity([
+      {
+        results: [
+          {
+            id: 9301,
+            object_type: 'item',
+            object_id: 'task-0012',
+            event_type: 'uncompleted',
+            event_date: '2026-09-15T18:06:00.000000Z',
+            parent_project_id: 'project-0002',
+            extra_data: { content: 'Tidy the clamps' },
+          },
+        ],
+        next_cursor: null,
+      },
+    ]);
+    const events = await recorded.client.fetchCompletionEvents(SINCE, UNTIL);
+    const clamps = events.filter((event) => event.externalTaskId === 'task-0012');
+    expect(clamps.map((event) => event.kind)).toEqual(['completed', 'uncompleted']);
+  });
+
+  it('sanitises a logged title the way a live task title is sanitised', async () => {
+    const hostile = createRecordedTaskToolClient({
+      fullSync,
+      activity: {
+        completed: [
+          {
+            results: [
+              {
+                object_type: 'item',
+                object_id: 'task-0021',
+                event_type: 'completed',
+                event_date: '2026-09-14T07:05:00Z',
+                extra_data: { content: 'Sweep\u202e the workshop\u0007 floor' },
+              },
+            ],
+            next_cursor: null,
+          },
+        ],
+      },
+    });
+    const [event] = await hostile.client.fetchCompletionEvents(SINCE, UNTIL);
+    expect(event?.content).toBe('Sweep the workshop floor');
+    expect(event?.projectId).toBeUndefined();
+  });
+
+  it('fails on an entry that is not an item, rather than counting it as work', async () => {
+    const recorded = createRecordedTaskToolClient({
+      fullSync,
+      activity: { completed: [loadFixture('malformed/task-tool.activity-not-an-item.json')] },
+    });
+    try {
+      await recorded.client.fetchCompletionEvents(SINCE, UNTIL);
+      expect.unreachable('the run should have failed');
+    } catch (error) {
+      expect(isConnectorError(error) && error.failure).toBe('invalid_shape');
+      expect((error as Error).message).toMatch(/object_type/);
+    }
+  });
+
+  it('fails on an entry of the other event type, rather than trusting a filter it did not get', async () => {
+    const recorded = createRecordedTaskToolClient({
+      fullSync,
+      activity: {
+        completed: [
+          {
+            results: [
+              {
+                object_type: 'item',
+                object_id: 'task-0021',
+                event_type: 'uncompleted',
+                event_date: '2026-09-14T07:05:00Z',
+              },
+            ],
+            next_cursor: null,
+          },
+        ],
+      },
+    });
+    await expect(recorded.client.fetchCompletionEvents(SINCE, UNTIL)).rejects.toMatchObject({
+      failure: 'invalid_shape',
+    });
+  });
+
+  it('fails on a page without `next_cursor`, rather than guessing it was the last', async () => {
+    const recorded = createRecordedTaskToolClient({
+      fullSync,
+      activity: { completed: [{ results: [] }] },
+    });
+    await expect(recorded.client.fetchCompletionEvents(SINCE, UNTIL)).rejects.toMatchObject({
+      failure: 'invalid_shape',
+    });
+  });
+});
+
 describe('a response that does not match', () => {
   const failing = async (fixture: string, expected: RegExp) => {
     const recorded = createRecordedTaskToolClient({ fullSync: loadFixture(fixture) });

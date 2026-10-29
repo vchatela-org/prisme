@@ -1,0 +1,15 @@
+{
+  "_comment": "Synthetic, and deliberately malformed. An activity-log page for a read filtered to completed ITEMS that carries an entry about a PROJECT. Either the filter was not applied or the log changed shape; counting it would make a project rename into a unit of work. The run must fail naming `object_type`.",
+  "results": [
+    {
+      "id": 9201,
+      "object_type": "project",
+      "object_id": "project-0002",
+      "event_type": "completed",
+      "event_date": "2026-09-14T07:05:00.000000Z",
+      "parent_project_id": "project-0002",
+      "extra_data": { "name": "Craft" }
+    }
+  ],
+  "next_cursor": null
+}

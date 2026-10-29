@@ -37,6 +37,8 @@ function pct(part: number, whole: number): string {
 export interface BackfillReportInput {
   readonly plan: ResumePlan;
   readonly fetched: number;
+  /** Of `fetched`, the completions only the activity log reported (ADR-0040). */
+  readonly fromLogOnly: number;
   readonly attribution: AttributionResult;
   readonly weeks: readonly CapacityWeek[];
   readonly adherence: readonly AdherencePeriod[];
@@ -76,7 +78,7 @@ export function formatBackfillReport(
       input.fetched,
       'completion',
       'completions',
-    )}`,
+    )}, ${String(input.fromLogOnly)} of them only in the activity log`,
   );
   lines.push(
     `document tool   ${

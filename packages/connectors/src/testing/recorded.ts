@@ -34,7 +34,17 @@ export interface RecordedTaskToolFixture {
    * but the last must carry one; the last must not.
    */
   readonly completions?: readonly unknown[];
+  /**
+   * Pages of the activity log, per event type the read filters on, reached by
+   * `next_cursor` the same way. An absent type answers one empty last page.
+   */
+  readonly activity?: {
+    readonly completed?: readonly unknown[];
+    readonly uncompleted?: readonly unknown[];
+  };
 }
+
+const EMPTY_ACTIVITY_PAGE = { results: [], next_cursor: null };
 
 export interface RecordedClient<T> {
   readonly client: T;
@@ -56,7 +66,37 @@ export function createRecordedTaskToolClient(
    */
   const nextByCursor = new Map<string, number>();
 
+  /** The same cursor-addressed paging, one sequence per event type. */
+  const activityNextByCursor = new Map<string, { type: string; index: number }>();
+
   const transport = createFixtureTransport([
+    {
+      matches: (request) => request.url.includes('/api/v1/activities'),
+      respond: (request) => {
+        const params = new URL(request.url).searchParams;
+        const type = params.get('event_type') ?? '';
+        const typed =
+          type === 'completed'
+            ? fixture.activity?.completed
+            : type === 'uncompleted'
+              ? fixture.activity?.uncompleted
+              : undefined;
+        const typePages = typed ?? [EMPTY_ACTIVITY_PAGE];
+        const cursor = params.get('cursor');
+        const found = cursor === null ? undefined : activityNextByCursor.get(cursor);
+        const index =
+          cursor === null ? 0 : found !== undefined && found.type === type ? found.index : -1;
+        const body: unknown =
+          index < 0 ? EMPTY_ACTIVITY_PAGE : (typePages[index] ?? EMPTY_ACTIVITY_PAGE);
+        const emitted =
+          typeof body === 'object' && body !== null
+            ? (body as { next_cursor?: unknown }).next_cursor
+            : undefined;
+        if (typeof emitted === 'string')
+          activityNextByCursor.set(emitted, { type, index: index + 1 });
+        return { body: JSON.stringify(body) };
+      },
+    },
     {
       matches: (request) => request.url.includes('/tasks/completed/by_completion_date'),
       respond: (request) => {

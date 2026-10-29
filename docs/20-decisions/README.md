@@ -51,8 +51,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) | Make the work-in-progress limits soft, and choose them on Settings | **Accepted** 2026-10-29 — decided by the owner; **closes OQ-2**; amends [`12-scoring.md`](../12-scoring.md) §5.3 |
 | [0037](0037-an-objective-follows-its-window.md) | Let an objective's window move its status: start, close, and a month to judge | **Accepted** 2026-10-29 — decided by the owner; supersedes two rules of 0033 point 5 and, for objectives, an alternative 0035 rejected |
 | [0038](0038-an-objective-holds-its-task.md) | Let an objective hold its own task, and put its key results' tasks beneath it | **Accepted** 2026-10-29 — decided by the owner; narrows 0012; adds rows to [`11-ownership.md`](../11-ownership.md) §6 |
+| [0040](0040-completions-are-read-from-the-activity-log.md) | Read completions from the activity log, and keep the completion history beside it | **Accepted** 2026-10-29 — decided by the owner; a recurring task's occurrences are counted; no schema change |
 
-**37 records: 36 Accepted (five of them in part superseded: two by 0030, two by 0037, one by 0038) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
+**38 records: 37 Accepted (five of them in part superseded: two by 0030, two by 0037, one by 0038) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

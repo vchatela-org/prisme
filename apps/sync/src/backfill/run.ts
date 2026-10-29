@@ -1,5 +1,6 @@
 import type { Completion, DocToolClient, TaskToolClient } from '@prisme/connectors';
 import { attribute, type AttributionResult } from './attribute.js';
+import { readCompletions, readOpenTaskLocations } from './completions.js';
 import { reconstructAdherence } from './adherence.js';
 import { declaredMinutesFromProcesses } from './processes.js';
 import type { BackfillStore } from './ports.js';
@@ -57,6 +58,12 @@ export interface SliceProgress {
 export interface BackfillResult {
   readonly plan: ResumePlan;
   readonly fetched: number;
+  /**
+   * Of `fetched`, the completions only the activity log reported — recurring
+   * occurrences, mostly, which the completion history never lists (ADR-0040).
+   * Counted across windows, like `fetched`.
+   */
+  readonly fromLogOnly: number;
   readonly attribution: AttributionResult;
   readonly weeks: readonly CapacityWeek[];
   readonly adherence: readonly AdherencePeriod[];
@@ -130,10 +137,16 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
   const plan = planResume({ from: options.from, to }, cursor, sliceDays);
 
   let fetched = 0;
+  let fromLogOnly = 0;
+  // Read once, and only when there is a window to read: where every open task
+  // is now, for a log entry that names no section (ADR-0040, rule 3).
+  let openTasks: Awaited<ReturnType<typeof readOpenTaskLocations>> | undefined;
   for (const [index, slice] of plan.slices.entries()) {
-    const completions = await options.taskClient.fetchCompletions(slice.since, slice.until);
+    openTasks ??= await readOpenTaskLocations(options.taskClient);
+    const read = await readCompletions(options.taskClient, slice, openTasks);
 
-    const rows = completions.map(toStoredCompletion);
+    const rows = read.completions.map(toStoredCompletion);
+    fromLogOnly += read.fromLogOnly;
 
     // The cursor claims only what has been fetched *so far*, never the whole
     // plan: a run that dies on window nine must leave a cursor describing eight.
@@ -159,7 +172,7 @@ export async function backfill(options: BackfillOptions): Promise<BackfillResult
     to: covered.to,
   });
 
-  const result = { plan, fetched, ...materialised };
+  const result = { plan, fetched, fromLogOnly, ...materialised };
 
   return { ...result, report: formatBackfillReport(result, covered) };
 }
