@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · An objective holds its task, and its key results' tasks go beneath it
 
-**Agent:** Claude · **Duration:** one run · **PR:** — · **Outcome:**
+**Agent:** Claude · **Duration:** one run · **PR:** [#204](https://github.com/vchatela-org/prisme/pull/204) · **Outcome:**
 [ADR-0038](../20-decisions/0038-an-objective-holds-its-task.md). An initiative whose task carries
 exactly an open objective's title, in its area, gives that task to the objective on the next pass
 and is dropped, so objectives never take a slot. A key result's task is found among, or made as, the
