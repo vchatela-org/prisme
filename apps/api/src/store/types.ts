@@ -310,6 +310,7 @@ export interface KeyResultRecord {
   readonly id: string;
   readonly objectiveId: string;
   readonly statement: string;
+  readonly subObjective: string | null;
   readonly target: number;
   readonly unit: string;
   readonly progressSelf: number;
@@ -919,6 +920,7 @@ export interface ApiStore {
       objectiveId: string,
       input: {
         statement: string;
+        subObjective?: string | undefined;
         target: number;
         unit: string;
         progressSelf: number;
@@ -929,6 +931,8 @@ export interface ApiStore {
       id: string,
       input: {
         statement?: string | undefined;
+        /** `null` clears it; absent leaves it. */
+        subObjective?: string | null | undefined;
         target?: number | undefined;
         unit?: string | undefined;
         progressSelf?: number | undefined;

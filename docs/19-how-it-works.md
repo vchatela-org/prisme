@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) that follows its window: active from the period's first day, judgeable until 31 January (annual) or seven days after (monthly), then `missed` if nobody judged it ([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15), made beneath its objective's own task when the objective holds one (ADR-0038) |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective, optionally grouped under a **sub-objective** (ADR-0039) | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15), found or made beneath its objective's own task when the objective holds one (ADR-0038, ADR-0039) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -640,6 +640,12 @@ initiatives that serve it. S15 is closed.
 already titled exactly as the key result is taken, and one that is only close is a `review`. An
 objective that holds no task gets none made, because a top-level task per key result beside objective
 tasks that already held them was the noise the owner's instance showed.
+**Then searched through the whole subtree** ([ADR-0039](20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md),
+2026-10-29). Key results kept by hand one level down, under sub-objective subtasks and in the tool's
+markup, were missed by the direct, exact search, and the first pass created a copy of each. The search
+now covers the subtree and reads titles with their markup set aside; free `KR`-shaped tasks that do not
+match make it a `review`, never a create; a key result at 100% gets none; and a key result may name a
+sub-objective, beneath whose subtask a new task is made.
 
 ---
 

@@ -422,6 +422,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     k.id::text,
     k.objective_id::text,
     k.statement,
+    k.sub_objective,
     k.target,
     k.unit,
     k.progress_self,
@@ -1670,9 +1671,10 @@ export function createPostgresStore(client: Sql): ApiStore {
       async createKeyResult(objectiveId, input): Promise<KeyResultRecord> {
         const id = await client.begin(async (tx: Tx) => {
           const rows = await tx<{ id: string }[]>`
-            insert into key_result (objective_id, statement, target, unit, progress_self)
-            values (${objectiveId}::uuid, ${input.statement}, ${input.target}, ${input.unit},
-                    ${input.progressSelf})
+            insert into key_result (objective_id, statement, sub_objective, target, unit,
+                                    progress_self)
+            values (${objectiveId}::uuid, ${input.statement}, ${input.subObjective ?? null},
+                    ${input.target}, ${input.unit}, ${input.progressSelf})
             returning id::text`;
           const created = rows[0];
           if (created === undefined) throw new Error('the key result insert returned no row');
@@ -1696,6 +1698,8 @@ export function createPostgresStore(client: Sql): ApiStore {
           const rows = await tx<{ id: string }[]>`
             update key_result set
               statement = coalesce(${input.statement ?? null}, statement),
+              sub_objective = case when ${input.subObjective !== undefined}
+                                   then ${input.subObjective ?? null}::text else sub_objective end,
               target = coalesce(${input.target ?? null}, target),
               unit = coalesce(${input.unit ?? null}, unit),
               progress_self = coalesce(${input.progressSelf ?? null}, progress_self)
@@ -2691,6 +2695,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     id: string;
     objective_id: string;
     statement: string;
+    sub_objective: string | null;
     target: number;
     unit: string;
     progress_self: number;
@@ -2707,6 +2712,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       id: row.id,
       objectiveId: row.objective_id,
       statement: row.statement,
+      subObjective: row.sub_objective,
       target: row.target,
       unit: row.unit,
       progressSelf: row.progress_self,
