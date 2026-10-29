@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · OQ-3's trigger fired; two questions opened
 
-**Agent:** Claude · **Duration:** one run · **PR:** this branch's pull request · **Outcome:** OQ-3 is
+**Agent:** Claude · **Duration:** one run · **PR:** [#210](https://github.com/vchatela-org/prisme/pull/210) · **Outcome:** OQ-3 is
 answered in part and narrowed; OQ-11 (routines) and OQ-12 (multi-month and already-judged
 objectives) are opened with triggers. Docs only.
 
