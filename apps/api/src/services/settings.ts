@@ -8,12 +8,18 @@ import {
   ROLE_SHAPE,
   type RoleKey,
 } from '@prisme/connectors';
+import {
+  SELECTION_LIMIT_BOUNDS,
+  selectionLimitsProblem,
+  type SelectionLimits,
+} from '@prisme/domain';
 import type { z } from 'zod';
 import type {
   areaPagesDto,
   bindingDto,
   bindingListDto,
   taskLocationsDto,
+  wipLimitsDto,
 } from '../dto/settings.js';
 import { ApiError } from '../http/errors.js';
 import type { ApiStore, RoleBindingRecord } from '../store/types.js';
@@ -76,6 +82,8 @@ export type BindingListShape = z.infer<typeof bindingListDto>;
 export type TaskLocationsShape = z.infer<typeof taskLocationsDto>;
 export type AreaPagesShape = z.infer<typeof areaPagesDto>;
 
+export type WipLimitsShape = z.infer<typeof wipLimitsDto>;
+
 export interface SettingsService {
   listBindings(): Promise<BindingListShape>;
   putBinding(role: RoleKey, externalId: string | null, now: Date): Promise<BindingShape>;
@@ -87,6 +95,10 @@ export interface SettingsService {
   taskLocations(): Promise<TaskLocationsShape>;
   /** The Life areas store's entries, to pick an area's own page from (ADR-0033). */
   areaPages(): Promise<AreaPagesShape>;
+  /** The work-in-progress limits in force (ADR-0036). */
+  wipLimits(): Promise<WipLimitsShape>;
+  /** Choose them. Soft limits: nothing already in flight moves. */
+  setWipLimits(limits: SelectionLimits, now: Date): Promise<WipLimitsShape>;
 }
 
 function toBindingDto(role: RoleKey, record: RoleBindingRecord | undefined): BindingShape {
@@ -136,7 +148,24 @@ function failureKind(error: unknown): string {
 export function createSettingsService(
   store: ApiStore,
   directory: ExternalDirectory,
+  defaultLimits: SelectionLimits,
 ): SettingsService {
+  async function wipLimits(): Promise<WipLimitsShape> {
+    const record = await store.selection.limits();
+    const limits = record.limits ?? defaultLimits;
+    return {
+      maxNow: limits.maxNow,
+      maxNowPerArea: limits.maxNowPerArea,
+      chosen: record.limits !== null,
+      defaults: { maxNow: defaultLimits.maxNow, maxNowPerArea: defaultLimits.maxNowPerArea },
+      bounds: {
+        maxNow: { ...SELECTION_LIMIT_BOUNDS.maxNow },
+        maxNowPerArea: { ...SELECTION_LIMIT_BOUNDS.maxNowPerArea },
+      },
+      updatedAt: record.updatedAt?.toISOString() ?? null,
+    };
+  }
+
   async function checked(
     role: RoleKey,
     externalId: string,
@@ -204,6 +233,18 @@ export function createSettingsService(
 
   return {
     listBindings: list,
+
+    wipLimits,
+
+    async setWipLimits(limits, now): Promise<WipLimitsShape> {
+      // The body schema bounds each number; the pair rule (per area no larger
+      // than overall) lives in the domain, and is checked here so any caller
+      // inherits it.
+      const problem = selectionLimitsProblem(limits);
+      if (problem !== undefined) throw new ApiError('unprocessable', problem);
+      await store.selection.setLimits(limits, now);
+      return wipLimits();
+    },
 
     async putBinding(role, externalId, now): Promise<BindingShape> {
       if (externalId === null) {

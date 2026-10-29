@@ -1,6 +1,6 @@
 import {
   CANDIDATE_CONCURRENT_INITIATIVES,
-  CANDIDATE_SELECTION_LIMITS,
+  DEFAULT_SELECTION_LIMITS,
   SCHEDULE_DEFAULTS,
   scoringRegistry,
   type Registry,
@@ -41,6 +41,7 @@ export interface ServiceConfig {
   readonly defaultTaskMinutes: number;
   /** `PRISME_BASE_URL`, for the backlink written into anything prisme creates. */
   readonly baseUrl: string;
+  /** The work-in-progress limits used until some are chosen on Settings (ADR-0036). */
   readonly limits: SelectionLimits;
   readonly concurrentInitiatives: number;
   readonly workingWeekdays: readonly number[];
@@ -56,15 +57,6 @@ export interface ServiceConfig {
 }
 
 /**
- * The limits and durations a service runs with when nothing overrides them.
- *
- * Every one of these is a **candidate**, not a decision: OQ-2 is open on the
- * work-in-progress limits, and the concurrency the schedule engine divides
- * between areas is the same human question. They are named here rather than
- * spread through the code so that closing OQ-2 is one edit and one journal
- * entry, not an archaeology exercise.
- */
-/**
  * The label a capture's task carries in the task tool (W15).
  *
  * Distinct from `DEFAULT_ANCHOR_LABEL`, and that is the whole point: the
@@ -75,8 +67,15 @@ export interface ServiceConfig {
  */
 export const CAPTURE_LABEL = 'prisme-capture';
 
+/**
+ * The limits and durations a service runs with when nothing overrides them.
+ *
+ * `limits` are the work-in-progress defaults (ADR-0036): the owner's choice on
+ * Settings, stored in `selection_setting`, replaces them on the next request.
+ * The schedule engine's concurrency is a planning assumption and stays here.
+ */
 export const SERVICE_DEFAULTS = {
-  limits: CANDIDATE_SELECTION_LIMITS,
+  limits: DEFAULT_SELECTION_LIMITS,
   concurrentInitiatives: CANDIDATE_CONCURRENT_INITIATIVES,
   workingWeekdays: SCHEDULE_DEFAULTS.workingWeekdays,
 } as const;
@@ -147,7 +146,7 @@ export function createServices(options: CreateServicesOptions): Services {
       sync: config.sync,
       features: config.features,
     }),
-    settings: createSettingsService(store, options.directory),
+    settings: createSettingsService(store, options.directory, config.limits),
     audit: createAuditService(store),
     pageTemplates,
     config,

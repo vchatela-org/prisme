@@ -56,9 +56,10 @@ export interface ScheduleConfig {
 }
 
 /**
- * The candidate parallelism, matching the `maxNow` in
- * `CANDIDATE_SELECTION_LIMITS`. Both are the same human question — how much can
- * actually be in flight — and **OQ-2 is open**, so this decides nothing either.
+ * How many initiatives the schedule engine plans as running at once. It is a
+ * planning assumption about throughput, not the work-in-progress cap: the cap
+ * is a soft limit the owner chooses on Settings (ADR-0036) and can be raised
+ * when work is blocked elsewhere, which does not make anybody faster.
  */
 export const CANDIDATE_CONCURRENT_INITIATIVES = 5;
 

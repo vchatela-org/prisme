@@ -1,4 +1,5 @@
 import { ROLE_KEYS } from '@prisme/connectors';
+import { SELECTION_LIMIT_BOUNDS } from '@prisme/domain';
 import { z } from 'zod';
 import { defineWrite, named } from '../http/schema.js';
 import { instant } from './common.js';
@@ -193,3 +194,34 @@ export const taskLocationsDto = z.object({
 });
 
 export const TaskLocationsDto = named('TaskLocations', taskLocationsDto);
+
+/**
+ * The work-in-progress limits (ADR-0036): the pair in force, whether it was
+ * chosen or is the default, and the bounds a new pair must sit within. Soft
+ * limits — selection stops proposing work at a cap, and nothing refuses a move.
+ */
+export const wipLimitsDto = z.object({
+  maxNow: z.int(),
+  maxNowPerArea: z.int(),
+  /** Whether the pair was chosen on Settings, or is the default. */
+  chosen: z.boolean(),
+  defaults: z.object({ maxNow: z.int(), maxNowPerArea: z.int() }),
+  bounds: z.object({
+    maxNow: z.object({ min: z.int(), max: z.int() }),
+    maxNowPerArea: z.object({ min: z.int(), max: z.int() }),
+  }),
+  updatedAt: instant.nullable(),
+});
+
+export const WipLimitsDto = named('WipLimits', wipLimitsDto);
+
+export const putWipLimitsBody = defineWrite(
+  'PutWipLimits',
+  z.strictObject({
+    maxNow: z.int().min(SELECTION_LIMIT_BOUNDS.maxNow.min).max(SELECTION_LIMIT_BOUNDS.maxNow.max),
+    maxNowPerArea: z
+      .int()
+      .min(SELECTION_LIMIT_BOUNDS.maxNowPerArea.min)
+      .max(SELECTION_LIMIT_BOUNDS.maxNowPerArea.max),
+  }),
+);

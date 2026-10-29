@@ -1,10 +1,5 @@
 import type { z } from 'zod';
-import {
-  CANDIDATE_SELECTION_LIMITS,
-  SCHEDULE_DEFAULTS,
-  type AdoptRefusal,
-  type Registry,
-} from '@prisme/domain';
+import { SCHEDULE_DEFAULTS, type AdoptRefusal, type Registry } from '@prisme/domain';
 import type { adoptionQueuePageDto, settingsDto, syncRunDto, syncStatusDto } from '../dto/ops.js';
 import { ApiError, notFound } from '../http/errors.js';
 import type { Identity } from '../http/authorize.js';
@@ -448,12 +443,6 @@ export function createOpsService(
           windowWeeks: config.capacityWindowWeeks,
           defaultTaskMinutes: config.defaultTaskMinutes,
           balanceClamp: [0.5, 2],
-        },
-        selection: {
-          maxNow: CANDIDATE_SELECTION_LIMITS.maxNow,
-          maxNowPerArea: CANDIDATE_SELECTION_LIMITS.maxNowPerArea,
-          openQuestion:
-            'OQ-2 is open: one `now` per area and five overall are candidates, to be chosen at the first review',
         },
         schedule: {
           concurrentInitiatives: config.concurrentInitiatives,

@@ -6,32 +6,16 @@ alongside this file.
 If you are blocked by one of these: say so in your journal entry and stop. Do not pick an answer and
 proceed — an undocumented guess is indistinguishable from a decision until it causes a bug.
 
-**Five open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
+**Four open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
 [`README.md`](README.md) lists the records, and a count kept in one place drifts silently — it said
 seven while this file held eight, from 2026-09-20 until 2026-09-24. OQ-10 was the eighth, and it
 closed on 2026-09-24 ([ADR-0027](0027-audit-gate-fails-closed.md)) — accepted by the owner, which is
 what moved the number rather than what made the gate work. **OQ-1 and OQ-4 closed on 2026-09-25**,
 the owner deciding both on the evidence the read path produced against the live instance.
 
-One is waiting on a **person** or on something real, and it is the one below the first heading:
-OQ-2 blocks P2, and it is a calibration to take at the first real review rather than a rule to
-derive. The other four are **deferred by choice**, each with a trigger written as an observable fact
-rather than a date.
-
----
-
-## Blocking a phase or the first review
-
-### OQ-2 · Work-in-progress limits
-
-**Blocks:** `now`-set selection (P2)
-
-A cap is needed, and it is a personal calibration rather than a derivable number. Candidate: one
-`now` initiative per area, five overall. Too tight and everything queues; too loose and the cap
-does nothing.
-
-Implement it as configuration so it can be tuned without a deploy, and pick the starting value at
-the first real review.
+**OQ-2 closed on 2026-10-29** ([ADR-0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md)):
+the owner decided it at their first review of real work. All four that remain are **deferred by
+choice**, each with a trigger written as an observable fact rather than a date.
 
 ---
 
@@ -102,6 +86,7 @@ Until then there is nothing to write that the document tool is not already able 
 
 | Question | Resolution |
 |---|---|
+| **OQ-2** · Work-in-progress limits | **Soft, and chosen on Settings.** A cap stops selection from proposing more work and is warned about, never refused. The defaults are two per area and seven overall. Work blocked by someone else moves to `waiting`, which holds no slot. Objectives never take one. Decided by the owner 2026-10-29: a strict cap made blocked work fill its area — [ADR-0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) |
 | **OQ-1** · Can a project span more than one area? | **No — one area per project, and multi-area work is mapped by section.** `area_mapping` already refines a project with a section, so a project whose work genuinely spans areas maps its **sections**; the project row keeps the one area it is *about*. A container with no single natural area is folded into the best-fitting existing area, so the vocabulary stays at eight and the year's weights are untouched. Decided by the owner 2026-09-25, on the read path's own evidence — the two blocks with no home among the eight areas were OQ-1 in the flesh — [ADR-0029](0029-one-area-per-project.md). Closes the attribution half of P2; project *rollups* remain P2's design work |
 | **OQ-4** · Is the homelab-style "learning by building" work Run or an initiative? | **Decided by the rule already written: if it has an outcome you would put in a review, it is an initiative; otherwise it is Run.** Decided by the owner 2026-09-25, so the balance factor reports the same way from the first pass instead of being reinterpreted after the fact. No model change — intent is what separates an initiative from upkeep, which the model already says ([ADR-0014](0014-lanes-outside-the-backlog.md)) |
 | Where does the prioritization model live? | prisme — [ADR-0001](0001-prisme-owns-the-model.md) |

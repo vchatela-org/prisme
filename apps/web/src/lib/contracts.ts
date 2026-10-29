@@ -1249,11 +1249,6 @@ export const instanceSettingsSchema = z.object({
     defaultTaskMinutes: z.number().int(),
     balanceClamp: z.tuple([z.number(), z.number()]),
   }),
-  selection: z.object({
-    maxNow: z.number().int(),
-    maxNowPerArea: z.number().int(),
-    openQuestion: z.string(),
-  }),
   sync: z.object({
     enabled: z.boolean(),
     writeEnabled: z.boolean(),
@@ -1389,3 +1384,18 @@ export const auditRetentionSchema = z.object({
 });
 
 export type AuditRetention = z.infer<typeof auditRetentionSchema>;
+
+/** `GET /settings/wip-limits` — the work-in-progress limits (ADR-0036). */
+export const wipLimitsSchema = z.object({
+  maxNow: z.number().int(),
+  maxNowPerArea: z.number().int(),
+  chosen: z.boolean(),
+  defaults: z.object({ maxNow: z.number().int(), maxNowPerArea: z.number().int() }),
+  bounds: z.object({
+    maxNow: z.object({ min: z.number().int(), max: z.number().int() }),
+    maxNowPerArea: z.object({ min: z.number().int(), max: z.number().int() }),
+  }),
+  updatedAt: instant.nullable(),
+});
+
+export type WipLimits = z.infer<typeof wipLimitsSchema>;

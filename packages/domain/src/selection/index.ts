@@ -36,16 +36,54 @@ export interface SelectionLimits {
 }
 
 /**
- * The starting point named in **OQ-2**, which is open: one `now` per area, five
- * overall. It is a personal calibration rather than a derivable number, so it
- * is configuration — `selectNowSet` takes limits as an argument and has no
- * default, and OQ-2 asks for the real value to be picked at the first review.
- * Nothing here decides that question.
+ * The work-in-progress limits an instance starts with, until the owner chooses
+ * others on the Settings screen (ADR-0036, which closes OQ-2): two `now` per
+ * area and seven overall.
+ *
+ * They are **soft**. Selection stops *proposing* work once a cap is reached,
+ * and the screens warn before a person goes past one — but nothing refuses a
+ * move to `now`, and work a person put there keeps its slot whatever the cap.
+ * Work blocked by someone else belongs in `waiting`, which holds no slot, so a
+ * stalled initiative never stops new work from starting.
  */
-export const CANDIDATE_SELECTION_LIMITS: SelectionLimits = {
-  maxNow: 5,
-  maxNowPerArea: 1,
+export const DEFAULT_SELECTION_LIMITS: SelectionLimits = {
+  maxNow: 7,
+  maxNowPerArea: 2,
 };
+
+/**
+ * The values the Settings screen accepts. A cap of zero would mean "never
+ * start anything", which is a freeze rather than a limit, so the floor is one;
+ * the ceilings exist so a typo cannot become a number nobody meant.
+ */
+export const SELECTION_LIMIT_BOUNDS = {
+  maxNow: { min: 1, max: 30 },
+  maxNowPerArea: { min: 1, max: 10 },
+} as const;
+
+/**
+ * Why a pair of limits cannot be saved, or `undefined` when it can. The
+ * per-area cap may not exceed the overall one: an area allowed more slots than
+ * the whole instance has is a limit that can never bind.
+ */
+export function selectionLimitsProblem(limits: SelectionLimits): string | undefined {
+  const { maxNow, maxNowPerArea } = limits;
+  const bounds = SELECTION_LIMIT_BOUNDS;
+  if (!Number.isInteger(maxNow) || maxNow < bounds.maxNow.min || maxNow > bounds.maxNow.max) {
+    return `the overall cap must be a whole number from ${String(bounds.maxNow.min)} to ${String(bounds.maxNow.max)}`;
+  }
+  if (
+    !Number.isInteger(maxNowPerArea) ||
+    maxNowPerArea < bounds.maxNowPerArea.min ||
+    maxNowPerArea > bounds.maxNowPerArea.max
+  ) {
+    return `the per-area cap must be a whole number from ${String(bounds.maxNowPerArea.min)} to ${String(bounds.maxNowPerArea.max)}`;
+  }
+  if (maxNowPerArea > maxNow) {
+    return 'the per-area cap cannot be larger than the overall cap';
+  }
+  return undefined;
+}
 
 export type ProposedStatus = 'now' | 'next' | 'later' | 'unchanged';
 

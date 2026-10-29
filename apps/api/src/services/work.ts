@@ -434,7 +434,7 @@ export function createWorkService(
         asOf: now.toISOString(),
         methodId: snapshot.method.id,
         methodVersion: snapshot.method.version,
-        limits: config.limits,
+        limits: snapshot.limits,
         overCapacity: snapshot.selection.overCapacity,
         weightsStale: snapshot.weightsStale,
         now: inFlight.map((slot) => focusEntry(snapshot, schedule, slot)),
@@ -448,7 +448,7 @@ export function createWorkService(
             areaKey: area.key,
             kind: area.kind,
             used: used.get(area.key) ?? 0,
-            limit: config.limits.maxNowPerArea,
+            limit: snapshot.limits.maxNowPerArea,
           })),
       };
     },

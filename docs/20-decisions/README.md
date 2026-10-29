@@ -48,8 +48,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0033](0033-a-store-area-column-names-an-entry-area.md) | Read a document-tool entry's area from its store's area column, by the area's own page | **Accepted** 2026-09-27 — decided by the owner; adds rows to [`11-ownership.md`](../11-ownership.md) §2, §6, §7 and §8 · amended 2026-09-28: a takeaway is promoted, never adopted; an objectives page is adopted as an objective, and as a draft while its period has not started |
 | [0034](0034-an-open-objective-moves-and-its-page-follows.md) | Move an open objective's period in prisme, and write it to its page's date column | **Accepted** 2026-09-28 — decided by the owner; adds a row to [`11-ownership.md`](../11-ownership.md) §6 and the edit capability to [`14-threat-model.md`](../14-threat-model.md) §5 |
 | [0035](0035-only-what-is-under-way-is-prioritized-or-measured.md) | Only what is under way is prioritized or measured | **Accepted** 2026-09-28 — decided by the owner; adds a rule to [`12-scoring.md`](../12-scoring.md) §5 and a principle to `CLAUDE.md` |
+| [0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) | Make the work-in-progress limits soft, and choose them on Settings | **Accepted** 2026-10-29 — decided by the owner; **closes OQ-2**; amends [`12-scoring.md`](../12-scoring.md) §5.3 |
 
-**34 records: 33 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **5 open questions** in [`OPEN.md`](OPEN.md).
+**35 records: 34 Accepted (two of them in part superseded, by 0030) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

@@ -629,6 +629,13 @@ export interface ExternalWriteFilter {
   readonly search?: string | undefined;
 }
 
+/** `selection_setting` — the work-in-progress limits (ADR-0036). */
+export interface SelectionSettingRecord {
+  /** `null` when nothing has been chosen and the defaults apply. */
+  readonly limits: { readonly maxNow: number; readonly maxNowPerArea: number } | null;
+  readonly updatedAt: Date | null;
+}
+
 export interface AuditRetentionRecord {
   /** `null` when nothing has been chosen and the default applies. */
   readonly retentionDays: number | null;
@@ -1095,5 +1102,14 @@ export interface ApiStore {
     writes(filter: ExternalWriteFilter, page: PageRequest): Promise<Paged<ExternalWriteRecord>>;
     retention(): Promise<AuditRetentionRecord>;
     setRetention(days: number, at: Date): Promise<void>;
+  };
+
+  /**
+   * `selection_setting` — the work-in-progress limits chosen on Settings
+   * (ADR-0036). No row: the defaults in `@prisme/domain` apply.
+   */
+  readonly selection: {
+    limits(): Promise<SelectionSettingRecord>;
+    setLimits(limits: { maxNow: number; maxNowPerArea: number }, at: Date): Promise<void>;
   };
 }

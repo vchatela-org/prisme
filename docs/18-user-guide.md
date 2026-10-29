@@ -234,11 +234,17 @@ the new count to confirm.
 
 ### Focus — "what now?"
 
-The first screen. **Now** is what you are working on (a handful at most, one per area by default);
+The first screen. **Now** is what you are working on (a handful at most: by default two per area
+and seven overall, set in **Settings → Work in progress**);
 **Suggested** is what the ranking would put in a slot that is free — it is still *next* until you
 press **Start**, and nothing is promoted for you; **Up next** is what comes when a slot frees up;
 **Slots** shows where this week's capacity is going, counting only what is in *now*. A *stale*
 warning means something in *now* has not been touched in a while.
+
+**The limits are soft.** When an area or the whole of *now* is full, Focus stops suggesting more and
+*Start* warns you, but nothing is refused. When something is blocked by someone else, move it to
+**Waiting**. It keeps its place and its history and gives its slot back, so new work can start
+without going past a limit. Objectives and key results never take a slot.
 
 Only work that is **under way** is offered a slot or queued in *Up next*. An initiative with an
 *earliest start* after today, or one in a project you have paused or closed, waits outside both

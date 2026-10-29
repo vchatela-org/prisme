@@ -414,6 +414,7 @@ journal entry rather than a unit of planned work.
 | **There was no map of the objects** (S13) — the guide is by screen, the model by entity; nothing on a screen pointed to `docs/19-how-it-works.md` | the owner, 2026-10-28 | 🟢 Settings and Adoption link *How prisme works* at the running image's tag; the user guide's introduction names it · S13 closed · [the entry](docs/50-journal/FUP-2026-10-28-s13-map-link.md) | [#198](https://github.com/vchatela-org/prisme/pull/198) |
 | **The specs disagreed on whether Signals count toward capacity** (S14) — `12-scoring.md` §4 and `10-model.md` §3 said they do; ADR-0014 and the code say they do not | the owner, 2026-10-28 | 🟢 both specs corrected to ADR-0014 (Run counts, Signals do not) · docs only · S14 closed · [the entry](docs/50-journal/FUP-2026-10-28-s14-signals-capacity.md) | [#199](https://github.com/vchatela-org/prisme/pull/199) |
 | **Key results had no anchor task** (S15) — ADR-0012 says every key result gets one; the reconciler managed initiatives' anchors only, and a *Link as key result* was never bound | the owner, 2026-10-28 | 🟢 key results of objectives under way get anchors: bound ones converged (statement, period-end deadline, `prisme:kr` label, backlink — never priority), linked ones bound, the rest created at the area's home under the create threshold; a hand edit is a review · S15 closed · not done: no subtree mirror; **first writing pass wants one task per such key result** · [the entry](docs/50-journal/FUP-2026-10-28-s15-key-result-anchors.md) | [#200](https://github.com/vchatela-org/prisme/pull/200) |
+| **The work-in-progress caps were a hard-coded candidate (OQ-2)** — one `now` per area and five overall, changed only by a release, shown as deployment configuration; a blocked item filled its area, and the owner's objectives run all year | the owner, 2026-10-29 | 🟡 [ADR-0036](docs/20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) closes OQ-2: soft caps chosen on *Settings → Work in progress* (`selection_setting`, migration 0023; `GET`/`PUT /settings/wip-limits`), default two per area and seven overall; `waiting` frees a slot and every cap warning says so; `/settings` drops `selection` · not done: nothing new keeps objectives out of slots, because none was ever counted · [the entry](docs/50-journal/FUP-2026-10-29-wip-limits.md) | [#202](https://github.com/vchatela-org/prisme/pull/202) |
 
 Detail: [`docs/50-journal/`](docs/50-journal/INDEX.md), entries prefixed **FUP**.
 
@@ -523,15 +524,16 @@ failed on an ambiguous model, and code written against an unfrozen model is code
 
 ## Decisions
 
-**34 accepted** · **1 superseded** · **0 proposed** · **5 open** — index:
+**35 accepted** · **1 superseded** · **0 proposed** · **4 open** — index:
 [`docs/20-decisions/`](docs/20-decisions/README.md)
 
 Open questions and what each one blocks: [`docs/20-decisions/OPEN.md`](docs/20-decisions/OPEN.md).
 None blocks P0. **OQ-1 and OQ-4 closed on 2026-09-25** — the owner decided both in review, on the
 evidence the read path produced against the live instance: a project has one area and multi-area work
 is mapped by section ([ADR-0029](docs/20-decisions/0029-one-area-per-project.md)), and *learning by
-building* is an initiative when it has an outcome you would put in a review and Run otherwise. What
-is left is OQ-2, which is a calibration to take at the first real review, and four deferred by choice.
+building* is an initiative when it has an outcome you would put in a review and Run otherwise.
+**OQ-2 closed on 2026-10-29** ([ADR-0036](docs/20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md)):
+the work-in-progress caps are soft and chosen on Settings. What is left is four deferred by choice.
 
 **The open count was wrong once, and nothing reads either file to notice.** Until 2026-09-24 this
 line said **7** while `OPEN.md` held **8** — OQ-1, 2, 3, 4, 10 in its first section and OQ-5, 6, 7 in

@@ -7,8 +7,10 @@ import {
   putAreaPropertyBody,
   putBindingBody,
   putDatePropertyBody,
+  putWipLimitsBody,
   roleKey,
   TaskLocationsDto,
+  WipLimitsDto,
 } from '../dto/settings.js';
 import { defineRoute, noQuery, type ApiRoute } from './kit.js';
 
@@ -122,5 +124,32 @@ export const settingsRoutes: readonly ApiRoute[] = [
     query: noQuery,
     response: AreaPagesDto,
     handle: (_context, services) => services.settings.areaPages(),
+  }),
+
+  defineRoute({
+    operationId: 'getWipLimits',
+    method: 'get',
+    path: '/settings/wip-limits',
+    scope: 'admin:settings',
+    summary: 'The work-in-progress limits in force',
+    description:
+      'How many initiatives may be in `now` overall and per area — the pair chosen on Settings, or the default when none has been — with the bounds a new pair must sit within (ADR-0036). They are soft: selection stops proposing work once a cap is reached, a move to `now` past one is warned about and never refused, and work in `waiting` holds no slot.',
+    query: noQuery,
+    response: WipLimitsDto,
+    handle: (_context, services) => services.settings.wipLimits(),
+  }),
+
+  defineRoute({
+    operationId: 'putWipLimits',
+    method: 'put',
+    path: '/settings/wip-limits',
+    scope: 'admin:settings',
+    summary: 'Choose the work-in-progress limits',
+    description:
+      'Two whole numbers within the bounds `GET /settings/wip-limits` reports, the per-area cap no larger than the overall one (`422` otherwise). Applies to the next request. Nothing already in flight moves: lowering a cap below what is in `now` makes Focus say it is over capacity, and demoting work stays a review decision.',
+    body: putWipLimitsBody,
+    status: 200,
+    response: WipLimitsDto,
+    handle: (context, services) => services.settings.setWipLimits(context.body, context.now),
   }),
 ];

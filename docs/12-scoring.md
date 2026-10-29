@@ -175,8 +175,12 @@ Scoring ranks; selection decides. They are separate steps on purpose.
 1. **In-flight work keeps its slot.** An initiative already in `now` stays until it finishes, moves
    to `waiting`, or is demoted at a review. Thrashing the top of the list every time a score shifts
    is how a system loses trust.
-2. **Free slots fill from the top of the ranking**, skipping areas that already have a `now`.
-3. **Work in progress is capped** — see OQ-2 in [`20-decisions/OPEN.md`](20-decisions/OPEN.md).
+2. **Free slots fill from the top of the ranking**, skipping areas already at their cap.
+3. **Work in progress is capped, softly** ([ADR-0036](20-decisions/0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md)).
+   The caps, overall and per area, are chosen on Settings and default to seven and two. A cap
+   stops selection from proposing more work. A person going past one is warned, never refused.
+   Work blocked by someone else moves to `waiting`, which holds no slot. Only initiatives count:
+   an objective or a key result never takes a slot.
 4. **Priority is written outward**: top 3 → highest, remaining `now` → high, `next` anchors →
    medium, everything else → lowest. One exception: an **adopted** task still at `inbox` or `later`
    whose priority prisme has never written keeps the priority it was given by hand — prisme has

@@ -11,7 +11,7 @@ import { computeScores } from '../scoring/compute.js';
 import type { AreaScoringContext } from '../scoring/types.js';
 import { wsjfBalanced, WSJF_BALANCED_DEFAULTS } from '../scoring/wsjf-balanced.js';
 import { anArea, anInitiative } from '../test-support/builders.js';
-import { CANDIDATE_SELECTION_LIMITS, rank, selectNowSet } from './index.js';
+import { rank, selectNowSet } from './index.js';
 
 /**
  * The worked example in `docs/12-scoring.md` §6, reproduced end to end from the
@@ -114,9 +114,17 @@ const contexts: readonly AreaScoringContext[] = areaFixture.areaContext2026W37.a
     stale: false,
   }));
 
+/**
+ * The limits the spec's worked example is written against
+ * (docs/12-scoring.md §6): one per area, five overall. They are the example's,
+ * not the instance's defaults (ADR-0036), and stay pinned so the table keeps
+ * meaning what it says.
+ */
+const WORKED_EXAMPLE_LIMITS = { maxNow: 5, maxNowPerArea: 1 } as const;
+
 const scored = computeScores(initiatives, contexts, wsjfBalanced, WSJF_BALANCED_DEFAULTS, NOW);
 // Nothing in the example waits for a later day or sits in a stopped project.
-const selection = selectNowSet(rank(scored, initiatives), areas, CANDIDATE_SELECTION_LIMITS, {
+const selection = selectNowSet(rank(scored, initiatives), areas, WORKED_EXAMPLE_LIMITS, {
   today: parseCalendarDate(initiativeFixture.asOf),
   projectStatusById: new Map(),
 });

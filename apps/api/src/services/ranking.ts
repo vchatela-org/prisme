@@ -86,6 +86,11 @@ export interface RankingOptions {
   readonly timezone: string;
   readonly capacityWindowWeeks: number;
   readonly defaultTaskMinutes: number;
+  /**
+   * The limits used when none has been chosen on Settings (ADR-0036). The
+   * chosen pair, when there is one, is read from the store on every call, so a
+   * change applies to the next request without a deploy.
+   */
   readonly limits: SelectionLimits;
 }
 
@@ -106,6 +111,8 @@ export interface Ranking {
   readonly scored: readonly ScoredInitiative[];
   readonly ranked: readonly RankedInitiative[];
   readonly selection: Selection;
+  /** The work-in-progress limits the selection ran with: chosen, or the defaults. */
+  readonly limits: SelectionLimits;
   /** Today, and each project's status: what decides whether work is under way. */
   readonly underWay: UnderWayContext;
   /** Every objective, for the key-result hint on an initiative (S1). */
@@ -123,15 +130,24 @@ export async function buildRanking(
   registry: Registry,
   options: RankingOptions,
 ): Promise<Ranking> {
-  const [areaRecords, weightRecords, initiativeRecords, rollupRecords, projectRecords, objectives] =
-    await Promise.all([
-      store.areas.list(),
-      store.areas.weights(),
-      store.initiatives.list({}),
-      store.initiatives.rollups(),
-      store.projects.list(undefined, { limit: PROJECT_READ_LIMIT, offset: 0 }),
-      store.okr.listObjectives({}, { limit: OBJECTIVE_READ_LIMIT, offset: 0 }),
-    ]);
+  const [
+    areaRecords,
+    weightRecords,
+    initiativeRecords,
+    rollupRecords,
+    projectRecords,
+    objectives,
+    chosenLimits,
+  ] = await Promise.all([
+    store.areas.list(),
+    store.areas.weights(),
+    store.initiatives.list({}),
+    store.initiatives.rollups(),
+    store.projects.list(undefined, { limit: PROJECT_READ_LIMIT, offset: 0 }),
+    store.okr.listObjectives({}, { limit: OBJECTIVE_READ_LIMIT, offset: 0 }),
+    store.selection.limits(),
+  ]);
+  const limits: SelectionLimits = chosenLimits.limits ?? options.limits;
 
   const areas = areaRecords.map(toDomainArea);
   const weights: AreaWeight[] = weightRecords.map((record) => ({
@@ -174,7 +190,7 @@ export async function buildRanking(
       projectRecords.items.map((record) => [record.id, record.status as ProjectStatus]),
     ),
   };
-  const selection = selectNowSet(ranked, areas, options.limits, underWay);
+  const selection = selectNowSet(ranked, areas, limits, underWay);
 
   const scoreById = new Map<string, ScoredInitiative>(
     scored.map((entry) => [entry.initiativeId, entry]),
@@ -203,6 +219,7 @@ export async function buildRanking(
     scored,
     ranked,
     selection,
+    limits,
     underWay,
     objectives: objectives.items.map((record) => ({
       title: record.title,
