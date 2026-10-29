@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · A key result's task is found in its objective's whole subtree, and may sit under a sub-objective
 
-**Agent:** Claude · **Duration:** one run · **PR:** this branch's pull request · **Outcome:**
+**Agent:** Claude · **Duration:** one run · **PR:** [#206](https://github.com/vchatela-org/prisme/pull/206) · **Outcome:**
 [ADR-0039](../20-decisions/0039-a-key-result-may-sit-under-a-sub-objective.md). The reconciler looks
 for a key result's task through its objective task's whole subtree, reading titles with their inline
 markup set aside; it refuses to create beside hand-kept `KR`-shaped tasks, makes nothing for a key
