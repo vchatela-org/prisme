@@ -927,6 +927,12 @@ export interface ApiStore {
         servedBy: readonly string[];
       },
     ): Promise<KeyResultRecord>;
+    /**
+     * Add one initiative to what serves a key result, leaving the rest as they
+     * are. `false` when the key result does not exist; adding one already there
+     * is not an error.
+     */
+    addServedBy(keyResultId: string, initiativeId: string): Promise<boolean>;
     updateKeyResult(
       id: string,
       input: {
@@ -1006,6 +1012,8 @@ export interface ApiStore {
   readonly ops: {
     reviews(cadence: string | undefined, page: PageRequest): Promise<Paged<ReviewRecord>>;
     getReview(id: string): Promise<ReviewRecord | undefined>;
+    /** When the most recent review session of any cadence was closed; `undefined` if none ever was. */
+    lastClosedReviewAt(): Promise<Date | undefined>;
     openReview(cadence: string, startedAt: Date): Promise<ReviewRecord>;
     updateReview(
       id: string,

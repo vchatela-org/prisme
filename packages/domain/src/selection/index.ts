@@ -344,3 +344,5 @@ export function selectNowSet(
     overCapacity: withPriority.length > limits.maxNow,
   };
 }
+
+export * from './starved.js';

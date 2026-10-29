@@ -42,11 +42,18 @@ export function ProgressPair({
    * the same sentence on screen twice, one line apart.
    */
   statementShownAbove = false,
+  /**
+   * The new-initiative flow, pre-filled with this key result and its area —
+   * given only while the objective is open, because a judged objective's key
+   * results take no new work.
+   */
+  serveHref,
 }: {
   keyResult: KeyResult;
   objectiveId: string;
   elapsedPct: number;
   statementShownAbove?: boolean;
+  serveHref?: string | undefined;
 }) {
   const [draft, setDraft] = useState<string>(String(keyResult.progressSelf));
   const [pending, startTransition] = useTransition();
@@ -176,15 +183,22 @@ export function ProgressPair({
         </p>
       ) : null}
 
-      {/* Pointless on the detail page: it links to the section this is in. */}
-      {statementShownAbove ? null : (
-        <Link
-          href={`/objectives/${objectiveId}#kr-${keyResult.id}`}
-          className="text-xs text-ink-muted hover:underline"
-        >
-          Measurement history and the anchor
-        </Link>
-      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {serveHref === undefined ? null : (
+          <Link href={serveHref} className="text-xs text-ink-secondary hover:underline">
+            Create an initiative that serves this
+          </Link>
+        )}
+        {/* Pointless on the detail page: it links to the section this is in. */}
+        {statementShownAbove ? null : (
+          <Link
+            href={`/objectives/${objectiveId}#kr-${keyResult.id}`}
+            className="text-xs text-ink-muted hover:underline"
+          >
+            Measurement history and the anchor
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

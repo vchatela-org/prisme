@@ -108,3 +108,40 @@ export function LoadingState({
     </div>
   );
 }
+
+export interface NoticeProps extends Omit<ComponentProps<'div'>, 'title'> {
+  /** The whole point in one sentence: what is missing. */
+  title: string;
+  /** Why it matters, and what doing the action changes. */
+  description: string;
+  /** The one place to go about it — usually a `Button asChild` around a link. */
+  action?: ReactNode;
+}
+
+/**
+ * A nudge: something a person has not done yet that the screen cannot do
+ * without, said where the screen is read, with the one action that fixes it.
+ *
+ * Not an empty state — the screen around it has content — and not an alert:
+ * it is a persistent condition, so it is `role="status"` and interrupts
+ * nothing on navigation. It goes away when the condition does, never on a
+ * dismiss button, because a dismissed nudge is a condition nobody fixed.
+ */
+export function Notice({ title, description, action, className, ...props }: NoticeProps) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        'flex flex-col gap-3 rounded-lg border border-border-strong bg-surface-raised p-4',
+        className,
+      )}
+      {...props}
+    >
+      <div className="flex flex-col gap-1">
+        <p className="font-medium text-ink">{title}</p>
+        <p className="max-w-prose text-sm text-ink-secondary">{description}</p>
+      </div>
+      {action === undefined ? null : <div className="self-start">{action}</div>}
+    </div>
+  );
+}
