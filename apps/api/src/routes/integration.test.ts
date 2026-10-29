@@ -1509,6 +1509,69 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect((cleared.body as { subObjective: string | null }).subObjective).toBeNull();
     });
 
+    it('adds one initiative to what serves a key result, and refuses another area', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Served from its own area',
+          type: 'annual',
+          period: '2026',
+          areaKey: 'health',
+        })
+      ).body as { id: string };
+      const create = async (title: string, areaKey: string) =>
+        (
+          (
+            await app.request('POST', url('/initiatives'), {
+              title,
+              areaKey,
+              value: 3,
+              timeCriticality: 3,
+              risk: 3,
+              size: 3,
+            })
+          ).body as { id: string }
+        ).id;
+      const existing = await create('Already serving', 'health');
+      const fresh = await create('Created to serve it', 'health');
+      const elsewhere = await create('Another area entirely', 'craft');
+
+      const keyResult = (
+        await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
+          statement: 'Sessions completed',
+          target: 10,
+          unit: 'sessions',
+          servedBy: [existing],
+        })
+      ).body as { id: string };
+
+      const added = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: fresh,
+      });
+      expect(added.status).toBe(201);
+      expect([...(added.body as { servedBy: string[] }).servedBy].sort()).toEqual(
+        [existing, fresh].sort(),
+      );
+
+      // Adding it again changes nothing.
+      const again = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: fresh,
+      });
+      expect((again.body as { servedBy: string[] }).servedBy).toHaveLength(2);
+
+      const refused = await app.request('POST', url(`/key-results/${keyResult.id}/served-by`), {
+        initiativeId: elsewhere,
+      });
+      expect(refused.status).toBe(409);
+
+      const missing = await app.request(
+        'POST',
+        url(`/key-results/${fixtureId('never-created')}/served-by`),
+        { initiativeId: fresh },
+      );
+      expect(missing.status).toBe(404);
+    });
+
     it('appends measurements and never edits one', async () => {
       const app = api();
       const objective = (
@@ -2171,6 +2234,7 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(status).toBe(200);
       expect(body).toEqual({
         failure: null,
+        mappedTo: [],
         items: [
           { id: 'task-invented-unsorted', title: 'Call the plumber', heldBy: null },
           {
@@ -2180,6 +2244,40 @@ describeOrSkip('the API against PostgreSQL', () => {
           },
         ],
       });
+    });
+
+    it('names an area whose mapping folds the Inbox into it, which S11 says none may', async () => {
+      // A mapping saved before such mappings were refused: written directly.
+      await database.client`
+        insert into area_mapping (area_key, external_project_id, external_section_id, is_home)
+        values ('home', 'project-invented-inbox', null, false)`;
+      const app = createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        directory: stubDirectory(
+          {},
+          {
+            projects: [
+              {
+                externalId: 'project-invented-inbox',
+                name: 'Inbox',
+                archived: false,
+                order: 0,
+                inbox: true,
+              },
+            ],
+            sections: [],
+          },
+          {},
+          {},
+          [],
+          [{ externalId: 'task-invented-unsorted', title: 'Call the plumber' }],
+        ),
+      });
+
+      const { status, body } = await app.request('GET', url('/task-tool/inbox'));
+      expect(status).toBe(200);
+      expect(body).toMatchObject({ failure: null, mappedTo: ['home'] });
     });
 
     it('makes one an unestimated initiative of an area, linked and not bound, and only once', async () => {

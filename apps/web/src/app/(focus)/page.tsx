@@ -1,6 +1,7 @@
 import { AreaBadge, Button, Card, EmptyState, Section } from '@prisme/ui';
 import Link from 'next/link';
 import { ApiFailureState } from '@/components/api-failure';
+import { Nudges } from '@/components/nudges';
 import { SyncBar } from '@/components/sync-bar';
 import { apiFetch } from '@/lib/api';
 import {
@@ -23,6 +24,7 @@ import {
 } from '@/lib/focus-view';
 import { refusalBanner } from '@/lib/features-view';
 import { countsFrom } from '@/lib/guardrails';
+import { firstReviewNudge, starvedAreaNudges } from '@/lib/nudge-view';
 import { EntryCard } from './entry-card';
 
 export const metadata = {
@@ -114,6 +116,13 @@ export default async function FocusPage() {
   // A pass refused for its creations wrote nothing at all (S8).
   const refused = sync.ok ? refusalBanner(sync.data) : null;
 
+  // What the loop is missing to turn: an area the balance would lift with
+  // nothing in it to lift, and a review never closed. Decided by the API.
+  const nudges = [
+    ...starvedAreaNudges(data.starvedAreas, areaName),
+    ...[firstReviewNudge(data.lastReviewClosedAt)].filter((nudge) => nudge !== null),
+  ];
+
   const countsFor = (key: string) =>
     countsFrom(data.slotsByArea, key, areaName(key), data.limits, data.now.length);
 
@@ -152,6 +161,8 @@ export default async function FocusPage() {
           </Button>
         </Card>
       )}
+
+      <Nudges nudges={nudges} />
 
       {data.weightsStale ? (
         <Card className="border-status-warning p-4 text-sm text-ink">

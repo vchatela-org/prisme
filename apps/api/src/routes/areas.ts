@@ -125,7 +125,7 @@ export const areaRoutes: readonly ApiRoute[] = [
     scope: 'admin:areas',
     summary: 'Replace the external projects and sections that fold into this area',
     description:
-      'Many-to-one: several external locations may map to one area, and that is how several disagreeing lists of "areas" fold into one key without restructuring anything. At most one mapping is `isHome` — where prisme creates new work for the area; with none, the most specific mapping is used.',
+      'Many-to-one: several external locations may map to one area, and that is how several disagreeing lists of "areas" fold into one key without restructuring anything. At most one mapping is `isHome` — where prisme creates new work for the area; with none, the most specific mapping is used. A mapping that names the task tool’s own Inbox is refused with `422`, as home or not: the Inbox belongs to no area (S11). The check reads the tool live, and a save made while it cannot be read is not checked.',
     params: keyParam,
     body: replaceAreaMappingsBody,
     response: AreaDto,

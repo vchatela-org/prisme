@@ -263,7 +263,16 @@ export interface LocationName {
   /** False when the task tool could not be read, or no longer has it. */
   readonly known: boolean;
   readonly archived: boolean;
+  /**
+   * In the task tool's own Inbox, which belongs to no area (S11). A mapping
+   * naming it is refused, and one that already does is a mistake to undo.
+   */
+  readonly inbox: boolean;
 }
+
+/** What Settings says beside a mapping that names the task tool's Inbox. */
+export const INBOX_MAPPING_WARNING =
+  'Todoist’s Inbox belongs to no area: its completions are counted here whatever they were, and new work for this area lands back in the Inbox. Remove it, and choose a home in this area’s own project.';
 
 /** An identifier, named from the task tool's own list when it is in it. */
 export function nameLocation(
@@ -273,10 +282,16 @@ export function nameLocation(
 ): LocationName {
   const project = locations?.projects.find((candidate) => candidate.id === projectId);
   if (project === undefined) {
-    return { project: projectId, section: sectionId, known: false, archived: false };
+    return { project: projectId, section: sectionId, known: false, archived: false, inbox: false };
   }
   if (sectionId === null) {
-    return { project: project.name, section: null, known: true, archived: project.archived };
+    return {
+      project: project.name,
+      section: null,
+      known: true,
+      archived: project.archived,
+      inbox: project.inbox,
+    };
   }
   const section = project.sections.find((candidate) => candidate.id === sectionId);
   return {
@@ -284,6 +299,7 @@ export function nameLocation(
     section: section?.name ?? sectionId,
     known: section !== undefined,
     archived: project.archived || (section?.archived ?? false),
+    inbox: project.inbox,
   };
 }
 

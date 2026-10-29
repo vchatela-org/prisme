@@ -87,6 +87,18 @@ export const focusDto = z.object({
   upNext: z.array(focusEntryDto),
   /** `used` counts work in flight, never a suggestion. */
   slotsByArea: z.array(z.object({ areaKey, kind: areaKind, used: z.int(), limit: z.int() })),
+  /**
+   * Areas whose balance factor is at or above the starved threshold and which
+   * hold nothing queued and under way — the lift has nothing to act on
+   * (`starvedWithNothingQueued`, packages/domain). Ordered by area key. A nudge
+   * for the screens; nothing is created for it.
+   */
+  starvedAreas: z.array(z.object({ areaKey, balanceFactor: z.number() })),
+  /**
+   * When a review session of any cadence was last closed, or `null` when none
+   * ever has been — the reviews are where the ranking is re-read and decided on.
+   */
+  lastReviewClosedAt: instant.nullable(),
 });
 
 export const inboxDto = z.object({

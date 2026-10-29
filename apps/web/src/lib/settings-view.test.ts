@@ -23,9 +23,18 @@ const LOCATIONS: TaskLocations = {
       name: 'Garden',
       parentId: null,
       archived: false,
+      inbox: false,
       sections: [{ id: 's-1', name: 'Beds', archived: false }],
     },
-    { id: 'p-2', name: 'Old', parentId: null, archived: true, sections: [] },
+    { id: 'p-2', name: 'Old', parentId: null, archived: true, inbox: false, sections: [] },
+    {
+      id: 'p-in',
+      name: 'Inbox',
+      parentId: null,
+      archived: false,
+      inbox: true,
+      sections: [{ id: 's-in', name: 'Later', archived: false }],
+    },
   ],
 };
 
@@ -51,7 +60,14 @@ describe('naming a location', () => {
       section: 'Beds',
       known: true,
       archived: false,
+      inbox: false,
     });
+  });
+
+  it('says when a location is in the task tool’s own Inbox, section or not (S11)', () => {
+    expect(nameLocation(LOCATIONS, 'p-in', null).inbox).toBe(true);
+    expect(nameLocation(LOCATIONS, 'p-in', 's-in').inbox).toBe(true);
+    expect(nameLocation(LOCATIONS, 'p-1', null).inbox).toBe(false);
   });
 
   it('says when the project is archived', () => {
@@ -64,6 +80,7 @@ describe('naming a location', () => {
       section: null,
       known: false,
       archived: false,
+      inbox: false,
     });
     expect(nameLocation(LOCATIONS, 'p-1', 's-9').known).toBe(false);
   });
