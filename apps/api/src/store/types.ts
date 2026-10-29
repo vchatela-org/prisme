@@ -636,6 +636,13 @@ export interface SelectionSettingRecord {
   readonly updatedAt: Date | null;
 }
 
+/** `signals_label_setting` — the Signals lane label (ADR-0041). */
+export interface SignalsLabelRecord {
+  /** `null` when none is chosen and attribution is by location alone. */
+  readonly chosen: { readonly label: string; readonly areaKey: string } | null;
+  readonly updatedAt: Date | null;
+}
+
 export interface AuditRetentionRecord {
   /** `null` when nothing has been chosen and the default applies. */
   readonly retentionDays: number | null;
@@ -1111,5 +1118,15 @@ export interface ApiStore {
   readonly selection: {
     limits(): Promise<SelectionSettingRecord>;
     setLimits(limits: { maxNow: number; maxNowPerArea: number }, at: Date): Promise<void>;
+  };
+
+  /**
+   * `signals_label_setting` — the label that puts a task in a Signals lane
+   * wherever it sits (ADR-0041). No row: the feature is off.
+   */
+  readonly signalsLabel: {
+    get(): Promise<SignalsLabelRecord>;
+    set(chosen: { label: string; areaKey: string }, at: Date): Promise<void>;
+    clear(): Promise<void>;
   };
 }

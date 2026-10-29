@@ -289,6 +289,66 @@ describe('re-attribution without re-fetching', () => {
   });
 });
 
+describe('the Signals label, re-attributed without re-fetching (ADR-0041)', () => {
+  it('records the labels, and moves labelled history into the Signals lane once one is chosen', async () => {
+    const automated = [
+      completion({ externalTaskId: 'm1', labels: ['signal'] }),
+      completion({ externalTaskId: 'h1', labels: [] }),
+    ];
+    const { store, state } = createFakeStore();
+
+    const first = await backfill({
+      ...options(),
+      store,
+      taskClient: createFakeTaskClient(automated).client,
+    });
+
+    // Nothing chosen: the location decides, exactly as before.
+    const byTask = (left: { externalTaskId: string }, right: { externalTaskId: string }) =>
+      left.externalTaskId.localeCompare(right.externalTaskId);
+    expect(
+      [...first.attribution.attributed]
+        .sort(byTask)
+        .map((row) => [row.externalTaskId, row.areaKey]),
+    ).toEqual([
+      ['h1', 'alpha'],
+      ['m1', 'alpha'],
+    ]);
+    expect(state.weeks.get('2026-09-07/alpha')?.completions).toBe(2);
+    expect(
+      [...state.completions.values()].find((row) => row.externalTaskId === 'm1')?.labels,
+    ).toEqual(['signal']);
+
+    // The label is chosen. The cursor covers the range, so nothing is fetched,
+    // and the labelled completion is a signal: counted, and no time.
+    const chosen = createFakeStore({
+      signalsLabel: { label: 'signal', areaKey: 'noise' },
+      cursor: state.cursor,
+    });
+    for (const [key, value] of state.completions) chosen.state.completions.set(key, value);
+
+    const task = createFakeTaskClient([]);
+    const second = await backfill({ ...options(), store: chosen.store, taskClient: task.client });
+
+    expect(task.windows).toEqual([]);
+    expect(
+      [...second.attribution.attributed].sort(byTask).map((row) => [row.externalTaskId, row.lane]),
+    ).toEqual([
+      ['h1', 'change'],
+      ['m1', 'signals'],
+    ]);
+    expect(chosen.state.weeks.get('2026-09-07/alpha')?.completions).toBe(1);
+    expect(chosen.state.weeks.get('2026-09-07/noise')).toMatchObject({
+      completions: 1,
+      minutes: 0,
+    });
+
+    // The weekly rows and the itemised rows say the same thing.
+    const itemised = [...chosen.state.attributed.values()].filter((row) => row.areaKey === 'noise');
+    expect(itemised.map((row) => row.externalTaskId)).toEqual(['m1']);
+  });
+});
+
 describe('rituals', () => {
   const ritual: RitualRecord = {
     // Not a literal UUID: the deny-list refuses one in this repository, and

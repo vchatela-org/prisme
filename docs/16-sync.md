@@ -105,6 +105,16 @@ fetched before they were recorded, outside the trailing window — and only with
 than the cursor's start**, because a `--from` inside the covered range resumes at the cursor's end and
 re-reads nothing. Any run re-materialises the whole covered range, so any run itemises the older weeks.
 
+**Attribution reads one label.** A completion carrying the Signals lane label chosen on Settings is
+attributed to the Signals lane it names, wherever it sat. Its location is consulted only when it
+does not carry the label ([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)).
+The fetch records each completion's labels in `completion_history.labels`, and attribution is re-made
+from them on every refresh, so choosing or changing the label needs no fetch. A completion fetched
+before labels were recorded has none on record, and its location decides until a fetch covers it
+again: the trailing window on the next refresh, and older history by the same `--from` rule as titles.
+The adoption scan applies the same rule to open tasks, through the same function
+(`signalsAreaByLabel`), so a labelled task is classified as a signal rather than proposed.
+
 #### The write audit is pruned by the full pass
 
 Every call to either tool is recorded in `external_write` by the writer that made it — the reconciler's

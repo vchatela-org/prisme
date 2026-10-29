@@ -48,7 +48,10 @@ Settings*), and the first screen there is an overview of how everything is conne
   prisme measures is stored against it. Choose it once, calmly.
 - **Kind** — almost always **Area**. Two special lanes exist, one of each at most:
   - **Run** — upkeep (chores, admin). Budgeted in hours per week, never ranked.
-  - **Signals** — notifications and other machine-generated noise. Counted, never ranked.
+  - **Signals** — notifications and other machine-generated noise. Counted, never ranked. Map a
+    project to it, or — when your automations write into your areas' sections — give their tasks a
+    label and choose it in **Settings → Signals lane label**: a task carrying it counts as Signals
+    wherever it sits.
 - **Colour** — one of eight. Each swatch shows which areas already use it. *Automatic* picks one
   from the key, and two automatic areas can land on the same colour — pick one then.
 

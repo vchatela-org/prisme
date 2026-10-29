@@ -114,6 +114,8 @@ export function toStoredCompletion(completion: Completion): StoredCompletion {
     ...(completion.recordedDuration === undefined
       ? {}
       : { durationScale: completion.recordedDuration.unit }),
+    // By ADR-0041, so a configured label can place it in the Signals lane.
+    ...(completion.labels === undefined ? {} : { labels: completion.labels }),
   };
 }
 
@@ -249,6 +251,7 @@ export async function materialise(options: MaterialiseOptions): Promise<Material
     ritualByTask,
     declaredMinutesByTask: declared.byTask,
     defaultMinutes: options.defaultMinutes,
+    ...(areaMap.signalsLabel === undefined ? {} : { signalsLabel: areaMap.signalsLabel }),
   });
 
   const weeks = weeklyCapacity(attribution.attributed);

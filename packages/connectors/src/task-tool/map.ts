@@ -206,5 +206,7 @@ export function mapCompletion(item: WireCompletedItem, operation: string): Compl
     content: item.content === undefined ? undefined : sanitisePlainText(item.content),
     recordedMinutes: minutesOf(duration),
     recordedDuration: duration,
+    // Sorted like a live task's, so a re-fetch that reorders them is no change.
+    ...(item.labels === undefined ? {} : { labels: [...item.labels].sort() }),
   };
 }

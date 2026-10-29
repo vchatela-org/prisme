@@ -74,6 +74,8 @@ const TABLES = [
   'initiative',
   'project',
   'area_mapping',
+  // ADR-0041's setting (migration 0026) references `area`.
+  'signals_label_setting',
   'area_weight',
   'area',
   // W16's one table. It references nothing and nothing references it, so

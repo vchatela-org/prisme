@@ -103,7 +103,9 @@ annual decision unavoidable at the moment it's due, using evidence rather than m
 Capacity is measured in **time where known** (task duration when set) and estimated otherwise; see
 [`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run is excluded from ranking but **included in
 capacity accounting** — the whole point is to make upkeep's real share visible. Signals are excluded
-from both and counted only as volume ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), §9).
+from both and counted only as volume ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), §9),
+and a task wearing the Signals lane label is a signal wherever it sits
+([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)).
 
 ### Mapping to the task tool
 
@@ -380,9 +382,16 @@ and read-only access narrows the integration's blast radius ([`14-threat-model.m
 
 ### Signals — machine-generated notifications
 
-Home automation alerts, monitoring, scheduled digests. They belong in a dedicated project, are
-excluded from ranking and from capacity, and are cleared in batches. They are counted only as noise
-volume.
+Home automation alerts, monitoring, scheduled digests. They are excluded from ranking and from
+capacity, cleared in batches, and counted only as noise volume.
+
+A task reaches the Signals lane in one of two ways. It can **sit there**: a project or section
+mapped to the lane, like any area. Or it can **carry the lane label**: the one task-tool label chosen
+on Settings, which puts the task in the named Signals lane wherever it sits
+([ADR-0041](20-decisions/0041-a-label-can-put-a-task-in-the-signals-lane.md)). The second way exists
+because automations write into the section of the area they are about, and a location cannot say
+what made a task. The label beats the location for Signals only. With no label chosen, location
+decides everything.
 
 ### Ritual — habits
 

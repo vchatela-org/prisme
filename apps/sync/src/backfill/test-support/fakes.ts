@@ -1,6 +1,7 @@
 import type { AreaKey, AreaKind } from '@prisme/domain';
 import type { Completion, TaskToolClient } from '@prisme/connectors';
 import { locationKey } from '../../reconcile/types.js';
+import type { SignalsLabel } from '../../signals-label.js';
 import type { BackfillStore } from '../ports.js';
 import type { Cursor } from '../slices.js';
 import type {
@@ -38,6 +39,8 @@ export interface FakeStoreState {
 export interface FakeStoreOptions {
   readonly areaByLocation?: ReadonlyMap<string, AreaKey> | undefined;
   readonly kindByArea?: ReadonlyMap<AreaKey, AreaKind> | undefined;
+  /** `signals_label_setting` (ADR-0041). Absent: no row, the feature off. */
+  readonly signalsLabel?: SignalsLabel | undefined;
   readonly rituals?: readonly RitualRecord[] | undefined;
   readonly cursor?: Cursor | undefined;
 }
@@ -112,6 +115,7 @@ export function createFakeStore(options: FakeStoreOptions = {}): {
       Promise.resolve({
         areaByLocation: options.areaByLocation ?? DEFAULT_LOCATIONS,
         kindByArea: options.kindByArea ?? DEFAULT_KINDS,
+        ...(options.signalsLabel === undefined ? {} : { signalsLabel: options.signalsLabel }),
       }),
 
     loadRituals: () => Promise.resolve(options.rituals ?? []),

@@ -1,5 +1,6 @@
 import type { DocRecord, ExternalProject, ExternalSection, ExternalTask } from '@prisme/connectors';
 import { locationKey } from '../reconcile/types.js';
+import { signalsAreaByLabel, type SignalsLabel } from '../signals-label.js';
 import { areaOfRelation, type AreaPageIndex } from './area-relation.js';
 import type { ExternalObject } from './types.js';
 
@@ -46,6 +47,11 @@ export interface AdaptOptions {
   readonly areaPropertyByRole?: ReadonlyMap<string, string> | undefined;
   /** Each area's own page (`area.external_page_id`), which a relation resolves against. */
   readonly areaByPage?: AreaPageIndex | undefined;
+  /**
+   * The label chosen on Settings that puts a task in a Signals lane wherever it
+   * sits (ADR-0041). Absent: where a task lives decides its lane, as before.
+   */
+  readonly signalsLabel?: SignalsLabel | undefined;
 }
 
 /** The area an external location folds into, following the section then the project. */
@@ -86,7 +92,11 @@ export function adaptTasks(
   }
 
   return tasks.map((task) => {
-    const areaKey = areaOfLocation(options, task.projectId, task.sectionId);
+    // A task wearing the Signals label is a signal wherever an automation put
+    // it (ADR-0041): the same rule the backfill attributes completions by.
+    const areaKey =
+      signalsAreaByLabel(task.labels, options.signalsLabel, (key) => options.laneByArea.get(key)) ??
+      areaOfLocation(options, task.projectId, task.sectionId);
     const lane = laneOf(options, areaKey);
     return {
       kind: 'task',
