@@ -127,7 +127,12 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
         kind: 'sync_action',
         entityKind: action.subject,
         entityId:
-          action.initiativeId ?? action.keyResultId ?? action.externalId ?? createdId ?? 'unknown',
+          action.initiativeId ??
+          action.keyResultId ??
+          action.objectiveId ??
+          action.externalId ??
+          createdId ??
+          'unknown',
         ...(action.before === undefined ? {} : { before: action.before }),
         after: { tag: action.tag, detail: action.detail },
         occurredAt: at,
@@ -192,8 +197,13 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
         await options.store.bindKeyResultRef({
           keyResultId: operation.keyResultId,
           externalId: operation.externalId,
-          // *Link as key result*, decided in the adoption queue (S1).
-          link: { matchRule: 'manual', confidence: 'certain', decidedBy: 'human' },
+          link:
+            operation.match === 'exact_title'
+              ? // The reconciler's own match among its objective's subtasks
+                // (ADR-0038): exact, so certain, and automatic.
+                { matchRule: 'exact_title', confidence: 'certain', decidedBy: 'auto' }
+              : // *Link as key result*, decided in the adoption queue (S1).
+                { matchRule: 'manual', confidence: 'certain', decidedBy: 'human' },
           at,
         });
         return undefined;
@@ -306,6 +316,9 @@ export async function apply(plan: Plan, options: ApplyOptions): Promise<ApplyRes
 function subjectOf(action: Action): WriteSubject | undefined {
   if (action.keyResultId !== undefined) {
     return { entityKind: 'key_result', entityId: action.keyResultId };
+  }
+  if (action.objectiveId !== undefined) {
+    return { entityKind: 'objective', entityId: action.objectiveId };
   }
   return action.initiativeId === undefined
     ? undefined

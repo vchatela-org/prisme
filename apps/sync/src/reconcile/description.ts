@@ -39,9 +39,24 @@ export function keyResultLine(baseUrl: string, objectiveId: string, keyResultId:
   return `${base}/objectives/${objectiveId}#kr-${keyResultId} · ${KEY_RESULT_MARKER}`;
 }
 
+/**
+ * An objective's own task (ADR-0038): its deadline and its label, and nothing
+ * else — the title is the owner's, and an objective is not ranked.
+ */
+export const OBJECTIVE_MANAGED_FIELDS = ['deadline', 'label'] as const;
+const OBJECTIVE_MARKER = `${MARKER_PREFIX}${OBJECTIVE_MANAGED_FIELDS.join(', ')}`;
+
+/** The line prisme writes on an objective's own task: the objective's page, and its marker. */
+export function objectiveLine(baseUrl: string, objectiveId: string): string {
+  const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  return `${base}/objectives/${objectiveId} · ${OBJECTIVE_MARKER}`;
+}
+
 /** Whether a line is one prisme wrote, whatever it points at. */
 export function isManagedLine(line: string): boolean {
-  return line.includes(MARKER) || line.includes(KEY_RESULT_MARKER);
+  return (
+    line.includes(MARKER) || line.includes(KEY_RESULT_MARKER) || line.includes(OBJECTIVE_MARKER)
+  );
 }
 
 /**

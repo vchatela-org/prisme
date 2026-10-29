@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) that follows its window: active from the period's first day, judgeable until 31 January (annual) or seven days after (monthly), then `missed` if nobody judged it ([ADR-0037](20-decisions/0037-an-objective-follows-its-window.md)) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15) |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15), made beneath its objective's own task when the objective holds one (ADR-0038) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -209,6 +209,7 @@ What becomes what:
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | A recurring task that is a habit | A ritual's **recurring task** — picked on Rituals (*Its recurring task*), or *Link* from the queue when it is labelled as a ritual. Unlabelled recurring tasks are left in place, as Run |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
+| An objective kept as **one task**, its title exactly the objective's | That objective's **own task**. When the `prisme` label made it an initiative, the next pass gives it to the objective and drops the initiative, so it never takes a slot ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md)). Its key results' tasks are its subtasks: one titled exactly as a key result is taken, the rest are made beneath it |
 | A loose task | Stays a task |
 
 The queue is rescanned by the first full pass of each day, or on demand with *Rescan*.
@@ -634,6 +635,11 @@ creates nothing. One with neither gets a task created at its area's home, counte
 threshold. A hand edit of a managed field is a `review` that writes nothing, because the conflict
 ledger resolves initiatives. Its subtree is not mirrored: computed progress still comes from the
 initiatives that serve it. S15 is closed.
+**Then placed beneath the objective's own task** ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md),
+2026-10-29). An objective that holds a task gets its key results' tasks as subtasks of it. A subtask
+already titled exactly as the key result is taken, and one that is only close is a `review`. An
+objective that holds no task gets none made, because a top-level task per key result beside objective
+tasks that already held them was the noise the owner's instance showed.
 
 ---
 

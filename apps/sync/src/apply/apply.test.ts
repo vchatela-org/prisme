@@ -257,11 +257,11 @@ describe('a key result’s anchor (S15)', () => {
           statement: 'Run a 10 km race',
           areaKey: 'craft',
           deadline: '2026-12-31' as never,
-          location: { projectId: 'project-0001' },
+          objectiveTaskId: 'task-objective',
         },
       ],
     },
-    observedOf([]),
+    observedOf([taskOf({ externalId: 'task-objective', projectId: 'project-0001', labels: [] })]),
     new Map(),
     CONFIG,
   );

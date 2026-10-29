@@ -1,6 +1,8 @@
 # ADR-0012 · Key results are first-class and anchored in the task tool
 
-**Status:** Accepted · 2026-09-15
+**Status:** Accepted · 2026-09-15 — *every key result gets an anchor task* narrowed by
+[ADR-0038](0038-an-objective-holds-its-task.md) 2026-10-29: the task is made beneath the objective's
+own task, and an objective that holds none gets none made for its key results
 
 ## Context
 

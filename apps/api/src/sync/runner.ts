@@ -19,8 +19,10 @@ import {
   calendarDayIn,
   createAdoptionStore,
   createObjectivePageStore,
+  createObjectiveTaskStore,
   createObjectiveWindowStore,
   createPostgresStore,
+  giveObjectivesTheirTasks,
   readBindings,
   reconcile,
   reconcileObjectivePages,
@@ -159,6 +161,16 @@ export function createSyncRunner(options: SyncRunnerOptions): SyncRunner {
           });
         } catch {
           // The next pass converges; the reconciler's work does not depend on it.
+        }
+        // Then an objective takes its own task (ADR-0038), as in the CronJob.
+        try {
+          await giveObjectivesTheirTasks({
+            store: createObjectiveTaskStore(options.client),
+            now: options.now(),
+            mode: request.mode,
+          });
+        } catch {
+          // Same reasoning: the next pass converges.
         }
 
         const reconciled = await reconcile({

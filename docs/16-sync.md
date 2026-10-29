@@ -145,6 +145,15 @@ the reason. It touches prisme's own table only, so it runs under the write freez
 without writing. It runs first so that the key results planned below belong to objectives in the
 status their window gives them. A failure is logged and does not fail the pass.
 
+#### An objective takes its own task (ADR-0038)
+
+Next, still before the reconciler: an initiative whose task carries exactly an open objective's
+title, in the same area, gives the task to that objective and is dropped with a reason
+(`apps/sync/src/objective-tasks/`, the rule `objectiveTaskMatches`). It is one transaction per match,
+and `plan` counts without writing. The reconciler then converges the objective's task (its deadline,
+the `prisme:objective` label, the backlink) and places its key results' tasks beneath it, adopting a
+subtask whose title is exactly the statement before it creates anything.
+
 #### The objectives' pages (ADR-0034)
 
 The same pass, after the task tool and under the same lock, reconciles one field into the document

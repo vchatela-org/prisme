@@ -24,7 +24,7 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0009](0009-level-triggered-reconciliation.md) | Level-triggered reconciliation, not event handling | Accepted |
 | [0010](0010-adopt-never-creates.md) | Adopting existing work can never create duplicates | Accepted |
 | [0011](0011-optional-narrative-page.md) | Narrative page is optional, created on demand | Accepted |
-| [0012](0012-key-results-first-class.md) | Key results are first-class and anchored | Accepted |
+| [0012](0012-key-results-first-class.md) | Key results are first-class and anchored | Accepted — *every key result gets an anchor task* narrowed by [0038](0038-an-objective-holds-its-task.md) 2026-10-29: made beneath its objective's task |
 | [0013](0013-self-assessed-progress.md) | Objective progress is self-assessed | Accepted |
 | [0014](0014-lanes-outside-the-backlog.md) | Run, Signals and Rituals are lanes | Accepted |
 | [0015](0015-auth-split-by-caller.md) | Identity provider for humans, scoped tokens for agents | Accepted |
@@ -50,8 +50,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0035](0035-only-what-is-under-way-is-prioritized-or-measured.md) | Only what is under way is prioritized or measured | **Accepted** 2026-09-28 — for objectives, its *change the status instead* alternative is taken by [0037](0037-an-objective-follows-its-window.md) 2026-10-29 — decided by the owner; adds a rule to [`12-scoring.md`](../12-scoring.md) §5 and a principle to `CLAUDE.md` |
 | [0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md) | Make the work-in-progress limits soft, and choose them on Settings | **Accepted** 2026-10-29 — decided by the owner; **closes OQ-2**; amends [`12-scoring.md`](../12-scoring.md) §5.3 |
 | [0037](0037-an-objective-follows-its-window.md) | Let an objective's window move its status: start, close, and a month to judge | **Accepted** 2026-10-29 — decided by the owner; supersedes two rules of 0033 point 5 and, for objectives, an alternative 0035 rejected |
+| [0038](0038-an-objective-holds-its-task.md) | Let an objective hold its own task, and put its key results' tasks beneath it | **Accepted** 2026-10-29 — decided by the owner; narrows 0012; adds rows to [`11-ownership.md`](../11-ownership.md) §6 |
 
-**36 records: 35 Accepted (four of them in part superseded: two by 0030, two by 0037) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
+**37 records: 36 Accepted (five of them in part superseded: two by 0030, two by 0037, one by 0038) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.

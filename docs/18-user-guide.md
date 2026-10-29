@@ -400,7 +400,16 @@ month's objectives · replan what slipped.
   while you review it: until **31 January** for an annual objective, **seven days** for a monthly
   one. The card says *judge it met or missed by …*, and the screen counts these as *Period over, to
   judge*. That is the time to close out the period's tasks in Todoist; prisme leaves them open and
-  never closes them. An objective nobody judges by then closes as **missed**, and its history says it
+  never closes them.
+  **An objective can be one task in Todoist.** If you keep each objective as a task, give it exactly
+  the objective's title. A task labelled `prisme` with that title is recognised on the next sync: it
+  becomes the objective's own task instead of an initiative, so it never takes a slot. prisme then
+  sets its deadline to the end of the period, swaps the `prisme` label for `prisme:objective` and adds
+  a link back. The title, priority and subtasks stay yours. Each key result gets its task as a
+  subtask of it. A subtask already titled exactly as the key result is used, and the others are
+  created. A subtask with nearly the same title is flagged in the sync plan instead: make the two
+  titles identical and the next pass links them. An objective with no task of its own gets no
+  key-result tasks. An objective nobody judges by then closes as **missed**, and its history says it
   was the window that closed it. You can still change it to *met* afterwards.
 
 A task with no duration counts as 25 minutes of capacity; the charts say how much of a reading is

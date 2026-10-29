@@ -20,6 +20,13 @@ import { INITIATIVE_STATUSES, type InitiativeStatus } from '@prisme/domain';
 /** Product vocabulary, not instance data. Configurable so an existing workspace can keep its own. */
 export const DEFAULT_ANCHOR_LABEL = 'prisme';
 
+/**
+ * The label an objective's own task wears (ADR-0038). It replaces the anchor
+ * label the task arrived with, which asks for an initiative and is no longer
+ * true of it.
+ */
+export const DEFAULT_OBJECTIVE_LABEL = 'prisme:objective';
+
 /** `prisme:status:now`, `prisme:status:waiting`, … */
 export const DEFAULT_STATUS_REQUEST_PREFIX = 'prisme:status:';
 

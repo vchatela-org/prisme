@@ -66,7 +66,11 @@ export function createTaskToolWriter(options: TaskToolWriterOptions): TaskToolWr
           content: draft.content,
           description: draft.description,
           project_id: draft.projectId,
-          ...(draft.sectionId === undefined ? {} : { section_id: draft.sectionId }),
+          ...(draft.parentId !== undefined
+            ? { parent_id: draft.parentId }
+            : draft.sectionId === undefined
+              ? {}
+              : { section_id: draft.sectionId }),
           labels: [...draft.labels],
           priority: WIRE_VALUE_BY_PRIORITY[draft.priority],
           ...(draft.deadline === undefined ? {} : { deadline: deadlineArg(draft.deadline) }),

@@ -287,14 +287,24 @@ First-class, not a bullet inside a document.
 **Every key result gets an anchor task** ([ADR-0012](20-decisions/0012-key-results-first-class.md)).
 This is the capability that was missing: a key result you can break into subtasks is a key result
 that gets worked on. The reconciler gives one to every key result of an objective **under way** —
-`active`, its period started (ADR-0035) — in one of three ways:
+`active`, its period started (ADR-0035) — in one of four ways:
 
 - **bound** — it already holds a task: an initiative **converted** into it moved its task there, or
   an earlier pass made or linked one;
 - **linked** — a task was linked to it from the adoption queue (*Link as key result*, S1): the pass
   binds it and creates nothing;
-- **created** — neither: the pass creates the task at its objective's area's home, as it does an
-  initiative's anchor, and the create threshold counts it.
+- **found** — its objective holds a task of its own ([ADR-0038](20-decisions/0038-an-objective-holds-its-task.md))
+  and a subtask of it carries exactly the key result's statement: the pass binds it and creates
+  nothing. A subtask that is only close is a `review`, never a guess;
+- **created** — none of those: the pass creates the task **beneath its objective's task**, and the
+  create threshold counts it. An objective that holds no task gets none made for its key results.
+
+**An objective can hold its own task.** One task per objective, worked on all period with its key
+results beneath it, is a common way to keep objectives in the task tool. An initiative whose task
+carries exactly an open objective's title in its area is that task, and each pass gives it to the
+objective: the initiative is dropped with the reason, and the task leaves the slots, the ranking and
+the Inbox. prisme then owns the task's deadline (the period's last day), the `prisme:objective` label
+and the backlink line, and leaves its title, priority and place to the owner.
 
 prisme then owns the task's **title** (the statement), its **deadline** (the last day of the
 objective's period), the **key-result label** (`prisme:kr` — never the anchor label, which would ask
