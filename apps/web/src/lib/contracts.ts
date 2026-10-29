@@ -931,6 +931,8 @@ export const keyResultSchema = z.object({
   id,
   objectiveId: id,
   statement: z.string(),
+  /** The sub-objective it is grouped under (ADR-0039); `null` for none. */
+  subObjective: z.string().nullish(),
   target: z.number(),
   unit: z.string(),
   progressSelf: z.number(),

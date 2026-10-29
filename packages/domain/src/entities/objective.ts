@@ -54,6 +54,8 @@ export interface KeyResult {
   readonly id: KeyResultId;
   readonly objectiveId: ObjectiveId;
   readonly statement: string;
+  /** The sub-objective it is grouped under, when the objective has any (ADR-0039). */
+  readonly subObjective?: string | undefined;
   readonly target: number;
   readonly unit: string;
   /** 0–100, set by hand, by judgement. The primary measure. */
@@ -85,6 +87,7 @@ export const keyResultSchema: z.ZodType<KeyResult> = z.object({
   id: z.string().min(1),
   objectiveId: z.string().min(1),
   statement: z.string().min(1),
+  subObjective: z.string().min(1).max(200).optional(),
   target: z.number(),
   unit: z.string().min(1),
   progressSelf: z.number().min(0).max(100),

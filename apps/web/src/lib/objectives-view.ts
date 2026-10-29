@@ -492,3 +492,43 @@ export function servesLine(served: readonly ServedKeyResult[] | undefined): stri
   const more = served.length > 1 ? ` (+${String(served.length - 1)} more)` : '';
   return `Serves “${first.statement}” — ${first.objectiveTitle}${more}`;
 }
+
+export interface SubObjectiveGroup {
+  /** `null` for the key results under no sub-objective. */
+  readonly name: string | null;
+  readonly keyResults: readonly KeyResult[];
+}
+
+/**
+ * Key results grouped by their sub-objective (ADR-0039), in the order each group
+ * first appears, those under none first. An objective with no sub-objective at
+ * all is one unnamed group, so it renders exactly as it did before.
+ */
+export function groupBySubObjective(
+  keyResults: readonly KeyResult[],
+): readonly SubObjectiveGroup[] {
+  const groups = new Map<string | null, KeyResult[]>();
+  for (const keyResult of keyResults) {
+    const name = keyResult.subObjective ?? null;
+    const group = groups.get(name);
+    if (group === undefined) groups.set(name, [keyResult]);
+    else group.push(keyResult);
+  }
+  const named = [...groups.entries()].filter(([name]) => name !== null);
+  const loose = groups.get(null);
+  return [
+    ...(loose === undefined ? [] : [{ name: null, keyResults: loose }]),
+    ...named.map(([name, members]) => ({ name, keyResults: members })),
+  ];
+}
+
+/** The distinct sub-objectives an objective's key results use, in first-seen order. */
+export function subObjectivesOf(keyResults: readonly KeyResult[]): readonly string[] {
+  return [
+    ...new Set(
+      keyResults
+        .map((keyResult) => keyResult.subObjective)
+        .filter((name): name is string => typeof name === 'string'),
+    ),
+  ];
+}
