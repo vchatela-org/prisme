@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ConnectorError } from '@prisme/connectors';
 import { DEFAULT_SELECTION_LIMITS, SELECTION_LIMIT_BOUNDS } from '@prisme/domain';
 import {
   describeWithDatabase,
@@ -101,6 +102,8 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
           projects: [
             { externalId: 'p-2', name: 'Second', archived: false, order: 2 },
             { externalId: 'p-1', name: 'First', archived: false, order: 1 },
+            // The tool's own Inbox (S11), which belongs to no area.
+            { externalId: 'p-inbox', name: 'Inbox', archived: false, order: 0, inbox: true },
           ],
           sections: [
             { externalId: 's-1', projectId: 'p-1', name: 'A section', archived: false, order: 1 },
@@ -178,6 +181,58 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
         ],
       });
       expect(two.status).toBe(400);
+    });
+
+    it.each([{ externalProjectId: 'p-inbox', isHome: true }, { externalProjectId: 'p-inbox' }])(
+      'refuses a mapping naming the task tool’s Inbox, which belongs to no area (%o)',
+      async (inbox) => {
+        const app = api();
+        const response = await app.request('PUT', url('/areas/craft/mappings'), {
+          mappings: [{ externalProjectId: 'p-1' }, inbox],
+        });
+        expect(response.status).toBe(422);
+        expect(JSON.stringify(response.body)).toContain('Inbox');
+
+        // Nothing was written: the area keeps the mappings it had.
+        const area = await app.request('GET', url('/areas/craft'));
+        expect(
+          (area.body as AreaBody).mappings.some(
+            (mapping) => mapping.externalProjectId === 'p-inbox',
+          ),
+        ).toBe(false);
+      },
+    );
+
+    it('refuses a new area whose mappings name the Inbox', async () => {
+      const response = await api().request('POST', url('/areas'), {
+        key: 'errands',
+        name: 'Errands',
+        kind: 'area',
+        mappings: [{ externalProjectId: 'p-inbox', isHome: true }],
+      });
+      expect(response.status).toBe(422);
+      expect((await api().request('GET', url('/areas/errands'))).status).toBe(404);
+    });
+
+    it('saves a mapping when the task tool cannot be read to check it', async () => {
+      const unreadable = stubDirectory();
+      const app = createTestApp({
+        client: database.client,
+        directory: {
+          ...unreadable,
+          taskLocations: () =>
+            Promise.reject(
+              new ConnectorError('unavailable', 'the tool is down in this test', {
+                tool: 'task',
+                operation: 'locations',
+              }),
+            ),
+        },
+      });
+      const response = await app.request('PUT', url('/areas/craft/mappings'), {
+        mappings: [{ externalProjectId: 'p-1', isHome: true }],
+      });
+      expect(response.status).toBe(200);
     });
   });
 
@@ -635,13 +690,29 @@ describeOrSkip('the Settings screens against PostgreSQL', () => {
         failure: null,
         projects: [
           {
+            id: 'p-inbox',
+            name: 'Inbox',
+            parentId: null,
+            archived: false,
+            inbox: true,
+            sections: [],
+          },
+          {
             id: 'p-1',
             name: 'First',
             parentId: null,
             archived: false,
+            inbox: false,
             sections: [{ id: 's-1', name: 'A section', archived: false }],
           },
-          { id: 'p-2', name: 'Second', parentId: null, archived: false, sections: [] },
+          {
+            id: 'p-2',
+            name: 'Second',
+            parentId: null,
+            archived: false,
+            inbox: false,
+            sections: [],
+          },
         ],
       });
     });

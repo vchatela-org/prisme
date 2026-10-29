@@ -126,7 +126,7 @@ export const settingsRoutes: readonly ApiRoute[] = [
     scope: 'admin:areas',
     summary: 'The task tool’s projects and sections, by name',
     description:
-      'What an area mapping is chosen from. Read live from the task tool — projects and sections only, never a task. When the tool cannot be read the list is empty and `failure` says why, so a screen can still show every mapping by identifier.',
+      'What an area mapping is chosen from. Read live from the task tool — projects and sections only, never a task. `inbox` marks the project the tool keeps as its own Inbox, which belongs to no area and cannot be mapped (S11). When the tool cannot be read the list is empty and `failure` says why, so a screen can still show every mapping by identifier.',
     query: noQuery,
     response: TaskLocationsDto,
     handle: (_context, services) => services.settings.taskLocations(),

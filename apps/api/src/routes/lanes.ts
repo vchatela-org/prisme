@@ -152,7 +152,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'read:focus',
     summary: 'The task tool’s own Inbox: unsorted tasks in no area',
     description:
-      'Read live: the open top-level tasks of the project the task tool marks as the Inbox — an identifier, a title and what in prisme already holds it, nothing else. Its work counts toward no area until sorted (S11). When the tool cannot be read the list is empty and `failure` says why.',
+      'Read live: the open top-level tasks of the project the task tool marks as the Inbox — an identifier, a title and what in prisme already holds it, nothing else. Its work counts toward no area until sorted (S11). `mappedTo` names any area whose mapping names the Inbox anyway — a mistake, since then its work counts there and a task made an initiative of that area is not moved out of it; empty is the only correct state. When the tool cannot be read the list is empty and `failure` says why.',
     query: noQuery,
     response: TaskToolInboxDto,
     handle: (_context, services) => services.lanes.taskToolInbox(),
@@ -165,7 +165,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'write:initiative',
     summary: 'Make an unsorted Inbox task an initiative of an area',
     description:
-      'Adopted, never created: an initiative (`inbox`, unestimated) linked to the existing task, as the adoption queue’s *Adopt* records it. The next reconciler pass binds the task and, since the Inbox is in no area, moves it into the area — a task the task tool keeps as a plain task is its own to move, so this is the only move prisme makes. `409` when anything in prisme already holds or links the task; `422` for a Run or Signals lane.',
+      'Adopted, never created: an initiative (`inbox`, unestimated) linked to the existing task, as the adoption queue’s *Adopt* records it. The next reconciler pass binds the task and, since the Inbox is in no area, moves it into the area (unless a mapping wrongly folds the Inbox into that same area — see `mappedTo` on the list) — a task the task tool keeps as a plain task is its own to move, so this is the only move prisme makes. `409` when anything in prisme already holds or links the task; `422` for a Run or Signals lane.',
     // The task tool's identifier, not one of prisme's: never a uuid.
     params: z.strictObject({ id: z.string().min(1).max(200) }),
     body: adoptInboxTaskBody,

@@ -187,6 +187,17 @@ export const focusSchema = z.object({
   suggested: z.array(focusEntrySchema),
   upNext: z.array(focusEntrySchema),
   slotsByArea: z.array(areaSlotSchema),
+  /**
+   * Starved areas with nothing queued and under way, as the API decided them
+   * (`starvedWithNothingQueued`, packages/domain). Defaulted so an older API
+   * shows no notice rather than failing the whole screen.
+   */
+  starvedAreas: z.array(z.object({ areaKey, balanceFactor: z.number() })).default([]),
+  /**
+   * When a review was last closed; `null` when none ever was. Absent from an
+   * older API, which is *unknown*, not *never* — and says nothing.
+   */
+  lastReviewClosedAt: instant.nullable().optional(),
 });
 
 export type Focus = z.infer<typeof focusSchema>;
@@ -1212,6 +1223,8 @@ export const taskLocationsSchema = z.object({
       name: z.string(),
       parentId: z.string().nullable(),
       archived: z.boolean(),
+      /** The task tool's own Inbox, which belongs to no area (S11). */
+      inbox: z.boolean().default(false),
       sections: z.array(z.object({ id: z.string(), name: z.string(), archived: z.boolean() })),
     }),
   ),
@@ -1248,6 +1261,8 @@ export const taskToolInboxSchema = z.object({
       heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
     }),
   ),
+  /** Areas whose mappings name the Inbox anyway — a mistake to undo on Settings. */
+  mappedTo: z.array(z.string()).default([]),
   failure: z.string().nullable(),
 });
 

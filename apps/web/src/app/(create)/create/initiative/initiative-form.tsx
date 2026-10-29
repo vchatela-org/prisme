@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { PageTemplates } from '@/lib/contracts';
 import { pageChoiceComplete } from '@/lib/create-view';
+import type { KeyResultChoice } from '@/lib/nudge-view';
 import { createInitiative } from '../../create-actions';
 import { PageChoice, type PageDecision } from '../../page-choice';
 import { SearchBeforeCreate } from '../../search-before-create';
@@ -83,15 +84,25 @@ export function NewInitiativeForm({
   projects,
   areaNames,
   pageTemplates = null,
+  keyResults = [],
+  initialAreaKey,
+  initialKeyResultId,
 }: {
   areas: readonly AreaChoice[];
   projects: readonly ProjectChoice[];
   areaNames: Readonly<Record<string, string>>;
   /** What the initiative pages database offers (ADR-0030); `null` if it could not be read. */
   pageTemplates?: PageTemplates | null;
+  /** Key results of open objectives, each with its area; only the chosen area's are offered. */
+  keyResults?: readonly KeyResultChoice[];
+  /** The area to start on — from a starved-area notice or a key result. */
+  initialAreaKey?: string;
+  /** The key result to start serving — from a key result's own action. */
+  initialKeyResultId?: string;
 }) {
   const [title, setTitle] = useState('');
-  const [areaKey, setAreaKey] = useState(areas[0]?.key ?? '');
+  const [areaKey, setAreaKey] = useState(initialAreaKey ?? areas[0]?.key ?? '');
+  const [keyResultId, setKeyResultId] = useState(initialKeyResultId ?? '');
   const [projectId, setProjectId] = useState('');
   const [deadline, setDeadline] = useState('');
   const [estimates, setEstimates] = useState<Record<EstimateKey, Fibonacci>>({
@@ -104,6 +115,10 @@ export function NewInitiativeForm({
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+
+  // Work serves the objectives of its own area, so only the chosen area's key
+  // results are offered, and changing the area lets go of one from another.
+  const servable = keyResults.filter((choice) => choice.areaKey === areaKey);
 
   const ready =
     title.trim() !== '' && areaKey !== '' && pageChoiceComplete(page, pageTemplates) && !pending;
@@ -121,6 +136,7 @@ export function NewInitiativeForm({
         page,
         ...(projectId === '' ? {} : { projectId }),
         ...(deadline === '' ? {} : { deadline }),
+        ...(keyResultId === '' ? {} : { keyResultId }),
       });
 
       toast({
@@ -171,7 +187,13 @@ export function NewInitiativeForm({
             value={areaKey}
             disabled={pending}
             onChange={(event) => {
-              setAreaKey(event.target.value);
+              const next = event.target.value;
+              setAreaKey(next);
+              if (
+                !keyResults.some((choice) => choice.id === keyResultId && choice.areaKey === next)
+              ) {
+                setKeyResultId('');
+              }
             }}
           >
             {areas.map((area) => (
@@ -202,6 +224,31 @@ export function NewInitiativeForm({
             ))}
           </select>
           <FieldHint>Optional. Most initiatives have none.</FieldHint>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="initiative-key-result">Serves</Label>
+          <select
+            id="initiative-key-result"
+            className="h-9 max-w-md rounded-md border border-border-strong bg-surface-raised px-2 text-sm text-ink"
+            value={keyResultId}
+            disabled={pending || servable.length === 0}
+            onChange={(event) => {
+              setKeyResultId(event.target.value);
+            }}
+          >
+            <option value="">No key result</option>
+            {servable.map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+          <FieldHint>
+            {servable.length === 0
+              ? 'No open objective in this area has a key result to serve.'
+              : 'Optional. The key result this moves — what the orphan checks read.'}
+          </FieldHint>
         </div>
 
         <div className="flex flex-col gap-1">

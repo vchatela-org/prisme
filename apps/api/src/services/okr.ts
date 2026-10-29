@@ -79,6 +79,14 @@ export interface ObjectiveService {
       servedBy?: readonly string[] | undefined;
     },
   ): Promise<KeyResultDtoShape>;
+  /**
+   * Add one initiative to what serves a key result, keeping the rest — the
+   * second half of *Create an initiative that serves this*. Refused when the
+   * initiative is in another area than the objective (409): allocation
+   * happens before ranking, so work in one area serving another's objective
+   * would make the balance figures describe work that is not there.
+   */
+  addServedBy(keyResultId: string, initiativeId: string): Promise<KeyResultDtoShape>;
   addMeasurement(
     keyResultId: string,
     value: number,
@@ -206,6 +214,26 @@ export function createObjectiveService(store: ApiStore): ObjectiveService {
       const updated = await store.okr.updateKeyResult(id, input);
       if (updated === undefined) throw notFound('key result', id);
       return keyResultOrThrow(id);
+    },
+
+    async addServedBy(keyResultId, initiativeId): Promise<KeyResultDtoShape> {
+      const keyResult = await store.okr.getKeyResult(keyResultId);
+      if (keyResult === undefined) throw notFound('key result', keyResultId);
+      const objective = await store.okr.getObjective(keyResult.objectiveId);
+      if (objective === undefined) throw notFound('objective', keyResult.objectiveId);
+      const initiative = await store.initiatives.get(initiativeId);
+      if (initiative === undefined) throw notFound('initiative', initiativeId);
+
+      if (initiative.areaKey !== objective.areaKey) {
+        throw new ApiError(
+          'conflict',
+          'the initiative is in another area than the objective this key result measures; work serves the objectives of its own area',
+        );
+      }
+
+      const added = await store.okr.addServedBy(keyResultId, initiativeId);
+      if (!added) throw notFound('key result', keyResultId);
+      return keyResultOrThrow(keyResultId);
     },
 
     async addMeasurement(keyResultId, value, observedAt, note) {

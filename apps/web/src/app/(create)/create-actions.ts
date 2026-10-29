@@ -9,6 +9,7 @@ import {
   creationIntentSchema,
   FIBONACCI,
   initiativeSchema,
+  keyResultSchema,
   projectSchema,
   searchSchema,
   type SearchResult,
@@ -209,6 +210,8 @@ const initiativeInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   page: pageDecisionSchema.default({ mode: 'none' }),
+  /** The key result it is created to serve, added to that key result's `servedBy`. */
+  keyResultId: z.string().min(1).max(200).optional(),
 });
 
 export type InitiativeInput = z.input<typeof initiativeInputSchema>;
@@ -275,6 +278,46 @@ export async function createInitiative(input: InitiativeInput): Promise<ActionRe
           'The initiative exists and is scored. Ask for its page again from its detail screen — nothing was lost.',
       };
     }
+  }
+
+  // Added after the creation rather than with it: `servedBy` belongs to the
+  // key result, written through its own endpoint, which adds one without
+  // replacing the rest. A failure leaves an initiative serving nothing — the
+  // recoverable half, linked from the key result's *Link work* afterwards.
+  if (parsed.data.keyResultId !== undefined) {
+    const served = await apiFetch({
+      path: `/key-results/${encodeURIComponent(parsed.data.keyResultId)}/served-by`,
+      method: 'POST',
+      body: { initiativeId: created.data.id },
+      schema: keyResultSchema,
+    });
+
+    revalidateCreations();
+    revalidatePath(`/initiative/${created.data.id}`);
+
+    // Still a success, and still navigates away: the initiative exists, and
+    // staying on the form invites pressing *Create* again for a second one.
+    if (!served.ok) {
+      return {
+        ok: true,
+        title: 'Created, but not linked to its key result',
+        description:
+          'The initiative exists and is scored. Link it from the key result on its objective — nothing was lost.',
+        href: `/initiative/${created.data.id}`,
+      };
+    }
+
+    revalidatePath('/objectives');
+    revalidatePath(`/objectives/${served.data.objectiveId}`);
+    revalidatePath('/review/monthly');
+
+    return {
+      ok: true,
+      title: 'Initiative created, serving its key result',
+      description:
+        'Scored, in the inbox, and counted toward the key result. Its anchor task appears on the next pass — the reconciler makes it, which is why there can never be two.',
+      href: `/initiative/${created.data.id}`,
+    };
   }
 
   revalidateCreations();

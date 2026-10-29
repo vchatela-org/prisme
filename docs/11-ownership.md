@@ -42,7 +42,7 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | `color_slot` | **P** | — | Palette slot 1–8, chosen on the Settings screen. Presentation only; never leaves prisme |
 | Narrative description of the area | **D** | ← | What the area *means*; prose |
 | `area_mapping` → external project/section | **P** | — | Config, many-to-one. Nothing moves in the task tool when it changes |
-| `area_mapping.is_home` | **P** | — | Where prisme creates new work for the area (anchors, captures). At most one per area |
+| `area_mapping.is_home` | **P** | — | Where prisme creates new work for the area (anchors, captures). At most one per area. Never the task tool's own Inbox, which no mapping may name (S11) |
 | `external_page_id` — the area's own page in the Life areas store | **P** | — | Picked on Settings → Areas from that store's entries, never typed; one page names one area. What a store's area column is matched against, by identifier ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | A document-tool store's area column (`role_binding.area_property`) | **P** | — | Config: *which* relation property is read, chosen on Settings → Notion. The relation's **values** are owned per store — §6, §7, §8 |
 | `actual_share`, `balance_factor` | **∂** | — | From completions in the last 4 weeks |

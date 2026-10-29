@@ -6,7 +6,7 @@ alongside this file.
 If you are blocked by one of these: say so in your journal entry and stop. Do not pick an answer and
 proceed — an undocumented guess is indistinguishable from a decision until it causes a bug.
 
-**Four open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
+**Six open**, and the number is written here on purpose: [`STATUS.md`](../../STATUS.md) counts it,
 [`README.md`](README.md) lists the records, and a count kept in one place drifts silently — it said
 seven while this file held eight, from 2026-09-20 until 2026-09-24. OQ-10 was the eighth, and it
 closed on 2026-09-24 ([ADR-0027](0027-audit-gate-fails-closed.md)) — accepted by the owner, which is
@@ -14,7 +14,9 @@ what moved the number rather than what made the gate work. **OQ-1 and OQ-4 close
 the owner deciding both on the evidence the read path produced against the live instance.
 
 **OQ-2 closed on 2026-10-29** ([ADR-0036](0036-work-in-progress-limits-are-soft-and-chosen-on-settings.md)):
-the owner decided it at their first review of real work. All four that remain are **deferred by
+the owner decided it at their first review of real work. **OQ-11 and OQ-12 were opened on
+2026-10-29** by the same review of the instance against both tools, and **OQ-3's trigger fired** that
+day; it is answered in part and stays open for the half that is not. All six are **deferred by
 choice**, each with a trigger written as an observable fact rather than a date.
 
 ---
@@ -42,6 +44,16 @@ work that pays off only after the model is proven.
 to an area mapping rather than to the work itself — a `conflict` row, or a manual re-map in
 `entity_link` — recorded in a journal entry. The evidence is a count of friction incidents, not an
 impression that the two structures differ; they differ today, which is why there is a mapping table.
+
+**Fired 2026-10-29, answered in part** ([the entry](../50-journal/FUP-2026-10-29-oq3-triggered.md)).
+After a month of use, three attributions were traced to the mapping rather than to the work: the task
+tool's inbox mapped as an area's home, one finance-shaped section mapped to another area, and
+automation-made tasks written into area sections and so counted as that area's work. The owner's
+answer was a **light restructure, not an alignment**: section names stop carrying weights (weights are
+prisme's, ADR-0007), the inbox belongs to no area, the misfiled section is re-mapped, and
+automation-made tasks reach the Signals lane by a label rather than by moving them (ADR-0041, proposed
+in the same wave). **Not chosen:** aligning both tools to one area list. That half stays deferred, with
+a narrower trigger — a wrong attribution traced to a mapping **after** these fixes have run a month.
 
 ### OQ-5 · Calendar integration for ritual blocks
 
@@ -81,6 +93,27 @@ value being added is the *divergence* between the two, and one measurement is no
 Until then there is nothing to write that the document tool is not already able to read.
 
 ---
+
+### OQ-11 · Can one ritual be a routine — one recurring task, several process pages?
+
+A ritual joins exactly one process page and one recurring task. A common practice groups several
+processes into one routine done as a single recurring task (a morning or evening routine), its
+duration the sum of the processes outside the routine. Modelled one-to-one, the routine is either one
+ritual with one page — losing the processes — or several rituals none of which has a task.
+
+**Trigger:** recurring completions are read (the activity-log source, ADR-0040, proposed in the same
+wave) **and** a routine's task has four consecutive weeks of completions, so the question has an
+adherence series to be asked about.
+
+### OQ-12 · Multi-month objectives, and adopting past objectives as already judged
+
+An objective is exactly one month or one year. Some kept objectives span **two months**, and they
+cannot be adopted. Separately, adopting a past objective lands it `draft`, and ADR-0037's window then
+closes it `missed` — even where the document tool records it as fully achieved — so history can only
+be adopted as failure.
+
+**Trigger:** the owner chooses to adopt past objectives for a Year Review, or writes a new objective
+that spans more than one month. Either makes the shape a decision rather than a hypothetical.
 
 ## Recently closed
 

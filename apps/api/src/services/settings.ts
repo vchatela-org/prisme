@@ -542,6 +542,7 @@ export function createSettingsService(
           name: project.name,
           parentId: project.parentId ?? null,
           archived: project.archived,
+          inbox: project.inbox === true,
           sections: locations.sections
             .filter((section) => section.projectId === project.externalId)
             .sort(byOrder)

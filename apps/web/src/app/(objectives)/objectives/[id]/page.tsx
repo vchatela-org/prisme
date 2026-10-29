@@ -29,6 +29,7 @@ import {
   objectiveProgress,
   subObjectivesOf,
 } from '@/lib/objectives-view';
+import { newInitiativeHref } from '@/lib/nudge-view';
 import { AddKeyResultForm } from './add-key-result-form';
 import { MeasurementForm } from './measurement-form';
 import { ServedByEditor } from './served-by-editor';
@@ -214,6 +215,15 @@ export default async function ObjectivePage({ params }: { params: Promise<{ id: 
             elapsedPct={elapsedPct}
             measurements={measurementsOf(keyResult.id)}
             serving={serving}
+            serveHref={
+              isOpenObjective(data.status)
+                ? newInitiativeHref({
+                    areaKey: data.areaKey,
+                    objectiveId: data.id,
+                    keyResultId: keyResult.id,
+                  })
+                : undefined
+            }
             linkable={
               linkable.ok
                 ? linkable.data.items.map((entry) => ({
@@ -255,9 +265,12 @@ function KeyResultPanel({
   measurements,
   serving,
   linkable,
+  serveHref,
 }: {
   keyResult: KeyResult;
   objectiveId: string;
+  /** The new-initiative flow pre-filled for this key result; absent once the objective is judged. */
+  serveHref: string | undefined;
   elapsedPct: number;
   measurements: readonly Measurement[] | null;
   serving: ReadonlyMap<string, Initiative>;
@@ -286,6 +299,7 @@ function KeyResultPanel({
             objectiveId={objectiveId}
             elapsedPct={elapsedPct}
             statementShownAbove
+            serveHref={serveHref}
           />
 
           <div className="grid gap-4 xl:grid-cols-2">

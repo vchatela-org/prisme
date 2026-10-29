@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { areaColorCollisions } from '@prisme/ui/server';
 import { AreaColourNotice } from '@/components/area-colour-notice';
 import { ApiFailureState } from '@/components/api-failure';
+import { Nudges } from '@/components/nudges';
 import { apiFetch } from '@/lib/api';
 import { instanceAreaColors } from '@/lib/area-pins';
 import {
@@ -24,6 +25,7 @@ import {
   type AreaBalance,
 } from '@/lib/contracts';
 import { estimatedMinutesPct, minutesChartCaveat, mostStarved, orderAreas } from '@/lib/kpi-view';
+import { starvedAreaNudges } from '@/lib/nudge-view';
 import { SERIES_SLOTS } from '@/lib/settings-view';
 import { unattributedRows, unattributedSummary } from '@/lib/unattributed-view';
 import { UnattributedCard } from './unattributed-card';
@@ -113,6 +115,14 @@ export default async function AreasPage({
 
   const estimated = estimatedMinutesPct(data.areas);
 
+  // A starved area with nothing in it for the balance to lift — named by the
+  // API from today's ranking, so it is shown on this year's view only: on a
+  // past year's it would read as a finding about that year.
+  const nudges =
+    focus.ok && year === new Date().getUTCFullYear()
+      ? starvedAreaNudges(focus.data.starvedAreas, (key) => nameOf.get(key) ?? key)
+      : [];
+
   // What the shares leave out, and the mapping that would count it (S9). The
   // task tool's locations are read only when there is something to name.
   const leftOut = unattributed.ok ? unattributedSummary(unattributed.data) : null;
@@ -197,6 +207,8 @@ export default async function AreasPage({
           Review is where that is corrected.
         </Card>
       ) : null}
+
+      <Nudges nudges={nudges} />
 
       <Section
         title={`Declared against observed — ${String(data.weightYear)}`}
