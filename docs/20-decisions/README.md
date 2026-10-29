@@ -55,9 +55,8 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0040](0040-completions-are-read-from-the-activity-log.md) | Read completions from the activity log, and keep the completion history beside it | **Accepted** 2026-10-29 — decided by the owner; a recurring task's occurrences are counted; no schema change |
 | [0041](0041-a-label-can-put-a-task-in-the-signals-lane.md) | A label can put a task in the Signals lane, wherever it sits | **Accepted** 2026-10-29 — decided by the owner; widens how 0014 places Signals; adds a row to [`11-ownership.md`](../11-ownership.md) §5 |
 
-**41 records: 40 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **4 open questions** in [`OPEN.md`](OPEN.md).
+**41 records: 40 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
 
-**37 records: 36 Accepted (five of them in part superseded: two by 0030, two by 0037, one by 0038) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
 count nobody reads does not correct itself.
