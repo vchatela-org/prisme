@@ -124,6 +124,13 @@ export interface ExternalObject {
   readonly labels?: readonly string[] | undefined;
   /** Sections under a project, for "dedicated project with sections". */
   readonly sectionCount?: number | undefined;
+  /**
+   * How many different areas the project's sections' tasks land in — each
+   * section's own mapping, else the project's (S10). Two or more is a general
+   * project split across areas: a set of locations, not a `Project`, which has
+   * exactly one area (ADR-0029).
+   */
+  readonly sectionAreaCount?: number | undefined;
   /** The document tool's store this came from, when it came from there. */
   readonly role?: string | undefined;
   /**

@@ -136,6 +136,8 @@ export function reasonSentence(reason: SelectionReason): string {
       return 'Every slot is taken. This is the next one in, when one frees.';
     case 'blocked':
       return 'Waiting on something that is neither done nor dropped.';
+    case 'unestimated':
+      return 'Never estimated: its numbers are the placeholder it was adopted with, so whether it fits a slot is unknown. Estimate it first.';
     case 'too_large':
       return 'Too large to start as it stands — split it into something finishable.';
     case 'not_a_candidate':
@@ -215,4 +217,48 @@ export function orderSlots(slots: readonly AreaSlot[]): readonly AreaSlot[] {
     const rank = (slot: AreaSlot): number => (slot.kind === 'area' ? 0 : 1);
     return rank(left) - rank(right) || left.areaKey.localeCompare(right.areaKey);
   });
+}
+
+/**
+ * What an empty Focus points at, when it is empty for a reason the person can
+ * act on (S7). `null` while anything is in flight, suggested or queued.
+ *
+ * Everything adopted lands in `inbox`, and only `next` and `later` are
+ * candidates for `now`, so a freshly adopted instance has a Focus with nothing
+ * on it at all — and until this, nothing on it said why. The count is the
+ * Inbox's own (initiatives and action takeaways), so the number here is the
+ * number on the Inbox.
+ */
+export interface FocusPointer {
+  readonly title: string;
+  readonly description: string;
+  readonly href: string;
+  readonly action: string;
+}
+
+export function emptyFocusPointer(input: {
+  readonly now: number;
+  readonly suggested: number;
+  readonly upNext: number;
+  /** Items waiting in the Inbox, or null when it could not be read. */
+  readonly inbox: number | null;
+}): FocusPointer | null {
+  if (input.now + input.suggested + input.upNext > 0 || input.inbox === null) return null;
+  if (input.inbox > 0) {
+    const items = input.inbox === 1 ? '1 item waits' : `${String(input.inbox)} items wait`;
+    return {
+      title: `Focus is empty because nothing has been triaged — ${items} in the Inbox`,
+      description:
+        'Everything adopted or captured arrives in the Inbox, and only work moved to next or later is a candidate for now. Give each one its estimates and a status there, and Focus fills in.',
+      href: '/inbox',
+      action: 'Triage the inbox',
+    };
+  }
+  return {
+    title: 'Focus is empty because there is no work to rank yet',
+    description:
+      'Nothing is in next or later, and the Inbox is empty. Bring in what already exists from Adoption, or create an initiative.',
+    href: '/adoption',
+    action: 'Open Adoption',
+  };
 }

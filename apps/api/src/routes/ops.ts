@@ -90,9 +90,9 @@ export const opsRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/reviews/:id',
     scope: 'write:review',
-    summary: 'Tick the checklist, record decisions, or close the session',
+    summary: 'Tick the checklist, record decisions, link the review’s page, or close the session',
     description:
-      'Closing takes a capacity snapshot at that moment and stores it. Reopening does not retake it: what the review saw is part of what the review decided.',
+      'Closing takes a capacity snapshot at that moment and stores it. Reopening does not retake it: what the review saw is part of what the review decided. Closing is also the completion of every ritual fulfilled by the review of this cadence: their adherence is rebuilt from the closed sessions.',
     params: idParam,
     body: updateReviewBody,
     response: ReviewSessionDto,

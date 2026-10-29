@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import {
   adherencePct,
+  ritualMeasure,
   ritualPeriodOf,
   adoptRefusal,
   computeProgress,
@@ -123,6 +124,7 @@ export function toDomainInitiative(record: InitiativeRecord): Initiative {
     origin: record.origin,
     doneAt: calendar(record.doneAt),
     droppedReason: record.droppedReason ?? undefined,
+    estimated: record.estimated,
   };
 }
 
@@ -209,6 +211,7 @@ export function toInitiativeDto(
     },
     blockedBy: [...context.blockedBy],
     sizedForNow: isSizedForNow(toDomainInitiative(record)),
+    estimated: record.estimated,
     keyResultHints: [...context.keyResultHints],
   };
 }
@@ -331,6 +334,8 @@ export function toRitualDto(
     targetAdherencePct: record.targetAdherencePct,
     externalPageId: record.externalPageId,
     externalTaskId: record.externalTaskId,
+    fulfilledByReview: record.fulfilledByReview,
+    measuredFrom: ritualMeasure(record),
     latestAdherencePct: latest === undefined ? null : toAdherenceDto(latest).adherencePct,
     currentPeriod: {
       periodStart: period.periodStart,

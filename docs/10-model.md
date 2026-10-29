@@ -101,8 +101,9 @@ annual decision unavoidable at the moment it's due, using evidence rather than m
 | `balance_factor` | `clamp(target_share / actual_share, 0.5, 2)` — starved areas rise, over-served ones sink |
 
 Capacity is measured in **time where known** (task duration when set) and estimated otherwise; see
-[`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run and Signals are excluded from ranking but
-**included in capacity accounting** — the whole point is to make upkeep's real share visible.
+[`12-scoring.md`](12-scoring.md#4-measuring-capacity). Run is excluded from ranking but **included in
+capacity accounting** — the whole point is to make upkeep's real share visible. Signals are excluded
+from both and counted only as volume ([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), §9).
 
 ### Mapping to the task tool
 
@@ -113,6 +114,11 @@ area_mapping (area_key, external_project_id, external_section_id?, is_home)
 Many-to-one: several projects and sections may map to one area. This is how several disagreeing
 lists of "areas" across tools fold into one key **without restructuring anything**. Restructuring
 the external tools later is optional, and does not change the model.
+
+A completion is attributed section first, then project. A project mapped **only by section** leaves
+a task at its root — in no section — in no area, and the share leaves it out. Areas lists what was
+counted toward no area over its window (`GET /areas/unattributed`), and offers *map the rest of this
+project to…*: a mapping of the project itself, which the mapped sections still outrank (S9).
 
 `area_mapping` is the task tool's vocabulary only. A **document-tool** entry is placed in an area by
 its store's *area column* — a relation to the Life areas store, chosen per store on Settings →
@@ -171,6 +177,7 @@ nothing — no score, no slot, no status.
 | `time_criticality` | 1·2·3·5·8·13 | prisme | How fast value decays |
 | `risk` | 1·2·3·5·8·13 | prisme | Risk reduction or opportunity enablement |
 | `size` | 1·2·3·5·8·13 | prisme | Size of the *next slice*. Above 8, slice it |
+| `estimated` | bool | prisme | `false` while the four estimates are the placeholder adoption or a capture wrote (the middle of the scale, 3); `true` once any is written, the same value included (S5) |
 | `deadline` | date? | prisme | Hard constraints only. Written to the anchor |
 | `earliest_start` | date? | prisme | Scheduling constraint. Before it, the initiative is not under way: neither selected nor ranked ([ADR-0035](20-decisions/0035-only-what-is-under-way-is-prioritized-or-measured.md)) |
 | `planned_start` / `planned_end` | date? | prisme | Computed by the schedule engine |
@@ -203,8 +210,10 @@ off-the-shelf sync product does, and it leaves you maintaining two task lists.
 
 ### Ready for `now`
 
-An initiative may only enter `now` when: the outcome is one sentence, `size ≤ 8`, the first three
-next actions are known, nothing blocks it, and it has a target month.
+An initiative may only enter `now` when: the outcome is one sentence, it has been **estimated**,
+`size ≤ 8`, the first three next actions are known, nothing blocks it, and it has a target month.
+A placeholder size passes `size ≤ 8` by construction, so an unestimated initiative is held out of
+the selection (`unestimated`) until somebody estimates it — which is triage's job.
 
 ---
 
@@ -241,6 +250,13 @@ stay their narrative ([`13-migration.md` §4](13-migration.md#what-becomes-what)
 column is written from the objective's period, and an open objective's period can move
 ([ADR-0034](20-decisions/0034-an-open-objective-moves-and-its-page-follows.md)).
 
+**Work serves key results, never an objective directly.** An initiative is linked to a key result
+(`served_by`), and the objective is served through its key results. So an objective with **no key
+result cannot be served at all** — an objective adopted from a page always arrives that way — and
+it stays an orphan until one is written. That is the rule, not a gap: an objective nothing can
+measure is a wish. The objective's page and the monthly *find orphans* step say so, and link to its
+*Add a key result* (S6).
+
 ### Objective
 
 | Field | Owner | Notes |
@@ -260,13 +276,27 @@ First-class, not a bullet inside a document.
 | `measurements[]` | prisme | Append-only time series, so trends exist |
 | `external_anchor_id` | prisme | Anchor task, so subtasks can hang beneath it |
 
-**Every key result gets an anchor task.** This is the capability that was missing: a key result you
-can break into subtasks is a key result that gets worked on. Today a key result holds one only when
-an initiative is **converted** into it: the initiative's task moves to the key result
-(`key_result.external_anchor_id`), and the initiative is dropped with a reason naming what it became.
-The reconciler then treats the task as taken, and writes nothing to it yet
-([`19-how-it-works.md`](19-how-it-works.md) S1, S15). A key result that is a *habit* rather
-than an outcome becomes a `Ritual` instead — it needs a recurring slot, not a task.
+**Every key result gets an anchor task** ([ADR-0012](20-decisions/0012-key-results-first-class.md)).
+This is the capability that was missing: a key result you can break into subtasks is a key result
+that gets worked on. The reconciler gives one to every key result of an objective **under way** —
+`active`, its period started (ADR-0035) — in one of three ways:
+
+- **bound** — it already holds a task: an initiative **converted** into it moved its task there, or
+  an earlier pass made or linked one;
+- **linked** — a task was linked to it from the adoption queue (*Link as key result*, S1): the pass
+  binds it and creates nothing;
+- **created** — neither: the pass creates the task at its objective's area's home, as it does an
+  initiative's anchor, and the create threshold counts it.
+
+prisme then owns the task's **title** (the statement), its **deadline** (the last day of the
+objective's period), the **key-result label** (`prisme:kr` — never the anchor label, which would ask
+for an initiative) and the backlink line. Not its priority — a key result is not ranked — and not
+where it lives once it exists. A managed field edited in the task tool is a `review` line, never
+overwritten: change the key result on Objectives, or put the task back. A draft, closed or future
+objective's key results get nothing. Computed progress still comes from the initiatives serving the
+key result; its anchor's subtasks are the task tool's
+([`19-how-it-works.md`](19-how-it-works.md) S15). A key result that is a *habit* rather than an
+outcome becomes a `Ritual` instead — it needs a recurring slot, not a task.
 
 ### Progress is self-assessed, and the gap is the signal
 
@@ -346,10 +376,20 @@ A ritual's cadence is one of `daily`, `weekly`, `monthly`, `quarterly` or `yearl
 period is the ISO week (Monday), the calendar month, quarter or year that starts on `period_start`;
 a daily habit has seven opportunities in its week, every other cadence one (`ritualPeriodOf`).
 
-A ritual is measured from **at most one** recurring task, bound in `entity_external_ref` and chosen
-on Rituals or by *Link*; its completions are the series. A ritual with no task — a habit that is
-not a task — is recorded by hand, period by period. The two never mix: a ritual with a task refuses
-a period recorded by hand, because the capacity refresh rewrites its periods from the task.
+A ritual is measured from **exactly one source** (`ritualMeasure`):
+
+- **its recurring task** — at most one, bound in `entity_external_ref` and chosen on Rituals or by
+  *Link*; its completions are the series, rewritten by the capacity refresh;
+- **its review** — `ritual.fulfilled_by_review`: closing a review session of the ritual's own
+  cadence is the period's completion. The series is rebuilt whole from the closed sessions of that
+  cadence each time one closes (`reviewAdherence`): from the period of the first close, a period
+  with no close reading as a zero, and the current period appearing only once it is done. A daily
+  ritual cannot be fulfilled by a review — none comes round every day;
+- **by hand** — a habit that is neither is recorded period by period.
+
+The sources never mix. A ritual with a task cannot be fulfilled by its review, one fulfilled by its
+review cannot take a task by *Link*, and either refuses a period recorded by hand, because its
+periods are rewritten from where they come from.
 
 ---
 
@@ -357,8 +397,13 @@ a period recorded by hand, because the capacity refresh rewrites its periods fro
 
 ### Review session
 Cadence, date, checklist state, decisions taken, what moved, notes, and a KPI snapshot at that
-moment. The narrative summary is written back to the document tool's review databases so that
-history stays continuous with what came before prisme.
+moment. The narrative belongs to the document tool, so that history stays continuous with what came
+before prisme: a session **links the page it was written in** (`external_page_id`, a reference set
+before or after the close), and its summary — the generated artefact: decisions, what was and was
+not covered, the snapshot — is copied into that page from the session. prisme writes nothing to the
+page. Pushing the summary into the reviews store on close (`reviews_db`, write-only) is intended and
+not built: a page body prisme writes is outside what the creating path does today (ADR-0030), and
+needs its own decision first.
 
 ### Cadences, and where each step happens
 

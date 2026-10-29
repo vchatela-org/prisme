@@ -45,6 +45,16 @@ export const ritualDto = z.object({
    * that is not a task — whose periods are recorded by hand instead.
    */
   externalTaskId: z.string().nullable(),
+  /**
+   * Closing a review session of the ritual's cadence is its completion (S3):
+   * its adherence is rebuilt from the closed sessions each time one closes.
+   */
+  fulfilledByReview: z.boolean(),
+  /**
+   * What its adherence is measured from — `task`, `review`, or `hand` for
+   * *done this period* (`ritualMeasure`, `@prisme/domain`). One source each.
+   */
+  measuredFrom: z.enum(['task', 'review', 'hand']),
   /** The most recent period's adherence, or null when nothing has been recorded. */
   latestAdherencePct: z.number().nullable(),
   /**
@@ -89,6 +99,34 @@ export const RecurringTasksDto = named(
     failure: z.string().nullable(),
   }),
 );
+/**
+ * The task tool's own Inbox (S11): unsorted work that belongs to no area. An
+ * identifier and a title each, and what in prisme already holds the task.
+ */
+export const TaskToolInboxDto = named(
+  'TaskToolInbox',
+  z.object({
+    items: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
+      }),
+    ),
+    /** Why the task tool could not be read — a connector failure kind — or `null`. */
+    failure: z.string().nullable(),
+  }),
+);
+
+export const adoptInboxTaskBody = defineWrite(
+  'AdoptInboxTask',
+  z.strictObject({
+    /** Written here, as an outcome — the task's own wording is usually an action. */
+    title: z.string().min(1).max(500),
+    areaKey,
+  }),
+);
+
 export const AdherenceSeriesDto = named(
   'AdherenceSeries',
   z.object({
@@ -122,6 +160,8 @@ export const createRitualBody = defineWrite(
     externalPageId: z.string().min(1).max(200).optional(),
     /** The recurring task to measure it from. Refused with `409` if another entity holds it. */
     externalTaskId: z.string().min(1).max(200).optional(),
+    /** Measure it by closing the review of its cadence (S3). Never daily, never with a task. */
+    fulfilledByReview: z.boolean().optional(),
   }),
   RITUAL_READ_ONLY,
 );
@@ -135,6 +175,11 @@ export const updateRitualBody = defineWrite(
     externalPageId: z.string().min(1).max(200).nullable().optional(),
     /** Another task replaces the one before; `null` unties it. `409` if another entity holds it. */
     externalTaskId: z.string().min(1).max(200).nullable().optional(),
+    /**
+     * Measure it by closing the review of its cadence (S3). Never daily, and
+     * never with a task — untie the task (`externalTaskId: null`) in the same write.
+     */
+    fulfilledByReview: z.boolean().optional(),
   }),
   RITUAL_READ_ONLY,
 );

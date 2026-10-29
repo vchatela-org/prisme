@@ -135,22 +135,27 @@ run=$(gh run list --workflow publish.yml --branch vX.Y.Z --limit 1 --json databa
 gh run watch "$run" --exit-status
 ```
 
-Both matrix jobs, `prisme-api` and `prisme-web`, must end green. **When one half is red and its
-sibling green**, the cause is almost always the cluster runner and not the commit (buildx losing
-its workers). Re-run the failed job with `gh run rerun "$run" --failed`, and never with an empty
+Both matrix jobs, `prisme-api` and `prisme-web`, must end green. They run on a GitHub-hosted runner
+([`docs/15-runtime.md`](../../../docs/15-runtime.md)). **When one half is red and its sibling
+green**, the cause is usually the runner or the registry rather than the commit. Re-run the failed job with `gh run rerun "$run" --failed`, and never with an empty
 commit or a new tag. A job that sits at `in_progress` long after its steps finished is a wedged
 runner: read the job itself back before calling it anything.
 
-Then read the digests **from the registry**, not from the run summary:
+Then read the digests **from the registry**, not from the run summary. The images are public on
+GHCR, and **their tags carry no `v`**: `publish.yml`'s metadata step tags `X.Y.Z`, so asking for
+`vX.Y.Z` answers *not found*, which reads like a private package and is not one.
 
 ```sh
-reg=$(gh variable get HARBOR_REGISTRY); proj=$(gh variable get HARBOR_PROJECT)
 for img in prisme-api prisme-web; do
-  curl -fsS "https://$reg/api/v2.0/projects/$proj/repositories/$img/artifacts/vX.Y.Z?with_tag=true" | jq -r .digest
+  docker buildx imagetools inspect "ghcr.io/vchatela-org/$img:X.Y.Z" | awk '/^Digest:/ {print $2; exit}'
 done
 ```
 
-The values stay in the session. The registry host goes nowhere that is committed or published.
+Each must agree with the run's `pushing manifest for …:X.Y.Z@sha256:…` line
+(`gh run view "$run" --log`). `gh api …/packages/container/…` is no shortcut: it needs the
+`read:packages` scope, which the CLI token does not carry. The deployment pins
+`ghcr.io/vchatela-org/<image>:X.Y.Z@sha256:<digest>`. Harbor received the images until 2026-10-14
+(`v0.15.4` was its last), so a Release older than that takes its digests from the register.
 
 ## 6. Publish the Release
 

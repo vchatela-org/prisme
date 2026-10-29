@@ -16,6 +16,8 @@ import {
   type SettingsArea,
   type TaskLocations,
 } from '@/lib/contracts';
+import { featureRows, refusalBanner } from '@/lib/features-view';
+import { docsUrl, HOW_IT_WORKS } from '@/lib/docs-link';
 import { pageUrl } from '@/lib/page-link';
 import { webRuntime } from '@/lib/runtime';
 import {
@@ -78,6 +80,8 @@ export default async function SettingsPage() {
   const taskTemplate = config.tasktoolProjectUrlTemplate;
   const taskLocations = locations.ok ? locations.data : null;
 
+  const refused = sync.ok ? refusalBanner(sync.data) : null;
+
   const weightOf = new Map(
     (weights.ok ? weights.data.weights : []).map((row) => [row.areaKey, row.weightPct]),
   );
@@ -91,7 +95,26 @@ export default async function SettingsPage() {
           here; year weights at the Year Review; the safety settings belong to the deployment and
           are shown for reference.
         </p>
+        <p className="max-w-prose text-xs text-ink-muted">
+          New here, or unsure which object something should be?{' '}
+          <a
+            className="underline underline-offset-2"
+            href={docsUrl(HOW_IT_WORKS, config.version)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            How prisme works
+          </a>{' '}
+          — the objects, how things come in, the loop and the reviews, on one page.
+        </p>
       </header>
+
+      {refused === null ? null : (
+        <Card className="border-status-warning p-4 text-sm">
+          <p className="font-medium text-ink">{refused.title}</p>
+          <p className="mt-1 max-w-prose text-ink-secondary">{refused.description}</p>
+        </Card>
+      )}
 
       <Section
         title="Can prisme write to Notion or Todoist?"
@@ -143,6 +166,34 @@ export default async function SettingsPage() {
           ) : null}
         </Card>
       </Section>
+
+      <div id="features">
+        <Section
+          title="Features"
+          description="What this deployment switches on and off, and why. Each is a variable in the deployment, never a button; prisme shows whether it is set, not its value."
+        >
+          {settings.ok ? (
+            <Card className="py-0">
+              <ul className="flex flex-col divide-y divide-border-hairline">
+                {featureRows(settings.data, docTemplate !== undefined).map((row) => (
+                  <li key={row.key} className="flex flex-col gap-1 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-ink">{row.name}</span>
+                      <Badge variant={row.on ? 'accent' : 'outline'}>{row.on ? 'On' : 'Off'}</Badge>
+                    </div>
+                    <p className="text-sm text-ink-secondary">{row.does}</p>
+                    {row.note === null ? null : (
+                      <p className="text-xs text-ink-muted">{row.note}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : (
+            <ApiFailureState failure={settings} surface="the instance settings" />
+          )}
+        </Section>
+      </div>
 
       <div id="audit">
         <Section

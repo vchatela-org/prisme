@@ -9,6 +9,7 @@ import {
   type Objective,
 } from '@/lib/contracts';
 import {
+  addKeyResultHref,
   currentPeriod,
   elapsedPctOf,
   groupByPeriod,
@@ -16,6 +17,7 @@ import {
   objectiveProgress,
   orphanInitiatives,
   orphanObjectives,
+  orphanReason,
   servedInitiativeIds,
   splitUpcoming,
   type OrphanInitiative,
@@ -211,11 +213,18 @@ export default async function ObjectivesPage() {
                   name={areaNames.get(objective.areaKey) ?? objective.areaKey}
                 />
                 <span className="text-xs text-ink-muted">{objective.period}</span>
-                <span className="text-xs text-ink-muted">
-                  {objective.keyResults.length === 0
-                    ? 'no key results'
-                    : 'no initiative linked to any key result'}
-                </span>
+                {orphanReason(objective) === 'no_key_result' ? (
+                  <Link
+                    href={addKeyResultHref(objective.id)}
+                    className="text-xs text-ink-muted underline underline-offset-2"
+                  >
+                    no key result, so nothing can serve it — add one
+                  </Link>
+                ) : (
+                  <span className="text-xs text-ink-muted">
+                    no initiative linked to any key result
+                  </span>
+                )}
               </div>
             ))}
           </Card>
@@ -351,7 +360,12 @@ function ObjectiveCard({
 
       {objective.keyResults.length === 0 ? (
         <p className="text-sm text-ink-secondary">
-          No key result yet, so nothing measures this. It counts as an orphan until one is added.
+          No key result yet, so nothing measures this — and nothing can serve it: work is linked to
+          a key result, never to an objective directly. It counts as an orphan until one is{' '}
+          <Link href={addKeyResultHref(objective.id)} className="underline underline-offset-2">
+            added
+          </Link>
+          .
         </p>
       ) : (
         <>

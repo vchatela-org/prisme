@@ -13,15 +13,20 @@ import {
   inboxSchema,
   objectivePageSchema,
   ritualListSchema,
+  taskToolInboxSchema,
   timelineSchema,
   type ReviewCadence,
 } from '@/lib/contracts';
 import {
+  addKeyResultHref,
   divergenceOf,
   elapsedPctOf,
   orphanInitiatives,
   orphanObjectives,
+  orphanReason,
   servedInitiativeIds,
+  servedKeyResults,
+  servesLine,
   splitUpcoming,
   type OrphanInitiative,
 } from '@/lib/objectives-view';
@@ -119,14 +124,22 @@ function PanelCard({ children }: { children: ReactNode }) {
 
 async function InboxPanel() {
   const nameOf = await areaNamer();
-  const inbox = await apiFetch({ path: '/inbox', schema: inboxSchema });
+  const [inbox, unsorted] = await Promise.all([
+    apiFetch({ path: '/inbox', schema: inboxSchema }),
+    apiFetch({ path: '/task-tool/inbox', schema: taskToolInboxSchema }),
+  ]);
   if (!inbox.ok) return <ApiFailureState failure={inbox} surface="the inbox" />;
 
   const { initiatives, takeaways } = inbox.data;
   const actionable = takeaways.filter((takeaway) => takeaway.mayEnterBacklog);
   const principles = takeaways.filter((takeaway) => takeaway.kind === 'principle');
+  // Todoist's own Inbox, which belongs to no area (S11). Absent when unreadable.
+  const unsortedCount =
+    unsorted.ok && unsorted.data.failure === null
+      ? unsorted.data.items.filter((task) => task.heldBy === null).length
+      : 0;
 
-  if (initiatives.length === 0 && takeaways.length === 0) {
+  if (initiatives.length === 0 && takeaways.length === 0 && unsortedCount === 0) {
     return (
       <EmptyState
         title="Nothing arrived since the last review"
@@ -142,6 +155,7 @@ async function InboxPanel() {
         <StatTile label="Takeaways awaiting a decision" value={String(takeaways.length)} />
         <StatTile label="Of those, actionable" value={String(actionable.length)} />
         <StatTile label="Principles" value={String(principles.length)} />
+        <StatTile label="Unsorted in Todoist" value={String(unsortedCount)} />
       </StatRow>
 
       {initiatives.length > 0 ? (
@@ -462,8 +476,17 @@ async function RescorePanel() {
 
 async function RefillPanel() {
   const nameOf = await areaNamer();
-  const focus = await apiFetch({ path: '/focus', schema: focusSchema });
+  const [focus, objectives] = await Promise.all([
+    apiFetch({ path: '/focus', schema: focusSchema }),
+    apiFetch({
+      path: '/objectives',
+      query: { limit: String(LIMIT) },
+      schema: objectivePageSchema,
+    }),
+  ]);
   if (!focus.ok) return <ApiFailureState failure={focus} surface="the free slots" />;
+  // Which key result each candidate serves — a weekly question (S12).
+  const serves = objectives.ok ? servedKeyResults(objectives.data.items) : null;
 
   const free = focus.data.slotsByArea.filter((slot) => slot.used < slot.limit);
   // The suggestions are what the ranking would put in those slots; the queue
@@ -511,6 +534,11 @@ async function RefillPanel() {
                     name={nameOf(entry.initiative.areaKey)}
                   />
                   <span className="text-xs text-ink-muted">{entry.reason}</span>
+                  {serves === null ? null : (
+                    <span className="basis-full text-xs text-ink-secondary">
+                      {servesLine(serves[entry.initiative.id])}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -747,13 +775,21 @@ async function OrphansPanel() {
             <p className="text-sm text-ink-secondary">None.</p>
           ) : (
             orphanedObjectives.map((objective) => (
-              <Link
-                key={objective.id}
-                href={`/objectives/${objective.id}`}
-                className="text-sm text-ink hover:underline"
-              >
-                {objective.title}
-              </Link>
+              <div key={objective.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <Link href={`/objectives/${objective.id}`} className="text-ink hover:underline">
+                  {objective.title}
+                </Link>
+                {orphanReason(objective) === 'no_key_result' ? (
+                  <Link
+                    href={addKeyResultHref(objective.id)}
+                    className="text-xs text-ink-secondary underline underline-offset-2"
+                  >
+                    no key result yet — add one
+                  </Link>
+                ) : (
+                  <span className="text-xs text-ink-muted">nothing linked to its key results</span>
+                )}
+              </div>
             ))
           )}
         </div>
@@ -781,7 +817,9 @@ async function OrphansPanel() {
       <p className="max-w-prose text-xs text-ink-muted">
         Neither direction is automatically wrong. Upkeep, a favour and an outside deadline are all
         legitimately unattached; an objective authored this morning has nothing behind it yet. The
-        question is whether any of them surprises you.
+        question is whether any of them surprises you. Work serves key results, not objectives, so
+        an objective with no key result cannot be served at all until one is written — an objective
+        adopted from a page always starts that way.
       </p>
     </PanelCard>
   );

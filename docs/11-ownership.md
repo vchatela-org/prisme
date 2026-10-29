@@ -64,9 +64,10 @@ That is a flow, not shared ownership, and it happens exactly once in this docume
 | Field | Owner | Flow | Notes |
 |---|---|---|---|
 | `title` | **P** | → | Written to the anchor's title |
-| `area_key`, `project_id` | **P** | → | Determines the anchor's project/section |
+| `area_key`, `project_id` | **P** | → | Determines the anchor's project/section. Only an **anchor's** location is prisme's: a plain task's project and section are the task tool's, so prisme never moves one — a task in the task tool's Inbox reaches an area by becoming an initiative's anchor, and then the reconciler moves it (S11) |
 | `status` | **P** | → | Drives anchor priority and existence |
 | `value`, `time_criticality`, `risk`, `size` | **P** | — | Never leave prisme |
+| Whether the estimates are anyone's (`estimated`) | **P** | — | `false` for the placeholder adoption or a capture writes; any estimate written sets it (S5) |
 | `deadline` | **P** | → | Written to the anchor's deadline field |
 | `earliest_start`, `depends_on[]` | **P** | — | Scheduling only |
 | `planned_start`, `planned_end` | **∂** | — | From the schedule engine |
@@ -124,7 +125,7 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | `progress_self` | **P** | → | Self-assessed; **this** is what syncs outward |
 | `progress_computed` | **∂** | — | Shown beside it, **never** written outward |
 | `measurements[]` | **P** | — | Append-only |
-| Key result **anchor task** | **P** | → | So subtasks can hang beneath it |
+| Key result **anchor task** | **P** | → | So subtasks can hang beneath it. Created, linked or bound by the reconciler while its objective is under way. prisme owns its title (the statement), deadline (the period's last day), the `prisme:kr` label and the backlink line; **not** its priority or its location once created. A hand edit of a managed field is a review, not a conflict (S15) |
 | Subtasks under a key result anchor | **T** | ← | Yours |
 
 ## 7. Takeaway and media
@@ -148,7 +149,8 @@ one-owner-per-field, it is what one-owner-per-field costs.
 | A ritual's process page (`ritual.external_page_id`) | **P** | — | A reference, held in prisme and never written to the page (ADR-0016). Set on Rituals, or by linking the page's processes row in Adoption — which is refused while the ritual names a different page, rather than replacing or ignoring it |
 | The process page's area relation (the processes store's area column) | **D** | ← seed | Part of the process page, the document tool's outright (ADR-0016). Read into the adoption candidate; seeds a ritual's area only at adoption. Never written, never read again after, and a later difference is not a conflict: the ritual's area is a different field ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)) |
 | A ritual's recurring task (`entity_external_ref`, kind `task`) | **P** | — | A reference, held in prisme; the task stays the task tool's and nothing is written to it. Set on Rituals, or by linking the task in Adoption — refused while the ritual has a different task, or while another entity holds that one (guard 1). Untying it removes the binding and its link |
-| Ritual adherence series | **∂** | — | The metric neither tool provides: derived from the recurring task's completions, or — for a ritual with no task — recorded by hand on Rituals, which is refused for a ritual that has one |
+| Whether a ritual is fulfilled by its review (`ritual.fulfilled_by_review`) | **P** | — | Set on Rituals. Never together with a recurring task, never for a daily ritual (S3) |
+| Ritual adherence series | **∂** | — | The metric neither tool provides: derived from the recurring task's completions; for a ritual fulfilled by its review, from the closes of review sessions of its cadence, which are prisme's own; otherwise recorded by hand on Rituals, which is refused for a ritual measured either other way |
 | Signals volume | **∂** | — | Counted as noise; excluded from capacity |
 
 ## 9. prisme-only
@@ -160,7 +162,7 @@ No external counterpart. Listed so it is obvious that syncing them would be a mi
 | Scores, all methods and versions | Append-only; history of *how* things were ranked |
 | Event log | Also the security audit trail |
 | Audit of outward writes, and its retention window | What prisme *sent*, one row per call; pruned by age ([ADR-0031](20-decisions/0031-outward-writes-are-audited-and-pruned.md)). The external object's own fields stay the tool's |
-| Review sessions and their decisions | Narrative summary is pushed outward; the structure is not |
+| Review sessions and their decisions | The structure is not pushed. A session links the page its narrative was written in — a reference, never written to — and its summary is copied there by hand from the session (S4); an automatic push to `reviews_db` is not built |
 | Reconciliation state: sync token, watermark, `last_applied`, conflict ledger | In PostgreSQL |
 | Adoption decisions, including "ignored" | So the adoption queue converges |
 | API tokens, sessions | See [`14-threat-model.md`](14-threat-model.md) |

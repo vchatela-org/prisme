@@ -16,13 +16,15 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { RecurringTasks } from '@/lib/contracts';
-import { ritualTaskChoice } from '@/lib/rituals-view';
+import { reviewCanFulfil, reviewName, ritualTaskChoice } from '@/lib/rituals-view';
 import { saveRitual } from './ritual-actions';
 
 /** Radix refuses an empty item value, so "no task" needs a value of its own. */
 const NO_TASK = '__none__';
 /** The task the ritual has when the tool no longer lists it, shown as the current value. */
 const ELSEWHERE = '__elsewhere__';
+/** Closing the review of its cadence (S3). */
+const BY_REVIEW = '__review__';
 
 export interface RitualDraft {
   readonly id?: string | undefined;
@@ -33,14 +35,17 @@ export interface RitualDraft {
   readonly page: string;
   /** The recurring task it is measured from; null for a habit recorded by hand. */
   readonly task: string | null;
+  /** Closing the review of its cadence is its completion (S3). Never with a task. */
+  readonly byReview: boolean;
 }
 
 /**
  * Create a ritual, or change one. The area is fixed once it exists.
  *
- * Its recurring task is picked from the task tool's open recurring tasks, its
- * own area's first (S2) — the binding adherence is read through. With none, the
- * habit is recorded by hand on its row.
+ * What it is measured from is one choice: a recurring task picked from the
+ * task tool's open ones, its own area's first (S2) — the binding adherence is
+ * read through; closing the review of its cadence in prisme (S3); or nothing,
+ * and the habit is recorded by hand on its row.
  */
 export function RitualForm({
   initial,
@@ -78,7 +83,7 @@ export function RitualForm({
         tone: result.ok ? 'success' : 'error',
       });
       if (result.ok) {
-        if (!editing) setDraft({ ...initial, name: '', page: '', task: null });
+        if (!editing) setDraft({ ...initial, name: '', page: '', task: null, byReview: false });
         onDone?.();
         router.refresh();
       }
@@ -126,7 +131,9 @@ export function RitualForm({
           <Select
             value={draft.cadence}
             onValueChange={(value) => {
-              setDraft({ ...draft, cadence: value as RitualDraft['cadence'] });
+              const cadence = value as RitualDraft['cadence'];
+              // A daily habit has no review that comes round as often.
+              setDraft({ ...draft, cadence, byReview: draft.byReview && reviewCanFulfil(cadence) });
             }}
           >
             <SelectTrigger id={`${prefix}-cadence`}>
@@ -173,38 +180,59 @@ export function RitualForm({
         </FieldHint>
       </Field>
       <Field>
-        <Label htmlFor={`${prefix}-task`}>Its recurring task</Label>
-        {choice.state === 'choose' ? (
-          <Select
-            value={choice.chosen ?? (choice.elsewhere === null ? NO_TASK : ELSEWHERE)}
-            onValueChange={(value) => {
-              if (value === ELSEWHERE) return;
-              setDraft({ ...draft, task: value === NO_TASK ? null : value });
-            }}
-          >
-            <SelectTrigger id={`${prefix}-task`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {choice.elsewhere === null ? null : (
-                <SelectItem value={ELSEWHERE} disabled>
-                  A task Todoist no longer lists as recurring
-                </SelectItem>
-              )}
-              <SelectItem value={NO_TASK}>None — record it by hand here</SelectItem>
-              {choice.options.map((option) => (
-                <SelectItem key={option.id} value={option.id} disabled={option.takenBy !== null}>
-                  {option.title === '' ? 'Untitled' : option.title}
-                  {option.takenBy === null ? '' : ` — held by ${option.takenBy}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
+        <Label htmlFor={`${prefix}-task`}>Measured from</Label>
+        <Select
+          value={
+            draft.byReview
+              ? BY_REVIEW
+              : choice.state === 'choose'
+                ? (choice.chosen ?? (choice.elsewhere === null ? NO_TASK : ELSEWHERE))
+                : choice.current === null
+                  ? NO_TASK
+                  : ELSEWHERE
+          }
+          onValueChange={(value) => {
+            if (value === ELSEWHERE) return;
+            if (value === BY_REVIEW) {
+              setDraft({ ...draft, task: null, byReview: true });
+              return;
+            }
+            setDraft({ ...draft, task: value === NO_TASK ? null : value, byReview: false });
+          }}
+        >
+          <SelectTrigger id={`${prefix}-task`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(choice.state === 'choose' ? choice.elsewhere : choice.current) === null ? null : (
+              <SelectItem value={ELSEWHERE} disabled>
+                {choice.state === 'choose'
+                  ? 'A task Todoist no longer lists as recurring'
+                  : 'The task it has now'}
+              </SelectItem>
+            )}
+            <SelectItem value={NO_TASK}>None — record it by hand here</SelectItem>
+            {reviewCanFulfil(draft.cadence) ? (
+              <SelectItem value={BY_REVIEW}>
+                Closing {reviewName(draft.cadence)} in prisme
+              </SelectItem>
+            ) : null}
+            {choice.state === 'choose'
+              ? choice.options.map((option) => (
+                  <SelectItem key={option.id} value={option.id} disabled={option.takenBy !== null}>
+                    {option.title === '' ? 'Untitled' : option.title}
+                    {option.takenBy === null ? '' : ` — held by ${option.takenBy}`}
+                  </SelectItem>
+                ))
+              : null}
+          </SelectContent>
+        </Select>
         <FieldHint>
-          {choice.state === 'unreadable'
-            ? `Todoist could not be read (${choice.failure}), so the task cannot be chosen now. ${editing ? 'The task this ritual has is kept.' : 'Define it without one and choose it later.'}`
-            : 'Adherence counts this task’s completions, from the next daily capacity refresh. Open recurring tasks, this area’s first.'}
+          {draft.byReview
+            ? `Each ${draft.cadence} review session you close on Reviews counts as this period done. Sessions already closed count too.`
+            : choice.state === 'unreadable'
+              ? `Todoist could not be read (${choice.failure}), so its tasks cannot be chosen now. ${editing ? 'The task this ritual has is kept.' : 'Define it without one and choose it later.'}`
+              : 'A recurring task’s completions count from the next daily capacity refresh. Open recurring tasks, this area’s first.'}
         </FieldHint>
       </Field>
       <div>

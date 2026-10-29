@@ -110,9 +110,17 @@ export function adaptProjects(
   options: AdaptOptions,
 ): readonly ExternalObject[] {
   const counts = new Map<string, number>();
+  const sectionAreas = new Map<string, Set<string>>();
   for (const section of sections) {
     if (section.archived) continue;
     counts.set(section.projectId, (counts.get(section.projectId) ?? 0) + 1);
+    // Where the section's tasks land — its own mapping, else its project's,
+    // the rule attribution reads by. Two different answers is a split (S10).
+    const area = areaOfLocation(options, section.projectId, section.externalId);
+    if (area === undefined) continue;
+    const areas = sectionAreas.get(section.projectId) ?? new Set<string>();
+    areas.add(area);
+    sectionAreas.set(section.projectId, areas);
   }
 
   return projects.map((project) => {
@@ -126,6 +134,7 @@ export function adaptProjects(
       ...(lane === undefined ? {} : { areaLane: lane }),
       closed: project.archived,
       sectionCount: counts.get(project.externalId) ?? 0,
+      sectionAreaCount: sectionAreas.get(project.externalId)?.size ?? 0,
     } satisfies ExternalObject;
   });
 }

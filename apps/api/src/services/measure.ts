@@ -15,7 +15,7 @@ import {
   type ObjectiveStatus,
   type Year,
 } from '@prisme/domain';
-import type { areaCompletionsDto, balanceDto } from '../dto/area.js';
+import type { areaCompletionsDto, balanceDto, unattributedCompletionsDto } from '../dto/area.js';
 import { notFound } from '../http/errors.js';
 import type { kpiDto } from '../dto/views.js';
 import type {
@@ -50,6 +50,7 @@ import { toDomainArea } from './convert.js';
 
 export type BalanceShape = z.infer<typeof balanceDto>;
 export type AreaCompletionsShape = z.infer<typeof areaCompletionsDto>;
+export type UnattributedShape = z.infer<typeof unattributedCompletionsDto>;
 export type KpiShape = z.infer<typeof kpiDto>;
 
 export interface MeasureConfig {
@@ -69,6 +70,11 @@ export interface MeasureService {
     weeks: number | undefined,
     now: Date,
   ): Promise<AreaCompletionsShape>;
+  /**
+   * Completions {@link balance} counted toward no area, over the window it
+   * measured (S9) — the same arguments, the same window code.
+   */
+  unattributed(year: number, weeks: number | undefined, now: Date): Promise<UnattributedShape>;
   /** The range is explicit, so this one needs no clock of its own. */
   kpi(from: string, to: string, bucket: 'week' | 'month'): Promise<KpiShape>;
 }
@@ -327,6 +333,36 @@ export function createMeasureService(store: ApiStore, config: MeasureConfig): Me
           runHoursPerWeek: entry.runHoursPerWeek ?? null,
           runBudgetHoursPerWeek: entry.runBudgetHoursPerWeek ?? null,
         })),
+      };
+    },
+
+    async unattributed(year, weeks, now): Promise<UnattributedShape> {
+      const { windowWeeks, asOf, windowStart } = measurementWindow(
+        year,
+        weeks,
+        now,
+        config.capacityWindowWeeks,
+      );
+      const observed = await observedCapacity({
+        store,
+        windowWeeks,
+        windowStart,
+        asOf,
+        coverage: await store.capacity.coverage(),
+      });
+      // The anchor subtree holds only work prisme already attributes, so before
+      // a backfill there is nothing unattributed to find, and it says so.
+      const items =
+        observed.source === 'capacity_week'
+          ? await store.capacity.unattributed(observed.from, observed.until)
+          : [];
+      return {
+        from: dayText(observed.from),
+        to: dayText(asOf),
+        windowWeeks,
+        observedSource: observed.source,
+        total: items.reduce((sum, item) => sum + item.completions, 0),
+        items: items.map((item) => ({ ...item })),
       };
     },
 

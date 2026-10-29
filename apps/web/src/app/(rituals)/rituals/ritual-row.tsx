@@ -4,7 +4,7 @@ import { AreaBadge, Button, useToast } from '@prisme/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { RecurringTasks, Ritual } from '@/lib/contracts';
-import { periodLine, stepCompletions } from '@/lib/rituals-view';
+import { measuredFromLine, periodLine, stepCompletions } from '@/lib/rituals-view';
 import { recordPeriod } from './ritual-actions';
 import { RitualForm, type RitualDraft } from './ritual-form';
 
@@ -13,6 +13,7 @@ export function RitualRow({
   areaName,
   latestAdherencePct,
   currentPeriod,
+  measuredFrom,
   taskTitle,
   pageHref,
   areas,
@@ -23,6 +24,7 @@ export function RitualRow({
   areaName: string;
   latestAdherencePct: number | null;
   currentPeriod: Ritual['currentPeriod'];
+  measuredFrom: Ritual['measuredFrom'];
   /** The task's title when Todoist listed it; null when it did not or there is none. */
   taskTitle: string | null;
   pageHref: string | null;
@@ -53,13 +55,11 @@ export function RitualRow({
             )}
           </span>
           <span className="text-xs text-ink-muted">
-            {draft.task === null
-              ? 'Recorded by hand — no recurring task'
-              : `Measured from ${taskTitle === null ? 'a Todoist task' : `“${taskTitle}”`} in Todoist`}
+            {measuredFromLine({ cadence: draft.cadence, measuredFrom }, taskTitle)}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {draft.task === null ? (
+          {measuredFrom === 'hand' ? (
             <PeriodCounter id={draft.id} cadence={draft.cadence} period={currentPeriod} />
           ) : null}
           <Button

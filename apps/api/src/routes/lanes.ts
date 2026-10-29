@@ -3,6 +3,7 @@ import { calendarDate } from '../dto/common.js';
 import { InitiativeDto } from '../dto/initiative.js';
 import {
   AdherenceSeriesDto,
+  adoptInboxTaskBody,
   createRitualBody,
   promoteTakeawayBody,
   recordAdherenceBody,
@@ -10,6 +11,7 @@ import {
   RitualDto,
   RitualListDto,
   TakeawayPageDto,
+  TaskToolInboxDto,
   updateRitualBody,
 } from '../dto/lanes.js';
 import { defineRoute, idParam, noQuery, pageQuery, type ApiRoute } from './kit.js';
@@ -97,7 +99,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'write:ritual',
     summary: 'Define a ritual',
     description:
-      'With `externalTaskId`, the ritual is measured from that recurring task’s completions from the next capacity refresh on; `409` if another entity holds the task, and then no ritual is made.',
+      'With `externalTaskId`, the ritual is measured from that recurring task’s completions from the next capacity refresh on; `409` if another entity holds the task, and then no ritual is made. With `fulfilledByReview`, closing a review session of its cadence is its completion, and its adherence is rebuilt from the sessions already closed; `422` for a daily ritual or together with a task — a ritual has one source.',
     body: createRitualBody,
     response: RitualDto,
     handle: (context, services) =>
@@ -109,6 +111,7 @@ export const laneRoutes: readonly ApiRoute[] = [
           targetAdherencePct: context.body.targetAdherencePct,
           externalPageId: context.body.externalPageId,
           externalTaskId: context.body.externalTaskId,
+          fulfilledByReview: context.body.fulfilledByReview,
         },
         context.now,
       ),
@@ -119,9 +122,9 @@ export const laneRoutes: readonly ApiRoute[] = [
     method: 'patch',
     path: '/rituals/:id',
     scope: 'write:ritual',
-    summary: 'Change a ritual’s name, cadence, target, process page or recurring task',
+    summary: 'Change a ritual’s name, cadence, target, process page, or what it is measured from',
     description:
-      'Tying a recurring task (`externalTaskId`) binds it to the ritual — the binding adherence is read through — and records the link; another task replaces it, and `null` unties it so it can be offered again. Nothing is written to the task tool. `409` if another entity holds the task, and then nothing changes.',
+      'Tying a recurring task (`externalTaskId`) binds it to the ritual — the binding adherence is read through — and records the link; another task replaces it, and `null` unties it so it can be offered again. Nothing is written to the task tool. `409` if another entity holds the task, and then nothing changes. `fulfilledByReview: true` makes closing a review session of its cadence the completion and rebuilds its adherence from the sessions already closed; `422` while it has a task (untie it in the same write) or for a daily cadence.',
     params: idParam,
     body: updateRitualBody,
     response: RitualDto,
@@ -140,6 +143,41 @@ export const laneRoutes: readonly ApiRoute[] = [
     query: noQuery,
     response: RecurringTasksDto,
     handle: (_context, services) => services.lanes.recurringTasks(),
+  }),
+
+  defineRoute({
+    operationId: 'listTaskToolInbox',
+    method: 'get',
+    path: '/task-tool/inbox',
+    scope: 'read:focus',
+    summary: 'The task tool’s own Inbox: unsorted tasks in no area',
+    description:
+      'Read live: the open top-level tasks of the project the task tool marks as the Inbox — an identifier, a title and what in prisme already holds it, nothing else. Its work counts toward no area until sorted (S11). When the tool cannot be read the list is empty and `failure` says why.',
+    query: noQuery,
+    response: TaskToolInboxDto,
+    handle: (_context, services) => services.lanes.taskToolInbox(),
+  }),
+
+  defineRoute({
+    operationId: 'adoptTaskToolInboxTask',
+    method: 'post',
+    path: '/task-tool/inbox/:id/initiative',
+    scope: 'write:initiative',
+    summary: 'Make an unsorted Inbox task an initiative of an area',
+    description:
+      'Adopted, never created: an initiative (`inbox`, unestimated) linked to the existing task, as the adoption queue’s *Adopt* records it. The next reconciler pass binds the task and, since the Inbox is in no area, moves it into the area — a task the task tool keeps as a plain task is its own to move, so this is the only move prisme makes. `409` when anything in prisme already holds or links the task; `422` for a Run or Signals lane.',
+    // The task tool's identifier, not one of prisme's: never a uuid.
+    params: z.strictObject({ id: z.string().min(1).max(200) }),
+    body: adoptInboxTaskBody,
+    status: 201,
+    response: InitiativeDto,
+    handle: (context, services) =>
+      services.lanes.adoptInboxTask(
+        context.params.id,
+        { title: context.body.title, areaKey: context.body.areaKey },
+        context.identity,
+        context.now,
+      ),
   }),
 
   defineRoute({
@@ -164,7 +202,7 @@ export const laneRoutes: readonly ApiRoute[] = [
     scope: 'write:ritual',
     summary: 'Record one period’s opportunities and completions',
     description:
-      'For a habit that is not a task: *done this period* on Rituals writes here. A ritual measured from its recurring task answers `409` — the capacity refresh rewrites its periods from the task’s completions.',
+      'For a habit that is not a task: *done this period* on Rituals writes here. A ritual measured from its recurring task answers `409` — the capacity refresh rewrites its periods from the task’s completions — and so does one fulfilled by its review, whose periods each close rebuilds.',
     params: idParam,
     body: recordAdherenceBody,
     status: 200,

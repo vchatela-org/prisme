@@ -60,6 +60,21 @@ export interface PassOutcome {
   /** Objects the full view found changed that the incremental stream missed. */
   readonly drift: number;
   readonly full: boolean;
+  /** Why the pass refused its plan, when it did (S8). Absent means it was not refused. */
+  readonly refusal?: PassRefusal | undefined;
+}
+
+/**
+ * Why a pass refused its whole plan, as a kind and a count — never a title.
+ *
+ * `create_threshold` is the one worth a banner: with `SYNC_CREATE_THRESHOLD`
+ * at 0, one initiative reaching `next` without a task refuses every write of
+ * the pass, anchor updates included.
+ */
+export interface PassRefusal {
+  readonly kind: 'create_threshold' | 'write_freeze';
+  /** How many objects the refused plan would have created. */
+  readonly creates: number;
 }
 
 export interface SyncEvent {
@@ -106,6 +121,16 @@ export interface ReconcilerStore {
 
   /** Binds an existing external object to an entity. **Creates nothing outward.** */
   bindExternalRef(input: BindRefInput): Promise<void>;
+  /**
+   * Binds a task to a key result as its anchor (S15): `entity_external_ref`
+   * and `key_result.external_anchor_id`, and the link when one was decided.
+   */
+  bindKeyResultRef(input: {
+    readonly keyResultId: string;
+    readonly externalId: string;
+    readonly link?: BindRefInput['link'];
+    readonly at: Date;
+  }): Promise<void>;
   /** The intent channel's capture: a prisme row for a task that already exists. */
   captureInitiative(input: CaptureInput): Promise<InitiativeId>;
   /**

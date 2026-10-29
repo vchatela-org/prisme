@@ -305,6 +305,29 @@ export function orphanObjectives(objectives: readonly Objective[]): readonly Obj
   );
 }
 
+/**
+ * Why an orphaned objective has nothing behind it (S6).
+ *
+ * `no_key_result` is the rule, not a gap in the data: initiatives serve key
+ * results, never an objective directly (docs/10-model.md §7), so an objective
+ * with none — every one adopted from a page arrives that way — cannot be
+ * served by anything until one is written. `unserved` has key results and no
+ * work linked to any of them, which is a choice made at a weekly refill.
+ */
+export type OrphanReason = 'no_key_result' | 'unserved';
+
+export function orphanReason(objective: Objective): OrphanReason {
+  return objective.keyResults.length === 0 ? 'no_key_result' : 'unserved';
+}
+
+/** The element id of an objective's *Add a key result* section. */
+export const ADD_KEY_RESULT_ANCHOR = 'add-key-result';
+
+/** Where an objective's *Add a key result* form is. */
+export function addKeyResultHref(objectiveId: string): string {
+  return `/objectives/${encodeURIComponent(objectiveId)}#${ADD_KEY_RESULT_ANCHOR}`;
+}
+
 /** Every initiative id named by any key result of any objective given. */
 export function servedInitiativeIds(objectives: readonly Objective[]): ReadonlySet<string> {
   const ids = new Set<string>();
@@ -399,4 +422,49 @@ export function currentPeriod(type: 'annual' | 'monthly', today: string): string
  */
 export function isOpenObjective(status: Objective['status']): boolean {
   return status === 'draft' || status === 'active';
+}
+
+/** A key result an initiative serves, as a row names it (S12). */
+export interface ServedKeyResult {
+  readonly keyResultId: string;
+  readonly statement: string;
+  readonly objectiveId: string;
+  readonly objectiveTitle: string;
+}
+
+/**
+ * Which key results each initiative serves, over the open objectives (S12).
+ *
+ * The weekly refill picks the next `now`, and "does next week's work serve a
+ * key result?" is a weekly question — but the link only appeared in the
+ * monthly orphans step. This is the same `servedBy` the orphans step reads,
+ * turned round so a row can say it. A plain object rather than a `Map`, so it
+ * crosses from a server component to a client one.
+ */
+export function servedKeyResults(
+  objectives: readonly Objective[],
+): Readonly<Record<string, readonly ServedKeyResult[]>> {
+  const served: Record<string, ServedKeyResult[]> = {};
+  for (const objective of objectives) {
+    if (!isOpenObjective(objective.status)) continue;
+    for (const keyResult of objective.keyResults) {
+      for (const initiativeId of keyResult.servedBy) {
+        (served[initiativeId] ??= []).push({
+          keyResultId: keyResult.id,
+          statement: keyResult.statement,
+          objectiveId: objective.id,
+          objectiveTitle: objective.title,
+        });
+      }
+    }
+  }
+  return served;
+}
+
+/** "Serves …" for a row, or that it serves none — never silence (S12). */
+export function servesLine(served: readonly ServedKeyResult[] | undefined): string {
+  if (served === undefined || served.length === 0) return 'Serves no key result';
+  const first = served[0] as ServedKeyResult;
+  const more = served.length > 1 ? ` (+${String(served.length - 1)} more)` : '';
+  return `Serves “${first.statement}” — ${first.objectiveTitle}${more}`;
 }

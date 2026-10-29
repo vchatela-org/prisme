@@ -1,6 +1,7 @@
 import type postgres from 'postgres';
 import {
   homeLocation,
+  keyResultAnchorDeadline,
   type CalendarDate,
   type InitiativeId,
   type InitiativeStatus,
@@ -12,6 +13,7 @@ import {
   lastAppliedKey,
   locationKey,
   type DesiredAnchor,
+  type DesiredKeyResultAnchor,
   type DesiredState,
   type LastAppliedIndex,
   type LastAppliedWrite,
@@ -55,7 +57,9 @@ import { recordPassOutcome } from './run-state.js';
  * or how valuable it is, but the four numbers are not nullable — an initiative
  * without them cannot be scored at all. The middle of the scale is the least
  * wrong placeholder: it ranks the item in the middle of the inbox, where a
- * human triages it at the next review and replaces every one of these.
+ * human triages it at the next review and replaces every one of these. The row
+ * says so (`estimated = false`, S5), so the placeholder is never read as a
+ * judgement and the initiative is held out of `now` until it is estimated.
  */
 const CAPTURE_ESTIMATE = 3;
 
@@ -128,7 +132,28 @@ type Sql = postgres.Sql;
 /** The same interface inside a transaction — what `begin` hands its callback. */
 type Tx = postgres.TransactionSql;
 
-export function createPostgresStore(client: Sql): ReconcilerStore {
+export function createPostgresStore(
+  client: Sql,
+  options: {
+    /**
+     * The calendar day, `YYYY-MM-DD`, that decides whether an objective is
+     * under way and so whether its key results want anchors (S15).
+     */
+    readonly today?: () => string;
+    /** The instance's IANA timezone, for {@link today}'s default. UTC when absent. */
+    readonly timezone?: string;
+  } = {},
+): ReconcilerStore {
+  const today =
+    options.today ??
+    (() =>
+      // `en-CA` formats a date as ISO year-month-day.
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: options.timezone ?? 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()));
   return {
     async loadDesired(): Promise<DesiredState> {
       const initiatives = await client<InitiativeRow[]>`
@@ -272,8 +297,53 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
         };
       });
 
+      // Key results of objectives under way, and the task each is bound to
+      // (ADR-0012, S15). `keyResultAnchorDeadline` is the rule for both.
+      const keyResultRows = await client<
+        {
+          id: string;
+          objective_id: string;
+          statement: string;
+          external_anchor_id: string | null;
+          type: 'annual' | 'monthly';
+          period: string;
+          status: 'draft' | 'active' | 'met' | 'missed' | 'dropped';
+          area_key: string;
+        }[]
+      >`
+        select k.id::text, k.objective_id::text, k.statement,
+               coalesce(k.external_anchor_id,
+                        (select r.external_id from entity_external_ref r
+                          where r.prisme_id = k.id::text and r.prisme_kind = 'key_result'
+                            and r.kind = 'task'
+                          order by r.external_id limit 1)) as external_anchor_id,
+               o.type, o.period, o.status, o.area_key
+        from key_result k
+        join objective o on o.id = k.objective_id
+        order by k.id`;
+      const day = today();
+      const keyResultAnchors: DesiredKeyResultAnchor[] = [];
+      for (const row of keyResultRows) {
+        const deadline = keyResultAnchorDeadline(row, day);
+        if (deadline === undefined) continue;
+        const location = locationByArea.get(row.area_key);
+        keyResultAnchors.push({
+          keyResultId: row.id,
+          objectiveId: row.objective_id,
+          statement: row.statement,
+          areaKey: row.area_key,
+          deadline,
+          ...(location === undefined ? {} : { location }),
+          ...(row.external_anchor_id === null ? {} : { externalAnchorId: row.external_anchor_id }),
+          ...(row.external_anchor_id === null && pendingByInitiative.has(row.id)
+            ? { pendingExternalId: pendingByInitiative.get(row.id) }
+            : {}),
+        });
+      }
+
       return {
         anchors,
+        keyResultAnchors,
         areaByLocation,
         boundElsewhere: new Set(elsewhere.map((row) => row.external_id)),
       };
@@ -364,13 +434,34 @@ export function createPostgresStore(client: Sql): ReconcilerStore {
       });
     },
 
+    async bindKeyResultRef(input): Promise<void> {
+      await client.begin(async (tx: Tx) => {
+        await tx`
+          insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+          values (${input.keyResultId}, 'key_result', 'task', ${input.externalId})
+          on conflict do nothing`;
+        await tx`
+          update key_result set external_anchor_id = ${input.externalId}
+          where id = ${input.keyResultId}::uuid`;
+        if (input.link !== undefined) {
+          await tx`
+            insert into entity_link
+              (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+            values (${input.keyResultId}, 'task', ${input.externalId}, ${input.link.matchRule},
+                    ${input.link.confidence}, ${input.link.decidedBy}, ${stamp(input.at)}::timestamptz)
+            on conflict do nothing`;
+        }
+      });
+    },
+
     async captureInitiative(input: CaptureInput): Promise<InitiativeId> {
       const rows = await client<{ id: string }[]>`
         insert into initiative
-          (title, area_key, status, value, time_criticality, risk, size, origin, deadline)
+          (title, area_key, status, value, time_criticality, risk, size, origin, deadline,
+           estimated)
         values (${input.title}, ${input.areaKey}, 'inbox',
                 ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE}, ${CAPTURE_ESTIMATE},
-                'adopted', ${input.deadline ?? null}::date)
+                'adopted', ${input.deadline ?? null}::date, false)
         returning id::text`;
 
       const created = rows[0];

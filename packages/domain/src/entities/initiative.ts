@@ -63,6 +63,11 @@ export interface Initiative {
   readonly origin: Origin;
   readonly doneAt?: CalendarDate | undefined;
   readonly droppedReason?: string | undefined;
+  /**
+   * `false` while the four estimates are the placeholder adoption or a capture
+   * wrote (S5). Absent means estimated: everything created in prisme was.
+   */
+  readonly estimated?: boolean | undefined;
 }
 
 export const initiativeSchema: z.ZodType<Initiative> = z.object({
@@ -85,6 +90,7 @@ export const initiativeSchema: z.ZodType<Initiative> = z.object({
   origin: originSchema,
   doneAt: calendarDateSchema.optional(),
   droppedReason: z.string().min(1).optional(),
+  estimated: z.boolean().optional(),
 });
 
 export function isClosed(initiative: Initiative): boolean {
@@ -102,4 +108,17 @@ export function isClosed(initiative: Initiative): boolean {
  */
 export function isSizedForNow(initiative: Initiative): boolean {
   return initiative.size <= 8;
+}
+
+/**
+ * Whether its estimates are anyone's judgement (S5).
+ *
+ * Adoption and a capture give an initiative the middle of the scale for all
+ * four, because the columns cannot be empty. That placeholder ranks it in the
+ * middle and makes `size ≤ 8` true by construction, so the readiness gate
+ * would pass on a number nobody chose. An unestimated initiative is shown as
+ * such and held out of `now` until somebody estimates it.
+ */
+export function isEstimated(initiative: Initiative): boolean {
+  return initiative.estimated !== false;
 }

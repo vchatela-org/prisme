@@ -175,6 +175,8 @@ export interface InitiativeRecord {
   readonly origin: 'created_in_prisme' | 'adopted';
   readonly doneAt: CalendarDateText | null;
   readonly droppedReason: string | null;
+  /** `false` while the estimates are adoption's or a capture's placeholder (S5). */
+  readonly estimated: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly dependsOn: readonly string[];
@@ -349,6 +351,11 @@ export interface RitualRecord {
    * habit that is not a task, whose adherence is recorded by hand.
    */
   readonly externalTaskId: string | null;
+  /**
+   * Closing a review session of its cadence is its completion (S3). Never with
+   * a task: one source per series.
+   */
+  readonly fulfilledByReview: boolean;
 }
 
 /**
@@ -484,7 +491,11 @@ export type DecideOutcome =
   | { readonly ok: true; readonly record: AdoptionRecord }
   | {
       readonly ok: false;
-      readonly refusal: 'ritual_has_other_page' | 'ritual_has_other_task' | 'task_bound_elsewhere';
+      readonly refusal:
+        | 'ritual_has_other_page'
+        | 'ritual_has_other_task'
+        | 'ritual_fulfilled_by_review'
+        | 'task_bound_elsewhere';
     };
 
 /**
@@ -559,12 +570,25 @@ export interface ConflictRecord {
   readonly actor: 'sync' | 'human';
 }
 
+export interface UnattributedRecord {
+  readonly externalProjectId: string | null;
+  readonly externalSectionId: string | null;
+  readonly completions: number;
+  readonly partlyMapped: boolean;
+}
+
 export interface SyncStateRecord {
   readonly hasTaskToolCursor: boolean;
   readonly documentWatermark: Date | null;
   readonly lastFullPassAt: Date | null;
   readonly updatedAt: Date | null;
   readonly unresolvedConflicts: number;
+  /** Why the last apply pass refused its plan, from `sync_run_state` (S8); null when it did not. */
+  readonly lastRefusal: {
+    readonly kind: 'create_threshold' | 'write_freeze';
+    readonly creates: number;
+    readonly at: Date;
+  } | null;
 }
 
 /**
@@ -675,6 +699,11 @@ export interface ApiStore {
     ): Promise<readonly CapacityCompletionRecord[]>;
     /** `undefined` when no backfill has ever run — a fresh instance. */
     coverage(): Promise<BackfillCoverageRecord | undefined>;
+    /**
+     * Completions in `[from, to)` the refresh attributed to no area, grouped by
+     * location (S9). `partlyMapped`: some section of that project is mapped.
+     */
+    unattributed(from: Date, to: Date): Promise<readonly UnattributedRecord[]>;
   };
 
   readonly initiatives: {
@@ -684,6 +713,21 @@ export interface ApiStore {
     update(id: string, input: UpdateInitiativeInput): Promise<InitiativeRecord | undefined>;
     setStatus(id: string, to: string, reason: string | undefined, at: Date): Promise<void>;
     replaceDependencies(id: string, dependsOn: readonly string[]): Promise<void>;
+    /**
+     * Make an unsorted task in the task tool's Inbox an initiative of an area
+     * (S11), the way the adoption queue's *Adopt* does: the initiative
+     * (`adopted`, `inbox`, unestimated) and a human link to the task, in one
+     * transaction. The reconciler binds the link and moves the task into the
+     * area on its next pass; nothing is created. Refused when anything in
+     * prisme already holds or links the task.
+     */
+    adoptInboxTask(input: {
+      externalTaskId: string;
+      title: string;
+      areaKey: string;
+      actor: 'human' | 'agent';
+      at: Date;
+    }): Promise<{ ok: true; initiativeId: string } | { ok: false; refusal: 'task_taken' }>;
     latestScores(): Promise<readonly ScoreRecord[]>;
     scoreHistory(id: string, limit: number): Promise<readonly ScoreRecord[]>;
     saveScores(scores: readonly ScoreRecord[], activeMethodId: string): Promise<void>;
@@ -906,6 +950,7 @@ export interface ApiStore {
       targetAdherencePct: number;
       externalPageId?: string | undefined;
       externalTaskId?: string | undefined;
+      fulfilledByReview?: boolean | undefined;
       at: Date;
     }): Promise<RitualWriteOutcome>;
     /**
@@ -921,6 +966,7 @@ export interface ApiStore {
         targetAdherencePct?: number | undefined;
         externalPageId?: string | null | undefined;
         externalTaskId?: string | null | undefined;
+        fulfilledByReview?: boolean | undefined;
         at: Date;
       },
     ): Promise<RitualWriteOutcome>;
@@ -932,6 +978,11 @@ export interface ApiStore {
       to?: string,
     ): Promise<readonly AdherenceRecord[]>;
     recordAdherence(record: AdherenceRecord): Promise<void>;
+    /** Upsert a series for one ritual — what its review rebuilds (S3). Other periods stay. */
+    writeAdherence(
+      ritualId: string,
+      periods: readonly Omit<AdherenceRecord, 'ritualId'>[],
+    ): Promise<void>;
   };
 
   readonly ops: {
@@ -955,6 +1006,8 @@ export interface ApiStore {
      * close racing a discard cannot delete a closed session.
      */
     discardOpenReview(id: string): Promise<ReviewRecord | undefined>;
+    /** When each closed session of this cadence was closed — what a ritual fulfilled by it counts (S3). */
+    reviewClosings(cadence: string): Promise<readonly Date[]>;
 
     events(
       filter: {

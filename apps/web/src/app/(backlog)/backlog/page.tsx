@@ -11,7 +11,14 @@ import {
   withChange,
   type RawSearchParams,
 } from '@/lib/backlog-query';
-import { areaListSchema, backlogSchema, focusSchema, type Area } from '@/lib/contracts';
+import {
+  areaListSchema,
+  backlogSchema,
+  focusSchema,
+  objectivePageSchema,
+  type Area,
+} from '@/lib/contracts';
+import { servedKeyResults } from '@/lib/objectives-view';
 import { BacklogFilters } from './backlog-filters';
 import { BacklogTable } from './backlog-table';
 
@@ -40,10 +47,12 @@ export default async function BacklogPage({
 }) {
   const query = parseBacklogQuery(await searchParams);
 
-  const [backlog, areas, focus] = await Promise.all([
+  const [backlog, areas, focus, objectives] = await Promise.all([
     apiFetch({ path: '/backlog', query: toApiQuery(query), schema: backlogSchema }),
     apiFetch({ path: '/areas', schema: areaListSchema }),
     apiFetch({ path: '/focus', schema: focusSchema }),
+    // What each row serves (S12): the open objectives' key results.
+    apiFetch({ path: '/objectives', query: { limit: '100' }, schema: objectivePageSchema }),
   ]);
 
   const areaList: readonly Area[] = areas.ok ? areas.data.items : [];
@@ -104,6 +113,7 @@ export default async function BacklogPage({
             slots={focus.ok ? focus.data.slotsByArea : []}
             limits={focus.ok ? focus.data.limits : undefined}
             nowCount={focus.ok ? focus.data.now.length : 0}
+            serves={objectives.ok ? servedKeyResults(objectives.data.items) : null}
           />
 
           <nav

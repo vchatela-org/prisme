@@ -41,6 +41,7 @@ export const selectionReason = z.enum([
   'area_at_cap',
   'wip_full',
   'blocked',
+  'unestimated',
   'too_large',
   'not_a_candidate',
   ...notUnderWayReason.options,

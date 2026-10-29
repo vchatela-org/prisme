@@ -6,6 +6,7 @@ import {
   type Initiative,
   type InitiativeId,
   isClosed,
+  isEstimated,
   isSizedForNow,
 } from '../entities/initiative.js';
 import type { ProjectId, ProjectStatus } from '../entities/project.js';
@@ -98,6 +99,7 @@ export type SelectionReason =
   | 'area_at_cap'
   | 'wip_full'
   | 'blocked'
+  | 'unestimated'
   | 'too_large'
   | 'not_a_candidate'
   | NotUnderWay;
@@ -270,6 +272,9 @@ export function selectNowSet(
 
     if (entry.blockedBy.length > 0) {
       place(entry, fallback, 'blocked');
+    } else if (!isEstimated(initiative)) {
+      // Its size is a placeholder, so `size ≤ 8` says nothing yet (S5).
+      place(entry, fallback, 'unestimated');
     } else if (!isSizedForNow(initiative)) {
       place(entry, fallback, 'too_large');
     } else if (now.length >= limits.maxNow) {

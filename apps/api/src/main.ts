@@ -57,6 +57,7 @@ const services = createServices({
     baseUrl: config.baseUrl,
     runId: () => currentRunContext()?.runId ?? newRunId(),
     now: () => new Date(),
+    timezone: config.timezone,
     onAuditRecordError: (error: unknown) => {
       logger.error('an outward write could not be recorded in the audit', { error });
     },
@@ -85,6 +86,10 @@ const services = createServices({
       createThreshold: config.sync.createThreshold,
       windowStart: config.sync.windowStart,
       windowEnd: config.sync.windowEnd,
+    },
+    features: {
+      readingPipeline: config.doctoolTakeawayTypeProperty !== undefined,
+      declaredDurations: config.doctoolDurationProperty !== undefined,
     },
   },
 });

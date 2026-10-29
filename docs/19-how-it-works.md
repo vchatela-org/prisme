@@ -114,7 +114,7 @@ optional **earliest start**, and dependencies on other initiatives.
 | Object | What it is | Comes from | Linked to |
 |---|---|---|---|
 | **Objective** | What a year or a month is for. Type `annual` or `monthly`, a period, a status (`draft`, `active`, `met`, `missed`, `dropped`) | Created on Objectives, or adopted from a page of the objectives database whose dates cover exactly one year or one month | Its page keeps the prose; prisme writes the page's date column from the period |
-| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. Its own anchor task is specified but not built yet (S15) |
+| **Key result** | A measurable component of an objective: statement, target, unit, **self-assessed progress 0–100** | Created under its objective | Initiatives **serve** it, and its computed progress comes from them. It has its own anchor task in the task tool while its objective is under way, for subtasks (S15) |
 | **Takeaway** | An idea from something read or watched. *Principle* stays in the document tool; *action* becomes an Inbox item | Read from the takeaways database | Promotion makes an initiative linked back to it |
 
 The thread from intent to work runs **objective → key result → initiative**. An initiative serves a
@@ -139,9 +139,9 @@ exists to show.
 
 A ritual joins two external things: its **process page** (the written procedure, owned by the
 document tool, which also declares a duration) and its **recurring task** (owned by the task tool,
-whose completions are the adherence data). Both are chosen on Rituals. A habit that is not a task
-has no recurring task and is recorded by hand there, one period at a time. prisme owns only the
-adherence series.
+whose completions are the adherence data). Both are chosen on Rituals. A ritual that *is* a review —
+the weekly review, say — is measured by closing that review in prisme instead (S3), and a habit that
+is neither is recorded by hand there, one period at a time. prisme owns only the adherence series.
 
 ### 3.5 The rhythm
 
@@ -205,7 +205,7 @@ What becomes what:
 | Task labelled `prisme`, in an area's location | Initiative at `inbox`, anchored to that task — made by the next sync pass, without a queue decision |
 | Dedicated task-tool project with sections | Project |
 | Page in the objectives database, dated exactly one year or month | Objective (`draft` until its period starts) |
-| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does, and *Convert to key result* on its page turns it into one, task included (S1). The link is recorded; nothing manages the task as an anchor yet (S15) |
+| An objective or key result kept **as a task** | Key result. A task titled as a key result is proposed against it; one titled as an objective is queued as a key result of it, to be written first — then *Link*. Unlabelled tasks only: the `prisme` label still makes an initiative, marked *Looks like a key result* when it does, and *Convert to key result* on its page turns it into one, task included (S1). The next pass binds the link: the task becomes the key result's anchor (S15) |
 | Page in the processes database | Ritual — by *Link*, after creating it on Rituals |
 | A recurring task that is a habit | A ritual's **recurring task** — picked on Rituals (*Its recurring task*), or *Link* from the queue when it is labelled as a ritual. Unlabelled recurring tasks are left in place, as Run |
 | Action takeaway | Initiative — promoted from the Inbox, then *Merge* the row onto it |
@@ -353,7 +353,7 @@ The cadences are deliberately different questions, not the same review at differ
 | Clear the conflict ledger | Every prisme-owned field changed outside prisme | Who was right |
 | Look ahead at deadlines | Deadlines, and what the schedule says cannot make it | Re-plan, re-scope |
 | Re-score what changed | The ranking, estimates editable | New estimates — appends a score row |
-| Refill free `now` slots | Free slots per area and what the ranking proposes | Which initiatives become `now` |
+| Refill free `now` slots | Free slots per area, what the ranking proposes, and the key result each candidate serves | Which initiatives become `now` |
 | Record decisions | — | The decisions, in words; closing snapshots capacity |
 
 Planning the week **into days** — due dates, calendar — is deliberately not a step: it happens in
@@ -386,8 +386,8 @@ The monthly set over the year, then **Allocate next year**: the only moment a we
 - **Areas whose work never becomes a task read as starved.** Relationships and health often live
   outside any task list. The balance factor errs toward surfacing them, which is tolerable — but it
   is a lens, not a verdict.
-- **Adherence exists only for rituals that are measured**: tied to a recurring task, or recorded by
-  hand with *done this period*. A newly tied task counts from the next daily capacity refresh, over
+- **Adherence exists only for rituals that are measured**: tied to a recurring task, fulfilled by
+  their review, or recorded by hand with *done this period*. A newly tied task counts from the next daily capacity refresh, over
   its four-week window; older periods fill in only with a backfill.
 - **Objective attainment covers objectives under way** in the range: no drafts, nothing from a
   later period.
@@ -405,19 +405,19 @@ ADRs, some may be answered by copy alone.
 |---|---|---|
 | S1 | Objectives kept as tasks take the *initiative* door — matched across kinds, flagged on the label path, and convertible. **Done** | Model gap |
 | S2 | A ritual cannot be tied to its recurring task from any screen — picked on Rituals, bound by *Link*, or recorded by hand. **Done** | Missing surface |
-| S3 | prisme's own review does not count as the review ritual | Model gap |
-| S4 | The review's "push the narrative" has no destination | Unfinished |
-| S5 | Adopted initiatives all score the same, and nothing says so | Signal gap |
-| S6 | An objective without a key result can never be served | Model rule, unexplained |
-| S7 | A freshly adopted instance has an empty Focus with no pointer | Onboarding |
-| S8 | Deployment settings silently switch features off | Onboarding |
-| S9 | A project mapped only by section leaves its root tasks in no area | Measurement gap |
-| S10 | Multi-area general projects are offered as Projects | Queue noise |
-| S11 | The task tool's own inbox has no home in prisme | Model gap |
-| S12 | The link from work to key results is examined monthly, but chosen weekly | Cadence fit |
-| S13 | There is no map of the objects | Documentation |
-| S14 | The specs disagree on whether Signals count toward capacity | Spec drift |
-| S15 | Key results have no anchor task yet | Spec ahead of code |
+| S3 | prisme's own review does not count as the review ritual — a ritual can be fulfilled by closing its review. **Done** | Model gap |
+| S4 | The review's "push the narrative" has no destination — a session links its page and copies its summary there. **Done** | Unfinished |
+| S5 | Adopted initiatives all score the same, and nothing says so — *Unestimated* shows, and such work is held out of `now`. **Done** | Signal gap |
+| S6 | An objective without a key result can never be served — the rule is stated where it bites, with *add a key result*. **Done** | Model rule, unexplained |
+| S7 | A freshly adopted instance has an empty Focus with no pointer — it names the Inbox count and links to it. **Done** | Onboarding |
+| S8 | Deployment settings silently switch features off — *Settings → Features*, and a banner when a pass is refused for its creations. **Done** | Onboarding |
+| S9 | A project mapped only by section leaves its root tasks in no area — Areas counts them and offers *map the rest*. **Done** | Measurement gap |
+| S10 | Multi-area general projects are offered as Projects — left out of the queue. **Done** | Queue noise |
+| S11 | The task tool's own inbox has no home in prisme — listed as *Unsorted in Todoist*, adoptable into an area. **Done** | Model gap |
+| S12 | The link from work to key results is examined monthly, but chosen weekly — the served key result is on the refill and the Backlog. **Done** | Cadence fit |
+| S13 | There is no map of the objects — this document, linked from Settings and Adoption. **Done** | Documentation |
+| S14 | The specs disagree on whether Signals count toward capacity — corrected to ADR-0014: they do not. **Done** | Spec drift |
+| S15 | Key results have no anchor task yet — the reconciler creates, links or binds one while the objective is under way. **Done** | Spec ahead of code |
 
 **S1 · Objectives kept as tasks take the *initiative* door.** [`13-migration.md`](13-migration.md)
 says an objective or key result stored as a task becomes a **key result** anchored to that task. In
@@ -437,8 +437,8 @@ like a key result** on the Inbox and its page, with the reason ([`10-model.md`](
 And any open initiative can be **converted to a key result** from its page
 (`POST /initiatives/:id/convert-to-key-result`): the key result is made under an open objective,
 the initiative's task moves to it, and the initiative is dropped with a reason naming what it
-became. From then on the reconciler leaves that task alone — the label it kept is not a request, and
-nothing writes to it as an anchor (S15). All three directions are built; S1 is closed.
+became. From then on the label it kept is not a request, and — since S15 — the task is managed as
+the key result's anchor. All three directions are built; S1 is closed.
 
 **S2 · A ritual cannot be tied to its recurring task from any screen.** Adherence is computed from
 the completions of the ritual's recurring task, and the declared duration of its process page only
@@ -466,6 +466,13 @@ periods the refresh rewrites. S2 is closed.
 records decisions and a capacity snapshot, and adds nothing to the adherence of a *weekly review*
 ritual. The product's central ritual is the one it cannot see. **Explore:** let a ritual be
 *fulfilled by* a review cadence, so closing a session is the completion.
+**Built:** a ritual's *Measured from* on Rituals offers **Closing the weekly review in prisme** (its
+own cadence's review; never for a daily ritual), stored as `ritual.fulfilled_by_review`
+(migration 0020). Closing a session of that cadence rebuilds the ritual's adherence whole from every
+closed session — `reviewAdherence` in `@prisme/domain` — so the sessions closed before it was chosen
+count, a skipped period reads as a zero, and a lost rebuild is healed by the next close. A ritual has
+one source: one fulfilled by its review takes no task, by *Link* or on Rituals, and refuses a period
+recorded by hand. S3 is closed.
 
 **S4 · The review's "push the narrative" has no destination.** The last step of every cadence is
 named *record decisions and push the narrative*, and the *Reviews* role can be bound — but nothing
@@ -473,23 +480,50 @@ writes there yet ([`18-user-guide.md`](18-user-guide.md) §2.3: *nothing yet*). 
 history lives in the document tool must either keep doing the review there or keep two records.
 **Explore:** on close, add a page to the reviews database from its template with the decisions and
 the snapshot — or let a session link the page it was written in.
+**Built, the second way:** a review session links **its page** in the document tool, on the
+review's last step or afterwards on *Review history* (`PATCH /reviews/:id` with `externalPageId`,
+settable after the close, `null` to unlink), and **Copy summary** puts the session's artefact —
+decisions, steps covered and not, the capacity snapshot — on the clipboard as Markdown, to paste
+into that page. One record, in the document tool, joined to prisme's. Nothing is written outward.
+The first way stays out: prisme writing a page **body** is outside what the creating path does
+(ADR-0030 sends a title and a template, nothing else), and `reviews_db` is write-only, so the
+duplicate guard that reads a store's titles cannot run there. Pushing on close needs its own ADR.
+S4 is closed.
 
 **S5 · Adopted initiatives all score the same, and nothing says so.** Adoption sets every estimate
 to the same middle value, so every adopted initiative in an area has the same score and the ranking
 is a tie broken by order. Nothing distinguishes *estimated* from *never estimated*. **Explore:**
 leave estimates empty until set, show *unestimated* on the Backlog, and make estimation part of
 triage, the way the *ready for now* rule already expects.
+**Built, with a flag rather than empty columns:** `initiative.estimated` (migration 0021) is `false`
+where adoption or the label's capture wrote the placeholder, and any estimate written sets it, the
+same value included. Existing adopted initiatives still at 3, 3, 3, 3 were marked unestimated. The
+estimates read **Unestimated** on the Inbox, the Backlog, Focus and the initiative's page, with
+**Keep these estimates** beside them. Selection holds an unestimated initiative back with the reason
+`unestimated` (`isEstimated` in `@prisme/domain`), because a placeholder size passes `size ≤ 8` by
+construction, and moving one to `now` by hand warns. Empty columns were not used: every scoring
+method, the schedule and the MCP tools read the four numbers, and a nullable estimate would have
+reached all of them for a signal one flag carries. S5 is closed.
 
 **S6 · An objective without a key result can never be served.** Initiatives serve key results, not
 objectives, so an objective adopted from a page — which arrives with none — is an orphan by
 construction until key results are written. That may be the right rule (an objective you cannot
 measure is a wish), but the screen does not say it is the rule. **Explore:** say so on the
 objective, and offer *add a key result* from the orphans step.
+**Built:** the rule is kept and now stated. [`10-model.md`](10-model.md) §7 says it. An objective
+with no key result says *nothing can serve it* on its page and in the Objectives list, and the
+monthly *find orphans* step tells the two cases apart: *no key result yet — add one*, linking
+straight to the objective's *Add a key result*, or *nothing linked to its key results*
+(`orphanReason` on the web). S6 is closed.
 
 **S7 · A freshly adopted instance has an empty Focus with no pointer.** Everything adopted lands in
 `inbox`, and only `next` and `later` are candidates for `now` — so Focus and *Up next* stay empty
 until triage, and nothing on Focus says why. **Explore:** an empty state that names the Inbox count
 and links to it.
+**Built:** when nothing is in flight, suggested or queued, Focus leads with *Focus is empty because
+nothing has been triaged — N items wait in the Inbox*, the reason in one sentence, and *Triage the
+inbox*. The count is the Inbox's own (initiatives and action takeaways). With an empty Inbox too it
+points at Adoption instead (`emptyFocusPointer` on the web). S7 is closed.
 
 **S8 · Deployment settings silently switch features off.** Without
 `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` the reading pipeline is off and the Inbox never receives a
@@ -499,11 +533,26 @@ anchor updates included. Settings shows the threshold, but nothing connects it t
 at the moment it happens. **Explore:** a *features* panel on Settings (reading pipeline, page
 links, creation) that says which are off and why; and a banner when a pass is refused for its
 creations.
+**Built, both:** *Settings → Features* lists reading and writing the tools, creating a task for new
+work, the reading pipeline, declared durations and opening pages, each **On** or **Off** with what
+it does and, when off, the variable that turns it on — never the variable's value
+(`GET /settings` gains `features`, booleans only). Creation reads **Off** at a threshold of 0 and
+says that any pending creation refuses the whole pass. And every apply pass now records *why* it was
+refused in `sync_run_state` (migration 0022: a kind and a count), `GET /sync` reports it as
+`lastRefusal`, and Focus and Settings show *the last sync wrote nothing* when the reason was the
+create threshold, until a pass is not refused. S8 is closed.
 
 **S9 · A project mapped only by section leaves its root tasks in no area.** Mapping sections of a
 general project is the intended way to split it across areas, but a task at the project's root —
 in no section — matches no mapping and counts toward no area. The share chart silently excludes it.
 **Explore:** count unattributed completions on Areas, and offer *map the rest of this project to…*.
+**Built, both:** `GET /areas/unattributed` lists, over the window `/balance` measured and from the
+record it read, the completions the last capacity refresh attributed to no area, grouped by
+location, with `partlyMapped` for a project some of whose sections are mapped. Areas shows *N
+completions … counted toward no area* above the shares, each location named from the task tool,
+with **Map the rest of this project to…** (or *Map this project to…*): a mapping of the project
+itself, which sections still outrank, through the same `PUT /areas/:key/mappings` Settings uses. It
+counts from the next daily refresh. S9 is closed.
 
 **S10 · Multi-area general projects are offered as Projects.** Every task-tool project with
 sections is proposed as a `Project`, which has exactly one area
@@ -511,22 +560,43 @@ sections is proposed as a `Project`, which has exactly one area
 to several areas can only be ignored, and the queue does not say that ignoring is the expected
 answer. **Explore:** leave out of the queue a project whose sections already map to two or more
 areas.
+**Built:** the scan counts, for each task-tool project, how many areas its sections' tasks land in —
+each section's own mapping, else the project's, the rule attribution reads by (`sectionAreaCount`
+in `adaptProjects`). At two or more the classifier keeps it in place (*a general project whose
+sections map to several areas*), so it is never queued and counts among what was left in place.
+The next scan removes a row already queued. [`13-migration.md`](13-migration.md) §4 has the row.
+S10 is closed.
 
 **S11 · The task tool's own inbox has no home in prisme.** prisme's Inbox holds captures, action
 takeaways and `inbox` initiatives — not what sits unsorted in the task tool's inbox, which belongs
 to no area. Sorting that inbox is a natural review step, and it has no surface; its completions
 count toward nothing. **Explore:** read the task tool's inbox into the triage step as *unsorted*,
 with *move to area* as the action.
+**Built, with the move prisme may make:** the connector reads the project the task tool marks as the
+Inbox (`inbox_project`), and `GET /task-tool/inbox` lists its open top-level tasks live, with what in
+prisme holds each. prisme's Inbox shows them as *Unsorted in Todoist* and the weekly triage step
+counts them. A plain task's location is the task tool's ([`11-ownership.md`](11-ownership.md)), so
+*move to area* is **Make it an initiative** (`POST /task-tool/inbox/:id/initiative`): an adopted,
+unestimated initiative linked to the task exactly as the queue's *Adopt* does — the next pass binds
+it and, the Inbox being in no area, moves the task into the area. One that should stay a task is
+sorted in the task tool. S11 is closed.
 
 **S12 · The link from work to key results is examined monthly, but chosen weekly.** The weekly
 *refill* step picks the next `now` without showing which key result each candidate serves; that link
 only appears in the monthly *orphans* step. "Does next week's work serve a key result?" is a weekly
 question. **Explore:** show the served key result on the refill and Backlog rows.
+**Built:** every Backlog row and every refill candidate says *Serves "…" — objective* or *Serves no
+key result*, from the open objectives' key results (`servedKeyResults` on the web — the same
+`servedBy` the monthly orphans step reads, turned round). When the objectives cannot be read the
+line is left out rather than claiming *none*. S12 is closed.
 
 **S13 · There is no map of the objects.** The user guide is organised by screen, the model by
 entity, and the screens by task. Nothing showed which object a thing should become, which door it
 comes in by, or how the objects connect — the gap this document fills (§3.6, §4). **Explore:** link
 this document from Settings' overview and from the Adoption screen.
+**Built:** Settings' overview and the Adoption screen link here (*How prisme works*), at the tag the
+running image was published under, or `main` for a development build (`docsUrl` on the web), and
+the user guide's introduction points to it. S13 is closed.
 
 **S14 · The specs disagree on whether Signals count toward capacity.**
 [`12-scoring.md`](12-scoring.md#4-measuring-capacity) says *Run and Signals count toward capacity
@@ -534,6 +604,9 @@ but never toward ranking*; [`10-model.md`](10-model.md) §9 says Signals are *ex
 and from capacity*, and the attribution code (`laneOf` in `apps/sync/src/backfill/attribute.ts`)
 excludes them. This document follows the code. **Explore:** correct `12-scoring.md` §4, or decide
 otherwise in an ADR.
+**Corrected:** no decision was open — [ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md), Accepted,
+already says *Run counts toward capacity; Signals do not*. [`12-scoring.md`](12-scoring.md) §4 and
+[`10-model.md`](10-model.md) §3 now say the same, and the code was right. S14 is closed.
 
 **S15 · Key results have no anchor task yet.** [`10-model.md`](10-model.md) §7 says *every key
 result gets an anchor task* and calls it *the capability that was missing*: a key result you can
@@ -544,6 +617,16 @@ works, and may be the better model, but it is not the one the spec describes. Si
 a key result can **hold** a task — `key_result.external_anchor_id`, bound in `entity_external_ref`,
 so the reconciler treats it as taken — but nothing writes to it or reads its subtree yet.
 **Explore:** build key-result anchors, or amend §7 to make *served by initiatives* the rule.
+**Built, the first way** — the second would contradict
+[ADR-0012](20-decisions/0012-key-results-first-class.md), Accepted. Every key result of an objective
+under way (`active`, its period started: `keyResultAnchorDeadline` in `@prisme/domain`) is in the
+reconciler's desired state. One bound to a task is converged: title = statement, deadline = the
+period's last day, the `prisme:kr` label (the anchor label a converted initiative kept is removed),
+the backlink line to its objective — never its priority or location. A decided link is bound and
+creates nothing. One with neither gets a task created at its area's home, counted by the create
+threshold. A hand edit of a managed field is a `review` that writes nothing, because the conflict
+ledger resolves initiatives. Its subtree is not mirrored: computed progress still comes from the
+initiatives that serve it. S15 is closed.
 
 ---
 

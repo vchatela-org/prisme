@@ -1207,6 +1207,55 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(list.completions.every((entry) => entry.content === null)).toBe(true);
     });
 
+    it('lists what the balance counted toward no area, by location, over its window (S9)', async () => {
+      await itemisedHealth();
+      // Two root tasks of a project mapped only by section, one in an
+      // unmapped project, and one outside the window — none attributed.
+      await database.client`
+        insert into area_mapping (area_key, external_project_id, external_section_id)
+        values ('home', 'p-general', 's-house')`;
+      await database.client`
+        insert into completion_history (external_task_id, completed_at, external_project_id,
+                                        external_section_id)
+        values
+          ('t-root-1', '2026-09-14T07:00:00Z', 'p-general', null),
+          ('t-root-2', '2026-09-15T07:00:00Z', 'p-general', null),
+          ('t-loose', '2026-09-01T07:00:00Z', 'p-unmapped', null),
+          ('t-old', '2026-08-01T07:00:00Z', 'p-unmapped', null)`;
+
+      const app = api();
+      const balance = (await app.request('GET', url('/balance?year=2026'))).body as {
+        from: string;
+      };
+      const { status, body } = await app.request('GET', url('/areas/unattributed?year=2026'));
+
+      expect(status).toBe(200);
+      expect(body).toMatchObject({
+        from: balance.from,
+        observedSource: 'capacity_week',
+        total: 3,
+        items: [
+          {
+            externalProjectId: 'p-general',
+            externalSectionId: null,
+            completions: 2,
+            partlyMapped: true,
+          },
+          {
+            externalProjectId: 'p-unmapped',
+            externalSectionId: null,
+            completions: 1,
+            partlyMapped: false,
+          },
+        ],
+      });
+    });
+
+    it('has nothing unattributed to list before any backfill', async () => {
+      const { body } = await api().request('GET', url('/areas/unattributed'));
+      expect(body).toMatchObject({ observedSource: 'task_mirror', total: 0, items: [] });
+    });
+
     it('answers an unknown area with 404', async () => {
       const response = await api().request('GET', url('/areas/nowhere/completions'));
       expect(response.status).toBe(404);
@@ -1591,6 +1640,29 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(body).not.toHaveProperty('taskToolToken');
     });
 
+    it('says why the last pass was refused, and stops saying it once a pass is not (S8)', async () => {
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({ lastRefusal: null });
+
+      await database.client`
+        insert into sync_run_state (id, last_drift_objects, last_drift_at, last_drift_full,
+                                    last_refusal, last_refusal_creates)
+        values ('singleton', 0, '2026-09-17T08:45:00Z', false, 'create_threshold', 2)`;
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({
+        lastRefusal: { kind: 'create_threshold', creates: 2, at: '2026-09-17T08:45:00.000Z' },
+      });
+
+      await database.client`
+        update sync_run_state set last_refusal = null, last_refusal_creates = null`;
+      expect((await api().request('GET', url('/sync'))).body).toMatchObject({ lastRefusal: null });
+    });
+
+    it('says which optional reads this server is configured for, never their names (S8)', async () => {
+      const { body } = await api().request('GET', url('/settings'));
+      expect(body).toMatchObject({
+        features: { readingPipeline: false, declaredDurations: false },
+      });
+    });
+
     it('defaults a forced pass to `plan`', async () => {
       const response = await api().request('POST', url('/sync'), {});
       expect(response.status).toBe(200);
@@ -1663,6 +1735,25 @@ describeOrSkip('the API against PostgreSQL', () => {
         items: { id: string }[];
       };
       expect(left.items.map((session) => session.id)).toEqual([kept]);
+    });
+
+    it('links the page a closed review was written in, and unlinks it, keeping the snapshot (S4)', async () => {
+      const app = api();
+      const id = await openWeekly(app);
+      const closed = await app.request('PATCH', url(`/reviews/${id}`), { complete: true });
+
+      const linked = await app.request('PATCH', url(`/reviews/${id}`), {
+        externalPageId: 'page-invented-review',
+      });
+      expect(linked.status).toBe(200);
+      expect(linked.body).toMatchObject({
+        externalPageId: 'page-invented-review',
+        completedAt: (closed.body as { completedAt: string }).completedAt,
+        capacitySnapshot: (closed.body as { capacitySnapshot: unknown }).capacitySnapshot,
+      });
+
+      const unlinked = await app.request('PATCH', url(`/reviews/${id}`), { externalPageId: null });
+      expect(unlinked.body).toMatchObject({ externalPageId: null });
     });
 
     it('needs the write scope, not the read one', async () => {
@@ -1879,6 +1970,125 @@ describeOrSkip('the API against PostgreSQL', () => {
       });
     });
 
+    /**
+     * S3: closing a review session is the completion of a ritual its review
+     * fulfils. PINNED_NOW is Thursday 2026-09-17, in the week of 2026-09-14.
+     */
+    describe('fulfilled by its review', () => {
+      async function closeAt(cadence: string, at: string): Promise<void> {
+        await database.client`
+          insert into review_session (cadence, started_at, completed_at)
+          values (${cadence}, ${at}::timestamptz, ${at}::timestamptz)`;
+      }
+
+      async function series(id: string): Promise<unknown[]> {
+        const { body } = await api().request('GET', url(`/rituals/${id}/adherence`));
+        return (body as { items: { periodStart: string; completions: number }[] }).items.map(
+          ({ periodStart, completions }) => ({ periodStart, completions }),
+        );
+      }
+
+      it('rebuilds the series from the sessions already closed, and counts the next close', async () => {
+        await closeAt('weekly', '2026-09-03T18:00:00Z');
+        // Another cadence's review is not this ritual's.
+        await closeAt('monthly', '2026-09-10T18:00:00Z');
+
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented weekly review',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+          fulfilledByReview: true,
+        });
+        expect(created.status).toBe(201);
+        expect(created.body).toMatchObject({
+          fulfilledByReview: true,
+          measuredFrom: 'review',
+          externalTaskId: null,
+          // This week is not over, and not done yet: not a zero.
+          currentPeriod: { periodStart: '2026-09-14', opportunities: 1, completions: 0 },
+        });
+        const id = (created.body as { id: string }).id;
+        expect(await series(id)).toEqual([
+          { periodStart: '2026-08-31', completions: 1 },
+          { periodStart: '2026-09-07', completions: 0 },
+        ]);
+
+        const opened = await api().request('POST', url('/reviews'), { cadence: 'weekly' });
+        const session = (opened.body as { id: string }).id;
+        expect(
+          (await api().request('PATCH', url(`/reviews/${session}`), { complete: true })).status,
+        ).toBe(200);
+
+        expect(await series(id)).toEqual([
+          { periodStart: '2026-08-31', completions: 1 },
+          { periodStart: '2026-09-07', completions: 0 },
+          { periodStart: '2026-09-14', completions: 1 },
+        ]);
+      });
+
+      it('leaves a ritual its review does not fulfil alone when a session closes', async () => {
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented habit',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+        });
+        const id = (created.body as { id: string }).id;
+        expect(created.body).toMatchObject({ fulfilledByReview: false, measuredFrom: 'hand' });
+
+        const opened = await api().request('POST', url('/reviews'), { cadence: 'weekly' });
+        const session = (opened.body as { id: string }).id;
+        await api().request('PATCH', url(`/reviews/${session}`), { complete: true });
+
+        expect(await series(id)).toEqual([]);
+      });
+
+      it('has one source: refuses a daily ritual, a task beside it, and a period by hand', async () => {
+        const daily = await api().request('POST', url('/rituals'), {
+          name: 'Invented daily review',
+          areaKey: 'home',
+          cadence: 'daily',
+          targetAdherencePct: 90,
+          fulfilledByReview: true,
+        });
+        expect(daily.status).toBe(422);
+
+        const created = await api().request('POST', url('/rituals'), {
+          name: 'Invented weekly review',
+          areaKey: 'home',
+          cadence: 'weekly',
+          targetAdherencePct: 90,
+          externalTaskId: 'task-invented-review',
+        });
+        const id = (created.body as { id: string }).id;
+
+        const both = await api().request('PATCH', url(`/rituals/${id}`), {
+          fulfilledByReview: true,
+        });
+        expect(both.status).toBe(422);
+        expect((both.body as { message: string }).message).toMatch(/one source/);
+
+        const switched = await api().request('PATCH', url(`/rituals/${id}`), {
+          externalTaskId: null,
+          fulfilledByReview: true,
+        });
+        expect(switched.status).toBe(200);
+        expect(switched.body).toMatchObject({ externalTaskId: null, measuredFrom: 'review' });
+
+        const toDaily = await api().request('PATCH', url(`/rituals/${id}`), { cadence: 'daily' });
+        expect(toDaily.status).toBe(422);
+
+        const byHand = await api().request('POST', url(`/rituals/${id}/adherence`), {
+          periodStart: '2026-09-14',
+          opportunities: 1,
+          completions: 1,
+        });
+        expect(byHand.status).toBe(409);
+        expect((byHand.body as { message: string }).message).toMatch(/fulfilled by its review/);
+      });
+    });
+
     it('still refuses a cadence that is not one of the five', async () => {
       const refused = await api().request('POST', url('/rituals'), {
         name: 'Invented review',
@@ -1887,6 +2097,98 @@ describeOrSkip('the API against PostgreSQL', () => {
         targetAdherencePct: 80,
       });
       expect(refused.status).toBe(400);
+    });
+  });
+
+  /**
+   * S11: the task tool's own Inbox, read live, and an unsorted task made an
+   * initiative of an area — adopted, linked, never created. Invented ids.
+   */
+  describe('the task tool’s Inbox', () => {
+    function withInbox() {
+      return createTestApp({
+        client: database.client,
+        runner: stubRunner(),
+        directory: stubDirectory(
+          {},
+          undefined,
+          {},
+          {},
+          [],
+          [
+            { externalId: 'task-invented-unsorted', title: 'Call the plumber' },
+            { externalId: 'task-invented-held', title: 'Already adopted' },
+          ],
+        ),
+      });
+    }
+
+    it('lists the unsorted tasks and what in prisme holds any of them', async () => {
+      await database.client`
+        insert into entity_external_ref (prisme_id, prisme_kind, kind, external_id)
+        values (${fixtureId('init-001')}, 'initiative', 'task', 'task-invented-held')`;
+
+      const { status, body } = await withInbox().request('GET', url('/task-tool/inbox'));
+
+      expect(status).toBe(200);
+      expect(body).toEqual({
+        failure: null,
+        items: [
+          { id: 'task-invented-unsorted', title: 'Call the plumber', heldBy: null },
+          {
+            id: 'task-invented-held',
+            title: 'Already adopted',
+            heldBy: { kind: 'initiative', id: fixtureId('init-001') },
+          },
+        ],
+      });
+    });
+
+    it('makes one an unestimated initiative of an area, linked and not bound, and only once', async () => {
+      const app = withInbox();
+      const adopted = await app.request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: 'home' },
+      );
+
+      expect(adopted.status).toBe(201);
+      expect(adopted.body).toMatchObject({
+        title: 'Plumbing fixed',
+        areaKey: 'home',
+        status: 'inbox',
+        origin: 'adopted',
+        estimated: false,
+        externalAnchorId: null,
+      });
+      const id = (adopted.body as { id: string }).id;
+      // Linked for the reconciler to bind — which is also what moves the task.
+      expect(
+        await database.client`
+          select external_id, decided_by from entity_link where prisme_id = ${id}`,
+      ).toEqual([{ external_id: 'task-invented-unsorted', decided_by: 'human' }]);
+      expect(
+        await database.client`select 1 from entity_external_ref where prisme_id = ${id}`,
+      ).toHaveLength(0);
+
+      const again = await app.request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: 'home' },
+      );
+      expect(again.status).toBe(409);
+    });
+
+    it('refuses a lane, which no initiative belongs to', async () => {
+      const lane = await database.client<{ key: string }[]>`
+        select key from area where kind <> 'area' limit 1`;
+      if (lane[0] === undefined) return;
+      const refused = await withInbox().request(
+        'POST',
+        url('/task-tool/inbox/task-invented-unsorted/initiative'),
+        { title: 'Plumbing fixed', areaKey: lane[0].key },
+      );
+      expect(refused.status).toBe(422);
     });
   });
 

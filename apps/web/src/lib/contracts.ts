@@ -120,6 +120,8 @@ export const initiativeSchema = z.object({
   }),
   blockedBy: z.array(id),
   sizedForNow: z.boolean(),
+  /** False while its estimates are adoption's or a capture's placeholder (S5). */
+  estimated: z.boolean(),
   /** Why it looks like a key result (S1). The API decides; the screen words it. */
   keyResultHints: z.array(keyResultHint),
 });
@@ -141,6 +143,7 @@ export const selectionReason = z.enum([
   'area_at_cap',
   'wip_full',
   'blocked',
+  'unestimated',
   'too_large',
   'not_a_candidate',
   ...notUnderWayReason.options,
@@ -435,6 +438,14 @@ export const syncStatusSchema = z.object({
   lastFullPassAt: instant.nullable(),
   unresolvedConflicts: z.number().int(),
   lastRunAt: instant.nullable(),
+  /** Why the last pass refused its whole plan, or null when it did not (S8). */
+  lastRefusal: z
+    .object({
+      kind: z.enum(['create_threshold', 'write_freeze']),
+      creates: z.number().int(),
+      at: instant,
+    })
+    .nullable(),
 });
 
 export type SyncStatus = z.infer<typeof syncStatusSchema>;
@@ -1052,6 +1063,10 @@ export const ritualSchema = z.object({
   externalPageId: z.string().nullable(),
   /** The recurring task it is measured from, or null for a habit recorded by hand (S2). */
   externalTaskId: z.string().nullable(),
+  /** Closing the review of its cadence is its completion (S3). */
+  fulfilledByReview: z.boolean(),
+  /** What its adherence is measured from — one source each. */
+  measuredFrom: z.enum(['task', 'review', 'hand']),
   latestAdherencePct: z.number().nullable(),
   /** The period today falls in, and what is recorded for it so far. */
   currentPeriod: z.object({
@@ -1186,6 +1201,39 @@ export const taskLocationsSchema = z.object({
 
 export type TaskLocations = z.infer<typeof taskLocationsSchema>;
 
+/** `GET /areas/unattributed` — what the share chart counted toward no area (S9). */
+export const unattributedSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  windowWeeks: z.number().int(),
+  observedSource: z.enum(['capacity_week', 'task_mirror']),
+  total: z.number().int(),
+  items: z.array(
+    z.object({
+      externalProjectId: z.string().nullable(),
+      externalSectionId: z.string().nullable(),
+      completions: z.number().int(),
+      partlyMapped: z.boolean(),
+    }),
+  ),
+});
+
+export type Unattributed = z.infer<typeof unattributedSchema>;
+
+/** `GET /task-tool/inbox` — the task tool's own Inbox, unsorted and in no area (S11). */
+export const taskToolInboxSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      heldBy: z.object({ kind: z.string(), id: z.string() }).nullable(),
+    }),
+  ),
+  failure: z.string().nullable(),
+});
+
+export type TaskToolInbox = z.infer<typeof taskToolInboxSchema>;
+
 /** `GET /settings` — the deployment configuration prisme is running under. */
 export const instanceSettingsSchema = z.object({
   timezone: z.string(),
@@ -1212,6 +1260,11 @@ export const instanceSettingsSchema = z.object({
     createThreshold: z.number().int(),
     windowStart: z.number().int(),
     windowEnd: z.number().int(),
+  }),
+  /** Which optional reads the server is configured for (S8) — whether, never the names. */
+  features: z.object({
+    readingPipeline: z.boolean(),
+    declaredDurations: z.boolean(),
   }),
 });
 

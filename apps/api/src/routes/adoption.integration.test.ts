@@ -568,6 +568,28 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(refs).toHaveLength(0);
     });
 
+    it('says an adopted initiative is not estimated until an estimate is written (S5)', async () => {
+      const { body } = await api().request('POST', url('/adoption/adopt'), {
+        externalKind: 'task',
+        externalId: 'ext-initiative',
+      });
+      const id = (body as { prismeId: string }).prismeId;
+
+      const adopted = await api().request('GET', url(`/initiatives/${id}`));
+      expect(adopted.body).toMatchObject({ estimated: false, size: 3 });
+
+      // A title change is not an estimate.
+      await api().request('PATCH', url(`/initiatives/${id}`), { title: 'Rebuild the shed' });
+      expect((await api().request('GET', url(`/initiatives/${id}`))).body).toMatchObject({
+        estimated: false,
+      });
+
+      // Writing the placeholder back is a judgement that it is right.
+      const kept = await api().request('PATCH', url(`/initiatives/${id}`), { size: 3 });
+      expect(kept.status).toBe(200);
+      expect(kept.body).toMatchObject({ estimated: true, size: 3 });
+    });
+
     it('produces an entity the database refuses to turn into a created one', async () => {
       // Guard 2, at the database. `origin` is immutable after insert, so an
       // adopted entity cannot later become one that produces a `create`.
@@ -1067,6 +1089,19 @@ describeOrSkip('the adoption queue against PostgreSQL', () => {
       expect(
         await database.client<{ links: string }[]>`select count(*) as links from entity_link`,
       ).toEqual(before);
+    });
+
+    it('refuses a task when the ritual is fulfilled by its review (S3)', async () => {
+      const { ritualId } = await seedRitual(null);
+      await database.client`
+        update ritual set cadence = 'weekly', fulfilled_by_review = true
+        where id = ${ritualId}::uuid`;
+
+      const { status, body } = await link(ritualId, 'task', 'ext-initiative');
+
+      expect(status).toBe(409);
+      expect((body as { message: string }).message).toMatch(/fulfilled by its review/);
+      expect(await taskOf(ritualId)).toEqual([]);
     });
 
     it('leaves the ritual’s page alone when what is linked is not a page', async () => {

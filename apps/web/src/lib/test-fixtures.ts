@@ -40,6 +40,7 @@ export function anInitiative(overrides: Partial<Initiative> = {}): Initiative {
     },
     blockedBy: [],
     sizedForNow: true,
+    estimated: true,
     keyResultHints: [],
     ...overrides,
   };

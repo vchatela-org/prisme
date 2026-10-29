@@ -30,6 +30,7 @@ import {
   type EndedFilter,
   type QueueFilter,
 } from './adoption-queue.js';
+import { refreshReviewRituals } from './lanes.js';
 import type { MeasureService } from './measure.js';
 
 /**
@@ -75,6 +76,14 @@ export type SyncRunShape = z.infer<typeof syncRunDto>;
 /** The queue page without the paging echo, which the route adds. */
 export type QueuePageShape = Omit<z.infer<typeof adoptionQueuePageDto>, 'limit' | 'offset'>;
 
+/** Which optional reads this deployment is configured for (S8). Booleans, never the names. */
+export interface DeploymentFeatures {
+  /** `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` is set: takeaways have a type, and actions reach the Inbox. */
+  readonly readingPipeline: boolean;
+  /** `DOCTOOL_DURATION_PROPERTY` is set: a process page's duration is read for capacity. */
+  readonly declaredDurations: boolean;
+}
+
 export interface OpsConfig {
   readonly timezone: string;
   readonly version: string;
@@ -89,6 +98,7 @@ export interface OpsConfig {
     readonly windowStart: number;
     readonly windowEnd: number;
   };
+  readonly features: DeploymentFeatures;
 }
 
 export interface OpsService {
@@ -185,6 +195,10 @@ const DECIDE_REFUSALS = {
     'this ritual is already measured from another recurring task, and linking a task to a ' +
     'ritual makes it that task — change or clear it through PATCH /rituals/{id}, then link ' +
     'this one; or ignore this row',
+  ritual_fulfilled_by_review:
+    'this ritual is fulfilled by its review, and a ritual is measured from one source — ' +
+    'stop measuring it by its review through PATCH /rituals/{id}, then link this task; or ' +
+    'ignore this row',
   task_bound_elsewhere:
     'that task already belongs to something else in prisme — an initiative, a key result or ' +
     'another ritual — and one task cannot measure two things',
@@ -239,6 +253,8 @@ export function createOpsService(
         ...(capacitySnapshot === undefined ? {} : { capacitySnapshot }),
       });
       if (updated === undefined) throw notFound('review session', id);
+      // The close is the completion of a ritual its review fulfils (S3).
+      if (completedAt !== undefined) await refreshReviewRituals(store, updated.cadence, now);
       return toReviewDto(updated);
     },
 
@@ -444,6 +460,7 @@ export function createOpsService(
           workingWeekdays: [...config.workingWeekdays],
         },
         sync: { ...config.sync },
+        features: { ...config.features },
       };
     },
 
@@ -458,6 +475,14 @@ export function createOpsService(
         lastFullPassAt: state.lastFullPassAt?.toISOString() ?? null,
         unresolvedConflicts: state.unresolvedConflicts,
         lastRunAt: state.updatedAt?.toISOString() ?? null,
+        lastRefusal:
+          state.lastRefusal === null
+            ? null
+            : {
+                kind: state.lastRefusal.kind,
+                creates: state.lastRefusal.creates,
+                at: state.lastRefusal.at.toISOString(),
+              },
       };
     },
 

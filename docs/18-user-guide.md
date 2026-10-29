@@ -2,7 +2,9 @@
 
 How to **use** prisme: setting it up, the daily loop, the reviews, and what happens in Notion and
 Todoist when you do things. This guide is written for the person using prisme, not for someone
-changing its code. For why it works the way it does, read [`00-vision.md`](00-vision.md); for the
+changing its code. For why it works the way it does, read [`00-vision.md`](00-vision.md); for a
+map of the objects — what a thing should become, which door it comes in by, how the loop and the
+reviews fit — [`19-how-it-works.md`](19-how-it-works.md), which Settings and Adoption link to; for the
 exact rules, the numbered specs.
 
 > **Privacy.** This file is public. Its examples are invented. Your own areas, weights and links
@@ -66,8 +68,11 @@ Open the area (**Edit** in the Areas table), then **Where its work lives in Todo
 
 **Nothing moves in Todoist when you do this.** It only tells prisme how to read what is already
 there: completed tasks in these locations count toward the area, and a task labelled for prisme
-there becomes one of its initiatives. Work in a project mapped to no area counts toward no area;
-the backfill report lists those projects so you can map them.
+there becomes one of its initiatives. Work in a project mapped to no area counts toward no area,
+and so does a task at the root of a project you mapped only by section. **Areas** lists both under
+the shares — *N completions in the last 4 weeks counted toward no area* — with **Map the rest of
+this project to…** (or *Map this project to…*) beside each: it maps the project itself to the area
+you choose, and the sections you mapped keep their own areas.
 
 The same page has **Its page in Notion**: the area's own page in your Life areas database, which is
 how a Notion entry is recognised as this area's. It is optional and needs the Life areas database
@@ -86,7 +91,7 @@ shows its title — and, for the databases it adds pages to, the templates each 
 | Media library | books / articles / videos | reads it, for context |
 | Life areas | one page per area | reads it; each area's own page is picked from it, and an *Area column* points at it |
 | Processes | procedures and routines | reads it; a ritual's duration comes from its page |
-| Reviews | where review summaries should go | nothing yet |
+| Reviews | where review summaries should go | nothing yet — a review links its page on the review itself (§4) |
 | Initiative / Project / Capture pages | **a database with at least one template** — how a new page of that kind should start | adds a page to it when you ask for one, from one of its templates |
 
 Two things to know:
@@ -119,6 +124,11 @@ Two things to know:
 For takeaways to reach prisme, the deployment also needs `DOCTOOL_TAKEAWAY_TYPE_PROPERTY` — the name
 of your takeaways' *type* property, whose values start with *Action* or *Principle*.
 
+**Settings → Features** lists what the deployment switches on and off — reading and writing the
+tools, creating a task for new work, the reading pipeline, declared durations, opening pages from
+prisme — each with **On** or **Off**, and for an off one the variable that turns it on. It shows
+whether a variable is set, never its value.
+
 ### 2.4 This year's weights
 
 **Reviews → Year Review** (or *Change weights* in Settings). Give each area a share; the shares sum
@@ -134,17 +144,22 @@ opportunity per calendar quarter or year. A process that has no rhythm (*on dema
 not a habit — leave it out of the queue with *Ignore*. Rituals are never ranked against initiatives;
 the KPI dashboard shows how often they happen.
 
-How often it happened is read from one of two places:
+How often it happened is read from one of three places — *Measured from*, on the ritual:
 
 - **Its recurring task** — choose it on the ritual (*Edit*, or when defining it). The list is your
   open recurring tasks in Todoist, this area's first; one that already belongs to an initiative, a
   key result or another ritual is shown and cannot be chosen. Each completion of that task is one
   occurrence, counted from the next daily capacity refresh over the last four weeks. Nothing is
   written to Todoist. *None* unties it.
+- **Closing its review** — *Closing the weekly review in prisme* (or monthly, quarterly, yearly: the
+  ritual's own cadence). Each review session of that cadence you close on Reviews is that period
+  done, and the sessions you closed before choosing it count too; a period you closed no review in
+  reads as missed, and the current one shows only once it is done. This is how a *weekly review*
+  ritual is measured by the review itself. A daily ritual cannot be measured this way.
 - **By hand** — a ritual with no task shows *This week: 3 of 7 days* (or *This month: not yet*) on
   its row, with **Done** and **Undo**. A daily habit has seven chances a week; every other cadence
-  has one a period. A ritual measured from its task has no such buttons: its completions are the
-  record.
+  has one a period. A ritual measured from its task or its review has no such buttons: its
+  completions or its closes are the record.
 
 ### 2.6 Bring in what already exists — Adoption
 
@@ -154,6 +169,10 @@ How often it happened is read from one of two places:
   Todoist; the task stays exactly where it is, with its deadline and priority.
 - **Merge** — link it to something prisme already has.
 - **Ignore** — never show it again.
+
+A Todoist project with sections is offered as a **project** — unless you have already split it
+across areas on Settings → Areas, its sections feeding two or more areas. That is a general project:
+its sections are locations, and a prisme project has one area, so it is not in the list at all.
 
 A row from your **Objectives** database is adopted as an **objective**: its title, its area (from
 the area column), and whether it is annual or monthly — read off its dates, which must cover
@@ -226,6 +245,11 @@ Only work that is **under way** is offered a slot or queued in *Up next*. An ini
 until that day comes or the project is active again, and you do not have to change anything. What
 is already in *now* stays: you put it there.
 
+**An empty Focus says why.** Right after adoption everything sits in the Inbox, and only work in
+*next* or *later* can be suggested or queued — so Focus has nothing to show. When nothing is in
+flight, suggested or queued, Focus says how many items wait in the Inbox and links to it; with an
+empty Inbox too, it points at Adoption.
+
 **Force sync** reads both tools and shows what *would* change. It never writes anything — it is the
 safest button in the app.
 
@@ -246,11 +270,25 @@ same title as an objective in its area — the usual sign of a goal kept as a To
 labelled `prisme`. An initiative is an outcome of one to six weeks; a goal like that is usually a
 key result of its objective. The mark is a question, not a rule: it changes no score and no slot.
 
+Triage is also where an adopted initiative gets its estimates: its row reads **Unestimated** until
+you set them (or keep the middle values on purpose).
+
+**Unsorted in Todoist** lists what sits in Todoist's own Inbox — work in no area, which counts
+toward nothing. For one that is really an outcome, write it as one, pick an area and **Make it an
+initiative**: it is adopted, not copied, and the next sync moves the task into that area in Todoist.
+One that should stay a task is sorted in Todoist; prisme does not move a plain task. The weekly
+review's *Triage what arrived* counts them too.
+
 ### Backlog — the ranking
 
 Initiatives ranked **within each area**. Never compare a score across areas: the allocation already
 decided how much each area gets. Work that is not under way yet keeps its score but has no rank, and
 the rank column says why: **Not started** or **Project not active**.
+
+Under each title, the key result it serves — *Serves "…" — objective* — or *Serves no key result*.
+The weekly review's *Refill free now slots* shows the same line beside each candidate, so whether
+next week's work serves an objective is answered when it is chosen, not a month later. The link is
+made on the key result (*Served by*), on its objective's page.
 
 Four estimates drive the score, each on the scale 1 · 2 · 3 · 5 · 8 · 13, relative to the area's
 other initiatives:
@@ -263,6 +301,11 @@ other initiatives:
 | **Size** | How big is it, compared with the others? |
 
 Hover a score to see exactly how it was reached.
+
+**Unestimated** in place of the four numbers means nobody has estimated it: everything adopted, and
+anything the `prisme` label brings in, starts with the middle of the scale for all four, so it ties
+with every other such initiative. It is not proposed for *now* until it is estimated. Change any
+estimate, or **Keep these estimates** if the middle values are right.
 
 ### An initiative's page
 
@@ -299,6 +342,12 @@ Started one you do not mean to finish? **Discard** (on the review, or beside *Re
 Reviews page) deletes it with its ticks and decisions, after asking. A closed review cannot be
 discarded.
 
+**Its page in Notion.** If you write your reviews in Notion, link the page on the review's last step
+or later on **Review history** — *Link a page*, then paste its link (*⋯ → Copy link*). **Copy
+summary** puts the session's written artefact on the clipboard (decisions, what was and was not
+covered, the capacity snapshot), as Markdown, to paste into that page. prisme writes nothing to the
+page itself; *Unlink* forgets it.
+
 **Weekly** — triage what arrived · confirm what finished · check the now set · clear the conflict
 ledger · look ahead at deadlines · re-score what changed · refill free now slots · record decisions.
 
@@ -310,6 +359,12 @@ ledger · look ahead at deadlines · re-score what changed · refill free now sl
 **Monthly** — declared against observed capacity · Run / Signals / rituals check · set objective
 progress · find orphans (objectives nothing serves, initiatives serving nothing) · author next
 month's objectives · replan what slipped.
+
+- *Find orphans*: work is linked to a **key result**, never to an objective directly, so an
+  objective with no key result can't be served by anything — every objective adopted from Notion
+  starts that way. Its row says *no key result yet — add one*, which opens its *Add a key result*.
+  One whose key results have nothing linked says so instead; link work from the weekly refill or
+  the key result's *Served by*.
 
 **Yearly** — review the year, then **allocate next year** (the weights).
 
@@ -380,7 +435,13 @@ prisme will, and only will:
 - set the **date column** of each Notion objectives page linked to an objective to that objective's
   whole year or month (the column chosen on Settings → Notion). Changed there by hand, it is put
   back on the next pass and counted as a conflict — move the objective in prisme instead;
-- move an anchor that has left its area back into it.
+- move an anchor that has left its area back into it;
+- give each **key result** of an objective that is active and under way a task of its own, so you
+  can break it down with subtasks: the task you linked to it if there is one, otherwise a new one in
+  its area's *new work goes here* location. prisme keeps its title (the statement), its deadline
+  (the last day of the objective's period), the `prisme:kr` label and its first description line —
+  never its priority. Edit the statement on Objectives; an edit made in Todoist is flagged in the
+  plan and left as you wrote it.
 
 It never touches due dates, recurrence, completion, deletion, comments, your own labels, or anything
 below an anchor's first description line. An **adopted** task keeps its deadline and priority until
@@ -388,7 +449,9 @@ you move the initiative to *next*.
 
 After adopting, the deployment's `SYNC_CREATE_THRESHOLD` has to be raised above 0 before prisme can
 create anything: at 0, one planned creation holds back the whole pass — deliberately, because during
-adoption any creation would be a mistake.
+adoption any creation would be a mistake. When that happens, Focus and Settings say so: *the last
+sync wrote nothing*, with how many things it had to create and the threshold. The message goes away
+with the next pass that is not refused.
 
 ### What prisme did — the Audit
 

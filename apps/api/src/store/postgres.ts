@@ -22,6 +22,7 @@ import type {
   AreaWeightRecord,
   BackfillCoverageRecord,
   CapacityCompletionRecord,
+  UnattributedRecord,
   CapacityWeekRecord,
   CaptureRecord,
   CompletionRecord,
@@ -284,6 +285,7 @@ interface InitiativeRow {
   origin: 'created_in_prisme' | 'adopted';
   done_at: string | null;
   dropped_reason: string | null;
+  estimated: boolean;
   created_at: Date | string;
   updated_at: Date | string;
   depends_on: string[] | null;
@@ -309,6 +311,7 @@ function toInitiative(row: InitiativeRow): InitiativeRecord {
     origin: row.origin,
     doneAt: row.done_at,
     droppedReason: row.dropped_reason,
+    estimated: row.estimated,
     createdAt: required(row.created_at, 'initiative.created_at'),
     updatedAt: required(row.updated_at, 'initiative.updated_at'),
     dependsOn: row.depends_on ?? [],
@@ -336,6 +339,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     i.origin,
     to_char(i.done_at, 'YYYY-MM-DD') as done_at,
     i.dropped_reason,
+    i.estimated,
     i.created_at,
     i.updated_at,
     (select array_agg(d.depends_on_id::text order by d.depends_on_id)
@@ -824,6 +828,40 @@ export function createPostgresStore(client: Sql): ApiStore {
         }));
       },
 
+      async unattributed(from, to): Promise<readonly UnattributedRecord[]> {
+        // What the chart left out: a completion the last refresh gave no
+        // attributed row. The mapping test is the backfill's, so this is the
+        // same exclusion rather than a second guess at it.
+        const rows = await client<
+          {
+            external_project_id: string | null;
+            external_section_id: string | null;
+            completions: number | string;
+            partly_mapped: boolean;
+          }[]
+        >`
+          select h.external_project_id, h.external_section_id,
+                 count(*) as completions,
+                 exists (select 1 from area_mapping m
+                         where m.external_project_id = h.external_project_id
+                           and m.external_section_id is not null) as partly_mapped
+          from completion_history h
+          left join capacity_completion c
+            on c.external_task_id = h.external_task_id and c.completed_at = h.completed_at
+          where c.external_task_id is null
+            and h.completed_at >= ${stamp(from)}::timestamptz
+            and h.completed_at <  ${stamp(to)}::timestamptz
+          group by h.external_project_id, h.external_section_id
+          order by count(*) desc, h.external_project_id nulls last,
+                   h.external_section_id nulls first`;
+        return rows.map((row) => ({
+          externalProjectId: row.external_project_id,
+          externalSectionId: row.external_section_id,
+          completions: Number(row.completions),
+          partlyMapped: row.partly_mapped,
+        }));
+      },
+
       async completions(areaKey, from, to): Promise<readonly CapacityCompletionRecord[]> {
         const rows = await client<
           {
@@ -957,6 +995,14 @@ export function createPostgresStore(client: Sql): ApiStore {
             time_criticality = coalesce(${input.timeCriticality ?? null}, time_criticality),
             risk = coalesce(${input.risk ?? null}, risk),
             size = coalesce(${input.size ?? null}, size),
+            -- Any estimate written is somebody's judgement, the same value
+            -- included: that is how a placeholder is confirmed (S5).
+            estimated = estimated or ${
+              input.value !== undefined ||
+              input.timeCriticality !== undefined ||
+              input.risk !== undefined ||
+              input.size !== undefined
+            },
             deadline = case when ${input.deadline === undefined}
                          then deadline else ${input.deadline ?? null}::date end,
             earliest_start = case when ${input.earliestStart === undefined}
@@ -1098,6 +1144,46 @@ export function createPostgresStore(client: Sql): ApiStore {
                     ${input.actor}, ${stamp(input.at)}::timestamptz)`;
 
           return { ok: true as const, keyResultId: keyResult.id, anchorMoved: anchor !== null };
+        });
+      },
+
+      async adoptInboxTask(input) {
+        return client.begin(async (tx: Tx) => {
+          // Serialise against a second click and against a scan's link of the
+          // same task: one task, one entity (guard 1, before the index has to).
+          await tx`select pg_advisory_xact_lock(hashtext(${`inbox-task:${input.externalTaskId}`}))`;
+          const taken = await tx<{ one: number }[]>`
+            select 1 as one from entity_external_ref
+            where kind = 'task' and external_id = ${input.externalTaskId}
+            union all
+            select 1 from entity_link
+            where external_kind = 'task' and external_id = ${input.externalTaskId}`;
+          if (taken.length > 0) return { ok: false as const, refusal: 'task_taken' as const };
+
+          // The placeholder estimates adoption writes, marked as such (S5).
+          const inserted = await tx<{ id: string }[]>`
+            insert into initiative
+              (title, area_key, status, value, time_criticality, risk, size, origin, estimated)
+            values (${input.title}, ${input.areaKey}, 'inbox',
+                    ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE},
+                    'adopted', false)
+            returning id::text`;
+          const initiativeId = (inserted[0] as { id: string }).id;
+
+          // Linked, not bound: the reconciler's pending link binds it and,
+          // because the Inbox is in no area, moves the task into this one.
+          await tx`
+            insert into entity_link
+              (prisme_id, external_kind, external_id, match_rule, confidence, decided_by, decided_at)
+            values (${initiativeId}, 'task', ${input.externalTaskId}, 'manual', 'manual', 'human',
+                    ${stamp(input.at)}::timestamptz)`;
+          await tx`
+            insert into event_log
+              (kind, entity_kind, entity_id, field, before, after, actor, occurred_at)
+            values ('adoption_decision', 'initiative', ${initiativeId}, null, null,
+                    ${JSON.stringify({ decision: 'adopt', from: 'task_tool_inbox' })}::jsonb,
+                    ${input.actor}, ${stamp(input.at)}::timestamptz)`;
+          return { ok: true as const, initiativeId };
         });
       },
 
@@ -1711,9 +1797,10 @@ export function createPostgresStore(client: Sql): ApiStore {
         return refusable(() =>
           client.begin(async (tx: Tx): Promise<RitualWriteOutcome> => {
             const inserted = await tx<{ id: string }[]>`
-            insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id)
+            insert into ritual (name, area_key, cadence, target_adherence_pct, external_page_id,
+                                fulfilled_by_review)
             values (${input.name}, ${input.areaKey}, ${input.cadence}, ${input.targetAdherencePct},
-                    ${input.externalPageId ?? null})
+                    ${input.externalPageId ?? null}, ${input.fulfilledByReview ?? false})
             returning id::text`;
             const id = inserted[0]?.id;
             if (id === undefined) throw new Error('the ritual insert returned no row');
@@ -1731,7 +1818,8 @@ export function createPostgresStore(client: Sql): ApiStore {
               cadence = coalesce(${input.cadence ?? null}, cadence),
               target_adherence_pct = coalesce(${input.targetAdherencePct ?? null}, target_adherence_pct),
               external_page_id = case when ${input.externalPageId === undefined}
-                                  then external_page_id else ${input.externalPageId ?? null} end
+                                  then external_page_id else ${input.externalPageId ?? null} end,
+              fulfilled_by_review = coalesce(${input.fulfilledByReview ?? null}, fulfilled_by_review)
             where id = ${id}::uuid
             returning id::text`;
             if (updated[0] === undefined) return { ok: false, refusal: 'not_found' };
@@ -1791,6 +1879,21 @@ export function createPostgresStore(client: Sql): ApiStore {
             opportunities = excluded.opportunities,
             completions = excluded.completions`;
       },
+
+      async writeAdherence(ritualId, periods): Promise<void> {
+        if (periods.length === 0) return;
+        await client`
+          insert into ritual_adherence (ritual_id, period_start, opportunities, completions)
+          select ${ritualId}::uuid, period_start, opportunities, completions
+          from unnest(
+            cast(${periods.map((period) => period.periodStart)}::text[] as date[]),
+            ${periods.map((period) => period.opportunities)}::integer[],
+            ${periods.map((period) => period.completions)}::integer[]
+          ) as given (period_start, opportunities, completions)
+          on conflict (ritual_id, period_start) do update set
+            opportunities = excluded.opportunities,
+            completions = excluded.completions`;
+      },
     },
 
     ops: {
@@ -1846,6 +1949,14 @@ export function createPostgresStore(client: Sql): ApiStore {
                     capacity_snapshot::text, external_page_id`;
         const row = rows[0];
         return row === undefined ? undefined : toReview(row);
+      },
+
+      async reviewClosings(cadence: string): Promise<readonly Date[]> {
+        const rows = await client<{ completed_at: Date | string }[]>`
+          select completed_at from review_session
+          where cadence = ${cadence} and completed_at is not null
+          order by completed_at`;
+        return rows.map((row) => required(row.completed_at, 'review_session.completed_at'));
       },
 
       async discardOpenReview(id: string): Promise<ReviewRecord | undefined> {
@@ -1979,10 +2090,16 @@ export function createPostgresStore(client: Sql): ApiStore {
             // measured from (S2). Bound here and now: the reconciler binds
             // initiatives' anchors and nothing else, so a link left for it
             // would be a decision no pass ever honoured.
-            const rituals = await tx<{ id: string; external_task_id: string | null }[]>`
+            const rituals = await tx<
+              { id: string; external_task_id: string | null; fulfilled_by_review: boolean }[]
+            >`
               select ${ritualColumns(tx)} from ritual r where r.id::text = ${input.prismeId}
               for update of r`;
             const ritual = rituals[0];
+            if (ritual?.fulfilled_by_review === true) {
+              // One source per series (S3): its review already measures it.
+              return { ok: false as const, refusal: 'ritual_fulfilled_by_review' as const };
+            }
             if (ritual !== undefined) {
               const link = ritualTaskLink(ritual.external_task_id ?? undefined, input.externalId);
               if (link === 'other_task') {
@@ -2129,10 +2246,10 @@ export function createPostgresStore(client: Sql): ApiStore {
             // same reasoning as the intent channel's capture.
             const inserted = await tx<{ id: string }[]>`
               insert into initiative
-                (title, area_key, status, value, time_criticality, risk, size, origin)
+                (title, area_key, status, value, time_criticality, risk, size, origin, estimated)
               values (${candidate.title}, ${candidate.area_key}, 'inbox',
                       ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE}, ${ADOPT_ESTIMATE},
-                      'adopted')
+                      'adopted', false)
               returning id::text`;
             prismeId = (inserted[0] as { id: string }).id;
           } else if (candidate.proposed_kind === 'project') {
@@ -2296,6 +2413,19 @@ export function createPostgresStore(client: Sql): ApiStore {
         const conflicts = await client<{ count: string }[]>`
           select count(*) as count from sync_conflict where resolution = 'unresolved'`;
 
+        // Written by every apply pass; null columns mean it was not refused.
+        const runs = await client<
+          {
+            last_refusal: 'create_threshold' | 'write_freeze' | null;
+            last_refusal_creates: number | null;
+            last_drift_at: Date | string | null;
+          }[]
+        >`
+          select last_refusal, last_refusal_creates, last_drift_at
+          from sync_run_state where id = 'singleton'`;
+        const run = runs[0];
+        const refusedAt = instant(run?.last_drift_at);
+
         const row = cursor[0];
         return {
           hasTaskToolCursor: row?.task_tool_token != null,
@@ -2303,6 +2433,14 @@ export function createPostgresStore(client: Sql): ApiStore {
           lastFullPassAt: instant(row?.last_full_pass_at),
           updatedAt: instant(row?.updated_at),
           unresolvedConflicts: Number(conflicts[0]?.count ?? 0),
+          lastRefusal:
+            run?.last_refusal == null || refusedAt === null
+              ? null
+              : {
+                  kind: run.last_refusal,
+                  creates: run.last_refusal_creates ?? 0,
+                  at: refusedAt,
+                },
         };
       },
     },
@@ -2554,6 +2692,7 @@ export function createPostgresStore(client: Sql): ApiStore {
     target_adherence_pct: number;
     external_page_id: string | null;
     external_task_id: string | null;
+    fulfilled_by_review: boolean;
   }
 
   /**
@@ -2564,7 +2703,7 @@ export function createPostgresStore(client: Sql): ApiStore {
   function ritualColumns(sql: Sql | Tx) {
     return sql`
       r.id::text as id, r.name, r.area_key, r.cadence, r.target_adherence_pct,
-      r.external_page_id,
+      r.external_page_id, r.fulfilled_by_review,
       (select ref.external_id from entity_external_ref ref
         where ref.prisme_id = r.id::text and ref.prisme_kind = 'ritual' and ref.kind = 'task'
         order by ref.external_id limit 1) as external_task_id`;
@@ -2601,6 +2740,7 @@ export function createPostgresStore(client: Sql): ApiStore {
       targetAdherencePct: row.target_adherence_pct,
       externalPageId: row.external_page_id,
       externalTaskId: row.external_task_id,
+      fulfilledByReview: row.fulfilled_by_review,
     };
   }
 

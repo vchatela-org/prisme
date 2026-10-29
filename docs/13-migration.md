@@ -148,6 +148,7 @@ keeps what somebody set on it by hand, on every pass after the link:
 | Its priority | Left alone while the initiative is `inbox` or `later`; prisme's from `next` on |
 | Its location | Left alone while it sits anywhere its area is mapped; moved only if it has left the area, or away from an initiative's own project |
 | Labels, description | prisme's anchor label is added, and its backlink line goes **above** the existing notes |
+| (no counterpart) | Its four estimates start at the middle of the scale and the initiative is marked **unestimated** until somebody sets one: a task carries no estimate to adopt, and the placeholder is not a judgement (S5) |
 
 Without these, a first writing pass would have cleared the deadline, reset the priority to the lowest
 and moved the task — each as a first-time `update` rather than a conflict, so silently.
@@ -182,6 +183,7 @@ filters by source store and by area, with a count beside each value
 |---|---|
 | Parent task with subtasks, in an area's section | Initiative, anchored to that task |
 | Dedicated project with sections | Project, with its sections mapped |
+| General project whose sections' tasks land in two or more areas (by the area mappings, a section's own before its project's) | Stays where it is — a set of locations, not one Project, which has exactly one area ([ADR-0029](20-decisions/0029-one-area-per-project.md)). Not queued (S10) |
 | Actionable takeaway | Initiative candidate — promoted from the Inbox, not copied. *Adopt* refuses it ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md)); *Merge* links the row to the initiative its promotion made |
 | Principle-type takeaway | Stays a takeaway. Never enters the backlog |
 | Page in the objectives store | Objective — its narrative stays in the page. *Adopt* seeds it once: the title, the area, and `annual` or `monthly` from dates that are exactly one calendar year or month; any other span is refused. It is a `draft` while its period has not started, and `active` once it has ([ADR-0033](20-decisions/0033-a-store-area-column-names-an-entry-area.md), amended) |
@@ -189,6 +191,7 @@ filters by source store and by area, with a count beside each value
 | Page in the processes store | Ritual — only by *Merge*: *Adopt* refuses it, since a cadence and a target are in no candidate. Create the ritual on Rituals, and linking the row makes the page its process page; a ritual that already names another page is refused, and nothing is written |
 | Recurring task | Run lane, or a Ritual's recurring task if it serves a habit goal — chosen on Rituals, or by *Merge* when it carries the ritual label; either binds it at once, and a ritual that already has another task is refused |
 | Machine-generated notification | Signals lane |
+| Task in the task tool's own Inbox | In no area, so not in the queue. Listed on prisme's Inbox as *Unsorted in Todoist*: **Make it an initiative** of an area adopts it there — linked like *Adopt*, bound and moved into the area by the next pass. Otherwise it is sorted in the task tool, which owns where a plain task lives (S11) |
 | Loose task, no structure | Stays a task. Not everything is an initiative |
 
 That last row matters. The temptation during adoption is to promote everything; the result is a

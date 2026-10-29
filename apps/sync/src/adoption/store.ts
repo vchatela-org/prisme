@@ -100,8 +100,8 @@ export function createAdoptionStore(client: postgres.Sql): AdoptionStore {
                (o.status in ('met', 'missed', 'dropped'))
         from key_result k
         join objective o on o.id = k.objective_id
-        -- Nor is a key result bound by the reconciler yet (S15), so a link in
-        -- the ledger is what says it already has its task.
+        -- A key result bound to its task is not a target, and one with a link
+        -- in the ledger is about to be (the reconciler binds it, S15).
         where not exists (
           select 1 from entity_external_ref r where r.prisme_id = k.id::text
         )

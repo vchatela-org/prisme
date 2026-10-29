@@ -133,6 +133,9 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "estimated": {
+                "type": "boolean"
+              },
               "keyResultHints": {
                 "type": "array",
                 "items": {
@@ -151,6 +154,7 @@
                   "area_at_cap",
                   "wip_full",
                   "blocked",
+                  "unestimated",
                   "too_large",
                   "not_a_candidate",
                   "not_started",
@@ -184,6 +188,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "estimated",
               "keyResultHints",
               "reason",
               "daysUntilDeadline",
@@ -267,6 +272,9 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "estimated": {
+                "type": "boolean"
+              },
               "keyResultHints": {
                 "type": "array",
                 "items": {
@@ -285,6 +293,7 @@
                   "area_at_cap",
                   "wip_full",
                   "blocked",
+                  "unestimated",
                   "too_large",
                   "not_a_candidate",
                   "not_started",
@@ -318,6 +327,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "estimated",
               "keyResultHints",
               "reason",
               "daysUntilDeadline",
@@ -401,6 +411,9 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "estimated": {
+                "type": "boolean"
+              },
               "keyResultHints": {
                 "type": "array",
                 "items": {
@@ -419,6 +432,7 @@
                   "area_at_cap",
                   "wip_full",
                   "blocked",
+                  "unestimated",
                   "too_large",
                   "not_a_candidate",
                   "not_started",
@@ -452,6 +466,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "estimated",
               "keyResultHints",
               "reason",
               "daysUntilDeadline",
@@ -706,6 +721,9 @@
               "sizedForNow": {
                 "type": "boolean"
               },
+              "estimated": {
+                "type": "boolean"
+              },
               "keyResultHints": {
                 "type": "array",
                 "items": {
@@ -728,6 +746,7 @@
               "rank",
               "blockedBy",
               "sizedForNow",
+              "estimated",
               "keyResultHints"
             ],
             "additionalProperties": false
@@ -1650,6 +1669,40 @@
               "type": "null"
             }
           ]
+        },
+        "lastRefusal": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "create_threshold",
+                    "write_freeze"
+                  ]
+                },
+                "creates": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "at": {
+                  "type": "string",
+                  "minLength": 20
+                }
+              },
+              "required": [
+                "kind",
+                "creates",
+                "at"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1660,7 +1713,8 @@
         "documentWatermark",
         "lastFullPassAt",
         "unresolvedConflicts",
-        "lastRunAt"
+        "lastRunAt",
+        "lastRefusal"
       ],
       "additionalProperties": false
     },
@@ -1775,6 +1829,9 @@
             "sizedForNow": {
               "type": "boolean"
             },
+            "estimated": {
+              "type": "boolean"
+            },
             "keyResultHints": {
               "type": "array",
               "items": {
@@ -1797,6 +1854,7 @@
             "rank",
             "blockedBy",
             "sizedForNow",
+            "estimated",
             "keyResultHints"
           ],
           "additionalProperties": false
@@ -2164,6 +2222,9 @@
                 "sizedForNow": {
                   "type": "boolean"
                 },
+                "estimated": {
+                  "type": "boolean"
+                },
                 "keyResultHints": {
                   "type": "array",
                   "items": {
@@ -2186,6 +2247,7 @@
                 "rank",
                 "blockedBy",
                 "sizedForNow",
+                "estimated",
                 "keyResultHints"
               ],
               "additionalProperties": false
@@ -2485,6 +2547,9 @@
                 "sizedForNow": {
                   "type": "boolean"
                 },
+                "estimated": {
+                  "type": "boolean"
+                },
                 "keyResultHints": {
                   "type": "array",
                   "items": {
@@ -2507,6 +2572,7 @@
                 "rank",
                 "blockedBy",
                 "sizedForNow",
+                "estimated",
                 "keyResultHints"
               ],
               "additionalProperties": false
@@ -2789,6 +2855,9 @@
                 "sizedForNow": {
                   "type": "boolean"
                 },
+                "estimated": {
+                  "type": "boolean"
+                },
                 "keyResultHints": {
                   "type": "array",
                   "items": {
@@ -2811,6 +2880,7 @@
                 "rank",
                 "blockedBy",
                 "sizedForNow",
+                "estimated",
                 "keyResultHints"
               ],
               "additionalProperties": false
@@ -3068,6 +3138,9 @@
                 "sizedForNow": {
                   "type": "boolean"
                 },
+                "estimated": {
+                  "type": "boolean"
+                },
                 "keyResultHints": {
                   "type": "array",
                   "items": {
@@ -3090,6 +3163,7 @@
                 "rank",
                 "blockedBy",
                 "sizedForNow",
+                "estimated",
                 "keyResultHints"
               ],
               "additionalProperties": false
@@ -3351,6 +3425,9 @@
                       "sizedForNow": {
                         "type": "boolean"
                       },
+                      "estimated": {
+                        "type": "boolean"
+                      },
                       "keyResultHints": {
                         "type": "array",
                         "items": {
@@ -3373,6 +3450,7 @@
                       "rank",
                       "blockedBy",
                       "sizedForNow",
+                      "estimated",
                       "keyResultHints"
                     ],
                     "additionalProperties": false

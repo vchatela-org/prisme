@@ -5,6 +5,7 @@ import {
   AreaListDto,
   AreaWeightsDto,
   BalanceDto,
+  UnattributedCompletionsDto,
   createAreaBody,
   putAreaWeightBody,
   replaceAreaMappingsBody,
@@ -51,6 +52,24 @@ export const areaRoutes: readonly ApiRoute[] = [
     response: AreaWeightsDto,
     handle: (context, services) =>
       services.catalogue.weights(yearOr(context.now, context.query.year)),
+  }),
+
+  defineRoute({
+    operationId: 'listUnattributedCompletions',
+    method: 'get',
+    path: '/areas/unattributed',
+    scope: 'read:areas',
+    summary: 'Completions the observed share counted toward no area',
+    description:
+      'Over the window `/balance` measured and from the record it read, grouped by the task-tool location they were completed in, worst first. A completion is attributed through the area mappings, section first, then project; a general project mapped only by section leaves its root tasks in none, which `partlyMapped` marks. A mapping added now counts from the next capacity refresh. Empty, with `observedSource: task_mirror`, before any backfill.',
+    query: measurementQuery,
+    response: UnattributedCompletionsDto,
+    handle: (context, services) =>
+      services.measure.unattributed(
+        yearOr(context.now, context.query.year),
+        context.query.weeks,
+        context.now,
+      ),
   }),
 
   defineRoute({

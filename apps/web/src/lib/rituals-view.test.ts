@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { RecurringTasks } from './contracts';
-import { periodLine, ritualTaskChoice, stepCompletions, taskTitleOf } from './rituals-view';
+import {
+  measuredFromLine,
+  periodLine,
+  reviewCanFulfil,
+  reviewName,
+  ritualTaskChoice,
+  stepCompletions,
+  taskTitleOf,
+} from './rituals-view';
 
 const tasks: RecurringTasks = {
   failure: null,
@@ -99,5 +107,29 @@ describe('a habit recorded by hand', () => {
     expect(stepCompletions(week, 1)).toBe(7);
     expect(stepCompletions(week, -1)).toBe(6);
     expect(stepCompletions({ ...week, completions: 0 }, -1)).toBe(0);
+  });
+});
+
+describe('what a ritual is measured from, in words (S3)', () => {
+  it('names the task, the review, or the hand', () => {
+    expect(measuredFromLine({ cadence: 'daily', measuredFrom: 'task' }, 'Walk')).toBe(
+      'Measured from “Walk” in Todoist',
+    );
+    expect(measuredFromLine({ cadence: 'daily', measuredFrom: 'task' }, null)).toBe(
+      'Measured from a Todoist task in Todoist',
+    );
+    expect(measuredFromLine({ cadence: 'monthly', measuredFrom: 'review' }, null)).toBe(
+      'Done each time the monthly review is closed in prisme',
+    );
+    expect(measuredFromLine({ cadence: 'weekly', measuredFrom: 'hand' }, null)).toBe(
+      'Recorded by hand — no recurring task',
+    );
+  });
+
+  it('offers the review for every cadence a review has, and never for a daily habit', () => {
+    expect(reviewCanFulfil('daily')).toBe(false);
+    expect(reviewCanFulfil('weekly')).toBe(true);
+    expect(reviewCanFulfil('yearly')).toBe(true);
+    expect(reviewName('quarterly')).toBe('the quarterly review');
   });
 });

@@ -151,9 +151,12 @@ ranks inside it.
 Rolling 4 weeks: long enough to survive one unusual week, short enough that the balance factor still
 responds within a month.
 
-**Run and Signals count toward capacity but never toward ranking.** Excluding upkeep from the
-measurement would hide exactly the pattern the system exists to reveal — upkeep quietly consuming
-the majority of discretionary time.
+**Run counts toward capacity but never toward ranking; Signals count toward neither**
+([ADR-0014](20-decisions/0014-lanes-outside-the-backlog.md)). Excluding upkeep from the measurement would
+hide exactly the pattern the system exists to reveal — upkeep quietly consuming the majority of
+discretionary time. Signals are machine-generated: they carry volume and no time, so a Signals
+completion contributes zero minutes and is reported as a count (`laneOf` in
+`apps/sync/src/backfill/attribute.ts`).
 
 ### Known limitation, stated plainly
 
@@ -184,6 +187,11 @@ Scoring ranks; selection decides. They are separate steps on purpose.
    initiative whose `earliest_start` is after today, or whose project is paused, done or dropped,
    is neither selected nor queued, and it is not ranked, although it is still scored. The reasons
    are `not_started` and `project_inactive`. Work already `now` keeps its slot under rule 1.
+6. **Only estimated work is a candidate.** An adopted or captured initiative starts with the middle
+   of the scale for all four estimates, so it scores like every other one and its size passes the
+   readiness gate by construction. Until any estimate is written it is held where it is, with the
+   reason `unestimated`, and the next candidate takes the slot. It is still scored and ranked — the
+   score is shown as *Unestimated* rather than read as a judgement.
 
 The per-area cap is what keeps one busy area from occupying every slot — the same reasoning as the
 balance factor, applied to selection instead of ranking.
