@@ -1,6 +1,6 @@
 # FUP · 2026-10-29 · The core loop is not fed: nudges for a starved area, a key result, a first review
 
-**Agent:** Claude · **Duration:** one run · **PR:** pending · **Outcome:** S16, recorded and closed.
+**Agent:** Claude · **Duration:** one run · **PR:** [#208](https://github.com/vchatela-org/prisme/pull/208) · **Outcome:** S16, recorded and closed.
 Focus and Areas name a starved area with nothing queued and link a pre-filled *New initiative*; a key
 result of an open objective offers *Create an initiative that serves this*; Focus points at the
 weekly review until one is closed. No ADR: nothing is created, owned or written outward.
