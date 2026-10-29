@@ -133,6 +133,15 @@ describe('the rendered form (ADR-0039)', () => {
     expect(renderedTitleForm('**[__Nested__](https://example.org)** title')).toBe('Nested title');
   });
 
+  it('stays fast on a hostile run of brackets', () => {
+    const hostile = '['.repeat(5000) + ']('.repeat(5000);
+    const started = performance.now();
+    renderedTitleForm(hostile);
+    renderedTitleForm('[' + '\\['.repeat(1000));
+    renderedTitleForm('**'.repeat(1000));
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
   it('keeps a lone marker that is content', () => {
     expect(renderedTitleForm('Lift 5 * 3 sets')).toBe('Lift 5 * 3 sets');
     expect(renderedTitleForm('Score > 85% on **most** nights')).toBe('Score > 85% on most nights');

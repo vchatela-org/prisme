@@ -101,8 +101,14 @@ export function exactTitleForm(title: string): string {
  * strike-through markers, and a link drawn as its text. Removed pairwise, so a
  * lone `*` that is content (`5 * 3`) survives.
  */
-const EMPHASIS = /(\*\*|__|~~)(.+?)\1/gu;
-const LINK = /\[([^\]]*)\]\([^)\s]*\)/gu;
+const EMPHASIS = /(\*\*|__|~~)([^\n]{1,500}?)\1/gu;
+// Neither bracket in the text and no parenthesis in the address, both bounded:
+// a title is third-party input, and a looser pattern backtracks polynomially on
+// a run of `[` or `](` (CodeQL js/polynomial-redos).
+const LINK = /\[([^[\]\n]{0,500})\]\([^()\s]{0,2000}\)/gu;
+
+/** Longer than any real task title; beyond it, the title is compared as it stands. */
+const RENDER_LIMIT = 2000;
 
 /**
  * Rule 2's form of the title as it **reads**: {@link exactTitleForm} after the
@@ -114,6 +120,7 @@ const LINK = /\[([^\]]*)\]\([^)\s]*\)/gu;
  * prisme's wording (ADR-0039) — never as a substitute for {@link normaliseTitle}.
  */
 export function renderedTitleForm(title: string): string {
+  if (title.length > RENDER_LIMIT) return exactTitleForm(title);
   const unlinked = title.replace(LINK, '$1');
   let previous: string;
   let current = unlinked;
