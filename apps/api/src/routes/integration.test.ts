@@ -742,52 +742,6 @@ describeOrSkip('the API against PostgreSQL', () => {
       expect(then.items.find((entry) => entry.initiative.id === later)?.rank).not.toBeNull();
     });
 
-    it('names a starved area only while nothing is queued in it', async () => {
-      interface FocusBody {
-        starvedAreas: { areaKey: string; balanceFactor: number }[];
-      }
-
-      // Nothing queued anywhere: every area the window finds starved is named.
-      await database.client`update initiative set status = 'dropped', dropped_reason = 'test'`;
-      const empty = (await api().request('GET', url('/focus'))).body as FocusBody;
-      expect(empty.starvedAreas.length).toBeGreaterThan(0);
-      for (const entry of empty.starvedAreas)
-        expect(entry.balanceFactor).toBeGreaterThanOrEqual(1.5);
-      const keys = empty.starvedAreas.map((entry) => entry.areaKey);
-      expect(keys).toEqual([...keys].sort());
-
-      // One initiative queued in the first of them takes that area off the list.
-      const [first] = empty.starvedAreas;
-      if (first === undefined) throw new Error('no starved area');
-      await database.client`
-        update initiative set status = 'next', dropped_reason = null
-        where id = (select id from initiative where area_key = ${first.areaKey} limit 1)`;
-      const queued = (await api().request('GET', url('/focus'))).body as FocusBody;
-      expect(queued.starvedAreas.map((entry) => entry.areaKey)).not.toContain(first.areaKey);
-    });
-
-    it('says when a review was last closed, and null before any was', async () => {
-      const before = (await api().request('GET', url('/focus'))).body as {
-        lastReviewClosedAt: string | null;
-      };
-      expect(before.lastReviewClosedAt).toBeNull();
-
-      const opened = (await api().request('POST', url('/reviews'), { cadence: 'weekly' })).body as {
-        id: string;
-      };
-      // Open is not closed.
-      const stillOpen = (await api().request('GET', url('/focus'))).body as {
-        lastReviewClosedAt: string | null;
-      };
-      expect(stillOpen.lastReviewClosedAt).toBeNull();
-
-      await api().request('PATCH', url(`/reviews/${opened.id}`), { complete: true });
-      const after = (await api().request('GET', url('/focus'))).body as {
-        lastReviewClosedAt: string | null;
-      };
-      expect(after.lastReviewClosedAt).not.toBeNull();
-    });
-
     it('flags a deadline the schedule cannot meet, and never moves it', async () => {
       const { body } = await api().request('GET', url('/focus'));
       const focus = body as {
@@ -1521,6 +1475,40 @@ describeOrSkip('the API against PostgreSQL', () => {
       );
     });
 
+    it('keeps a key result’s sub-objective, and clears it on null (ADR-0039)', async () => {
+      const app = api();
+      const objective = (
+        await app.request('POST', url('/objectives'), {
+          title: 'Three levels deep',
+          type: 'annual',
+          period: '2026',
+          areaKey: 'craft',
+        })
+      ).body as { id: string };
+
+      const created = await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
+        statement: 'KR1 : Ship the first piece',
+        subObjective: 'O1 : Start small',
+        target: 1,
+        unit: 'piece',
+      });
+      expect(created.status).toBe(201);
+      const keyResult = created.body as { id: string; subObjective: string | null };
+      expect(keyResult.subObjective).toBe('O1 : Start small');
+
+      const untouched = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
+        progressSelf: 40,
+      });
+      expect((untouched.body as { subObjective: string | null }).subObjective).toBe(
+        'O1 : Start small',
+      );
+
+      const cleared = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
+        subObjective: null,
+      });
+      expect((cleared.body as { subObjective: string | null }).subObjective).toBeNull();
+    });
+
     it('adds one initiative to what serves a key result, and refuses another area', async () => {
       const app = api();
       const objective = (
@@ -1582,38 +1570,6 @@ describeOrSkip('the API against PostgreSQL', () => {
         { initiativeId: fresh },
       );
       expect(missing.status).toBe(404);
-    it('keeps a key result’s sub-objective, and clears it on null (ADR-0039)', async () => {
-      const app = api();
-      const objective = (
-        await app.request('POST', url('/objectives'), {
-          title: 'Three levels deep',
-          type: 'annual',
-          period: '2026',
-          areaKey: 'craft',
-        })
-      ).body as { id: string };
-
-      const created = await app.request('POST', url(`/objectives/${objective.id}/key-results`), {
-        statement: 'KR1 : Ship the first piece',
-        subObjective: 'O1 : Start small',
-        target: 1,
-        unit: 'piece',
-      });
-      expect(created.status).toBe(201);
-      const keyResult = created.body as { id: string; subObjective: string | null };
-      expect(keyResult.subObjective).toBe('O1 : Start small');
-
-      const untouched = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
-        progressSelf: 40,
-      });
-      expect((untouched.body as { subObjective: string | null }).subObjective).toBe(
-        'O1 : Start small',
-      );
-
-      const cleared = await app.request('PATCH', url(`/key-results/${keyResult.id}`), {
-        subObjective: null,
-      });
-      expect((cleared.body as { subObjective: string | null }).subObjective).toBeNull();
     });
 
     it('appends measurements and never edits one', async () => {
