@@ -25,6 +25,12 @@ allowBuilds:
 overrides:
   postcss: '>=8.5.23'
   esbuild: '>=0.25.12'
+  # GHSA-g3hv-75wg-m249 (moderate, DoS via globparts amplification).
+  # Every parent — eslint 10.14.0, @eslint/config-array 0.23.5,
+  # @typescript-eslint/typescript-estree 8.72.1 — still asks for ^10.2.x,
+  # and 11.0.1 is the first patched version. Lint, typecheck, test and
+  # build are green with it; delete once a parent admits 11.
+  minimatch: '>=11.0.1'
 
 patchedDependencies:
   '@radix-ui/react-radio-group@1.4.7': patches/@radix-ui__react-radio-group@1.4.7.patch
