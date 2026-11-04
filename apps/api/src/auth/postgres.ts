@@ -115,7 +115,7 @@ export function createPostgresAuthStore(sql: Sql): AuthStore {
       const rows = await sql<TokenRow[]>`
         INSERT INTO api_token (id, name, scopes, hash, created_at, created_by, expires_at)
         VALUES (
-          ${input.id}, ${input.name}, ${sql.array([...input.scopes])}, ${input.hash},
+          ${input.id}, ${input.name}, ${[...input.scopes]}::text[], ${input.hash},
           ${input.createdAt.toISOString()}, ${input.createdBy}, ${input.expiresAt.toISOString()}
         )
         RETURNING *`;
