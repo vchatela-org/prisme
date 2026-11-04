@@ -24,7 +24,7 @@
     "@prisme/db": "workspace:*",
     "@prisme/domain": "workspace:*",
     "@prisme/observability": "workspace:*",
-    "postgres": "^3.4.0",
+    "postgres": "^4.0.0",
     "zod": "^4.6.7"
   }
 }

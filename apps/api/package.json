@@ -33,7 +33,7 @@
     "@prisme/observability": "workspace:*",
     "@prisme/sync": "workspace:*",
     "hono": "^4.13.16",
-    "postgres": "^3.4.0",
+    "postgres": "^4.0.0",
     "zod": "^4.6.7"
   }
 }
