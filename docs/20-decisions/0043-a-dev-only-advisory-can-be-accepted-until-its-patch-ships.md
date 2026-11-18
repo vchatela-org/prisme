@@ -34,11 +34,12 @@ gate passes on needs an ADR of its own. This is that record.
 
 ## Decision
 
-**1. The gate gains a fourth state, `accepted`.** It means: the advisory database answered, and
-every finding at or above the level matches a live acceptance. `accepted` exits 0 so the required
-check can go green, but it is **not** `checked-clean`: the job summary names each accepted
-finding with its advisory id, expiry and reason, and the workflow prints a `::warning::`
-annotation. A reviewer can never read it as "nothing was found".
+**1. The gate gains a fourth state, `accepted`** (and a fifth, `stale-acceptance`, point 7). It
+means: the advisory database answered, and every finding at or above the level matches a live
+acceptance. `accepted` exits 0 so the required check can go green, but it is **not**
+`checked-clean`: the job summary names each accepted finding with its advisory id, expiry and
+reason, and the workflow prints a `::warning::` annotation. A reviewer can never read it as
+"nothing was found".
 
 **2. An acceptance is a committed file, `.github/dependency-audit-allowlist.json`.** Each entry
 carries exactly five non-empty fields — `id` (GitHub's advisory id), `module`, `expires`
@@ -66,6 +67,16 @@ the audit level stays `moderate`, the check stays required, the retry stays boun
 controls stay inside the same required job. The controls grow the cases above, including a
 committed allowlist that must be readable on every run.
 
+**7. The lift-off is enforced, not remembered.** Amended 2026-11-18, the day this ADR was accepted,
+after the owner asked how the exception is guaranteed to come off. The gate gains a fifth state,
+`stale-acceptance`: when the audit reports nothing at or above the level but the allowlist still
+holds an entry, the check is **red** and names the entry to delete. The consequence is the point:
+the pull request that makes the advisory disappear must also delete its entry, so the fix and the
+lift-off land together. An acceptance can never outlive its finding as a dead waiver, and deleting
+it is required work (the annotation says so), not a check being weakened. The expiry date remains
+the second, independent backstop: if no fix ever arrives, the entry refuses its finding on the day
+after `expires` and the check goes red even though the advisory is still there.
+
 ## Consequences
 
 - **The wave can land, and the release can ship** while the advisory is visible and time-boxed.
@@ -73,6 +84,10 @@ committed allowlist that must be readable on every run.
 - **A date is now a failure mode.** On 2026-12-19, if `picomatch` still has no patched release and
   the entry is not renewed on purpose, `main` and every pull request go red again. That is the
   intended behaviour, and the selftest prints a warning as soon as the committed entry is past.
+- **The lift-off is a state, not a promise.** The moment the audit stops reporting the advisory,
+  `stale-acceptance` keeps the check red until the entry is deleted in the pull request that
+  patched the dependency. A dependency fix merged with its acceptance left behind cannot go
+  green, and the annotation names the file and the entry.
 - **The exception is visible in two places that cannot rot silently**: the committed file (a diff
   anyone can read) and the job summary of every green run (a line naming the acceptance).
 - **The mechanism could be abused by a future change.** The refusal of critical findings, of any
