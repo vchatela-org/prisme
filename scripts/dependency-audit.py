@@ -6,18 +6,28 @@
 #   ./scripts/dependency-audit.py --selftest  run the classifier's controls only
 #
 # `pnpm audit` asks registry.npmjs.org for the advisories covering this lockfile.
-# Three things can come back, and only two of them are findings:
+# Four things can come back, and only one of them is a clean green:
 #
 #   the database answered, nothing at or above the level      -> green
 #   the database answered, advisories at or above the level   -> red, with them
+#   the database answered, and every finding matches a live
+#     acceptance in .github/dependency-audit-allowlist.json   -> green, but a
+#                                                                distinct state,
+#                                                                loudly named
 #   the database did not answer, or answered unreadably       -> red, and it says
 #                                                                which of the two
 #
-# The third state is why this is a script rather than one line in the workflow.
-# `pnpm audit` exits 1 for both the second and the third, so a required check
-# that is red for "could not check" is indistinguishable in a pull request's
-# status list from one that is red for a vulnerability: a reviewer reads an npm
-# outage as a CVE, and [#31] spent a re-run cycle learning that on 2026-09-19.
+# The third state is the narrow exception of [ADR-0043]. It is not a waiver:
+# the finding is still printed with its id, expiry and reason, an expired or
+# unreadable entry turns the gate red, and a production or critical finding is
+# never accepted.
+#
+# The last state is why this is a script rather than one line in the workflow.
+# `pnpm audit` exits 1 for both a finding and a failure to read, so a required
+# check that is red for "could not check" is indistinguishable in a pull
+# request's status list from one that is red for a vulnerability: a reviewer
+# reads an npm outage as a CVE, and [#31] spent a re-run cycle learning that on
+# 2026-09-19.
 #
 # **The gate never passes without having actually checked.** That is the
 # non-negotiable recorded in `docs/20-decisions/OPEN.md` (OQ-10) and decided in
@@ -61,6 +71,8 @@ import re
 import subprocess
 import sys
 import time
+from datetime import date
+from pathlib import Path
 
 # Mirrors the level the workflow has always used. `moderate` rather than `high`:
 # this application holds API tokens to the owner's entire planning workspace
@@ -79,15 +91,33 @@ RETRY_DELAYS = (5, 15)  # between attempts, so only a real outage exhausts them
 # gate fails in a known number of minutes rather than hanging for the runner's.
 FETCH_TIMEOUT = 120
 
-# The three states. The names are what the job summary prints.
+# The four states. The names are what the job summary prints.
 CLEAN = "checked-clean"
 VULNERABLE = "vulnerable"
 UNCHECKED = "unchecked"
+ACCEPTED = "accepted"
 
-# Both exit non-zero: the merge gate cannot see the difference, and must not —
-# neither state is a green. `unchecked` gets its own code so that whatever *does*
-# read this script (a person, a shell, a future job) can tell them apart.
-EXIT_CODES = {CLEAN: 0, VULNERABLE: 1, UNCHECKED: 2}
+# The failures exit non-zero: the merge gate cannot see the difference, and must
+# not — neither state is a green. `unchecked` gets its own code so that whatever
+# *does* read this script (a person, a shell, a future job) can tell them apart.
+# `accepted` exits 0 like a clean read, but it is a different state and prints a
+# warning annotation: it means "read, and every finding is a named acceptance",
+# never "nothing was found" (ADR-0043).
+EXIT_CODES = {CLEAN: 0, VULNERABLE: 1, UNCHECKED: 2, ACCEPTED: 0}
+
+# The acceptances, reviewed like code. An entry names one advisory (GitHub's
+# advisory id plus the module), carries an expiry date, a reason and a tracking
+# URL, and is only honoured for a dev-only finding that is not critical. Missing
+# file -> no acceptances; unreadable, malformed, unbounded or incomplete ->
+# `unchecked`, i.e. red. Never a quiet green. See
+# [ADR-0043](../docs/20-decisions/0043-a-dev-only-advisory-can-be-accepted-until-its-patch-ships.md).
+ALLOWLIST_PATH = (
+    Path(__file__).resolve().parent.parent
+    / ".github"
+    / "dependency-audit-allowlist.json"
+)
+MAX_ALLOWLIST_ENTRIES = 10
+NEVER_ACCEPTABLE = ("critical",)
 
 # pnpm's own words when it could not get an answer out of the advisory endpoint.
 # Matched on the code *and* on the prose, because the two appear in different
@@ -112,12 +142,25 @@ def safe(value, limit=200):
 
 
 class Verdict:
-    def __init__(self, state, counts=None, advisories=None, evidence=None, total=None):
+    def __init__(
+        self,
+        state,
+        counts=None,
+        advisories=None,
+        evidence=None,
+        total=None,
+        accepted=None,
+        refusals=None,
+    ):
         self.state = state
         self.counts = counts or {}
         self.advisories = advisories or []
         self.evidence = evidence
         self.total = total
+        # `(entry, advisory)` pairs, kept so the log can name what was accepted.
+        self.accepted = accepted or []
+        # `(advisory, reason)` pairs for findings an entry named but refused.
+        self.refusals = refusals or []
 
     @property
     def exit_code(self):
@@ -163,20 +206,89 @@ def parse_report(stdout):
             item = raw[key]
             if not isinstance(item, dict):
                 continue
+            findings = item.get("findings")
+            # Only a finding that is entirely in the dev tree can be accepted.
+            # No findings array, or any non-dev path, means "not accept-able".
+            dev_only = (
+                isinstance(findings, list)
+                and len(findings) > 0
+                and all(
+                    isinstance(finding, dict) and finding.get("dev") is True
+                    for finding in findings
+                )
+            )
             advisories.append(
                 {
+                    "id": safe(item.get("github_advisory_id", ""), 60),
                     "module": safe(item.get("module_name", "?"), 80),
                     "severity": safe(item.get("severity", "?"), 20),
                     "title": safe(item.get("title", ""), 160),
                     "url": safe(item.get("url", ""), 200),
+                    "dev_only": dev_only,
                 }
             )
 
     return {"counts": clean, "total": total, "advisories": advisories}
 
 
-def classify(exit_code, stdout, stderr):
-    """(exit code, stdout, stderr) -> Verdict. Pure, and the whole of the gate.
+def parse_allowlist(text):
+    """The committed acceptances, or an error string. Pure.
+
+    `text` is the allowlist file's content, or None when there is no file (which
+    means no acceptances). Anything malformed returns an error, and `classify`
+    turns that into *unchecked*: an acceptance nobody can read must never become
+    a quiet green (ADR-0043).
+    """
+    if text is None:
+        return None, None
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return None, "the audit allowlist is not valid JSON"
+    if not isinstance(data, dict) or not isinstance(data.get("accepted"), list):
+        return None, "the audit allowlist has no `accepted` list"
+    if len(data["accepted"]) > MAX_ALLOWLIST_ENTRIES:
+        return None, f"the audit allowlist has more than {MAX_ALLOWLIST_ENTRIES} entries"
+
+    entries = []
+    for raw in data["accepted"]:
+        if not isinstance(raw, dict):
+            return None, "an audit allowlist entry is not an object"
+        entry = {}
+        for key in ("id", "module", "expires", "reason", "tracking"):
+            value = raw.get(key)
+            if not isinstance(value, str) or not value.strip():
+                return None, f"an audit allowlist entry is missing `{key}`"
+            entry[key] = value.strip()
+        try:
+            entry["expires"] = date.fromisoformat(entry["expires"])
+        except ValueError:
+            return None, "an audit allowlist entry has an `expires` that is not YYYY-MM-DD"
+        entries.append(entry)
+    return entries, None
+
+
+def acceptance(advisory, entries, today):
+    """The live acceptance matching this advisory, or the reason it is refused.
+
+    Returns `(entry, None)` when accepted and `(None, reason)` when refused for a
+    stated reason; `(None, None)` means no entry names this advisory.
+    """
+    for entry in entries:
+        if entry["id"] != advisory["id"] or entry["module"] != advisory["module"]:
+            continue
+        if entry["expires"] < today:
+            return None, f"{entry['id']} acceptance expired on {entry['expires'].isoformat()}"
+        if advisory["severity"] in NEVER_ACCEPTABLE:
+            return None, f"{entry['id']} is {advisory['severity']}, which is never accepted"
+        if not advisory["dev_only"]:
+            return None, f"{entry['id']} reaches a production dependency"
+        return entry, None
+    return None, None
+
+
+def classify(exit_code, stdout, stderr, allowlist_text=None, today=None):
+    """(exit code, stdout, stderr, allowlist) -> Verdict. Pure, and the gate.
 
     `exit_code` is None when the attempt had to be killed at FETCH_TIMEOUT.
 
@@ -211,12 +323,57 @@ def classify(exit_code, stdout, stderr):
 
     counted = list(LEVELS[LEVELS.index(AUDIT_LEVEL) :])
     at_or_above = {level: report["counts"][level] for level in counted}
-    if sum(at_or_above.values()) > 0:
+    finding_count = sum(at_or_above.values())
+    if finding_count > 0:
+        entries, allowlist_error = parse_allowlist(allowlist_text)
+        if allowlist_error:
+            return Verdict(UNCHECKED, evidence=allowlist_error)
+
+        named = [
+            advisory
+            for advisory in report["advisories"]
+            if advisory["severity"] in counted
+        ]
+        # One entry in the advisory map is not one dependency instance, but the
+        # counts and the named advisories come from the same reading. If they
+        # disagree, something counted is unnamed — and an unnamed finding cannot
+        # be accepted, so it keeps the gate red.
+        if len(named) != finding_count:
+            return Verdict(
+                VULNERABLE,
+                counts=at_or_above,
+                advisories=report["advisories"],
+                total=report["total"],
+                evidence="the report counts findings it does not name, so none can be accepted",
+            )
+
+        accepted, refused = [], []
+        for advisory in named:
+            entry, reason = acceptance(
+                advisory,
+                entries or [],
+                today if today is not None else date.today(),
+            )
+            if entry is not None:
+                accepted.append((entry, advisory))
+            else:
+                refused.append((advisory, reason))
+
+        if not refused:
+            return Verdict(
+                ACCEPTED,
+                counts=at_or_above,
+                advisories=report["advisories"],
+                total=report["total"],
+                accepted=accepted,
+            )
         return Verdict(
             VULNERABLE,
             counts=at_or_above,
             advisories=report["advisories"],
             total=report["total"],
+            accepted=accepted,
+            refusals=refused,
         )
 
     return Verdict(CLEAN, counts=at_or_above, total=report["total"])
@@ -271,18 +428,49 @@ def render(verdict):
         )
         lines.append("")
         lines.append("The advisory database answered. This is a real reading.")
+    elif verdict.state == ACCEPTED:
+        lines.append(
+            f"- counts at or above `{AUDIT_LEVEL}`: "
+            f"{', '.join(f'{k} {v}' for k, v in verdict.counts.items())}"
+        )
+        lines.append("")
+        lines.append("The advisory database answered. These findings are accepted:")
+        for entry, advisory in verdict.accepted:
+            lines.append(
+                f"- **{advisory['severity']}** `{advisory['module']}` — "
+                f"{safe(entry['id'], 60)}, accepted until "
+                f"{entry['expires'].isoformat()}: {safe(entry['reason'], 200)} "
+                f"Tracking: {safe(entry['tracking'], 200)}"
+            )
+        lines.append("")
+        lines.append(
+            "**Accepted is not clean.** The advisory is real; this gate would "
+            "still fail on any other finding. When the entry expires this check "
+            "goes red until the dependency is patched or the acceptance is "
+            "renewed on purpose (ADR-0043)."
+        )
     elif verdict.state == VULNERABLE:
         lines.append(
             f"- counts at or above `{AUDIT_LEVEL}`: "
             f"{', '.join(f'{k} {v}' for k, v in verdict.counts.items())}"
         )
         lines.append("")
+        if verdict.evidence:
+            lines.append(f"- {safe(verdict.evidence, 200)}")
+            lines.append("")
         if verdict.advisories:
+            refused = {
+                (advisory["id"], advisory["module"]): reason
+                for advisory, reason in verdict.refusals
+                if reason
+            }
             lines.append(f"{len(verdict.advisories)} advisory(ies) to read:")
             for advisory in verdict.advisories:
+                reason = refused.get((advisory["id"], advisory["module"]))
                 lines.append(
                     f"- **{advisory['severity']}** `{advisory['module']}` — "
                     f"{advisory['title']} {advisory['url']}"
+                    + (f" — *acceptance refused: {safe(reason, 160)}*" if reason else "")
                 )
         else:
             lines.append(
@@ -290,16 +478,34 @@ def render(verdict):
                 "shape this gate does not expect: treat the counts above as the "
                 "finding until the audit is read in full."
             )
+        if verdict.accepted:
+            lines.append("")
+            lines.append(
+                f"{len(verdict.accepted)} of those match a live acceptance and "
+                "are not what makes this red: "
+                + ", ".join(
+                    f"{safe(entry['id'], 60)} until {entry['expires'].isoformat()}"
+                    for entry, _ in verdict.accepted
+                )
+            )
     else:
         lines.append(f"- evidence: {verdict.evidence}")
         lines.append("")
-        lines.append(
-            "**This is not a vulnerability report.** The audit could not be "
-            "completed, so the gate has nothing to report on and fails closed "
-            "(ADR-0027). Re-run this job once the registry answers again — "
-            "do not push an empty commit, and do not reach for "
-            "`--ignore-registry-errors`, which reports this state as a pass."
-        )
+        if verdict.evidence and "allowlist" in verdict.evidence:
+            lines.append(
+                "**The gate failed closed on its own allowlist.** An acceptance "
+                "that cannot be read must never become a green, so this is "
+                "`unchecked`: red until the file is valid, complete and within "
+                "the entry cap (ADR-0043)."
+            )
+        else:
+            lines.append(
+                "**This is not a vulnerability report.** The audit could not be "
+                "completed, so the gate has nothing to report on and fails closed "
+                "(ADR-0027). Re-run this job once the registry answers again — "
+                "do not push an empty commit, and do not reach for "
+                "`--ignore-registry-errors`, which reports this state as a pass."
+            )
 
     return "\n".join(lines) + "\n"
 
@@ -318,12 +524,22 @@ def report(verdict):
         print(line)
     if verdict.state == CLEAN:
         print(f"::notice::dependency audit: {verdict.state}")
+    elif verdict.state == ACCEPTED:
+        named = ", ".join(
+            f"{safe(entry['id'], 60)} until {entry['expires'].isoformat()}"
+            for entry, _ in verdict.accepted
+        )
+        print(
+            f"::warning::dependency audit: accepted — {named}. These findings "
+            "are real; the gate is green only for the named acceptances "
+            "(ADR-0043)."
+        )
     elif verdict.state == VULNERABLE:
         print(f"::error::dependency audit: {verdict.state} — see the summary above")
     else:
         print(
-            "::error::dependency audit: unchecked — the advisory database was "
-            "not reached, so nothing was checked (ADR-0027)"
+            "::error::dependency audit: unchecked — nothing was checked, or the "
+            "audit allowlist could not be read (ADR-0027, ADR-0043)"
         )
 
 
@@ -378,6 +594,57 @@ VULNERABLE_REPORT = {
         "totalDependencies": 447,
     },
 }
+
+# Shaped like the real report that opened ADR-0043, with an invented advisory id
+# and one dev path. The shape (github_advisory_id, findings[].dev) is what the
+# acceptance matches on; the live run above checks it against npm's answer.
+DEV_ONLY_FINDING = {
+    "advisories": {
+        "1": {
+            "id": 1,
+            "github_advisory_id": "GHSA-fixture-0000-0000",
+            "module_name": "fixture-lib",
+            "severity": "high",
+            "title": "A dev-only finding (invented)",
+            "url": "https://example.invalid/advisories/GHSA-fixture-0000-0000",
+            "findings": [
+                {
+                    "version": "1.0.0",
+                    "paths": [".>vite>fixture-lib"],
+                    "dev": True,
+                    "optional": False,
+                    "bundled": False,
+                }
+            ],
+        }
+    },
+    "metadata": {
+        "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 1,
+            "critical": 0,
+        },
+        "totalDependencies": 447,
+    },
+}
+
+ACCEPTANCE_DAY = date(2026, 11, 18)
+
+
+def allowlist(entry_overrides=None, entries=None):
+    """An allowlist file's content, with an invented, still-live acceptance."""
+    entry = {
+        "id": "GHSA-fixture-0000-0000",
+        "module": "fixture-lib",
+        "expires": "2026-12-18",
+        "reason": "dev-only and unpatchable (invented)",
+        "tracking": "https://example.invalid/issues/194",
+    }
+    entry.update(entry_overrides or {})
+    return json.dumps({"accepted": entries if entries is not None else [entry]})
+
 
 # What `pnpm audit --ignore-registry-errors` prints against a registry that never
 # answered: a clean-looking report, real dependency counts, exit 0. Only stderr
@@ -499,6 +766,120 @@ def controls():
     ]
 
 
+# The acceptance, watched failing in both directions: it must let exactly the
+# named, live, dev-only, non-critical finding through, and must refuse everything
+# else — including a malformed allowlist, which fails closed as *unchecked*.
+def allowlist_controls():
+    """(name, expected state, expected code, allowlist text, report, today)."""
+    production = json.loads(json.dumps(DEV_ONLY_FINDING))
+    production["advisories"]["1"]["findings"][0]["dev"] = False
+
+    critical = json.loads(json.dumps(DEV_ONLY_FINDING))
+    critical["advisories"]["1"]["severity"] = "critical"
+    critical["metadata"]["vulnerabilities"]["high"] = 0
+    critical["metadata"]["vulnerabilities"]["critical"] = 1
+
+    unnamed = json.loads(json.dumps(DEV_ONLY_FINDING))
+    unnamed["metadata"]["vulnerabilities"]["high"] = 2
+
+    too_many = json.loads(allowlist())
+    too_many["accepted"] = too_many["accepted"] * (MAX_ALLOWLIST_ENTRIES + 1)
+
+    return [
+        (
+            "a live acceptance for a dev-only finding is accepted, not failed",
+            ACCEPTED,
+            EXIT_CODES[ACCEPTED],
+            allowlist(),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an expired acceptance is refused, and the gate is red",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist({"expires": "2026-11-17"}),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an acceptance for another advisory does not apply",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist({"id": "GHSA-other-0000-0000"}),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an acceptance for another module does not apply",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist({"module": "another-lib"}),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "a finding that reaches production is never accepted",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist(),
+            production,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "a critical finding is never accepted",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist(),
+            critical,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "a count the report does not name is never accepted",
+            VULNERABLE,
+            EXIT_CODES[VULNERABLE],
+            allowlist(),
+            unnamed,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an allowlist that is not JSON fails closed",
+            UNCHECKED,
+            EXIT_CODES[UNCHECKED],
+            "{not json",
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an entry without an expiry fails closed",
+            UNCHECKED,
+            EXIT_CODES[UNCHECKED],
+            json.dumps(
+                {
+                    "accepted": [
+                        {
+                            "id": "GHSA-fixture-0000-0000",
+                            "module": "fixture-lib",
+                            "reason": "invented",
+                            "tracking": "https://example.invalid/issues/194",
+                        }
+                    ]
+                }
+            ),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "an allowlist over the entry cap fails closed",
+            UNCHECKED,
+            EXIT_CODES[UNCHECKED],
+            json.dumps(too_many),
+            DEV_ONLY_FINDING,
+            ACCEPTANCE_DAY,
+        ),
+    ]
+
+
 # The gate prints third-party data (docs/14-threat-model.md §2 boundary ⑤), so
 # what it prints is a control of its own: a registry response must not be able to
 # leak a credential into a public log, and must not be able to rewrite the log it
@@ -543,6 +924,23 @@ def render_controls():
             ("sekrit",),
             ("//***@", "not readable as an audit report"),
         ),
+        (
+            "an accepted finding is named with its id and expiry, not hidden",
+            classify(
+                1,
+                json.dumps(DEV_ONLY_FINDING),
+                "",
+                allowlist_text=allowlist(),
+                today=ACCEPTANCE_DAY,
+            ),
+            (),
+            (
+                "accepted",
+                "GHSA-fixture-0000-0000",
+                "2026-12-18",
+                "Accepted is not clean",
+            ),
+        ),
     ]
 
 
@@ -559,6 +957,48 @@ def selftest():
             print(f"    expected {state} (exit {code})")
             failures += 1
         checked.append(verdict)
+
+    for name, state, code, text, report_data, today in allowlist_controls():
+        verdict = classify(
+            1,
+            json.dumps(report_data),
+            "",
+            allowlist_text=text,
+            today=today,
+        )
+        ok = verdict.state == state and verdict.exit_code == code
+        mark = "✓" if ok else "✗"
+        print(f"{mark} {name}: {verdict.state} (exit {verdict.exit_code})")
+        if not ok:
+            print(f"    expected {state} (exit {code})")
+            failures += 1
+        checked.append(verdict)
+
+    # The acceptance that is actually committed must be readable, complete and
+    # within the cap on every run — otherwise a malformed file would only show up
+    # the day a finding appears.
+    try:
+        committed = ALLOWLIST_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        committed = None
+        print("! no committed audit allowlist: every finding will fail the gate")
+    except OSError as exc:
+        committed = None
+        print(f"✗ the committed audit allowlist cannot be read: {type(exc).__name__}")
+        failures += 1
+    if committed is not None:
+        entries, error = parse_allowlist(committed)
+        if error:
+            print(f"✗ the committed audit allowlist is not usable: {error}")
+            failures += 1
+        else:
+            print(f"✓ the committed audit allowlist is usable "
+                  f"({len(entries or [])} entrie(s))")
+            for entry in entries or []:
+                if entry["expires"] < date.today():
+                    print(f"! the acceptance for {entry['id']} expired on "
+                          f"{entry['expires'].isoformat()}: the audit is red until "
+                          "it is renewed or the dependency is patched")
 
     for name, verdict, forbidden, required in render_controls():
         body = render(verdict)
@@ -618,11 +1058,18 @@ def main(argv):
     if "--selftest" in argv:
         return selftest()
 
+    try:
+        allowlist_text = ALLOWLIST_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        allowlist_text = None
+    # Any other OSError is left to fail the job: an allowlist that exists but
+    # cannot be read must not be mistaken for one that is not there.
+
     attempt = 0
     while True:
         attempt += 1
         exit_code, stdout, stderr = run_audit()
-        verdict = classify(exit_code, stdout, stderr)
+        verdict = classify(exit_code, stdout, stderr, allowlist_text=allowlist_text)
         print(f"dependency audit: attempt {attempt}/{ATTEMPTS} — {verdict.state}")
         if verdict.state != UNCHECKED or attempt >= ATTEMPTS:
             break

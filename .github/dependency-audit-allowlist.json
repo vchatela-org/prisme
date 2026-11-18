@@ -1,0 +1,12 @@
+{
+  "$comment": "Accepted advisories, reviewed like code (ADR-0043). Every entry needs an id (GitHub's advisory id), module, expires (YYYY-MM-DD, the last accepted day), reason and tracking URL. Only dev-only, non-critical findings can be accepted; an expired, malformed or incomplete entry turns the dependency audit red, and a count the report does not name is never accepted.",
+  "accepted": [
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "module": "picomatch",
+      "expires": "2026-12-18",
+      "reason": "ReDoS through single-branch repeated extglobs. Dev-only transitives (vite, vitest, typescript-eslint), absent from the published images; no patched release exists yet (first_patched_version is null).",
+      "tracking": "https://github.com/micromatch/picomatch/pull/194"
+    }
+  ]
+}
