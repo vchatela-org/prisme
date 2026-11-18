@@ -1,5 +1,5 @@
 {
-  "$comment": "Accepted advisories, reviewed like code (ADR-0043). Every entry needs an id (GitHub's advisory id), module, expires (YYYY-MM-DD, the last accepted day), reason and tracking URL. Only dev-only, non-critical findings can be accepted; an expired, malformed or incomplete entry turns the dependency audit red, and a count the report does not name is never accepted.",
+  "$comment": "Accepted advisories, reviewed like code (ADR-0043). Every entry needs an id (GitHub's advisory id), module, expires (YYYY-MM-DD, the last accepted day), reason and tracking URL. Only dev-only, non-critical findings can be accepted; an expired, malformed or incomplete entry turns the dependency audit red, and a count the report does not name is never accepted. LIFT-OFF IS ENFORCED: once the audit no longer reports an entry's advisory, the dependency audit goes red until that entry is deleted in the same pull request - the fix and its removal travel together.",
   "accepted": [
     {
       "id": "GHSA-fc5q-39xc-vjpf",
