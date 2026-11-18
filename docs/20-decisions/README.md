@@ -55,8 +55,9 @@ Open questions live in [`OPEN.md`](OPEN.md).
 | [0040](0040-completions-are-read-from-the-activity-log.md) | Read completions from the activity log, and keep the completion history beside it | **Accepted** 2026-10-29 — decided by the owner; a recurring task's occurrences are counted; no schema change |
 | [0041](0041-a-label-can-put-a-task-in-the-signals-lane.md) | A label can put a task in the Signals lane, wherever it sits | **Accepted** 2026-10-29 — decided by the owner; widens how 0014 places Signals; adds a row to [`11-ownership.md`](../11-ownership.md) §5 |
 | [0042](0042-the-document-tools-success-figure-is-shown-not-owned.md) | The document tool's success figure is read and shown, never owned | **Accepted** 2026-10-29 — the review's suggested fixes, display option; **open question for the owner** on whether an objective the document marks 100% is held past its window (ADR-0037 unchanged) · rows added to [`11-ownership.md`](../11-ownership.md) §6 |
+| [0043](0043-a-dev-only-advisory-can-be-accepted-until-its-patch-ships.md) | A dev-only advisory with no patch can be accepted, by name and until a date | **Accepted** 2026-11-18 — decided by the owner; keeps [0027](0027-audit-gate-fails-closed.md) binding; adds the `accepted` state and its fail-closed allowlist; first entry is `picomatch` GHSA-fc5q-39xc-vjpf until 2026-12-18 |
 
-**42 records: 41 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
+**43 records: 42 Accepted (six of them in part superseded: two by 0030, two by 0037, one by 0038, one by 0039) · 1 Superseded · 0 Proposed** — and **6 open questions** in [`OPEN.md`](OPEN.md).
 
 The counts are written down here as well as in [`STATUS.md`](../../STATUS.md) and in `OPEN.md` itself
 because those two disagreed on 2026-09-24 — *7 open* against eight questions in the file — and a
