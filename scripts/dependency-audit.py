@@ -6,7 +6,7 @@
 #   ./scripts/dependency-audit.py --selftest  run the classifier's controls only
 #
 # `pnpm audit` asks registry.npmjs.org for the advisories covering this lockfile.
-# Four things can come back, and only one of them is a clean green:
+# Five things can come back, and only one of them is a clean green:
 #
 #   the database answered, nothing at or above the level      -> green
 #   the database answered, advisories at or above the level   -> red, with them
@@ -14,13 +14,20 @@
 #     acceptance in .github/dependency-audit-allowlist.json   -> green, but a
 #                                                                distinct state,
 #                                                                loudly named
+#   the database answered, nothing found — and the allowlist
+#     still names an advisory it no longer reports            -> red: the
+#                                                                exception has
+#                                                                lifted, remove
+#                                                                the entry
 #   the database did not answer, or answered unreadably       -> red, and it says
 #                                                                which of the two
 #
 # The third state is the narrow exception of [ADR-0043]. It is not a waiver:
 # the finding is still printed with its id, expiry and reason, an expired or
 # unreadable entry turns the gate red, and a production or critical finding is
-# never accepted.
+# never accepted. The fourth is that exception's lift-off, and it is enforced
+# rather than remembered: the pull request that makes the advisory disappear
+# must also delete its entry.
 #
 # The last state is why this is a script rather than one line in the workflow.
 # `pnpm audit` exits 1 for both a finding and a failure to read, so a required
@@ -91,19 +98,22 @@ RETRY_DELAYS = (5, 15)  # between attempts, so only a real outage exhausts them
 # gate fails in a known number of minutes rather than hanging for the runner's.
 FETCH_TIMEOUT = 120
 
-# The four states. The names are what the job summary prints.
+# The five states. The names are what the job summary prints.
 CLEAN = "checked-clean"
 VULNERABLE = "vulnerable"
 UNCHECKED = "unchecked"
 ACCEPTED = "accepted"
+STALE = "stale-acceptance"
 
 # The failures exit non-zero: the merge gate cannot see the difference, and must
 # not — neither state is a green. `unchecked` gets its own code so that whatever
 # *does* read this script (a person, a shell, a future job) can tell them apart.
 # `accepted` exits 0 like a clean read, but it is a different state and prints a
 # warning annotation: it means "read, and every finding is a named acceptance",
-# never "nothing was found" (ADR-0043).
-EXIT_CODES = {CLEAN: 0, VULNERABLE: 1, UNCHECKED: 2, ACCEPTED: 0}
+# never "nothing was found". `stale-acceptance` is the lift-off: an entry that
+# names nothing the report still lists is a dead exception, and it is red
+# (ADR-0043).
+EXIT_CODES = {CLEAN: 0, VULNERABLE: 1, UNCHECKED: 2, ACCEPTED: 0, STALE: 1}
 
 # The acceptances, reviewed like code. An entry names one advisory (GitHub's
 # advisory id plus the module), carries an expiry date, a reason and a tracking
@@ -376,6 +386,28 @@ def classify(exit_code, stdout, stderr, allowlist_text=None, today=None):
             refusals=refused,
         )
 
+    # Nothing found. The allowlist must be empty too: an acceptance is a
+    # statement that a named finding is tolerated, and a statement with nothing
+    # to tolerate is a dead exception. Failing here makes the lift-off atomic —
+    # the pull request that patches the dependency also deletes the entry
+    # (ADR-0043).
+    entries, allowlist_error = parse_allowlist(allowlist_text)
+    if allowlist_error:
+        return Verdict(UNCHECKED, evidence=allowlist_error)
+    if entries:
+        named = ", ".join(
+            f"{entry['id']} ({entry['module']})" for entry in entries
+        )
+        return Verdict(
+            STALE,
+            counts=at_or_above,
+            total=report["total"],
+            evidence=(
+                "the audit allowlist still accepts "
+                f"{named}, which the report no longer lists"
+            ),
+        )
+
     return Verdict(CLEAN, counts=at_or_above, total=report["total"])
 
 
@@ -488,6 +520,18 @@ def render(verdict):
                     for entry, _ in verdict.accepted
                 )
             )
+    elif verdict.state == STALE:
+        lines.append(f"- dependencies in the lockfile: {verdict.total}")
+        lines.append(f"- advisories at or above `{AUDIT_LEVEL}`: 0")
+        lines.append("")
+        lines.append(f"- {safe(verdict.evidence, 200)}")
+        lines.append("")
+        lines.append(
+            "**The exception has lifted.** The audit no longer reports what the "
+            "allowlist accepts, so the entry is a dead exception. Delete it from "
+            "`.github/dependency-audit-allowlist.json` in this pull request; the "
+            "dependency fix and the lift-off travel together (ADR-0043)."
+        )
     else:
         lines.append(f"- evidence: {verdict.evidence}")
         lines.append("")
@@ -536,6 +580,13 @@ def report(verdict):
         )
     elif verdict.state == VULNERABLE:
         print(f"::error::dependency audit: {verdict.state} — see the summary above")
+    elif verdict.state == STALE:
+        print(
+            "::error::dependency audit: stale-acceptance — the allowlist accepts "
+            "an advisory the audit no longer reports. Delete the entry in "
+            ".github/dependency-audit-allowlist.json in this pull request "
+            "(ADR-0043)."
+        )
     else:
         print(
             "::error::dependency audit: unchecked — nothing was checked, or the "
@@ -877,6 +928,33 @@ def allowlist_controls():
             DEV_ONLY_FINDING,
             ACCEPTANCE_DAY,
         ),
+        # The lift-off. `pnpm audit` exits 0 on a clean tree, and an acceptance
+        # that still names something is a dead exception: the fix and its
+        # deletion must travel together (ADR-0043).
+        (
+            "a clean audit with a stale acceptance fails, so the fix must lift it",
+            STALE,
+            EXIT_CODES[STALE],
+            allowlist(),
+            CLEAN_REPORT,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "a malformed allowlist fails closed even on a clean audit",
+            UNCHECKED,
+            EXIT_CODES[UNCHECKED],
+            "{not json",
+            CLEAN_REPORT,
+            ACCEPTANCE_DAY,
+        ),
+        (
+            "a clean audit with no allowlist entry is clean",
+            CLEAN,
+            EXIT_CODES[CLEAN],
+            None,
+            CLEAN_REPORT,
+            ACCEPTANCE_DAY,
+        ),
     ]
 
 
@@ -939,6 +1017,24 @@ def render_controls():
                 "GHSA-fixture-0000-0000",
                 "2026-12-18",
                 "Accepted is not clean",
+            ),
+        ),
+        (
+            "a stale acceptance names the entry and says to delete it",
+            classify(
+                0,
+                json.dumps(CLEAN_REPORT),
+                "",
+                allowlist_text=allowlist(),
+                today=ACCEPTANCE_DAY,
+            ),
+            (),
+            (
+                "stale-acceptance",
+                "GHSA-fixture-0000-0000",
+                "fixture-lib",
+                "Delete it",
+                "exception has lifted",
             ),
         ),
     ]
