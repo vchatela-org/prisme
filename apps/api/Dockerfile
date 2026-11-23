@@ -89,7 +89,7 @@ RUN PNPM_CONFIG_ALLOW_UNUSED_PATCHES=true pnpm deploy --filter @prisme/api --pro
 # different major than the one the code was compiled and type-checked against is
 # a difference nothing in CI would catch.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:33c86a63859efc2ebd88ea0a355863582ec6f1220d048de62baffb2584e709b3 AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ffa8a7545403036c94ec76674b5dbac2d425af2d679147cdf3e30180071487b7 AS runtime
 
 WORKDIR /app
 
