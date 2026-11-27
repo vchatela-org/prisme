@@ -85,11 +85,16 @@ RUN PNPM_CONFIG_ALLOW_UNUSED_PATCHES=true pnpm deploy --filter @prisme/api --pro
 # flags fixed HIGH/CRITICAL CVEs in it. This one has none. Pinned by digest, and
 # Dependabot watches it.
 #
+# Digest refreshed 2026-11-26: the previous one shipped libzstd1 1.5.7+dfsg-1,
+# which Trivy reports as CVE-2026-124851 (HIGH, fixed in 1.5.7+dfsg-1+deb13u1).
+# A newer build of the same tag has it. The tag itself is what Dependabot tracks,
+# so the digest below is only ever the tag's current index.
+#
 # nodejs26 to match the builder's major version (ADR-0023). A runtime on a
 # different major than the one the code was compiled and type-checked against is
 # a difference nothing in CI would catch.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ffa8a7545403036c94ec76674b5dbac2d425af2d679147cdf3e30180071487b7 AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:a84242e747fbb5aaaa0180c273b6f7130ca34b3300082192ef58eea96089eb3c AS runtime
 
 WORKDIR /app
 
